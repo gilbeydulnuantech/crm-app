@@ -1,0 +1,255 @@
+{
+  "name": "Reports CRUD",
+  "nodes": [
+    {
+      "parameters": { "httpMethod": "GET", "path": "get-report-overview", "responseMode": "responseNode", "options": {} },
+      "id": "wh-overview", "name": "Webhook: get-report-overview", "type": "n8n-nodes-base.webhook", "typeVersion": 2, "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT json_build_object('total_contacts', (SELECT COUNT(*) FROM contacts WHERE is_archived = false), 'total_companies', (SELECT COUNT(*) FROM companies WHERE is_archived = false), 'open_deals', (SELECT COUNT(*) FROM opportunities WHERE status = 'Open'), 'won_this_month', (SELECT COUNT(*) FROM opportunities WHERE status = 'Won' AND date_trunc('month', closed_at) = date_trunc('month', now())), 'total_revenue', (SELECT COALESCE(SUM(deal_value), 0) FROM opportunities WHERE status = 'Won'), 'revenue_trend', (SELECT COALESCE(json_agg(json_build_object('snapshot_date', snapshot_date, 'value', value) ORDER BY snapshot_date), '[]'::json) FROM report_snapshots WHERE metric = 'total_revenue' AND scope = 'company' AND snapshot_date >= (now() - ($1 || ' days')::interval))) AS result;",
+        "options": { "queryReplacement": "={{ [$json.query.days || '30'] }}" }
+      },
+      "id": "pg-overview", "name": "Postgres: Overview Aggregate", "type": "n8n-nodes-base.postgres", "typeVersion": 2.5, "position": [220, 0],
+      "credentials": { "postgres": { "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID", "name": "Postgres CRM DB" } }
+    },
+    {
+      "parameters": {
+        "respondWith": "json", "responseBody": "={{ $json.result }}",
+        "options": { "responseHeaders": { "entries": [
+          { "name": "Access-Control-Allow-Origin", "value": "*" },
+          { "name": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+          { "name": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, ngrok-skip-browser-warning" }
+        ] } }
+      },
+      "id": "resp-overview", "name": "Respond: get-report-overview", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1.1, "position": [440, 0]
+    },
+
+    {
+      "parameters": { "httpMethod": "GET", "path": "get-report-sales", "responseMode": "responseNode", "options": {} },
+      "id": "wh-sales", "name": "Webhook: get-report-sales", "type": "n8n-nodes-base.webhook", "typeVersion": 2, "position": [0, 220]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT json_build_object('won_count', (SELECT COUNT(*) FROM opportunities WHERE status='Won' AND closed_at >= now() - ($1||' days')::interval), 'lost_count', (SELECT COUNT(*) FROM opportunities WHERE status='Lost' AND closed_at >= now() - ($1||' days')::interval), 'win_rate', (SELECT CASE WHEN (won+lost) = 0 THEN 0 ELSE (won::numeric / (won+lost) * 100) END FROM (SELECT COUNT(*) FILTER (WHERE status='Won') AS won, COUNT(*) FILTER (WHERE status='Lost') AS lost FROM opportunities WHERE closed_at >= now() - ($1||' days')::interval) t), 'won_value', (SELECT COALESCE(SUM(deal_value),0) FROM opportunities WHERE status='Won' AND closed_at >= now() - ($1||' days')::interval), 'lost_value', (SELECT COALESCE(SUM(deal_value),0) FROM opportunities WHERE status='Lost' AND closed_at >= now() - ($1||' days')::interval), 'revenue_by_rep', (SELECT COALESCE(json_agg(json_build_object('user_id', u.id, 'name', u.name, 'revenue', s.revenue) ORDER BY s.revenue DESC), '[]'::json) FROM (SELECT assigned_user, COALESCE(SUM(deal_value),0) AS revenue FROM opportunities WHERE status='Won' AND closed_at >= now() - ($1||' days')::interval GROUP BY assigned_user) s JOIN users u ON u.id = s.assigned_user)) AS result;",
+        "options": { "queryReplacement": "={{ [$json.query.days || '30'] }}" }
+      },
+      "id": "pg-sales", "name": "Postgres: Sales Aggregate", "type": "n8n-nodes-base.postgres", "typeVersion": 2.5, "position": [220, 220],
+      "credentials": { "postgres": { "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID", "name": "Postgres CRM DB" } }
+    },
+    {
+      "parameters": {
+        "respondWith": "json", "responseBody": "={{ $json.result }}",
+        "options": { "responseHeaders": { "entries": [
+          { "name": "Access-Control-Allow-Origin", "value": "*" },
+          { "name": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+          { "name": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, ngrok-skip-browser-warning" }
+        ] } }
+      },
+      "id": "resp-sales", "name": "Respond: get-report-sales", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1.1, "position": [440, 220]
+    },
+
+    {
+      "parameters": { "httpMethod": "GET", "path": "get-report-pipeline", "responseMode": "responseNode", "options": {} },
+      "id": "wh-pipeline", "name": "Webhook: get-report-pipeline", "type": "n8n-nodes-base.webhook", "typeVersion": 2, "position": [0, 440]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT json_build_object('by_stage', (SELECT COALESCE(json_agg(json_build_object('stage_id', st.id, 'stage_name', st.name, 'count', COALESCE(o.cnt,0), 'value', COALESCE(o.val,0)) ORDER BY st.display_order), '[]'::json) FROM stages st LEFT JOIN (SELECT stage_id, COUNT(*) AS cnt, SUM(deal_value) AS val FROM opportunities WHERE status='Open' GROUP BY stage_id) o ON o.stage_id = st.id), 'avg_deal_value', (SELECT COALESCE(AVG(deal_value),0) FROM opportunities WHERE status='Open'), 'avg_days_to_close', (SELECT AVG(EXTRACT(EPOCH FROM (closed_at - created_at))/86400) FROM opportunities WHERE status='Won')) AS result;",
+        "options": {}
+      },
+      "id": "pg-pipeline", "name": "Postgres: Pipeline Aggregate", "type": "n8n-nodes-base.postgres", "typeVersion": 2.5, "position": [220, 440],
+      "credentials": { "postgres": { "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID", "name": "Postgres CRM DB" } }
+    },
+    {
+      "parameters": {
+        "respondWith": "json", "responseBody": "={{ $json.result }}",
+        "options": { "responseHeaders": { "entries": [
+          { "name": "Access-Control-Allow-Origin", "value": "*" },
+          { "name": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+          { "name": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, ngrok-skip-browser-warning" }
+        ] } }
+      },
+      "id": "resp-pipeline", "name": "Respond: get-report-pipeline", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1.1, "position": [440, 440]
+    },
+
+    {
+      "parameters": { "httpMethod": "GET", "path": "get-report-contacts", "responseMode": "responseNode", "options": {} },
+      "id": "wh-contacts", "name": "Webhook: get-report-contacts", "type": "n8n-nodes-base.webhook", "typeVersion": 2, "position": [0, 660]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT json_build_object('total', (SELECT COUNT(*) FROM contacts WHERE is_archived=false), 'new_trend', (SELECT COALESCE(json_agg(json_build_object('snapshot_date', snapshot_date, 'value', value) ORDER BY snapshot_date), '[]'::json) FROM report_snapshots WHERE metric='new_contacts' AND scope='company' AND snapshot_date >= (now() - ($1||' days')::interval)), 'by_status', (SELECT COALESCE(json_agg(json_build_object('lead_status', lead_status, 'count', cnt)), '[]'::json) FROM (SELECT lead_status, COUNT(*) AS cnt FROM contacts WHERE is_archived=false GROUP BY lead_status) s), 'by_source', (SELECT COALESCE(json_agg(json_build_object('lead_source', lead_source, 'count', cnt)), '[]'::json) FROM (SELECT lead_source, COUNT(*) AS cnt FROM contacts WHERE is_archived=false GROUP BY lead_source) s)) AS result;",
+        "options": { "queryReplacement": "={{ [$json.query.days || '30'] }}" }
+      },
+      "id": "pg-contacts", "name": "Postgres: Contacts Aggregate", "type": "n8n-nodes-base.postgres", "typeVersion": 2.5, "position": [220, 660],
+      "credentials": { "postgres": { "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID", "name": "Postgres CRM DB" } }
+    },
+    {
+      "parameters": {
+        "respondWith": "json", "responseBody": "={{ $json.result }}",
+        "options": { "responseHeaders": { "entries": [
+          { "name": "Access-Control-Allow-Origin", "value": "*" },
+          { "name": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+          { "name": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, ngrok-skip-browser-warning" }
+        ] } }
+      },
+      "id": "resp-contacts", "name": "Respond: get-report-contacts", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1.1, "position": [440, 660]
+    },
+
+    {
+      "parameters": { "httpMethod": "GET", "path": "get-report-team", "responseMode": "responseNode", "options": {} },
+      "id": "wh-team", "name": "Webhook: get-report-team", "type": "n8n-nodes-base.webhook", "typeVersion": 2, "position": [0, 880]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT u.id AS user_id, u.name, COALESCE(od.cnt,0) AS open_deals, COALESCE(wd.cnt,0) AS won_deals, COALESCE(wd.revenue,0) AS revenue, COALESCE(tc.cnt,0) AS tasks_completed, COALESCE(co.cnt,0) AS contacts_owned FROM users u LEFT JOIN (SELECT assigned_user, COUNT(*) AS cnt FROM opportunities WHERE status='Open' GROUP BY assigned_user) od ON od.assigned_user = u.id LEFT JOIN (SELECT assigned_user, COUNT(*) AS cnt, SUM(deal_value) AS revenue FROM opportunities WHERE status='Won' AND closed_at >= now() - ($1||' days')::interval GROUP BY assigned_user) wd ON wd.assigned_user = u.id LEFT JOIN (SELECT user_id, COUNT(*) AS cnt FROM activities WHERE type='task' AND is_completed=true AND completed_at >= now() - ($1||' days')::interval GROUP BY user_id) tc ON tc.user_id = u.id LEFT JOIN (SELECT owner_id, COUNT(*) AS cnt FROM contacts WHERE is_archived=false GROUP BY owner_id) co ON co.owner_id = u.id WHERE u.active = true ORDER BY u.name;",
+        "options": { "queryReplacement": "={{ [$json.query.days || '30'] }}" }
+      },
+      "id": "pg-team", "name": "Postgres: Team Report", "type": "n8n-nodes-base.postgres", "typeVersion": 2.5, "position": [220, 880],
+      "credentials": { "postgres": { "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID", "name": "Postgres CRM DB" } }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": { "responseHeaders": { "entries": [
+          { "name": "Access-Control-Allow-Origin", "value": "*" },
+          { "name": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+          { "name": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, ngrok-skip-browser-warning" }
+        ] } }
+      },
+      "id": "resp-team", "name": "Respond: get-report-team", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1.1, "position": [440, 880],
+      "notes": "IMPORTANT: this endpoint returns every rep's revenue/deal data with no role check. The React UI hides the Team tab from non-admins, but the webhook itself will answer anyone who calls it directly. Same server-side-enforcement gap flagged throughout this README."
+    },
+
+    {
+      "parameters": { "httpMethod": "GET", "path": "get-report-activities", "responseMode": "responseNode", "options": {} },
+      "id": "wh-activities", "name": "Webhook: get-report-activities", "type": "n8n-nodes-base.webhook", "typeVersion": 2, "position": [0, 1100]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT json_build_object('by_type', (SELECT COALESCE(json_agg(json_build_object('type', type, 'count', cnt)), '[]'::json) FROM (SELECT type, COUNT(*) AS cnt FROM activities WHERE created_at >= now() - ($1||' days')::interval GROUP BY type) s), 'completed_vs_open', json_build_object('completed', (SELECT COUNT(*) FROM activities WHERE is_completed=true AND created_at >= now() - ($1||' days')::interval), 'open', (SELECT COUNT(*) FROM activities WHERE is_completed=false AND created_at >= now() - ($1||' days')::interval)), 'trend', (SELECT COALESCE(json_agg(json_build_object('snapshot_date', snapshot_date, 'value', value) ORDER BY snapshot_date), '[]'::json) FROM report_snapshots WHERE metric='activity_volume' AND scope='company' AND snapshot_date >= (now() - ($1||' days')::interval))) AS result;",
+        "options": { "queryReplacement": "={{ [$json.query.days || '30'] }}" }
+      },
+      "id": "pg-activities", "name": "Postgres: Activities Aggregate", "type": "n8n-nodes-base.postgres", "typeVersion": 2.5, "position": [220, 1100],
+      "credentials": { "postgres": { "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID", "name": "Postgres CRM DB" } }
+    },
+    {
+      "parameters": {
+        "respondWith": "json", "responseBody": "={{ $json.result }}",
+        "options": { "responseHeaders": { "entries": [
+          { "name": "Access-Control-Allow-Origin", "value": "*" },
+          { "name": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+          { "name": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, ngrok-skip-browser-warning" }
+        ] } }
+      },
+      "id": "resp-activities", "name": "Respond: get-report-activities", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1.1, "position": [440, 1100]
+    },
+
+    {
+      "parameters": { "httpMethod": "OPTIONS", "path": "get-report-overview", "responseMode": "responseNode", "options": {} },
+      "id": "wh-opt-overview", "name": "Webhook OPTIONS: overview", "type": "n8n-nodes-base.webhook", "typeVersion": 2, "position": [0, 1340]
+    },
+    {
+      "parameters": { "respondWith": "noData", "options": { "responseCode": 204, "responseHeaders": { "entries": [
+        { "name": "Access-Control-Allow-Origin", "value": "*" },
+        { "name": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+        { "name": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, ngrok-skip-browser-warning" }
+      ] } } },
+      "id": "resp-opt-overview", "name": "Respond OPTIONS: overview", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1.1, "position": [220, 1340]
+    },
+
+    {
+      "parameters": { "httpMethod": "OPTIONS", "path": "get-report-sales", "responseMode": "responseNode", "options": {} },
+      "id": "wh-opt-sales", "name": "Webhook OPTIONS: sales", "type": "n8n-nodes-base.webhook", "typeVersion": 2, "position": [0, 1460]
+    },
+    {
+      "parameters": { "respondWith": "noData", "options": { "responseCode": 204, "responseHeaders": { "entries": [
+        { "name": "Access-Control-Allow-Origin", "value": "*" },
+        { "name": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+        { "name": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, ngrok-skip-browser-warning" }
+      ] } } },
+      "id": "resp-opt-sales", "name": "Respond OPTIONS: sales", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1.1, "position": [220, 1460]
+    },
+
+    {
+      "parameters": { "httpMethod": "OPTIONS", "path": "get-report-pipeline", "responseMode": "responseNode", "options": {} },
+      "id": "wh-opt-pipeline", "name": "Webhook OPTIONS: pipeline", "type": "n8n-nodes-base.webhook", "typeVersion": 2, "position": [0, 1580]
+    },
+    {
+      "parameters": { "respondWith": "noData", "options": { "responseCode": 204, "responseHeaders": { "entries": [
+        { "name": "Access-Control-Allow-Origin", "value": "*" },
+        { "name": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+        { "name": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, ngrok-skip-browser-warning" }
+      ] } } },
+      "id": "resp-opt-pipeline", "name": "Respond OPTIONS: pipeline", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1.1, "position": [220, 1580]
+    },
+
+    {
+      "parameters": { "httpMethod": "OPTIONS", "path": "get-report-contacts", "responseMode": "responseNode", "options": {} },
+      "id": "wh-opt-contacts", "name": "Webhook OPTIONS: contacts", "type": "n8n-nodes-base.webhook", "typeVersion": 2, "position": [0, 1700]
+    },
+    {
+      "parameters": { "respondWith": "noData", "options": { "responseCode": 204, "responseHeaders": { "entries": [
+        { "name": "Access-Control-Allow-Origin", "value": "*" },
+        { "name": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+        { "name": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, ngrok-skip-browser-warning" }
+      ] } } },
+      "id": "resp-opt-contacts", "name": "Respond OPTIONS: contacts", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1.1, "position": [220, 1700]
+    },
+
+    {
+      "parameters": { "httpMethod": "OPTIONS", "path": "get-report-team", "responseMode": "responseNode", "options": {} },
+      "id": "wh-opt-team", "name": "Webhook OPTIONS: team", "type": "n8n-nodes-base.webhook", "typeVersion": 2, "position": [0, 1820]
+    },
+    {
+      "parameters": { "respondWith": "noData", "options": { "responseCode": 204, "responseHeaders": { "entries": [
+        { "name": "Access-Control-Allow-Origin", "value": "*" },
+        { "name": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+        { "name": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, ngrok-skip-browser-warning" }
+      ] } } },
+      "id": "resp-opt-team", "name": "Respond OPTIONS: team", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1.1, "position": [220, 1820]
+    },
+
+    {
+      "parameters": { "httpMethod": "OPTIONS", "path": "get-report-activities", "responseMode": "responseNode", "options": {} },
+      "id": "wh-opt-activities", "name": "Webhook OPTIONS: activities", "type": "n8n-nodes-base.webhook", "typeVersion": 2, "position": [0, 1940]
+    },
+    {
+      "parameters": { "respondWith": "noData", "options": { "responseCode": 204, "responseHeaders": { "entries": [
+        { "name": "Access-Control-Allow-Origin", "value": "*" },
+        { "name": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+        { "name": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, ngrok-skip-browser-warning" }
+      ] } } },
+      "id": "resp-opt-activities", "name": "Respond OPTIONS: activities", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1.1, "position": [220, 1940]
+    }
+  ],
+  "connections": {
+    "Webhook: get-report-overview": { "main": [[{ "node": "Postgres: Overview Aggregate", "type": "main", "index": 0 }]] },
+    "Postgres: Overview Aggregate": { "main": [[{ "node": "Respond: get-report-overview", "type": "main", "index": 0 }]] },
+    "Webhook: get-report-sales": { "main": [[{ "node": "Postgres: Sales Aggregate", "type": "main", "index": 0 }]] },
+    "Postgres: Sales Aggregate": { "main": [[{ "node": "Respond: get-report-sales", "type": "main", "index": 0 }]] },
+    "Webhook: get-report-pipeline": { "main": [[{ "node": "Postgres: Pipeline Aggregate", "type": "main", "index": 0 }]] },
+    "Postgres: Pipeline Aggregate": { "main": [[{ "node": "Respond: get-report-pipeline", "type": "main", "index": 0 }]] },
+    "Webhook: get-report-contacts": { "main": [[{ "node": "Postgres: Contacts Aggregate", "type": "main", "index": 0 }]] },
+    "Postgres: Contacts Aggregate": { "main": [[{ "node": "Respond: get-report-contacts", "type": "main", "index": 0 }]] },
+    "Webhook: get-report-team": { "main": [[{ "node": "Postgres: Team Report", "type": "main", "index": 0 }]] },
+    "Postgres: Team Report": { "main": [[{ "node": "Respond: get-report-team", "type": "main", "index": 0 }]] },
+    "Webhook: get-report-activities": { "main": [[{ "node": "Postgres: Activities Aggregate", "type": "main", "index": 0 }]] },
+    "Postgres: Activities Aggregate": { "main": [[{ "node": "Respond: get-report-activities", "type": "main", "index": 0 }]] },
+    "Webhook OPTIONS: overview": { "main": [[{ "node": "Respond OPTIONS: overview", "type": "main", "index": 0 }]] },
+    "Webhook OPTIONS: sales": { "main": [[{ "node": "Respond OPTIONS: sales", "type": "main", "index": 0 }]] },
+    "Webhook OPTIONS: pipeline": { "main": [[{ "node": "Respond OPTIONS: pipeline", "type": "main", "index": 0 }]] },
+    "Webhook OPTIONS: contacts": { "main": [[{ "node": "Respond OPTIONS: contacts", "type": "main", "index": 0 }]] },
+    "Webhook OPTIONS: team": { "main": [[{ "node": "Respond OPTIONS: team", "type": "main", "index": 0 }]] },
+    "Webhook OPTIONS: activities": { "main": [[{ "node": "Respond OPTIONS: activities", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" }
+}

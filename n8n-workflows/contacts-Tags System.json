@@ -1,0 +1,767 @@
+{
+  "name": "contacts-Tags System",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "get-tags",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "0a2783ef-eafa-4a9a-8480-3b0ae827a433",
+      "name": "Webhook - Get Tags",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        1216,
+        2000
+      ],
+      "webhookId": "02089283-b6b6-40ac-83f2-f7d8d0c2180e"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name FROM tags ORDER BY name ASC;",
+        "options": {}
+      },
+      "id": "b4a7b712-b3d2-4fde-a1d9-05be679c694a",
+      "name": "Select All Tags",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1440,
+        2000
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().filter(item => item.json.id).map(item => item.json) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "5f27e307-ebca-45ad-9955-671ecb53701d",
+      "name": "Respond - Get Tags",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.2,
+      "position": [
+        1664,
+        2000
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "create-tag",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "346bf96e-62d5-4719-aeac-ee8ddac46eaa",
+      "name": "Webhook - Create Tag",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        1216,
+        2192
+      ],
+      "webhookId": "61630b92-171f-446d-a1ce-b7c094810c0b"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body ?? $input.first().json;\nconst name = (body.name || '').trim();\n\nif (!name) {\n  throw new Error('Tag \"name\" is required.');\n}\nif (name.length > 50) {\n  throw new Error('Tag name must be 50 characters or fewer.');\n}\n\nreturn [{ json: { name } }];"
+      },
+      "id": "a0c6ad8f-d22b-4d37-bad2-a38fa6a4af44",
+      "name": "Validate Tag Name",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        2192
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO tags (name)\nVALUES ($1)\nON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name\nRETURNING id, name;",
+        "options": {
+          "queryReplacement": "={{ [ $json.name ] }}"
+        }
+      },
+      "id": "f9b59497-6e12-4e8c-aee9-9b5a5c43f48f",
+      "name": "Insert Or Get Tag",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1664,
+        2192
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "8504ced2-bb59-4466-91a0-17a0c58af1c3",
+      "name": "Respond - Create Tag",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.2,
+      "position": [
+        1888,
+        2192
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "tag-entity",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "10052f3e-dc57-47e7-aa26-4fc29ad33ac1",
+      "name": "Webhook - Tag Entity",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        1216,
+        2368
+      ],
+      "webhookId": "47c6bf36-9059-49d2-86d8-4d516ab9df8f"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body ?? $input.first().json;\nconst tagId = parseInt(body.tag_id, 10);\nconst entityType = (body.entity_type || '').trim();\nconst entityId = parseInt(body.entity_id, 10);\n\nconst allowedTypes = ['contact', 'deal', 'company'];\n\nif (!Number.isInteger(tagId)) {\n  throw new Error('\"tag_id\" must be an integer.');\n}\nif (!allowedTypes.includes(entityType)) {\n  throw new Error(`\"entity_type\" must be one of: ${allowedTypes.join(', ')}`);\n}\nif (!Number.isInteger(entityId)) {\n  throw new Error('\"entity_id\" must be an integer.');\n}\n\nreturn [{ json: { tag_id: tagId, entity_type: entityType, entity_id: entityId } }];"
+      },
+      "id": "5d7b3454-e237-4729-b260-0520582ef61c",
+      "name": "Validate Tag-Entity",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        2368
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO taggables (tag_id, entity_type, entity_id)\nVALUES ($1, $2, $3)\nON CONFLICT (tag_id, entity_type, entity_id) DO NOTHING\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.tag_id, $json.entity_type, $json.entity_id ] }}"
+        }
+      },
+      "id": "fd15bc26-1b10-4c15-b77c-b5d69be777df",
+      "name": "Insert Taggable",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1664,
+        2368
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "b4c03de4-18f1-448e-bbc9-cb3a78268808",
+      "name": "Respond - Tag Entity",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.2,
+      "position": [
+        1888,
+        2368
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "untag-entity",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "2f85a765-5709-4df2-9172-d44ebf717558",
+      "name": "Webhook - Untag Entity",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        1216,
+        2544
+      ],
+      "webhookId": "60ae2458-5db1-4d88-aa5b-54aa7a3efb96"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body ?? $input.first().json;\nconst tagId = parseInt(body.tag_id, 10);\nconst entityType = (body.entity_type || '').trim();\nconst entityId = parseInt(body.entity_id, 10);\n\nconst allowedTypes = ['contact', 'deal', 'company'];\n\nif (!Number.isInteger(tagId)) {\n  throw new Error('\"tag_id\" must be an integer.');\n}\nif (!allowedTypes.includes(entityType)) {\n  throw new Error(`\"entity_type\" must be one of: ${allowedTypes.join(', ')}`);\n}\nif (!Number.isInteger(entityId)) {\n  throw new Error('\"entity_id\" must be an integer.');\n}\n\nreturn [{ json: { tag_id: tagId, entity_type: entityType, entity_id: entityId } }];"
+      },
+      "id": "88f0150e-11a1-449b-b700-c87256f26bac",
+      "name": "Validate Untag",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        2544
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM taggables\nWHERE tag_id = $1 AND entity_type = $2 AND entity_id = $3;",
+        "options": {
+          "queryReplacement": "={{ [ $json.tag_id, $json.entity_type, $json.entity_id ] }}"
+        }
+      },
+      "id": "3ea06b5b-9433-4b57-9f34-03a1ec31693a",
+      "name": "Delete Taggable",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1664,
+        2544
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "2c9517fe-49dd-4baa-b2a4-bb1d21249047",
+      "name": "Respond - Untag Entity",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.2,
+      "position": [
+        1888,
+        2544
+      ]
+    },
+    {
+      "parameters": {
+        "path": "get-entity-tags",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "7dd79ebe-2139-4a44-8a95-4621a08d1965",
+      "name": "Webhook - Get Entity Tags",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        1216,
+        2720
+      ],
+      "webhookId": "02656389-d63e-4062-b373-2b48607a20d9"
+    },
+    {
+      "parameters": {
+        "jsCode": "const query = $input.first().json.query ?? {};\nconst entityType = (query.entity_type || '').trim();\nconst entityId = parseInt(query.entity_id, 10);\n\nconst allowedTypes = ['contact', 'deal', 'company'];\n\nif (!allowedTypes.includes(entityType)) {\n  throw new Error(`\"entity_type\" query param must be one of: ${allowedTypes.join(', ')}`);\n}\nif (!Number.isInteger(entityId)) {\n  throw new Error('\"entity_id\" query param must be an integer.');\n}\n\nreturn [{ json: { entity_type: entityType, entity_id: entityId } }];"
+      },
+      "id": "07471d15-90a9-4cdb-94fe-1282131387a3",
+      "name": "Validate Query Params",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        2720
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT t.id, t.name\nFROM tags t\nJOIN taggables tg ON tg.tag_id = t.id\nWHERE tg.entity_type = $1 AND tg.entity_id = $2\nORDER BY t.name ASC;",
+        "options": {
+          "queryReplacement": "={{ [ $json.entity_type, $json.entity_id ] }}"
+        }
+      },
+      "id": "889d8d94-7b0b-42b6-92e7-22a763915f68",
+      "name": "Select Entity Tags",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1664,
+        2720
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().filter(item => item.json.id).map(item => item.json) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "e1892df1-b888-44ab-983b-ad4055fe70c3",
+      "name": "Respond - Get Entity Tags",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.2,
+      "position": [
+        1888,
+        2720
+      ]
+    },
+    {
+      "parameters": {
+        "path": "filter-contacts-by-tag",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "6a0324c3-18cd-4ba8-a35f-7c9ced95456b",
+      "name": "Webhook - Filter Contacts By Tag",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        1216,
+        2912
+      ],
+      "webhookId": "2d4503d5-8c37-46aa-808a-e170ca2f8a9d"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst requesterId = parseInt(match[1], 10);\n\nconst query = $input.first().json.query ?? {};\nconst tagName = (query.tag_name || '').trim();\nif (!tagName) throw new Error('\"tag_name\" query param is required.');\n\nreturn [{ json: { requesterId, tagName } }];"
+      },
+      "id": "6343f21f-cbf8-4a2a-bc69-c4bb843ab3ad",
+      "name": "Parse Token & Tag Name",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        2912
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "b748f6a4-8007-4b6c-ac79-ffa9dad9bd41",
+      "name": "Look Up Requester",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1664,
+        2912
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nconst { tagName } = $('Parse Token & Tag Name').first().json;\n\n// If requester is empty object (from alwaysOutputData) or inactive\nif (!requester.id || !requester.active) throw new Error('Invalid session or user not found.');\n\nconst sqlQuery = `\n  SELECT c.*\n  FROM contacts c\n  JOIN taggables tg ON tg.entity_type = 'contact' AND tg.entity_id = c.id\n  JOIN tags t ON t.id = tg.tag_id\n  WHERE t.name = $1\n    AND ($2 = 'admin' OR c.owner_id = $3)\n    AND c.is_archived = false\n  ORDER BY c.id;\n`;\nconst queryParams = [tagName, requester.role, requester.id];\n\nreturn [{ json: { sqlQuery, queryParams } }];"
+      },
+      "id": "b3047689-c054-4b75-a684-57facec77084",
+      "name": "Build Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1888,
+        2912
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sqlQuery }}",
+        "options": {
+          "queryReplacement": "={{ $json.queryParams }}"
+        }
+      },
+      "id": "052a2370-f8e9-42db-acd8-0cfb892ab9e7",
+      "name": "Select Contacts By Tag",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2096,
+        2912
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().filter(item => item.json.id).map(item => item.json) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "9a9a5c30-5e69-435c-af05-247f2c7ee11e",
+      "name": "Respond - Filter Contacts By Tag",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.2,
+      "position": [
+        2320,
+        2912
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "625c6a79-4749-4bfa-a682-73d3cfc8d44e",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.2,
+      "position": [
+        1440,
+        3088
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook - Get Tags": {
+      "main": [
+        [
+          {
+            "node": "Select All Tags",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select All Tags": {
+      "main": [
+        [
+          {
+            "node": "Respond - Get Tags",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Create Tag": {
+      "main": [
+        [
+          {
+            "node": "Validate Tag Name",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Tag Name": {
+      "main": [
+        [
+          {
+            "node": "Insert Or Get Tag",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Or Get Tag": {
+      "main": [
+        [
+          {
+            "node": "Respond - Create Tag",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Tag Entity": {
+      "main": [
+        [
+          {
+            "node": "Validate Tag-Entity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Tag-Entity": {
+      "main": [
+        [
+          {
+            "node": "Insert Taggable",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Taggable": {
+      "main": [
+        [
+          {
+            "node": "Respond - Tag Entity",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Untag Entity": {
+      "main": [
+        [
+          {
+            "node": "Validate Untag",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Untag": {
+      "main": [
+        [
+          {
+            "node": "Delete Taggable",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Taggable": {
+      "main": [
+        [
+          {
+            "node": "Respond - Untag Entity",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Get Entity Tags": {
+      "main": [
+        [
+          {
+            "node": "Validate Query Params",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Query Params": {
+      "main": [
+        [
+          {
+            "node": "Select Entity Tags",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Entity Tags": {
+      "main": [
+        [
+          {
+            "node": "Respond - Get Entity Tags",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Filter Contacts By Tag": {
+      "main": [
+        [
+          {
+            "node": "Parse Token & Tag Name",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token & Tag Name": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester": {
+      "main": [
+        [
+          {
+            "node": "Build Query",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Query": {
+      "main": [
+        [
+          {
+            "node": "Select Contacts By Tag",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Contacts By Tag": {
+      "main": [
+        [
+          {
+            "node": "Respond - Filter Contacts By Tag",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "2bb049e4-d58b-489c-8ebf-661146f57dcb",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6a773e6041cc88fd4a5b60f3e46f2119d58608faafd09936499001d589f5c1af"
+  },
+  "id": "aA08GlLGsR6zDop1",
+  "tags": []
+}

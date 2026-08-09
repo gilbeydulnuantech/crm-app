@@ -1,0 +1,220 @@
+{
+  "name": "contacts-show-to-UI",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "get-contacts",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "244eaa7b-470d-4f82-a3a1-7c691b012cee",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "a4353b6f-b453-4ca1-b9dc-5a75cbec5b47"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst userId = parseInt(match[1], 10);\nreturn [{ json: { userId } }];"
+      },
+      "id": "72a64ff9-7885-4f51-a74f-e98c75626790",
+      "name": "Parse Token",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "4120bb2f-ece2-463a-9ab8-74325c7d8482",
+      "name": "Look Up Requester",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        448,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const user = $input.first().json;\n\nif (!user.id || !user.active) {\n  throw new Error('Invalid session.');\n}\n\n// Reuses this same get-contacts webhook for both the active list and the\n// Archived tab:\n//   GET /webhook/get-contacts?archived=false   (All Contacts / My Contacts)\n//   GET /webhook/get-contacts?archived=true    (Archived tab)\nconst webhookQuery = $('Webhook').first().json.query || {};\nconst showArchived = String(webhookQuery.archived || '').toLowerCase() === 'true';\n\n// archived_by_name is only meaningful (and only joined) for the archived\n// view — harmless left join either way, just always null when not archived.\n// tags is embedded via json_agg so the Contacts table can render them\n// without an extra get-entity-tags round trip per row (taggables/tags\n// schema matches contacts-Tags System.json).\nconst sqlQuery = `\n  SELECT c.*, co.name AS company_name, u.name AS owner_name,\n         ab.name AS archived_by_name,\n         (SELECT COALESCE(json_agg(json_build_object('id', t.id, 'name', t.name)), '[]'::json)\n          FROM taggables tg JOIN tags t ON t.id = tg.tag_id\n          WHERE tg.entity_type = 'contact' AND tg.entity_id = c.id) AS tags\n  FROM contacts c\n  LEFT JOIN companies co ON co.id = c.account_id\n  LEFT JOIN users u ON u.id = c.owner_id\n  LEFT JOIN users ab ON ab.id = c.archived_by\n  WHERE c.is_archived = $1\n  ORDER BY c.id;\n`;\n\nreturn [{ json: { sqlQuery, queryParams: [showArchived] } }];\n"
+      },
+      "id": "4f4de5e5-9a9e-4fd0-8590-7aed801f7a60",
+      "name": "Build Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sqlQuery }}",
+        "options": {
+          "queryReplacement": "={{ $json.queryParams }}"
+        }
+      },
+      "id": "cbb7e9df-4df3-4816-b34f-666c9a4645fd",
+      "name": "Execute Query",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        880,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "36792aae-2e4b-4164-b8b4-34ff4990d01b",
+      "name": "Respond - Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1104,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "1de16ba3-f7a2-41dd-b6b5-027026160fd2",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        448,
+        192
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester": {
+      "main": [
+        [
+          {
+            "node": "Build Query",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Query": {
+      "main": [
+        [
+          {
+            "node": "Execute Query",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Query": {
+      "main": [
+        [
+          {
+            "node": "Respond - Success",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "fae196a3-fec6-4885-a68a-2c5347af9b39",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6a773e6041cc88fd4a5b60f3e46f2119d58608faafd09936499001d589f5c1af"
+  },
+  "id": "nDcFQlkFnm5xSvPc",
+  "tags": []
+}

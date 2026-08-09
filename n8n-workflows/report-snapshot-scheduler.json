@@ -1,0 +1,44 @@
+{
+  "name": "Report Snapshot Scheduler",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "field": "cronExpression", "expression": "0 1 * * *" }
+          ]
+        }
+      },
+      "id": "cron-nightly",
+      "name": "Nightly at 1:00 AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO report_snapshots (snapshot_date, metric, scope, value) VALUES (CURRENT_DATE, 'total_revenue', 'company', (SELECT COALESCE(SUM(deal_value), 0) FROM opportunities WHERE status = 'Won')) ON CONFLICT (snapshot_date, metric, scope) DO UPDATE SET value = EXCLUDED.value; INSERT INTO report_snapshots (snapshot_date, metric, scope, value) VALUES (CURRENT_DATE, 'new_contacts', 'company', (SELECT COUNT(*) FROM contacts WHERE created_at::date = CURRENT_DATE)) ON CONFLICT (snapshot_date, metric, scope) DO UPDATE SET value = EXCLUDED.value; INSERT INTO report_snapshots (snapshot_date, metric, scope, value) VALUES (CURRENT_DATE, 'activity_volume', 'company', (SELECT COUNT(*) FROM activities WHERE created_at::date = CURRENT_DATE)) ON CONFLICT (snapshot_date, metric, scope) DO UPDATE SET value = EXCLUDED.value;",
+        "options": {}
+      },
+      "id": "pg-write-snapshots",
+      "name": "Postgres: Write Daily Snapshots",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [220, 0],
+      "credentials": {
+        "postgres": { "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID", "name": "Postgres CRM DB" }
+      },
+      "notes": "Writes/updates 3 metrics for today's date: total_revenue (all-time cumulative, snapshotted daily so the Overview trend line is stable even as raw opportunity rows change), new_contacts (count created today), activity_volume (count created today). Add more INSERT...ON CONFLICT blocks here following the same pattern if you want more tracked metrics later (e.g. per-rep revenue snapshots using scope = user_id::text instead of 'company')."
+    }
+  ],
+  "connections": {
+    "Nightly at 1:00 AM": {
+      "main": [[{ "node": "Postgres: Write Daily Snapshots", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

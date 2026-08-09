@@ -1,0 +1,49 @@
+{
+  "name": "Contact Related Records",
+  "nodes": [
+    {
+      "parameters": { "httpMethod": "GET", "path": "get-contact-related", "responseMode": "responseNode", "options": {} },
+      "id": "wh-related", "name": "Webhook: get-contact-related", "type": "n8n-nodes-base.webhook", "typeVersion": 2, "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT json_build_object('company', (SELECT json_build_object('id', co.id, 'name', co.name) FROM contacts c JOIN companies co ON co.id = c.account_id WHERE c.id = $1), 'deal', (SELECT json_build_object('id', o.id, 'name', o.name, 'deal_value', o.deal_value, 'stage_name', st.name) FROM opportunities o JOIN stages st ON st.id = o.stage_id WHERE o.contact_id = $1 AND o.status = 'Open' ORDER BY o.created_at DESC LIMIT 1), 'task', (SELECT json_build_object('id', a.id, 'subject', a.subject, 'due_at', a.due_at) FROM activities a WHERE a.contact_id = $1 AND a.type = 'task' AND a.is_completed = false ORDER BY a.due_at ASC NULLS LAST LIMIT 1), 'event', (SELECT json_build_object('id', a.id, 'subject', a.subject, 'due_at', a.due_at) FROM activities a WHERE a.contact_id = $1 AND a.type != 'task' AND a.due_at >= now() ORDER BY a.due_at ASC LIMIT 1)) AS result;",
+        "options": { "queryReplacement": "={{ [$json.query.contact_id] }}" }
+      },
+      "id": "pg-related", "name": "Postgres: Contact Related", "type": "n8n-nodes-base.postgres", "typeVersion": 2.5, "position": [220, 0],
+      "credentials": { "postgres": { "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID", "name": "Postgres CRM DB" } }
+    },
+    {
+      "parameters": {
+        "respondWith": "json", "responseBody": "={{ $json.result }}",
+        "options": { "responseHeaders": { "entries": [
+          { "name": "Access-Control-Allow-Origin", "value": "*" },
+          { "name": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+          { "name": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, ngrok-skip-browser-warning" }
+        ] } }
+      },
+      "id": "resp-related", "name": "Respond: get-contact-related", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1.1, "position": [440, 0]
+    },
+
+    {
+      "parameters": { "httpMethod": "OPTIONS", "path": "get-contact-related", "responseMode": "responseNode", "options": {} },
+      "id": "wh-opt-related", "name": "Webhook OPTIONS: get-contact-related", "type": "n8n-nodes-base.webhook", "typeVersion": 2, "position": [0, 220]
+    },
+    {
+      "parameters": { "respondWith": "noData", "options": { "responseCode": 204, "responseHeaders": { "entries": [
+        { "name": "Access-Control-Allow-Origin", "value": "*" },
+        { "name": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+        { "name": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, ngrok-skip-browser-warning" }
+      ] } } },
+      "id": "resp-opt-related", "name": "Respond OPTIONS: get-contact-related", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1.1, "position": [220, 220]
+    }
+  ],
+  "connections": {
+    "Webhook: get-contact-related": { "main": [[{ "node": "Postgres: Contact Related", "type": "main", "index": 0 }]] },
+    "Postgres: Contact Related": { "main": [[{ "node": "Respond: get-contact-related", "type": "main", "index": 0 }]] },
+    "Webhook OPTIONS: get-contact-related": { "main": [[{ "node": "Respond OPTIONS: get-contact-related", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" }
+}

@@ -1,0 +1,161 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import * as api from '../api/contacts';
+import { Contact } from '../types/contact';
+
+export function useContacts() {
+  return useQuery({
+    queryKey: ['contacts'],
+    queryFn: api.fetchContacts,
+  });
+}
+
+export function useArchivedContacts(enabled: boolean) {
+  return useQuery({
+    queryKey: ['contacts', 'archived'],
+    queryFn: api.fetchArchivedContacts,
+    enabled,
+  });
+}
+
+export function useUsers() {
+  return useQuery({
+    queryKey: ['users'],
+    queryFn: api.fetchUsers,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useTags() {
+  return useQuery({
+    queryKey: ['tags'],
+    queryFn: api.fetchTags,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+function useInvalidateContacts() {
+  const qc = useQueryClient();
+  return () => {
+    qc.invalidateQueries({ queryKey: ['contacts'] });
+  };
+}
+
+export function useAddContact() {
+  const invalidate = useInvalidateContacts();
+  return useMutation({
+    mutationFn: (payload: Partial<Contact>) => api.addContact(payload),
+    onSuccess: invalidate,
+  });
+}
+
+export function useUpdateContact() {
+  const invalidate = useInvalidateContacts();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: Partial<Contact> }) =>
+      api.updateContact(id, payload),
+    onSuccess: invalidate,
+  });
+}
+
+export function useArchiveContacts() {
+  const invalidate = useInvalidateContacts();
+  return useMutation({
+    mutationFn: ({ ids, reason }: { ids: number[]; reason?: string }) =>
+      api.archiveContacts(ids, reason),
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeleteContacts() {
+  const invalidate = useInvalidateContacts();
+  return useMutation({
+    mutationFn: (ids: number[]) => api.deleteContacts(ids),
+    onSuccess: invalidate,
+  });
+}
+
+export function useRestoreContacts() {
+  const invalidate = useInvalidateContacts();
+  return useMutation({
+    mutationFn: (ids: number[]) => api.restoreContacts(ids),
+    onSuccess: invalidate,
+  });
+}
+
+export function useAssignOwner() {
+  const invalidate = useInvalidateContacts();
+  return useMutation({
+    mutationFn: ({ contactId, ownerId }: { contactId: number; ownerId: number | null }) =>
+      api.assignContactOwner(contactId, ownerId),
+    onSuccess: invalidate,
+  });
+}
+
+export function useToggleDoNotContact() {
+  const invalidate = useInvalidateContacts();
+  return useMutation({
+    mutationFn: ({ contactId, value }: { contactId: number; value: boolean }) =>
+      api.toggleDoNotContact(contactId, value),
+    onSuccess: invalidate,
+  });
+}
+
+export function useContactRelated(contactId: number | null) {
+  return useQuery({
+    queryKey: ['contact-related', contactId],
+    queryFn: () => api.fetchContactRelated(contactId!),
+    enabled: !!contactId,
+  });
+}
+
+export function useContactIdsByTag(tagName: string | null) {
+  return useQuery({
+    queryKey: ['contact-ids-by-tag', tagName],
+    queryFn: async () => {
+      const raw = await api.fetchContactIdsByTag(tagName!);
+      // Normalize — the webhook might return [{id: 1}, ...] or [1, 2, ...].
+      return new Set(raw.map((item) => (typeof item === 'number' ? item : item.id)));
+    },
+    enabled: !!tagName,
+  });
+}
+
+export function useContactTags(contactId: number | null) {
+  return useQuery({
+    queryKey: ['contact-tags', contactId],
+    queryFn: () => api.fetchContactTags(contactId!),
+    enabled: !!contactId,
+  });
+}
+
+export function useCreateTag() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) => api.createTag(name),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tags'] }),
+  });
+}
+
+export function useTagContact() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ contactId, tagId }: { contactId: number; tagId: number }) =>
+      api.tagContact(contactId, tagId),
+    onSuccess: (_data, { contactId }) => {
+      qc.invalidateQueries({ queryKey: ['contact-tags', contactId] });
+      qc.invalidateQueries({ queryKey: ['contacts'] });
+    },
+  });
+}
+
+export function useUntagContact() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ contactId, tagId }: { contactId: number; tagId: number }) =>
+      api.untagContact(contactId, tagId),
+    onSuccess: (_data, { contactId }) => {
+      qc.invalidateQueries({ queryKey: ['contact-tags', contactId] });
+      qc.invalidateQueries({ queryKey: ['contacts'] });
+    },
+  });
+}

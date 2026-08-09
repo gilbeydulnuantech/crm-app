@@ -1,0 +1,339 @@
+{
+  "name": "Pipeline CRUD",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-pipelines",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-get-pipelines",
+      "name": "Webhook: get-pipelines",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, is_default FROM pipelines ORDER BY is_default DESC, name ASC;",
+        "options": {}
+      },
+      "id": "pg-get-pipelines",
+      "name": "Postgres: Select Pipelines",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [220, 0],
+      "credentials": {
+        "postgres": { "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID", "name": "Postgres CRM DB" }
+      }
+    },
+    {
+      "parameters": { "respondWith": "allIncomingItems", "options": {} },
+      "id": "resp-get-pipelines",
+      "name": "Respond: get-pipelines",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [440, 0]
+    },
+
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-stages",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-get-stages",
+      "name": "Webhook: get-stages",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 180]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, pipeline_id, name, display_order, win_probability FROM stages WHERE pipeline_id = $1 ORDER BY display_order ASC;",
+        "options": {
+          "queryReplacement": "={{ [$json.query.pipeline_id] }}"
+        }
+      },
+      "id": "pg-get-stages",
+      "name": "Postgres: Select Stages",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [220, 180],
+      "credentials": {
+        "postgres": { "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID", "name": "Postgres CRM DB" }
+      }
+    },
+    {
+      "parameters": { "respondWith": "allIncomingItems", "options": {} },
+      "id": "resp-get-stages",
+      "name": "Respond: get-stages",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [440, 180]
+    },
+
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-opportunities",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-get-opportunities",
+      "name": "Webhook: get-opportunities",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 360]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT o.id, o.name, o.contact_id, TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS contact_name, o.account_id, co.name AS company_name, o.pipeline_id, o.stage_id, o.assigned_user, u.name AS assigned_user_name, o.created_by, o.deal_value, o.probability, o.status, o.expected_close, o.closed_at, o.created_at, o.updated_at FROM opportunities o LEFT JOIN contacts c ON c.id = o.contact_id LEFT JOIN companies co ON co.id = o.account_id LEFT JOIN users u ON u.id = o.assigned_user WHERE o.pipeline_id = $1 ORDER BY o.created_at DESC;",
+        "options": {
+          "queryReplacement": "={{ [$json.query.pipeline_id] }}"
+        }
+      },
+      "id": "pg-get-opportunities",
+      "name": "Postgres: Select Opportunities",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [220, 360],
+      "credentials": {
+        "postgres": { "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID", "name": "Postgres CRM DB" }
+      }
+    },
+    {
+      "parameters": { "respondWith": "allIncomingItems", "options": {} },
+      "id": "resp-get-opportunities",
+      "name": "Respond: get-opportunities",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [440, 360]
+    },
+
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "add-opportunity",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-add-opportunity",
+      "name": "Webhook: add-opportunity",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 540]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO opportunities (name, contact_id, account_id, pipeline_id, stage_id, assigned_user, created_by, deal_value, probability, status, expected_close) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Open', $10) RETURNING id, name, stage_id, status, created_at;",
+        "options": {
+          "queryReplacement": "={{ [$json.body.name, $json.body.contact_id, $json.body.account_id || null, $json.body.pipeline_id, $json.body.stage_id, $json.body.assigned_user || $json.body.requester_id || null, $json.body.requester_id || null, $json.body.deal_value || null, $json.body.probability || 0, $json.body.expected_close || null] }}"
+        }
+      },
+      "id": "pg-add-opportunity",
+      "name": "Postgres: Insert Opportunity",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [220, 540],
+      "credentials": {
+        "postgres": { "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID", "name": "Postgres CRM DB" }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"id\": $json.id } }}",
+        "options": {}
+      },
+      "id": "resp-add-opportunity",
+      "name": "Respond: add-opportunity",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [440, 540]
+    },
+
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "update-opportunity",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-update-opportunity",
+      "name": "Webhook: update-opportunity",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 720]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE opportunities SET name = COALESCE($1, name), contact_id = COALESCE($2, contact_id), account_id = COALESCE($3, account_id), stage_id = COALESCE($4, stage_id), assigned_user = COALESCE($5, assigned_user), deal_value = COALESCE($6, deal_value), probability = COALESCE($7, probability), status = COALESCE($8, status), expected_close = COALESCE($9, expected_close), closed_at = COALESCE($10, closed_at), updated_at = now() WHERE id = $11 RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [$json.body.name || null, $json.body.contact_id || null, $json.body.account_id || null, $json.body.stage_id || null, $json.body.assigned_user || null, $json.body.deal_value !== undefined ? $json.body.deal_value : null, $json.body.probability !== undefined ? $json.body.probability : null, $json.body.status || null, $json.body.expected_close || null, $json.body.closed_at || null, $json.body.id] }}"
+        }
+      },
+      "id": "pg-update-opportunity",
+      "name": "Postgres: Update Opportunity",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [220, 720],
+      "credentials": {
+        "postgres": { "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID", "name": "Postgres CRM DB" }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": $json.id ? true : false } }}",
+        "options": {}
+      },
+      "id": "resp-update-opportunity",
+      "name": "Respond: update-opportunity",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [440, 720]
+    },
+
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "move-opportunity-stage",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-move-stage",
+      "name": "Webhook: move-opportunity-stage",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 900]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE opportunities o SET stage_id = $1, status = CASE WHEN s.name ILIKE '%won%' THEN 'Won' WHEN s.name ILIKE '%lost%' THEN 'Lost' ELSE 'Open' END, closed_at = CASE WHEN s.name ILIKE '%won%' OR s.name ILIKE '%lost%' THEN now() ELSE NULL END, probability = COALESCE(s.win_probability, o.probability), updated_at = now() FROM stages s WHERE s.id = $1 AND o.id = $2 RETURNING o.id, o.stage_id, o.status;",
+        "options": {
+          "queryReplacement": "={{ [$json.body.stage_id, $json.body.id] }}"
+        }
+      },
+      "id": "pg-move-stage",
+      "name": "Postgres: Move Stage (auto Won/Lost)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [220, 900],
+      "credentials": {
+        "postgres": { "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID", "name": "Postgres CRM DB" }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"status\": $json.status } }}",
+        "options": {}
+      },
+      "id": "resp-move-stage",
+      "name": "Respond: move-opportunity-stage",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [440, 900]
+    },
+
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "delete-opportunities",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-delete-opportunities",
+      "name": "Webhook: delete-opportunities",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 1080]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM opportunities WHERE id = ANY($1::int[]) RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [$json.body.ids] }}"
+        }
+      },
+      "id": "pg-delete-opportunities",
+      "name": "Postgres: Delete Opportunities",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [220, 1080],
+      "credentials": {
+        "postgres": { "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID", "name": "Postgres CRM DB" }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true } }}",
+        "options": {}
+      },
+      "id": "resp-delete-opportunities",
+      "name": "Respond: delete-opportunities",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [440, 1080]
+    }
+  ],
+  "connections": {
+    "Webhook: get-pipelines": {
+      "main": [[{ "node": "Postgres: Select Pipelines", "type": "main", "index": 0 }]]
+    },
+    "Postgres: Select Pipelines": {
+      "main": [[{ "node": "Respond: get-pipelines", "type": "main", "index": 0 }]]
+    },
+    "Webhook: get-stages": {
+      "main": [[{ "node": "Postgres: Select Stages", "type": "main", "index": 0 }]]
+    },
+    "Postgres: Select Stages": {
+      "main": [[{ "node": "Respond: get-stages", "type": "main", "index": 0 }]]
+    },
+    "Webhook: get-opportunities": {
+      "main": [[{ "node": "Postgres: Select Opportunities", "type": "main", "index": 0 }]]
+    },
+    "Postgres: Select Opportunities": {
+      "main": [[{ "node": "Respond: get-opportunities", "type": "main", "index": 0 }]]
+    },
+    "Webhook: add-opportunity": {
+      "main": [[{ "node": "Postgres: Insert Opportunity", "type": "main", "index": 0 }]]
+    },
+    "Postgres: Insert Opportunity": {
+      "main": [[{ "node": "Respond: add-opportunity", "type": "main", "index": 0 }]]
+    },
+    "Webhook: update-opportunity": {
+      "main": [[{ "node": "Postgres: Update Opportunity", "type": "main", "index": 0 }]]
+    },
+    "Postgres: Update Opportunity": {
+      "main": [[{ "node": "Respond: update-opportunity", "type": "main", "index": 0 }]]
+    },
+    "Webhook: move-opportunity-stage": {
+      "main": [[{ "node": "Postgres: Move Stage (auto Won/Lost)", "type": "main", "index": 0 }]]
+    },
+    "Postgres: Move Stage (auto Won/Lost)": {
+      "main": [[{ "node": "Respond: move-opportunity-stage", "type": "main", "index": 0 }]]
+    },
+    "Webhook: delete-opportunities": {
+      "main": [[{ "node": "Postgres: Delete Opportunities", "type": "main", "index": 0 }]]
+    },
+    "Postgres: Delete Opportunities": {
+      "main": [[{ "node": "Respond: delete-opportunities", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

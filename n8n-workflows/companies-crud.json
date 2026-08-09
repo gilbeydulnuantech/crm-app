@@ -1,0 +1,316 @@
+{
+  "name": "Companies CRUD",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-companies",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-get-companies",
+      "name": "Webhook: get-companies",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.id, c.name, c.website, c.industry, c.city, c.state, c.country, c.phone, c.owner_id, u.name AS owner_name, c.created_by, c.is_archived, c.created_at, c.updated_at, COALESCE(cc.contact_count, 0) AS contact_count, COALESCE(oc.opportunity_count, 0) AS opportunity_count FROM companies c LEFT JOIN users u ON u.id = c.owner_id LEFT JOIN (SELECT account_id, COUNT(*) AS contact_count FROM contacts WHERE is_archived = false GROUP BY account_id) cc ON cc.account_id = c.id LEFT JOIN (SELECT account_id, COUNT(*) AS opportunity_count FROM opportunities GROUP BY account_id) oc ON oc.account_id = c.id WHERE c.is_archived = false ORDER BY c.name ASC;",
+        "options": {}
+      },
+      "id": "pg-get-companies",
+      "name": "Postgres: Select Active Companies",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [220, 0],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres CRM DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "resp-get-companies",
+      "name": "Respond: get-companies",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [440, 0]
+    },
+
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-archived-companies",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-get-archived-companies",
+      "name": "Webhook: get-archived-companies",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.id, c.name, c.website, c.industry, c.city, c.state, c.country, c.phone, c.owner_id, u.name AS owner_name, c.created_by, c.is_archived, c.created_at, c.updated_at FROM companies c LEFT JOIN users u ON u.id = c.owner_id WHERE c.is_archived = true ORDER BY c.updated_at DESC;",
+        "options": {}
+      },
+      "id": "pg-get-archived-companies",
+      "name": "Postgres: Select Archived Companies",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [220, 200],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres CRM DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "resp-get-archived-companies",
+      "name": "Respond: get-archived-companies",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [440, 200]
+    },
+
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "add-companies",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-add-companies",
+      "name": "Webhook: add-companies",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO companies (name, website, industry, city, state, country, phone, owner_id, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, name, is_archived, created_at;",
+        "options": {
+          "queryReplacement": "={{ [$json.body.name, $json.body.website || null, $json.body.industry || null, $json.body.city || null, $json.body.state || null, $json.body.country || null, $json.body.phone || null, $json.body.owner_id || null, $json.body.requester_id || $json.body.owner_id || null] }}"
+        }
+      },
+      "id": "pg-add-companies",
+      "name": "Postgres: Insert Company",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [220, 400],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres CRM DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"id\": $json.id } }}",
+        "options": {}
+      },
+      "id": "resp-add-companies",
+      "name": "Respond: add-companies",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [440, 400]
+    },
+
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "update-companies",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-update-companies",
+      "name": "Webhook: update-companies",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 600]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE companies SET name = $1, website = $2, industry = $3, city = $4, state = $5, country = $6, phone = $7, owner_id = COALESCE($8, owner_id), updated_at = now() WHERE id = $9 RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [$json.body.name, $json.body.website || null, $json.body.industry || null, $json.body.city || null, $json.body.state || null, $json.body.country || null, $json.body.phone || null, $json.body.owner_id || null, $json.body.id] }}"
+        }
+      },
+      "id": "pg-update-companies",
+      "name": "Postgres: Update Company",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [220, 600],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres CRM DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": $json.id ? true : false } }}",
+        "options": {}
+      },
+      "id": "resp-update-companies",
+      "name": "Respond: update-companies",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [440, 600]
+    },
+
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "archive-companies",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-archive-companies",
+      "name": "Webhook: archive-companies",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 800]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE companies SET is_archived = true, updated_at = now() WHERE id = ANY($1::int[]) RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [$json.body.ids] }}"
+        }
+      },
+      "id": "pg-archive-companies",
+      "name": "Postgres: Archive Companies",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [220, 800],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres CRM DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true } }}",
+        "options": {}
+      },
+      "id": "resp-archive-companies",
+      "name": "Respond: archive-companies",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [440, 800]
+    },
+
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "delete-companies",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-delete-companies",
+      "name": "Webhook: delete-companies",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 1000]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM companies WHERE id = ANY($1::int[]) RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [$json.body.ids] }}"
+        }
+      },
+      "id": "pg-delete-companies",
+      "name": "Postgres: Delete Companies",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [220, 1000],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres CRM DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true } }}",
+        "options": {}
+      },
+      "id": "resp-delete-companies",
+      "name": "Respond: delete-companies",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [440, 1000]
+    }
+  ],
+  "connections": {
+    "Webhook: get-companies": {
+      "main": [[{ "node": "Postgres: Select Active Companies", "type": "main", "index": 0 }]]
+    },
+    "Postgres: Select Active Companies": {
+      "main": [[{ "node": "Respond: get-companies", "type": "main", "index": 0 }]]
+    },
+    "Webhook: get-archived-companies": {
+      "main": [[{ "node": "Postgres: Select Archived Companies", "type": "main", "index": 0 }]]
+    },
+    "Postgres: Select Archived Companies": {
+      "main": [[{ "node": "Respond: get-archived-companies", "type": "main", "index": 0 }]]
+    },
+    "Webhook: add-companies": {
+      "main": [[{ "node": "Postgres: Insert Company", "type": "main", "index": 0 }]]
+    },
+    "Postgres: Insert Company": {
+      "main": [[{ "node": "Respond: add-companies", "type": "main", "index": 0 }]]
+    },
+    "Webhook: update-companies": {
+      "main": [[{ "node": "Postgres: Update Company", "type": "main", "index": 0 }]]
+    },
+    "Postgres: Update Company": {
+      "main": [[{ "node": "Respond: update-companies", "type": "main", "index": 0 }]]
+    },
+    "Webhook: archive-companies": {
+      "main": [[{ "node": "Postgres: Archive Companies", "type": "main", "index": 0 }]]
+    },
+    "Postgres: Archive Companies": {
+      "main": [[{ "node": "Respond: archive-companies", "type": "main", "index": 0 }]]
+    },
+    "Webhook: delete-companies": {
+      "main": [[{ "node": "Postgres: Delete Companies", "type": "main", "index": 0 }]]
+    },
+    "Postgres: Delete Companies": {
+      "main": [[{ "node": "Respond: delete-companies", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
