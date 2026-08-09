@@ -8,6 +8,7 @@ interface Props {
   stages: Stage[];
   pipelineId: number;
   defaultStageId?: number;
+  defaultContactId?: number;
   onClose: () => void;
 }
 
@@ -26,6 +27,7 @@ export default function DealFormModal({
   stages,
   pipelineId,
   defaultStageId,
+  defaultContactId,
   onClose,
 }: Props) {
   const [form, setForm] = useState(EMPTY);
@@ -47,10 +49,14 @@ export default function DealFormModal({
         expected_close: opportunity.expected_close?.slice(0, 10) ?? '',
       });
     } else {
-      setForm({ ...EMPTY, stage_id: defaultStageId ? String(defaultStageId) : '' });
+      setForm({
+        ...EMPTY,
+        stage_id: defaultStageId ? String(defaultStageId) : '',
+        contact_id: defaultContactId ? String(defaultContactId) : '',
+      });
     }
     setError(null);
-  }, [opportunity, open, defaultStageId]);
+  }, [opportunity, open, defaultStageId, defaultContactId]);
 
   if (!open) return null;
 

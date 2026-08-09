@@ -5,6 +5,7 @@ import { useAddTask, useUpdateTask } from '../../hooks/useTasks';
 interface Props {
   open: boolean;
   task: Task | null; // null = add mode
+  defaultContactId?: number;
   onClose: () => void;
 }
 
@@ -16,7 +17,7 @@ const EMPTY = {
   due_at: '',
 };
 
-export default function TaskFormModal({ open, task, onClose }: Props) {
+export default function TaskFormModal({ open, task, defaultContactId, onClose }: Props) {
   const [form, setForm] = useState(EMPTY);
   const [error, setError] = useState<string | null>(null);
   const addTask = useAddTask();
@@ -35,10 +36,10 @@ export default function TaskFormModal({ open, task, onClose }: Props) {
         due_at: task.due_at?.slice(0, 16) ?? '',
       });
     } else {
-      setForm(EMPTY);
+      setForm({ ...EMPTY, contact_id: defaultContactId ? String(defaultContactId) : '' });
     }
     setError(null);
-  }, [task, open]);
+  }, [task, open, defaultContactId]);
 
   if (!open) return null;
 

@@ -1,6 +1,8 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Company } from '../../types/company';
 import { useAddCompany, useUpdateCompany } from '../../hooks/useCompanies';
+import { useUsers } from '../../hooks/useContacts';
+import { useAuth } from '../../context/AuthContext';
 
 interface Props {
   open: boolean;
@@ -8,7 +10,18 @@ interface Props {
   onClose: () => void;
 }
 
-const EMPTY = {
+interface FormState {
+  name: string;
+  industry: string;
+  website: string;
+  phone: string;
+  city: string;
+  state: string;
+  country: string;
+  owner_id: number | null;
+}
+
+const EMPTY: FormState = {
   name: '',
   industry: '',
   website: '',
@@ -16,10 +29,13 @@ const EMPTY = {
   city: '',
   state: '',
   country: '',
+  owner_id: null,
 };
 
 export default function CompanyFormModal({ open, company, onClose }: Props) {
-  const [form, setForm] = useState(EMPTY);
+  const { user, isAdmin } = useAuth();
+  const { data: users = [] } = useUsers();
+  const [form, setForm] = useState<FormState>(EMPTY);
   const [error, setError] = useState<string | null>(null);
   const addCompany = useAddCompany();
   const updateCompany = useUpdateCompany();
@@ -37,16 +53,18 @@ export default function CompanyFormModal({ open, company, onClose }: Props) {
         city: company.city ?? '',
         state: company.state ?? '',
         country: company.country ?? '',
+        owner_id: company.owner_id ?? null,
       });
     } else {
-      setForm(EMPTY);
+      // Non-admins auto-own whatever they create; admins pick explicitly.
+      setForm({ ...EMPTY, owner_id: isAdmin ? null : user?.id ?? null });
     }
     setError(null);
-  }, [company, open]);
+  }, [company, open, isAdmin, user]);
 
   if (!open) return null;
 
-  function update<K extends keyof typeof EMPTY>(key: K, value: string) {
+  function update<K extends keyof Omit<FormState, 'owner_id'>>(key: K, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
@@ -64,14 +82,17 @@ export default function CompanyFormModal({ open, company, onClose }: Props) {
         }
       );
     } else {
-      addCompany.mutate(form, {
-        onSuccess: () => {
-          setForm(EMPTY);
-          onClose();
-        },
-        onError: (err) =>
-          setError(err instanceof Error ? err.message : 'Failed to add company.'),
-      });
+      addCompany.mutate(
+        { ...form, requester_id: user?.id ?? null },
+        {
+          onSuccess: () => {
+            setForm(EMPTY);
+            onClose();
+          },
+          onError: (err) =>
+            setError(err instanceof Error ? err.message : 'Failed to add company.'),
+        }
+      );
     }
   }
 
@@ -125,6 +146,33 @@ export default function CompanyFormModal({ open, company, onClose }: Props) {
               className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
+
+          {isAdmin ? (
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Owner</label>
+              <select
+                value={form.owner_id ?? ''}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    owner_id: e.target.value ? Number(e.target.value) : null,
+                  }))
+                }
+                className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="">Unassigned</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            !isEdit && (
+              <p className="text-xs text-slate-400">You'll be set as the owner of this company.</p>
+            )
+          )}
 
           <div className="grid grid-cols-3 gap-3">
             <div>

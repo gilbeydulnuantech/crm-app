@@ -471,8 +471,28 @@ table's Company/Tags columns) will keep hitting the same gap otherwise.
   select), then the existing detail fields, then the new Company/Deal/Task/
   Event tree, then Do Not Contact at the bottom.
 
+### `contact-email-crud.json` — new workflow, needs import + your own credential
 
+The contact detail modal's Email action now POSTs to `send-contact-email`
+(`{ contact_id, subject, message }`) instead of doing nothing. This is a
+**new** workflow file — `add-contact`/`update-contact`/etc. aren't in this
+repo at all (same "original vanilla-JS backend" situation as the rest of
+Contacts CRUD), so I couldn't extend an existing one; import
+`contact-email-crud.json` separately and set its Postgres credential like
+the others.
 
+What it does: appends a `{ type: 'sent', subject, message, sent_at,
+is_read: true }` entry onto the contact's `email_logs`, which is what the
+detail modal's Activity Log column already reads — so a "sent" message
+shows up there immediately after sending, same as before.
 
+Two things you'll need to sort out on your end:
+- **ASSUMPTION:** the query assumes `email_logs` is `jsonb`. If it's
+  `text`/`varchar` instead, the query node has a comment with the one-line
+  fix (cast to `jsonb` on read, back to `text` on write).
+- **This does not actually send an email.** It only logs that one was
+  "sent." If you want real delivery, add a Send Email / Gmail node (with
+  your own SMTP or OAuth credential) before the Postgres node — I can't set
+  that up blindly since I don't know your email provider.
 
 

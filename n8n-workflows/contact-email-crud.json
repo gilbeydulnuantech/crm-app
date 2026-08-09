@@ -1,0 +1,162 @@
+{
+  "name": "Contact Email",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "send-contact-email",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-send-contact-email",
+      "name": "Webhook: send-contact-email",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- ASSUMPTION: email_logs is a jsonb column. If it's text/varchar instead,\n-- change this to: SET email_logs = (COALESCE(email_logs::jsonb, '[]'::jsonb) || $1::jsonb)::text\n-- Note: this only appends a log entry, it does NOT send an email. Add a\n-- Send Email / Gmail node (your own SMTP or OAuth credential) before this\n-- Postgres node for real delivery.\nUPDATE contacts\nSET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object(\n  'type', 'sent',\n  'subject', $1::text,\n  'message', $2::text,\n  'sent_at', now(),\n  'is_read', true\n)\nWHERE id = $3\nRETURNING id, email_logs;",
+        "options": {
+          "queryReplacement": "={{ [$json.body.subject, $json.body.message, $json.body.contact_id] }}"
+        }
+      },
+      "id": "pg-send-contact-email",
+      "name": "Postgres: Append Email Log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        220,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres CRM DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"id\": $json.id } }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization, ngrok-skip-browser-warning"
+              }
+            ]
+          }
+        }
+      },
+      "id": "resp-send-contact-email",
+      "name": "Respond: send-contact-email",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "OPTIONS",
+        "path": "send-contact-email",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-options-send-contact-email",
+      "name": "Webhook OPTIONS: send-contact-email",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "noData",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization, ngrok-skip-browser-warning"
+              }
+            ]
+          }
+        }
+      },
+      "id": "resp-options-send-contact-email",
+      "name": "Respond OPTIONS: send-contact-email",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        220,
+        380
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook: send-contact-email": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Append Email Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Append Email Log": {
+      "main": [
+        [
+          {
+            "node": "Respond: send-contact-email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook OPTIONS: send-contact-email": {
+      "main": [
+        [
+          {
+            "node": "Respond OPTIONS: send-contact-email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

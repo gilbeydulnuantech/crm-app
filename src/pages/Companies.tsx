@@ -7,6 +7,7 @@ import {
   useCompanies,
   useDeleteCompanies,
 } from '../hooks/useCompanies';
+import { useContacts } from '../hooks/useContacts';
 import CompaniesStatsBar from '../components/companies/CompaniesStatsBar';
 import CompaniesTabs from '../components/companies/CompaniesTabs';
 import CompaniesFilterRow, {
@@ -16,6 +17,7 @@ import CompaniesTable from '../components/companies/CompaniesTable';
 import CompaniesBulkActionsMenu from '../components/companies/CompaniesBulkActionsMenu';
 import CompanyFormModal from '../components/companies/CompanyFormModal';
 import CompanyDetailModal from '../components/companies/CompanyDetailModal';
+import ContactDetailModal from '../components/contacts/ContactDetailModal';
 import SearchToolbar from '../components/SearchToolbar';
 
 const EMPTY_FILTERS: CompaniesFilterValue = { industry: '', owner: '', tag: '' };
@@ -30,11 +32,13 @@ export default function Companies() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const [activeCompanyId, setActiveCompanyId] = useState<number | null>(null);
+  const [activeContactId, setActiveContactId] = useState<number | null>(null);
 
   const { data: allCompanies = [], isLoading } = useCompanies();
   const { data: archivedCompanies = [], isLoading: isLoadingArchived } = useArchivedCompanies(
     view === 'archived'
   );
+  const { data: allContacts = [] } = useContacts();
   const archiveCompanies = useArchiveCompanies();
   const deleteCompanies = useDeleteCompanies();
 
@@ -43,6 +47,10 @@ export default function Companies() {
   const activeCompany = useMemo(
     () => allCompanies.find((c) => c.id === activeCompanyId) ?? null,
     [allCompanies, activeCompanyId]
+  );
+  const activeContact = useMemo(
+    () => allContacts.find((c) => c.id === activeContactId) ?? null,
+    [allContacts, activeContactId]
   );
 
   function changeView(next: CompaniesView) {
@@ -261,7 +269,12 @@ export default function Companies() {
           setActiveCompanyId(null);
           openEditModal(company);
         }}
+        onContactClick={(contactId) => {
+          setActiveCompanyId(null);
+          setActiveContactId(contactId);
+        }}
       />
+      <ContactDetailModal contact={activeContact} onClose={() => setActiveContactId(null)} />
     </div>
   );
 }

@@ -25,7 +25,8 @@ function useInvalidateCompanies() {
 export function useAddCompany() {
   const invalidate = useInvalidateCompanies();
   return useMutation({
-    mutationFn: (payload: Partial<Company>) => api.addCompany(payload),
+    mutationFn: (payload: Partial<Company> & { requester_id?: number | null }) =>
+      api.addCompany(payload),
     onSuccess: invalidate,
   });
 }

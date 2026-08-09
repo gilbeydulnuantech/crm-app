@@ -61,6 +61,16 @@ export function restoreContacts(ids: number[]) {
   });
 }
 
+// New workflow (contact-email-crud.json, not part of the original backend) —
+// appends a "sent" entry to the contact's email_logs. Doesn't actually
+// deliver an email yet; see n8n-workflows/README.md.
+export function sendContactEmail(contactId: number, subject: string, message: string) {
+  return apiFetch<{ success: boolean; error?: string }>('/webhook/send-contact-email', {
+    method: 'POST',
+    body: JSON.stringify({ contact_id: contactId, subject, message }),
+  });
+}
+
 export function assignContactOwner(contactId: number, ownerId: number | null) {
   return apiFetch<{ success: boolean; error?: string }>('/webhook/assign-contact-owner', {
     method: 'POST',

@@ -9,7 +9,10 @@ export function fetchArchivedCompanies() {
   return apiFetch<Company[]>('/webhook/get-archived-companies');
 }
 
-export function addCompany(payload: Partial<Company>) {
+// requester_id identifies who's actually creating the record (-> created_by)
+// separately from owner_id, since an admin can create a company and assign
+// it to someone else in the same request.
+export function addCompany(payload: Partial<Company> & { requester_id?: number | null }) {
   return apiFetch<{ success: boolean; error?: string; id?: number }>(
     '/webhook/add-companies',
     {
