@@ -31,9 +31,12 @@ export interface Contact {
 }
 
 export interface EmailLog {
+  id?: string; // present on logs written by contact-email-crud.json; older/legacy entries may lack it
   type: 'sent' | 'received';
   subject?: string;
   message?: string;
+  to?: string;
+  from?: string;
   sent_at?: string;
   is_read?: boolean;
   attachments?: { name: string; url?: string }[];

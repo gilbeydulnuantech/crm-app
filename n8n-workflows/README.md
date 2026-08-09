@@ -471,28 +471,133 @@ table's Company/Tags columns) will keep hitting the same gap otherwise.
   select), then the existing detail fields, then the new Company/Deal/Task/
   Event tree, then Do Not Contact at the bottom.
 
-### `contact-email-crud.json` — new workflow, needs import + your own credential
+### `contact-email-crud.json` — new workflow, needs import + your own Postgres credential
 
-The contact detail modal's Email action now POSTs to `send-contact-email`
-(`{ contact_id, subject, message }`) instead of doing nothing. This is a
-**new** workflow file — `add-contact`/`update-contact`/etc. aren't in this
-repo at all (same "original vanilla-JS backend" situation as the rest of
-Contacts CRUD), so I couldn't extend an existing one; import
-`contact-email-crud.json` separately and set its Postgres credential like
-the others.
+**Renamed:** the two webhooks in this file are now `send-email` and
+`mark-log-read` (previously `send-contact-email` /
+`mark-contact-email-read`) to match the URLs you wanted to test —
+`https://<your-domain>/webhook/send-email` and `.../webhook/mark-log-read`.
+Every node name, path, and cross-reference (`$('Webhook: send-email')...`
+etc.) was renamed together, so re-import the file fresh rather than
+patching an already-imported copy — node names have to match exactly for
+the `$('Node Name')` expressions to resolve.
 
-What it does: appends a `{ type: 'sent', subject, message, sent_at,
-is_read: true }` entry onto the contact's `email_logs`, which is what the
-detail modal's Activity Log column already reads — so a "sent" message
-shows up there immediately after sending, same as before.
+**Trying this setup first, before reply-capture:** for now, incoming
+replies are expected to just show up through `get-contacts`
+(`contacts-show-to-UI.json`) — that query already does `SELECT c.*`, so
+once `email_logs` exists as a column (see below) it comes back with every
+contact automatically, no separate ingestion pipeline required. Whatever
+writes a `received`-type entry into a contact's `email_logs` (manually for
+now, or your own mechanism later) will show up in the modal's Activity Log
+next time the Contacts page refetches — React Query already does this on
+window focus and after any mutation, no extra polling code was added. The
+`contact-email-reply-capture.json` IMAP scaffold from before still exists
+in this repo if you want it later, but it's not part of this setup — skip
+importing it for now.
 
-Two things you'll need to sort out on your end:
-- **ASSUMPTION:** the query assumes `email_logs` is `jsonb`. If it's
-  `text`/`varchar` instead, the query node has a comment with the one-line
-  fix (cast to `jsonb` on read, back to `text` on write).
+The contact detail modal's Email action POSTs to `send-email`
+(`{ contact_id, subject, message, to, from }`) instead of doing nothing.
+This is a **new** workflow file — `add-contact`/`update-contact`/etc. aren't
+in this repo at all (same "original vanilla-JS backend" situation as the
+rest of Contacts CRUD), so I couldn't extend an existing one; import
+`contact-email-crud.json` and set its Postgres credential like the others.
+
+`to`/`from` come from the frontend, not looked up server-side: `to` is the
+contact's `email`, `from` is the logged-in user's `email` (both from
+`ComposeEmailPopover.tsx` — sending is blocked client-side if either is
+missing). They're stored on the log entry and are exactly what you'd wire
+into a real Send Email / Gmail node's To/From fields later.
+
+What it does: appends a `{ id, type: 'sent', subject, message, to, from,
+sent_at, is_read: true }` entry onto the contact's `email_logs`, which is
+what the detail modal's Activity Log column already reads — so a "sent"
+message shows up there immediately after sending, same as before. `id` is
+a fresh `gen_random_uuid()` (built into Postgres core since v13, no
+extension needed) — it's what lets `mark-log-read` (below) target one
+specific log entry later.
+
+**Correction:** the first version of this workflow assumed `email_logs`
+already existed as a column on `contacts` (the frontend's `Contact` type
+had always modeled it, so I trusted that). It doesn't — testing it live
+threw `column "email_logs" does not exist`. Both flows now run
+`ALTER TABLE contacts ADD COLUMN IF NOT EXISTS email_logs jsonb DEFAULT
+'[]'::jsonb;` in a `Postgres: Ensure email_logs Column (...)` node right
+before they touch the column, so it gets created automatically on first
+use — `IF NOT EXISTS` makes it a safe no-op every run after that. This is
+what also makes replies show up via `get-contacts` per the note above,
+once you (or whatever writes replies) start populating the column.
+
+**Second correction:** inserting that node broke the query params on the
+node right after it. n8n Postgres nodes replace `$json` with their own
+output for the next node — the Ensure-Column node returns nothing
+`body`-shaped, so `$json.body.subject` (etc.) on the following node
+resolved to `undefined` and n8n rejected it ("Query Parameters must be a
+string of comma-separated values or an array of values"). Fixed by having
+`Postgres: Append Email Log` and `Postgres: Mark Email Read` reference
+their origin webhook node explicitly —
+`$('Webhook: send-email').item.json.body.subject` instead of
+`$json.body.subject` — which resolves correctly regardless of what runs in
+between. If you add more nodes into either chain later, use the same
+`$('Node Name').item.json...` pattern rather than bare `$json` once more
+than one node sits between the data's source and where it's used.
+
+**Third correction:** this file originally *also* contained the IMAP
+reply-capture nodes, with a placeholder `REPLACE_WITH_YOUR_IMAP_CREDENTIAL_ID`
+credential. n8n activates/deactivates an entire workflow as one unit —
+since that credential couldn't resolve, the **whole workflow** stayed stuck
+on "Action Required" and never activated, so `send-email`/`mark-log-read`
+weren't live on their production URLs either, even though those two flows
+had nothing to do with IMAP. The IMAP nodes now live in their own file,
+`contact-email-reply-capture.json` — see the note above on why it's not
+part of this setup for now.
+
+Things you'll still need to sort out on your end:
 - **This does not actually send an email.** It only logs that one was
   "sent." If you want real delivery, add a Send Email / Gmail node (with
   your own SMTP or OAuth credential) before the Postgres node — I can't set
   that up blindly since I don't know your email provider.
+- **Pre-existing log entries have no `id`.** Anything logged before this
+  change can't be individually marked read (harmless no-op) — only new
+  entries going forward are targetable.
+- If you'd rather manage the schema yourself (e.g. via a migration instead
+  of an auto-`ALTER`), just delete the two `Ensure email_logs Column` nodes
+  in this file and run that one `ALTER TABLE` statement by hand once.
 
+#### `mark-log-read` — click-to-read
+
+The Activity Log entries in the contact modal are clickable. Clicking an
+unread "received" entry (the highlighted/emerald one) POSTs
+`{ contact_id, log_id }` to this webhook, which flips that one entry's
+`is_read` to `true` by rebuilding `email_logs` via
+`jsonb_array_elements` + `CASE WHEN elem->>'id' = $1`. The UI already
+recolors read vs. unread (`ContactDetailModal.tsx`'s `isUnread` check) —
+this just makes that flip persist instead of resetting on next fetch.
+
+**Gotcha confirmed live:** entries without an `id` field can't be targeted —
+`canMarkRead` in `ContactDetailModal.tsx` requires `!!log.id`, so clicking
+one only expands it, silently skipping the mark-read call (this was
+already flagged as a known limitation, but it's worth calling out
+explicitly since it's what you'll hit testing with manually-inserted rows,
+e.g. via `psql`, since there's no automated reply-ingestion running yet).
+The frontend now shows a visible error if the webhook call itself fails,
+but a missing `id` isn't a failure — it's just not clickable by design.
+
+One-time backfill for existing rows that predate the `id` field (safe to
+run anytime — only touches entries that don't already have one):
+
+```sql
+UPDATE contacts
+SET email_logs = (
+  SELECT jsonb_agg(
+    CASE WHEN elem ? 'id' THEN elem
+         ELSE elem || jsonb_build_object('id', gen_random_uuid()::text)
+    END
+  )
+  FROM jsonb_array_elements(email_logs) AS elem
+)
+WHERE email_logs IS NOT NULL AND email_logs <> '[]'::jsonb;
+```
+
+Any future manual test inserts should include an `id` (e.g.
+`gen_random_uuid()::text`) up front so they're clickable immediately.
 

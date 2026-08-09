@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Contact } from '../../types/contact';
 import { useSendContactEmail } from '../../hooks/useContacts';
+import { useAuth } from '../../context/AuthContext';
 
 interface Props {
   contact: Contact;
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export default function ComposeEmailPopover({ contact, open, onClose }: Props) {
+  const { user } = useAuth();
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -27,8 +29,12 @@ export default function ComposeEmailPopover({ contact, open, onClose }: Props) {
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    if (!user?.email) {
+      setError('Your account has no email on file — cannot set a sender address.');
+      return;
+    }
     sendEmail.mutate(
-      { contactId: contact.id, subject, message },
+      { contactId: contact.id, subject, message, to: contact.email!, from: user.email },
       {
         onSuccess: () => onClose(),
         onError: (err) => setError(err instanceof Error ? err.message : 'Failed to send email.'),

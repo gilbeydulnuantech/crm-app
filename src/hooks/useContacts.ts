@@ -85,8 +85,28 @@ export function useRestoreContacts() {
 export function useSendContactEmail() {
   const invalidate = useInvalidateContacts();
   return useMutation({
-    mutationFn: ({ contactId, subject, message }: { contactId: number; subject: string; message: string }) =>
-      api.sendContactEmail(contactId, subject, message),
+    mutationFn: ({
+      contactId,
+      subject,
+      message,
+      to,
+      from,
+    }: {
+      contactId: number;
+      subject: string;
+      message: string;
+      to: string;
+      from: string;
+    }) => api.sendContactEmail(contactId, subject, message, to, from),
+    onSuccess: invalidate,
+  });
+}
+
+export function useMarkContactEmailRead() {
+  const invalidate = useInvalidateContacts();
+  return useMutation({
+    mutationFn: ({ contactId, logId }: { contactId: number; logId: string }) =>
+      api.markContactEmailRead(contactId, logId),
     onSuccess: invalidate,
   });
 }

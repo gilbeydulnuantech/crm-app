@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Contact, EmailLog } from '../../types/contact';
-import { useToggleDoNotContact, useUpdateContact } from '../../hooks/useContacts';
+import { useMarkContactEmailRead, useToggleDoNotContact, useUpdateContact } from '../../hooks/useContacts';
 import { useAuth } from '../../context/AuthContext';
 import { usePipelines, useStages, useOpportunities } from '../../hooks/useOpportunities';
 import TagsDropdown from './TagsDropdown';
@@ -62,12 +62,15 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
   const { user, isAdmin } = useAuth();
   const toggleDnc = useToggleDoNotContact();
   const updateContact = useUpdateContact();
+  const markEmailRead = useMarkContactEmailRead();
   const notesRef = useRef<HTMLDivElement>(null);
 
   const [quickEditOpen, setQuickEditOpen] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
   const [dealFormOpen, setDealFormOpen] = useState(false);
   const [taskFormOpen, setTaskFormOpen] = useState(false);
+  const [expandedLogKey, setExpandedLogKey] = useState<string | null>(null);
+  const [markReadError, setMarkReadError] = useState<string | null>(null);
 
   const { data: pipelines = [] } = usePipelines();
   const defaultPipelineId = pipelines.find((p) => p.is_default)?.id ?? pipelines[0]?.id;
@@ -105,7 +108,7 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl h-[85vh] flex flex-col overflow-hidden">
         <div className="flex justify-end px-4 py-2 shrink-0">
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
             <i className="fa-solid fa-xmark text-lg" />
@@ -113,8 +116,8 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
         </div>
 
         <div className="flex-1 grid grid-cols-3 min-h-0">
-          {/* Main column: header, actions, contact info, deals */}
-          <div className="col-span-2 border-r border-slate-200 overflow-y-auto px-6 pb-6 space-y-5">
+          {/* Column 1: Contact Details */}
+          <div className="border-r border-slate-200 overflow-y-auto px-6 pb-6 space-y-5">
             <div className="flex items-start gap-3">
               <div className="w-14 h-14 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-lg shrink-0">
                 {initials}
@@ -268,73 +271,128 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
             </label>
           </div>
 
-          {/* Right column: Activity Log + Notes */}
-          <div className="overflow-y-auto p-5 space-y-6">
-            <div>
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">
-                Activity Log
-              </h3>
+          {/* Column 2: Activity Log */}
+          <div className="border-r border-slate-200 overflow-y-auto p-5 space-y-3">
+            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+              Activity Log
+            </h3>
 
-              {logs.length === 0 ? (
-                <p className="text-xs text-slate-400 italic">No activity recorded yet.</p>
-              ) : (
-                <div className="space-y-3">
-                  {logs.map((log, i) => {
-                    const isReceived = log.type === 'received';
-                    const isUnread = isReceived && log.is_read === false;
-                    return (
-                      <div
-                        key={i}
-                        className={`p-3 rounded-lg border space-y-1 ${
-                          isUnread
-                            ? 'bg-emerald-50/80 border-emerald-200'
-                            : isReceived
-                              ? 'bg-blue-50/50 border-blue-100'
-                              : 'bg-slate-50 border-slate-100'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between text-xs font-medium">
-                          <span className="flex items-center gap-1.5 text-slate-700">
-                            <i
-                              className={
-                                isReceived
-                                  ? 'fa-solid fa-reply text-blue-500'
-                                  : 'fa-solid fa-paper-plane text-slate-400'
-                              }
-                            />
-                            {isReceived ? 'Reply:' : 'Sent:'} {log.subject || 'No Subject'}
-                          </span>
-                          <span className="text-slate-400 text-[10px]">
-                            {log.sent_at ? new Date(log.sent_at).toLocaleDateString() : ''}
-                          </span>
-                        </div>
-                        <p className="text-slate-600 text-xs line-clamp-2">{log.message}</p>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            <div ref={notesRef}>
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Notes</h3>
-              <textarea
-                placeholder="Write a note about this contact..."
-                rows={6}
-                disabled={isReadOnly}
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-400"
-              />
-              <button
-                disabled={isReadOnly}
-                className="w-full mt-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                + Add Note
-              </button>
-              <p className="text-xs text-slate-400 italic pt-2">
-                No notes yet — this needs a backend endpoint (e.g. a `notes` table + `get-notes` /
-                `add-note` webhooks) since the old app didn't have a notes feature.
+            {markReadError && (
+              <p className="text-[11px] text-rose-600 bg-rose-50 border border-rose-200 rounded-md px-2 py-1">
+                {markReadError}
               </p>
-            </div>
+            )}
+
+            {logs.length === 0 ? (
+              <p className="text-xs text-slate-400 italic">No activity recorded yet.</p>
+            ) : (
+              logs.map((log, i) => {
+                const isReceived = log.type === 'received';
+                const isUnread = isReceived && log.is_read === false;
+                const canMarkRead = isUnread && !!log.id;
+                const logKey = String(log.id ?? i);
+                const isExpanded = expandedLogKey === logKey;
+                return (
+                  <div
+                    key={logKey}
+                    onClick={() => {
+                      console.log('[ActivityLog] card clicked', {
+                        logId: log.id,
+                        type: log.type,
+                        is_read: log.is_read,
+                        isUnread,
+                        canMarkRead,
+                      });
+                      if (canMarkRead) {
+                        setMarkReadError(null);
+                        markEmailRead.mutate(
+                          { contactId: contact.id, logId: log.id! },
+                          {
+                            onSuccess: (result) =>
+                              console.log('[ActivityLog] mark-log-read succeeded', result),
+                            onError: (err) => {
+                              console.error('[ActivityLog] mark-log-read failed', err);
+                              setMarkReadError(
+                                err instanceof Error ? err.message : 'Failed to mark as read.'
+                              );
+                            },
+                          }
+                        );
+                      } else {
+                        console.log('[ActivityLog] skipped mark-read: canMarkRead is false');
+                      }
+                      setExpandedLogKey((prev) => (prev === logKey ? null : logKey));
+                    }}
+                    className={`p-3 rounded-lg border space-y-1 cursor-pointer ${
+                      isUnread
+                        ? 'bg-emerald-50/80 border-emerald-200'
+                        : isReceived
+                          ? 'bg-green-50/60 border-green-100'
+                          : 'bg-slate-50 border-slate-100'
+                    }`}
+                    title={canMarkRead ? 'Click to mark as read' : 'Click to expand'}
+                  >
+                    <div className="flex items-center justify-between text-xs font-medium">
+                      <span className="flex items-center gap-1.5 text-slate-700 min-w-0">
+                        <i
+                          className={
+                            isReceived
+                              ? 'fa-solid fa-reply text-blue-500'
+                              : 'fa-solid fa-paper-plane text-slate-400'
+                          }
+                        />
+                        <span className="truncate">
+                          {isReceived ? 'Reply:' : 'Sent:'} {log.subject || 'No Subject'}
+                        </span>
+                      </span>
+                      <span className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-slate-400 text-[10px]">
+                          {log.sent_at ? new Date(log.sent_at).toLocaleDateString() : ''}
+                        </span>
+                        <i
+                          className={`fa-solid fa-chevron-down text-[9px] text-slate-400 transition-transform ${
+                            isExpanded ? 'rotate-180' : ''
+                          }`}
+                        />
+                      </span>
+                    </div>
+                    {(log.to || log.from) && (
+                      <p className="text-slate-400 text-[10px]">
+                        {isReceived ? `From: ${log.from ?? '--'}` : `To: ${log.to ?? '--'}`}
+                      </p>
+                    )}
+                    <p
+                      className={`text-slate-600 text-xs whitespace-pre-wrap ${
+                        isExpanded ? '' : 'line-clamp-2'
+                      }`}
+                    >
+                      {log.message}
+                    </p>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Column 3: Notes */}
+          <div ref={notesRef} className="overflow-y-auto p-5 space-y-3">
+            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Notes</h3>
+            <textarea
+              placeholder="Write a note about this contact..."
+              rows={6}
+              disabled={isReadOnly}
+              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-400"
+            />
+            <button
+              disabled={isReadOnly}
+              className="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              + Add Note
+            </button>
+            <p className="text-xs text-slate-400 italic pt-2">
+              No notes yet — this needs a backend endpoint (e.g. a `notes` table + `get-notes` /
+              `add-note` webhooks) since the old app didn't have a notes feature.
+            </p>
           </div>
         </div>
       </div>

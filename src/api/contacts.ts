@@ -64,10 +64,26 @@ export function restoreContacts(ids: number[]) {
 // New workflow (contact-email-crud.json, not part of the original backend) —
 // appends a "sent" entry to the contact's email_logs. Doesn't actually
 // deliver an email yet; see n8n-workflows/README.md.
-export function sendContactEmail(contactId: number, subject: string, message: string) {
-  return apiFetch<{ success: boolean; error?: string }>('/webhook/send-contact-email', {
+export function sendContactEmail(
+  contactId: number,
+  subject: string,
+  message: string,
+  to: string,
+  from: string
+) {
+  return apiFetch<{ success: boolean; error?: string }>('/webhook/send-email', {
     method: 'POST',
-    body: JSON.stringify({ contact_id: contactId, subject, message }),
+    body: JSON.stringify({ contact_id: contactId, subject, message, to, from }),
+  });
+}
+
+// New workflow (contact-email-crud.json) — flips one email_logs entry's
+// is_read to true. Entries logged before the `id` field existed can't be
+// targeted (harmless no-op); see n8n-workflows/README.md.
+export function markContactEmailRead(contactId: number, logId: string) {
+  return apiFetch<{ success: boolean; error?: string }>('/webhook/mark-log-read', {
+    method: 'POST',
+    body: JSON.stringify({ contact_id: contactId, log_id: logId }),
   });
 }
 
