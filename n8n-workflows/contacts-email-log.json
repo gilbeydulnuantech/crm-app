@@ -1,0 +1,115 @@
+{
+  "name": "06My-CRM-Email-mark-log-read",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mark-log-read",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*",
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "4ddaa332-78df-4d05-9226-8263849da672",
+      "name": "Webhook",
+      "webhookId": "1c32a707-2054-41be-a956-c281f425b52f"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts \nSET email_logs = $1::jsonb \nWHERE id = $2;",
+        "options": {
+          "queryReplacement": "={{ typeof $json.body.email_logs === 'string' ? $json.body.email_logs : JSON.stringify($json.body.email_logs) }}, ={{ Number($json.body.contact_id) }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        208,
+        0
+      ],
+      "id": "e926e0ba-209d-48b9-ac1f-176770351054",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"Status\": \"Success\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        416,
+        0
+      ],
+      "id": "4df9d007-8118-4fca-8e21-fe4fa7494fa7",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "9326378f-a5f4-47ed-bf73-bb0743326d2a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6a773e6041cc88fd4a5b60f3e46f2119d58608faafd09936499001d589f5c1af"
+  },
+  "id": "9vNI4Rho52vil5qL",
+  "tags": []
+}

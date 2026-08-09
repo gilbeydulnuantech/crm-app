@@ -1,0 +1,415 @@
+{
+  "name": "05My-CRM-get-email-reply",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "const attachments = $input.all().map(item => ({\n  name: item.json.name || 'Attachment',\n  url: item.json.webViewLink || ''\n}));\n\nreturn [{\n  json: {\n    ...$input.first().json,\n    attachmentsArray: attachments\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        704
+      ],
+      "id": "d25428a4-cd0b-4884-9f84-301c50e51721",
+      "name": "Aggregate Attachments"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, email_logs FROM contacts WHERE email = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Gmail Trigger').item.json.from.value[0].address ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        416,
+        464
+      ],
+      "id": "bca665fa-6b4a-4970-a5ff-7894bf2a25f4",
+      "name": "Check-contact-where-email-is:",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts\nSET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_array(\n    jsonb_build_object(\n        'type', 'received',\n        'subject', $1,\n        'message', $2,\n        'attachments', '[]'::jsonb,\n        'sent_at', NOW(),\n        'is_read', false\n    )\n)\nWHERE id = $3;",
+        "options": {
+          "queryReplacement": "={{ [\n  $('Gmail Trigger').item.json.subject || $('Gmail Trigger').item.json.headers.subject,\n  $('Gmail Trigger').item.json.text.split(/On\\s+.*wrote:/i)[0].split(/^>+/m)[0].trim(),\n  Number($json.id)\n] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        624,
+        464
+      ],
+      "id": "21bc7d8d-d654-4168-a430-936d9a3c1098",
+      "name": "update-logs: insert-reply",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {},
+        "options": {
+          "downloadAttachments": true
+        }
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        704
+      ],
+      "id": "1cebae6d-1576-42dd-927b-f2fa49c91521",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "dca9a47b-70ea-4ac6-a950-2b841990ee19",
+              "leftValue": "={{ $binary && Object.keys($binary).length > 0 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        208,
+        704
+      ],
+      "id": "dc191a1a-1993-443a-a4a8-38f3d548cbc5",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\n\nfor (const item of $input.all()) {\n  const binaryKeys = Object.keys(item.binary || {});\n  for (const key of binaryKeys) {\n    results.push({\n      json: {\n        ...item.json,\n        attachmentKey: key,\n        fileName: item.binary[key].fileName\n      },\n      binary: {\n        data: item.binary[key]\n      }\n    });\n  }\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        704
+      ],
+      "id": "eea82fde-8b1c-47a5-a9e9-5f0f3706c0b4",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "inputDataFieldName": "=data",
+        "name": "={{ $binary.data.fileName }}",
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1V40Igf2wTSuJ7eMHWIYe71YSLOLj9n5S",
+          "mode": "list"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        624,
+        704
+      ],
+      "id": "5d7c7835-658d-4e71-b8c3-af87a0155cf3",
+      "name": "Upload file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "AU1Fom2bJxYQkeKG",
+          "name": "n8n072826"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, email_logs FROM contacts WHERE email = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Gmail Trigger').item.json.from.value[0].address ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1040,
+        704
+      ],
+      "id": "5aa8b03a-362b-4995-827e-d053a407859c",
+      "name": "Check-contact-where-email-is:1",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts\nSET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_array(\n    jsonb_build_object(\n        'type', 'received',\n        'subject', $1,\n        'message', $2,\n        'attachments', $3::jsonb,\n        'sent_at', NOW(),\n        'is_read', false\n    )\n)\nWHERE id = $4;",
+        "options": {
+          "queryReplacement": "={{ [\n  $('Gmail Trigger').item.json.subject || $('Gmail Trigger').item.json.headers.subject,\n  $('Gmail Trigger').item.json.text.split(/On\\s+.*wrote:/i)[0].split(/^>+/m)[0].trim(),\n  JSON.stringify($('Aggregate Attachments').item.json.attachmentsArray),\n  Number($json.id)\n] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1248,
+        704
+      ],
+      "id": "ccee2383-f9ff-42b7-b9a2-e5e08e504158",
+      "name": "update-logs: insert-reply1",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Gmail Trigger": [
+      {
+        "json": {
+          "id": "19fb86cd3cc8d258",
+          "threadId": "19fb86a8de00ab62",
+          "labelIds": [
+            "UNREAD",
+            "IMPORTANT",
+            "CATEGORY_PERSONAL",
+            "INBOX"
+          ],
+          "sizeEstimate": 6006144,
+          "headers": {
+            "delivered-to": "Delivered-To: gilbeydulnuan@gmail.com",
+            "received": "Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])\r\n        by mx.google.com with SMTPS id 4fb4d7f45d1cf-6a09c5d4551sor508731a12.7.2026.07.31.06.46.07\r\n        for <gilbeydulnuan@gmail.com>\r\n        (Google Transport Security);\r\n        Fri, 31 Jul 2026 06:46:07 -0700 (PDT)",
+            "x-received": "X-Received: by 2002:a05:6402:2811:b0:69a:a6f1:539c with SMTP id\r\n 4fb4d7f45d1cf-6a0984e884emr1215815a12.2.1785505565253; Fri, 31 Jul 2026\r\n 06:46:05 -0700 (PDT)",
+            "arc-seal": "ARC-Seal: i=1; a=rsa-sha256; t=1785505566; cv=none;\r\n        d=google.com; s=arc-20260327;\r\n        b=KpU+X83agW0R3u+jqSmGJPp7IxKtTHMYcGKkD0z6RGWXK9JpVnfRd8p2iJ8n2anavs\r\n         6qAwmHfbo+AVMptsBXoFILWAVZIs9uxP9xvx5PSkS3ez8RF613jhHkeAB/B5c2Jo5Z1z\r\n         0d3UObEN0H80maoRjb/0RuMxhrGCdXkvOvUUJd6X8IaitoZGfBg3XO1OOiVzxKJTtDWD\r\n         OKPSWRChAVOUWUxXFxGSNtvloObz6fUvuGP3JoJ44EGQl8C7HjGC/dkszMhW1HsMWg8P\r\n         llACLFvynuD0HeTgQkVsJxtEZFRTnFZXSZCZNSsiI8XsSUpXr2//5hs9LdEYgYbZZ+zJ\r\n         mLUA==",
+            "arc-message-signature": "ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20260327;\r\n        h=to:subject:message-id:date:from:in-reply-to:references:mime-version\r\n         :dkim-signature;\r\n        bh=9BpRtBoBy7+/sG+TgXQDrMkEdhZ3XqBKzDZMIbVfY1U=;\r\n        fh=bc//w+535M4mfW40O9WUehWFpWB2b2PyubSA8SAj/6M=;\r\n        b=Vb+vqJZLabEjtbFS2A5dj0HQjOWTPD920OXRNhzZ0Se6IHp0DDIebd34H/uWi+umxV\r\n         k8/H+knzijvD6BZwCKHb+dF5tHD5cXns+bziXx/nwJpiaUsAKG1DsEQPGoaLdw76pneW\r\n         2g0eo9EFB+Mnd+nnD2onuvma63rfSr9qlMHEqlMSqXArByYgovYfXJAvWLAiEFi6N7yy\r\n         D7nkcE16cqRZiUvTaCPXcWeG8eeIQDTJd9+BNt9MpAB6iNqVwHLcmz0XQ+GNc5RkkI+n\r\n         xLLjS4GKxqhAJHZ7GxWSSMK9ooR9tL3Lkgdm0JdCLP5s6JF+A+7SQJ+nA9ST0u2g0Yjf\r\n         abEA==;\r\n        dara=google.com",
+            "arc-authentication-results": "ARC-Authentication-Results: i=1; mx.google.com; arc=none",
+            "return-path": "Return-Path: <imageandmotionphotography@gmail.com>",
+            "received-spf": "Received-SPF: pass (google.com: domain of imageandmotionphotography@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;",
+            "authentication-results": "Authentication-Results: mx.google.com;\r\n       dkim=pass header.i=@gmail.com header.s=20251104 header.b=KQl16sxi;\r\n       arc=pass (i=1);\r\n       spf=pass (google.com: domain of imageandmotionphotography@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=imageandmotionphotography@gmail.com;\r\n       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com;\r\n       dara=pass header.i=@gmail.com",
+            "dkim-signature": "DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;\r\n        d=gmail.com; s=20251104; t=1785505566; x=1786110366; dara=google.com;\r\n        h=content-type:to:subject:message-id:date:from:in-reply-to:references\r\n         :mime-version:from:to:cc:subject:date:message-id:reply-to\r\n         :content-type;\r\n        bh=9BpRtBoBy7+/sG+TgXQDrMkEdhZ3XqBKzDZMIbVfY1U=;\r\n        b=KQl16sxix/varjR+hmQf1S1QZ1B2FAD0QN2JXCBomypcBBpLuM4mdXPI9XsTr6SpSI\r\n         b5pcQy9uVS9SyECfjeJKSFQC9vcydyTwtOuNeV/jKI5lN8Bv41Wo5uSIQSjvudpdjWKu\r\n         xZI65ik/3ZJkHbn65UeynSHJwLTbcnEGV04mo4fIBz+za8uEyKD8F8Nn5HMGdrokVB60\r\n         qBbAK+1nm1Vv54zHBwIQnzbuH5Auez+K1w7yvQQZjy5N5GYubNmai+/syCSAynwBpqbd\r\n         4OvCANtesDVo/h1BRQvF0+vNG/IPrvJRHDy0qxs6pykVLM1Igu6c7l0tMyTTI1yoy4F9\r\n         5JQA==",
+            "x-google-dkim-signature": "X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;\r\n        d=1e100.net; s=20251104; t=1785505566; x=1786110366;\r\n        h=content-type:to:subject:message-id:date:from:in-reply-to:references\r\n         :mime-version:x-gm-gg:x-gm-message-state:from:to:cc:subject:date\r\n         :message-id:reply-to:content-type;\r\n        bh=9BpRtBoBy7+/sG+TgXQDrMkEdhZ3XqBKzDZMIbVfY1U=;\r\n        b=RCyw+nhR57sYTueKJFZvQq5A+2zRKn0xrRKQCtveggK4MBiC6Uja8awV6QS6ft4QeP\r\n         Gq/U8xXpGp9WajGwBWrfqbg1Y2lwZTvqHA8OoYDKunglDU31s0i6ktmWjzaztETMhW26\r\n         W6VZkwk/EhXkvdIzehGMSVZdp9IsSCfun9lMo+2ASPwTk8Ij28EGWPkqcSlSfk941Eej\r\n         ybJoWn0eItI8YHQ7g6yQddVwkSds1uXZQ7i4T5o7BRi6OvhKpPZOMToUlnvOLZD3caTX\r\n         hN1g7xzznVT1REM78LYEdaB92Qp2ajvCGO19mOglfmqHZ5oUOy0vRTYk66629PnKIcDZ\r\n         DMFw==",
+            "x-gm-message-state": "X-Gm-Message-State: AOJu0YwNogJa6mcy08PGyd/gcxAKjm641OJbhJj2NMIfg9ssTTwZMvPR\r\n\tZLzCVQptjuEJkuuuvP7+nHGdCunA0T5O4d86JBY/N1d2O6SsNUS3f2gH2hKvPhM6RVxfcZAh46j\r\n\tEy5KjNHUuhSLB5M6IqxsuC/cSi8jbee2iClCQo6s=",
+            "x-gm-gg": "X-Gm-Gg: AR+sD11d/jfHuBOZU3BHTXmqlx/9VexyQY/5TE6UkXHOWzv0ACkhSGdBJ/m/GMAcJ1G\r\n\tiMm4YgqLSVelOmcxBGWkxSe9+50HGfuBGwi5cvzIolI+0chSt6yUhM+H2SdFQyBSz7y5S8MTH76\r\n\tp7c5hpsEBK3ywtLzXbHScm/Or2Ke4+knJ8kq6pmTvpd5G/n38MdazFMoVdpT05akHWvjWSBYu0C\r\n\tYZYNPD+Q66/tsuT9Wik7ZzMpXaZNGiyxDtcRMiO9rFuzOf5XBSPjS49QZBlgqgLx7nX7ctBY60S\r\n\tCeFQKlakrNf6cVe6Tcu514Re3wfjN3kqjx1cXdUj",
+            "mime-version": "MIME-Version: 1.0",
+            "references": "References: <CAABexhz=wrE0ofyn83gnpWMCvygOMTWML-GcZ8RDiTu_px87AA@mail.gmail.com>",
+            "in-reply-to": "In-Reply-To: <CAABexhz=wrE0ofyn83gnpWMCvygOMTWML-GcZ8RDiTu_px87AA@mail.gmail.com>",
+            "from": "From: Gil Bey <imageandmotionphotography@gmail.com>",
+            "date": "Date: Fri, 31 Jul 2026 18:45:53 +0500",
+            "x-gm-features": "X-Gm-Features: AUfX_mwJKn8utPPceffXfJLhlUxqBQeNJbcbeeCuyAvZ5UXYUEg2Pj59jBT1Ij8",
+            "message-id": "Message-ID: <CAJoj3f7aBx++_E8Bq1r1C4E8V6kyLCFyVeBw+oDY5=pSNobfRA@mail.gmail.com>",
+            "subject": "Subject: Re: testing another no attachment",
+            "to": "To: gilbey dulnuan <gilbeydulnuan@gmail.com>",
+            "content-type": "Content-Type: multipart/mixed; boundary=\"000000000000f6af100657e868b0\""
+          },
+          "html": "<div dir=\"auto\">Whiiiiteyyyyyy yo. Attachment ready. </div><div dir=\"auto\"><br><div class=\"gmail_quote gmail_quote_container\" dir=\"auto\"><div dir=\"ltr\" class=\"gmail_attr\">On Fri, 31 Jul 2026 at 18:43 gilbey dulnuan &lt;<a href=\"mailto:gilbeydulnuan@gmail.com\">gilbeydulnuan@gmail.com</a>&gt; wrote:<br></div><blockquote class=\"gmail_quote\" style=\"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex\">yelllloooooow, im no attachment<br>\n<br>\n---<br>\nThis email was sent automatically with n8n<br>\n<a href=\"https://n8n.io\" rel=\"noreferrer\" target=\"_blank\">https://n8n.io</a><br>\n</blockquote></div></div>\n",
+          "text": "Whiiiiteyyyyyy yo. Attachment ready.\n\nOn Fri, 31 Jul 2026 at 18:43 gilbey dulnuan <gilbeydulnuan@gmail.com> wrote:\n\n> yelllloooooow, im no attachment\n>\n> ---\n> This email was sent automatically with n8n\n> https://n8n.io\n>\n",
+          "textAsHtml": "<p>Whiiiiteyyyyyy yo. Attachment ready.</p><p>On Fri, 31 Jul 2026 at 18:43 gilbey dulnuan &lt;<a href=\"mailto:gilbeydulnuan@gmail.com\">gilbeydulnuan@gmail.com</a>&gt; wrote:</p><p>&gt; yelllloooooow, im no attachment<br/>&gt;<br/>&gt; ---<br/>&gt; This email was sent automatically with n8n<br/>&gt; <a href=\"https://n8n.io\">https://n8n.io</a><br/>&gt;</p>",
+          "subject": "Re: testing another no attachment",
+          "references": "<CAABexhz=wrE0ofyn83gnpWMCvygOMTWML-GcZ8RDiTu_px87AA@mail.gmail.com>",
+          "date": "2026-07-31T13:45:53.000Z",
+          "to": {
+            "value": [
+              {
+                "address": "gilbeydulnuan@gmail.com",
+                "name": "gilbey dulnuan"
+              }
+            ],
+            "html": "<span class=\"mp_address_group\"><span class=\"mp_address_name\">gilbey dulnuan</span> &lt;<a href=\"mailto:gilbeydulnuan@gmail.com\" class=\"mp_address_email\">gilbeydulnuan@gmail.com</a>&gt;</span>",
+            "text": "\"gilbey dulnuan\" <gilbeydulnuan@gmail.com>"
+          },
+          "from": {
+            "value": [
+              {
+                "address": "imageandmotionphotography@gmail.com",
+                "name": "Gil Bey"
+              }
+            ],
+            "html": "<span class=\"mp_address_group\"><span class=\"mp_address_name\">Gil Bey</span> &lt;<a href=\"mailto:imageandmotionphotography@gmail.com\" class=\"mp_address_email\">imageandmotionphotography@gmail.com</a>&gt;</span>",
+            "text": "\"Gil Bey\" <imageandmotionphotography@gmail.com>"
+          },
+          "messageId": "<CAJoj3f7aBx++_E8Bq1r1C4E8V6kyLCFyVeBw+oDY5=pSNobfRA@mail.gmail.com>",
+          "inReplyTo": "<CAABexhz=wrE0ofyn83gnpWMCvygOMTWML-GcZ8RDiTu_px87AA@mail.gmail.com>"
+        },
+        "binary": {
+          "attachment_0": {
+            "mimeType": "image/jpeg",
+            "fileType": "image",
+            "fileExtension": "JPG",
+            "data": "filesystem-v2",
+            "fileName": "gilbert.JPG",
+            "id": "filesystem-v2:workflows/g15mzGsHBKPkmo49/executions/temp/binary_data/8d06df39-242e-47cf-befb-6d05a5639fd2",
+            "fileSize": "1.83 MB",
+            "bytes": 1825506
+          },
+          "attachment_1": {
+            "mimeType": "image/heic",
+            "fileType": "image",
+            "fileExtension": "HEIC",
+            "data": "filesystem-v2",
+            "fileName": "IMG_1551.HEIC",
+            "id": "filesystem-v2:workflows/g15mzGsHBKPkmo49/executions/temp/binary_data/83de0b0c-ae40-450d-ba50-b08c934a7875",
+            "fileSize": "2.56 MB",
+            "bytes": 2557067
+          }
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Aggregate Attachments": {
+      "main": [
+        [
+          {
+            "node": "Check-contact-where-email-is:1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check-contact-where-email-is:": {
+      "main": [
+        [
+          {
+            "node": "update-logs: insert-reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check-contact-where-email-is:",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Upload file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload file": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Attachments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check-contact-where-email-is:1": {
+      "main": [
+        [
+          {
+            "node": "update-logs: insert-reply1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "0ea5f425-cb15-43a3-86df-23f3e65c451e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6a773e6041cc88fd4a5b60f3e46f2119d58608faafd09936499001d589f5c1af"
+  },
+  "id": "g15mzGsHBKPkmo49",
+  "tags": []
+}

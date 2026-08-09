@@ -1,0 +1,441 @@
+{
+  "name": "04My-CRM-sendEmail-and-show-activity-log",
+  "nodes": [
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"success\",\n  \"email_logs\": \"{{ $json.email_logs }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1456,
+        0
+      ],
+      "id": "3b993a25-8fed-4cf9-b49b-a65f02100860",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Webhook').item.json.body.to_email }}",
+        "subject": "={{ $('Webhook').item.json.body.subject }}",
+        "emailType": "text",
+        "message": "={{ $('Webhook').item.json.body.message }}",
+        "options": {
+          "attachmentsUi": {
+            "attachmentsBinary": [
+              {
+                "property": "={{ Object.keys($binary).join(',') }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        400,
+        -208
+      ],
+      "id": "e8441508-e784-42db-9794-4f730f0d86f2",
+      "name": "Send a message",
+      "webhookId": "c8cc0589-78a6-4dc1-8cba-f8bcfa0c62ca",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "send-email",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "7c3e24c5-c045-44a7-8c5a-be2249ddfdac",
+      "name": "Webhook",
+      "webhookId": "c7f657b4-506a-43f7-8075-4e1b2a4b75e2"
+    },
+    {
+      "parameters": {
+        "inputDataFieldName": "={{ $binary.attachment_0 ? 'attachment_0' : Object.keys($binary)[0] }}",
+        "name": "={{ $binary[Object.keys($binary)[0]]?.fileName || 'Attachment.pdf' }}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1V40Igf2wTSuJ7eMHWIYe71YSLOLj9n5S",
+          "mode": "list",
+          "cachedResultName": "CRM Email Attachments",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1V40Igf2wTSuJ7eMHWIYe71YSLOLj9n5S"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        784,
+        -288
+      ],
+      "id": "ef193adc-7503-4277-b2d1-9fd7216d569a",
+      "name": "Upload file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "AU1Fom2bJxYQkeKG",
+          "name": "n8n072826"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Fetch the aggregated items list\nconst items = $input.all();\nconst attachmentList = [];\n\nitems.forEach(item => {\n    // Access item JSON data aggregated from the Google Drive node\n    const data = item.json;\n\n    // Handle whether Aggregate outputted an array or individual item objects\n    const fileArray = Array.isArray(data) ? data : (data.data || [data]);\n\n    fileArray.forEach(file => {\n        // Skip execution metadata or items without a webViewLink\n        if (!file || !file.webViewLink) return;\n\n        const fileName = file.name || file.fileName || 'Attachment';\n        const fileUrl = file.webViewLink;\n\n        attachmentList.push({\n            name: fileName,\n            url: fileUrl\n        });\n    });\n});\n\n// Return as a formatted JSON string for Postgres $3 parameter\nreturn [{\n    json: {\n        attachments_json: JSON.stringify(attachmentList)\n    }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1024,
+        -224
+      ],
+      "id": "d679c7c9-81cb-4cec-bbfa-e0df31833805",
+      "name": "build attachment json"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Access the binary data generated in the 'format base64' node\nconst base64NodeItem = $('format base64').first();\nconst binaryObject = base64NodeItem.binary || {};\nconst binaryKeys = Object.keys(binaryObject);\n\n// If no attachments were passed, forward a single clean JSON item\nif (binaryKeys.length === 0) {\n    return [{\n        json: { ...$input.first().json, has_attachments: false }\n    }];\n}\n\n// Split each binary key into its own n8n item for Google Drive upload\nconst outputItems = binaryKeys.map(key => {\n    return {\n        json: {\n            ...$input.first().json,\n            target_binary_key: key,\n            has_attachments: true\n        },\n        binary: {\n            // Standardize the binary key to 'data' for the Google Drive node\n            data: binaryObject[key]\n        }\n    };\n});\n\nreturn outputItems;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        592,
+        -176
+      ],
+      "id": "883d24e3-cc8c-440c-8756-8bb2b2f9ad33",
+      "name": "separate binary items"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body || $json;\nconst attachments = body.attachments || [];\n\nconst binaryData = {};\n\nif (Array.isArray(attachments) && attachments.length > 0) {\n    attachments.forEach((att, index) => {\n        // Use 'data' for the first item if there's only 1, or attachment_0, attachment_1\n        const key = attachments.length === 1 ? 'data' : `attachment_${index}`;\n        \n        binaryData[key] = {\n            data: att.data, // Base64 string from frontend\n            mimeType: att.mimeType || 'application/octet-stream',\n            fileName: att.filename || `attachment_${index}`\n        };\n    });\n}\n\nreturn [\n    {\n        json: body,\n        binary: binaryData\n    }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "3330f77c-12bc-41d7-b355-9e8137f110f4",
+      "name": "format base64"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('format base64').item.json.to_email }}",
+        "subject": "={{ $('format base64').item.json.subject }}",
+        "emailType": "text",
+        "message": "={{ $('format base64').item.json.message }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        768,
+        128
+      ],
+      "id": "593f6333-ece7-430a-8707-956606a93dc0",
+      "name": "Send a message1",
+      "webhookId": "c8cc0589-78a6-4dc1-8cba-f8bcfa0c62ca",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "22a3bc11-b3e0-4fe3-8f86-3f2c64a5624f",
+              "leftValue": "={{ $binary && Object.keys($binary).length > 0 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        512,
+        96
+      ],
+      "id": "9578ce18-d908-4402-9741-f15c0144235d",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"success\",\n  \"email_logs\": \"{{ $json.email_logs }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1408,
+        256
+      ],
+      "id": "f478b3d1-84c3-48e5-8fd4-194df8de4490",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts\nSET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object(\n    'type', 'sent',\n    'subject', $1::text,\n    'message', $2::text,\n    'sent_at', NOW())\n    \nWHERE id = $3\nRETURNING email_logs;",
+        "options": {
+          "queryReplacement": "={{ $('Webhook').item.json.body.subject || '' }}, {{ $('Webhook').item.json.body.message || '' }}, {{ Number($('Webhook').item.json.body.contact_id) }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1056,
+        208
+      ],
+      "id": "46e8ab2b-f05b-4228-8057-dd3c6821a574",
+      "name": "Log email",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts\nSET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object(\n    'type', 'sent',\n    'subject', $1::text,\n    'message', $2::text,\n    'sent_at', NOW(),\n    'attachments', $3::jsonb\n)::jsonb\nWHERE id = $4\nRETURNING email_logs;",
+        "options": {
+          "queryReplacement": "={{ $('Webhook').item.json.body.subject || '' }}, {{ $('Webhook').item.json.body.message || '' }}, ={{ $json.attachments_json }}, {{ Number($('Webhook').item.json.body.contact_id) }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1248,
+        -64
+      ],
+      "id": "9b759fce-06dd-4f73-ae1d-c10a8e4af149",
+      "name": "Log email with attachments",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "cornball-empathy-bath.ngrok-free.dev",
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
+            "content-length": "143",
+            "accept": "*/*",
+            "accept-encoding": "gzip, deflate, br, zstd",
+            "accept-language": "en-GB,en-US;q=0.9,en;q=0.8",
+            "content-type": "application/json",
+            "ngrok-skip-browser-warning": "true",
+            "origin": "http://127.0.0.1:5500",
+            "priority": "u=1, i",
+            "referer": "http://127.0.0.1:5500/",
+            "sec-ch-ua": "\"Not;A=Brand\";v=\"8\", \"Chromium\";v=\"150\", \"Google Chrome\";v=\"150\"",
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": "\"macOS\"",
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "cross-site",
+            "x-forwarded-for": "62.84.33.4",
+            "x-forwarded-host": "cornball-empathy-bath.ngrok-free.dev",
+            "x-forwarded-proto": "https"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "contact_id": 1,
+            "to_email": "imageandmotionphotography@gmail.com",
+            "subject": "last testing",
+            "message": "Last testing. Yahoooooo",
+            "attachments": []
+          },
+          "webhookUrl": "https://cornball-empathy-bath.ngrok-free.dev/webhook/send-email",
+          "executionMode": "production"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "separate binary items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "format base64",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload file": {
+      "main": [
+        [
+          {
+            "node": "build attachment json",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "separate binary items": {
+      "main": [
+        [
+          {
+            "node": "Upload file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format base64": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "build attachment json": {
+      "main": [
+        [
+          {
+            "node": "Log email with attachments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message1": {
+      "main": [
+        [
+          {
+            "node": "Log email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log email": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log email with attachments": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "dc448df3-a9bc-4dbb-8b5f-3b9a11725f02",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6a773e6041cc88fd4a5b60f3e46f2119d58608faafd09936499001d589f5c1af"
+  },
+  "id": "njaTmGElceQSJK6j",
+  "tags": []
+}
