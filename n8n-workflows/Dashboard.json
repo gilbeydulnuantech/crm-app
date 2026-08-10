@@ -1,0 +1,175 @@
+{
+  "name": "Dashboard",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "get-dashboard",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "d083c713-bcd3-4487-9f33-34ced037f103",
+      "name": "Webhook: get-dashboard",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        560
+      ],
+      "webhookId": "d7cfbafe-91b9-4eda-aabe-01dc0b29c4ad"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT json_build_object('total_contacts', (SELECT COUNT(*) FROM contacts WHERE is_archived = false), 'open_deals', (SELECT COUNT(*) FROM opportunities WHERE status = 'Open'), 'total_revenue', (SELECT COALESCE(SUM(deal_value), 0) FROM opportunities WHERE status = 'Won'), 'tasks_due_today', (SELECT COUNT(*) FROM activities WHERE type = 'task' AND is_completed = false AND due_at::date = CURRENT_DATE), 'tasks_overdue', (SELECT COUNT(*) FROM activities WHERE type = 'task' AND is_completed = false AND due_at < now()), 'team_members', (SELECT COUNT(*) FROM users WHERE active = true), 'new_contacts_today', (SELECT COUNT(*) FROM contacts WHERE created_at::date = CURRENT_DATE), 'pipeline_by_stage', (SELECT COALESCE(json_agg(json_build_object('stage_name', st.name, 'count', COALESCE(o.cnt, 0)) ORDER BY st.display_order), '[]'::json) FROM stages st LEFT JOIN (SELECT stage_id, COUNT(*) AS cnt FROM opportunities WHERE status = 'Open' GROUP BY stage_id) o ON o.stage_id = st.id WHERE st.name NOT ILIKE '%won%' AND st.name NOT ILIKE '%lost%'), 'lead_sources', (SELECT COALESCE(json_agg(json_build_object('lead_source', COALESCE(lead_source, 'Unknown'), 'count', cnt)), '[]'::json) FROM (SELECT lead_source, COUNT(*) AS cnt FROM contacts WHERE is_archived = false GROUP BY lead_source ORDER BY COUNT(*) DESC) s), 'upcoming_tasks', (SELECT COALESCE(json_agg(json_build_object('id', id, 'subject', subject, 'due_at', due_at)), '[]'::json) FROM (SELECT id, subject, due_at FROM activities WHERE type = 'task' AND is_completed = false AND due_at IS NOT NULL ORDER BY due_at ASC LIMIT 5) t), 'recent_activities', (SELECT COALESCE(json_agg(json_build_object('id', id, 'description', description, 'created_at', created_at)), '[]'::json) FROM (SELECT a.id, (COALESCE(u.name, 'Someone') || ' logged a ' || a.type || ': ' || COALESCE(a.subject, '(no subject)')) AS description, a.created_at FROM activities a LEFT JOIN users u ON u.id = a.user_id ORDER BY a.created_at DESC LIMIT 5) r), 'recent_contacts', (SELECT COALESCE(json_agg(json_build_object('id', id, 'name', name, 'lead_status', lead_status, 'owner_name', owner_name, 'created_at', created_at)), '[]'::json) FROM (SELECT c.id, TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS name, c.lead_status, u.name AS owner_name, c.created_at FROM contacts c LEFT JOIN users u ON u.id = c.owner_id WHERE c.is_archived = false ORDER BY c.created_at DESC LIMIT 5) rc)) AS result;",
+        "options": {}
+      },
+      "id": "454cc29d-649d-4617-a738-2529293c96de",
+      "name": "Postgres: Dashboard Aggregate",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        464,
+        560
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.result }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization, ngrok-skip-browser-warning"
+              }
+            ]
+          }
+        }
+      },
+      "id": "ade46a5d-5d77-41b0-af96-0f169ed10694",
+      "name": "Respond: get-dashboard",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        688,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "OPTIONS",
+        "path": "get-dashboard",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "b4a4f518-e3d3-4d93-8cbb-ce547e82abfa",
+      "name": "Webhook OPTIONS: get-dashboard",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        784
+      ],
+      "webhookId": "ae819ddc-9e34-4561-aa2e-c213dda1843d"
+    },
+    {
+      "parameters": {
+        "respondWith": "noData",
+        "options": {
+          "responseCode": 204,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization, ngrok-skip-browser-warning"
+              }
+            ]
+          }
+        }
+      },
+      "id": "e6cf0d24-42b1-4327-bcc9-71c6a63e6440",
+      "name": "Respond OPTIONS: get-dashboard",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        464,
+        784
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook: get-dashboard": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Dashboard Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Dashboard Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Respond: get-dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook OPTIONS: get-dashboard": {
+      "main": [
+        [
+          {
+            "node": "Respond OPTIONS: get-dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "74287470-672e-4ba8-b13f-aa2f71e93778",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6a773e6041cc88fd4a5b60f3e46f2119d58608faafd09936499001d589f5c1af"
+  },
+  "id": "yFeNxm4sDgvEY2wx",
+  "tags": []
+}

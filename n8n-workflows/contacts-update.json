@@ -1,0 +1,253 @@
+{
+  "name": "contacts-update",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "update-contact",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "e2f681eb-04fc-4187-baca-45419504013f",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        800,
+        -144
+      ],
+      "webhookId": "update-contact"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst requesterId = parseInt(match[1], 10);\nconst body = $input.first().json.body || {};\nconst contactId = parseInt(body.id, 10);\n\nif (!Number.isInteger(contactId)) throw new Error('\"id\" must be an integer.');\n\nconst accountId = (body.account_id === null || body.account_id === undefined || body.account_id === '')\n  ? null\n  : parseInt(body.account_id, 10);\n\nif (accountId !== null && !Number.isInteger(accountId)) {\n  throw new Error('\"account_id\" must be an integer or null.');\n}\n\nreturn [{\n  json: {\n    requesterId,\n    contactId,\n    first_name: (body.first_name ?? '').toString().trim(),\n    last_name: (body.last_name ?? '').toString().trim(),\n    job_title: (body.job_title ?? '').toString().trim(),\n    account_id: accountId,\n    email: (body.email ?? '').toString().trim(),\n    secondary_email: (body.secondary_email ?? '').toString().trim(),\n    phone: (body.phone ?? '').toString().trim(),\n    secondary_phone: (body.secondary_phone ?? '').toString().trim(),\n    linkedin_url: (body.linkedin_url ?? '').toString().trim(),\n    lead_status: (body.lead_status ?? body.status ?? '').toString().trim(),\n    lead_source: (body.lead_source ?? '').toString().trim(),\n    city: (body.city ?? '').toString().trim(),\n    state: (body.state ?? '').toString().trim(),\n    zip_code: (body.zip_code ?? '').toString().trim(),\n    country: (body.country ?? '').toString().trim(),\n    do_not_contact: body.do_not_contact === undefined ? null : (body.do_not_contact === true || body.do_not_contact === 'true')\n  }\n}];"
+      },
+      "id": "0ed7868d-4d5e-44ee-b4cc-ca02c1b5f7db",
+      "name": "Parse Token & Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1024,
+        -144
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "b105c9b1-08c2-4c2a-a671-e16053d4b46d",
+      "name": "Look Up Requester",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1248,
+        -144
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nconst c = $('Parse Token & Payload').first().json;\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst sqlQuery = `\n  UPDATE contacts SET\n    first_name      = COALESCE(NULLIF($1, ''), first_name),\n    last_name       = COALESCE(NULLIF($2, ''), last_name),\n    job_title       = COALESCE(NULLIF($3, ''), job_title),\n    account_id      = COALESCE($4, account_id),\n    email           = COALESCE(NULLIF($5, ''), email),\n    secondary_email = COALESCE(NULLIF($6, ''), secondary_email),\n    phone           = COALESCE(NULLIF($7, ''), phone),\n    secondary_phone = COALESCE(NULLIF($8, ''), secondary_phone),\n    linkedin_url    = COALESCE(NULLIF($9, ''), linkedin_url),\n    lead_status     = COALESCE(NULLIF($10, ''), lead_status),\n    lead_source     = COALESCE(NULLIF($11, ''), lead_source),\n    city            = COALESCE(NULLIF($12, ''), city),\n    state           = COALESCE(NULLIF($13, ''), state),\n    zip_code        = COALESCE(NULLIF($14, ''), zip_code),\n    country         = COALESCE(NULLIF($15, ''), country),\n    do_not_contact  = COALESCE($16, do_not_contact),\n    updated_at      = NOW()\n  WHERE id = $17 AND ($18 = 'admin' OR owner_id = $19)\n  RETURNING *;\n`;\n\nconst queryParams = [\n  c.first_name, c.last_name, c.job_title, c.account_id,\n  c.email, c.secondary_email, c.phone, c.secondary_phone, c.linkedin_url,\n  c.lead_status, c.lead_source,\n  c.city, c.state, c.zip_code, c.country,\n  c.do_not_contact,\n  c.contactId, requester.role, requester.id\n];\n\nreturn [{ json: { sqlQuery, queryParams } }];"
+      },
+      "id": "fed4ffa1-38ea-4c44-90a3-738dacbde4c5",
+      "name": "Build Update Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1472,
+        -144
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sqlQuery }}",
+        "options": {
+          "queryReplacement": "={{ $json.queryParams }}"
+        }
+      },
+      "id": "eba39c5c-837e-4e40-b67e-6959ccd2e617",
+      "name": "Execute Update",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1680,
+        -144
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) {\n  throw new Error('Contact not found or you do not have permission to edit it.');\n}\nreturn [{ json: { success: true, contact: result.json } }];"
+      },
+      "id": "7aad5ddf-3dab-4fa7-8871-e587d6f57c48",
+      "name": "Check Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1904,
+        -144
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "c1366d0a-1c7b-4061-9b1f-cf73189f95fe",
+      "name": "Respond - Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2128,
+        -144
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Update failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "215576cb-d2e7-4c11-9005-16979eb63019",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1248,
+        48
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Token & Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token & Payload": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester": {
+      "main": [
+        [
+          {
+            "node": "Build Update Query",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Update Query": {
+      "main": [
+        [
+          {
+            "node": "Execute Update",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Update": {
+      "main": [
+        [
+          {
+            "node": "Check Result",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Result": {
+      "main": [
+        [
+          {
+            "node": "Respond - Success",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "5b5fc349-dc83-4e8c-bb55-dca33435ad0e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6a773e6041cc88fd4a5b60f3e46f2119d58608faafd09936499001d589f5c1af"
+  },
+  "id": "cMVhIPXLtSL1AnvY",
+  "tags": []
+}

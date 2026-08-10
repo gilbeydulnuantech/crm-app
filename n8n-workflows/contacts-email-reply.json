@@ -1,0 +1,321 @@
+{
+  "name": "contacts-email-reply",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "const attachments = $input.all().map(item => ({\n  name: item.json.name || 'Attachment',\n  url: item.json.webViewLink || ''\n}));\n\nreturn [{\n  json: {\n    ...$input.first().json,\n    attachmentsArray: attachments\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        704
+      ],
+      "id": "d25428a4-cd0b-4884-9f84-301c50e51721",
+      "name": "Aggregate Attachments"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, email_logs FROM contacts WHERE email = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Gmail Trigger').item.json.from.value[0].address ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        416,
+        464
+      ],
+      "id": "bca665fa-6b4a-4970-a5ff-7894bf2a25f4",
+      "name": "Check-contact-where-email-is:",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts\nSET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_array(\n    jsonb_build_object(\n        'id', gen_random_uuid()::text,\n        'type', 'received',\n        'subject', $1,\n        'message', $2,\n        'attachments', '[]'::jsonb,\n        'sent_at', NOW(),\n        'is_read', false\n    )\n)\nWHERE id = $3;",
+        "options": {
+          "queryReplacement": "={{ [\n  $('Gmail Trigger').item.json.subject || $('Gmail Trigger').item.json.headers.subject,\n  $('Gmail Trigger').item.json.text.split(/On\\s+.*wrote:/i)[0].split(/^>+/m)[0].trim(),\n  Number($json.id)\n] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        624,
+        464
+      ],
+      "id": "21bc7d8d-d654-4168-a430-936d9a3c1098",
+      "name": "update-logs: insert-reply",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {},
+        "options": {
+          "downloadAttachments": true
+        }
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        704
+      ],
+      "id": "1cebae6d-1576-42dd-927b-f2fa49c91521",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "dca9a47b-70ea-4ac6-a950-2b841990ee19",
+              "leftValue": "={{ $binary && Object.keys($binary).length > 0 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        208,
+        704
+      ],
+      "id": "dc191a1a-1993-443a-a4a8-38f3d548cbc5",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\n\nfor (const item of $input.all()) {\n  const binaryKeys = Object.keys(item.binary || {});\n  for (const key of binaryKeys) {\n    results.push({\n      json: {\n        ...item.json,\n        attachmentKey: key,\n        fileName: item.binary[key].fileName\n      },\n      binary: {\n        data: item.binary[key]\n      }\n    });\n  }\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        704
+      ],
+      "id": "eea82fde-8b1c-47a5-a9e9-5f0f3706c0b4",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "inputDataFieldName": "=data",
+        "name": "={{ $binary.data.fileName }}",
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1V40Igf2wTSuJ7eMHWIYe71YSLOLj9n5S",
+          "mode": "list"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        624,
+        704
+      ],
+      "id": "5d7c7835-658d-4e71-b8c3-af87a0155cf3",
+      "name": "Upload file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "AU1Fom2bJxYQkeKG",
+          "name": "n8n072826"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, email_logs FROM contacts WHERE email = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Gmail Trigger').item.json.from.value[0].address ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1040,
+        704
+      ],
+      "id": "5aa8b03a-362b-4995-827e-d053a407859c",
+      "name": "Check-contact-where-email-is:1",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts\nSET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_array(\n    jsonb_build_object(\n        'id', gen_random_uuid()::text,\n        'type', 'received',\n        'subject', $1,\n        'message', $2,\n        'attachments', $3::jsonb,\n        'sent_at', NOW(),\n        'is_read', false\n    )\n)\nWHERE id = $4;",
+        "options": {
+          "queryReplacement": "={{ [\n  $('Gmail Trigger').item.json.subject || $('Gmail Trigger').item.json.headers.subject,\n  $('Gmail Trigger').item.json.text.split(/On\\s+.*wrote:/i)[0].split(/^>+/m)[0].trim(),\n  JSON.stringify($('Aggregate Attachments').item.json.attachmentsArray),\n  Number($json.id)\n] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1248,
+        704
+      ],
+      "id": "ccee2383-f9ff-42b7-b9a2-e5e08e504158",
+      "name": "update-logs: insert-reply1",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Aggregate Attachments": {
+      "main": [
+        [
+          {
+            "node": "Check-contact-where-email-is:1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check-contact-where-email-is:": {
+      "main": [
+        [
+          {
+            "node": "update-logs: insert-reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check-contact-where-email-is:",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Upload file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload file": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Attachments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check-contact-where-email-is:1": {
+      "main": [
+        [
+          {
+            "node": "update-logs: insert-reply1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "a53008e0-278d-4db6-8f76-f1484cfdd37d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6a773e6041cc88fd4a5b60f3e46f2119d58608faafd09936499001d589f5c1af"
+  },
+  "id": "g15mzGsHBKPkmo49",
+  "tags": []
+}

@@ -1,5 +1,5 @@
 {
-  "name": "04My-CRM-sendEmail-and-show-activity-log",
+  "name": "contacts-mail-send",
   "nodes": [
     {
       "parameters": {
@@ -10,15 +10,15 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        1456,
-        0
+        3536,
+        1440
       ],
-      "id": "3b993a25-8fed-4cf9-b49b-a65f02100860",
+      "id": "4221f136-2187-4c47-9d50-ad8b14c6a190",
       "name": "Respond to Webhook"
     },
     {
       "parameters": {
-        "sendTo": "={{ $('Webhook').item.json.body.to_email }}",
+        "sendTo": "={{ $json.to }}",
         "subject": "={{ $('Webhook').item.json.body.subject }}",
         "emailType": "text",
         "message": "={{ $('Webhook').item.json.body.message }}",
@@ -35,10 +35,10 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        400,
-        -208
+        2480,
+        1232
       ],
-      "id": "e8441508-e784-42db-9794-4f730f0d86f2",
+      "id": "9c25e5f9-362c-4bf4-881e-64e5f2a4fd42",
       "name": "Send a message",
       "webhookId": "c8cc0589-78a6-4dc1-8cba-f8bcfa0c62ca",
       "credentials": {
@@ -60,10 +60,10 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        0,
-        0
+        2080,
+        1440
       ],
-      "id": "7c3e24c5-c045-44a7-8c5a-be2249ddfdac",
+      "id": "2c3d3750-ea11-4099-9bae-d7f015dfb9e8",
       "name": "Webhook",
       "webhookId": "c7f657b4-506a-43f7-8075-4e1b2a4b75e2"
     },
@@ -88,10 +88,10 @@
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
       "position": [
-        784,
-        -288
+        2864,
+        1152
       ],
-      "id": "ef193adc-7503-4277-b2d1-9fd7216d569a",
+      "id": "e08eed79-0fef-48c8-bba5-9c67dce2e341",
       "name": "Upload file",
       "credentials": {
         "googleDriveOAuth2Api": {
@@ -102,47 +102,15 @@
     },
     {
       "parameters": {
-        "operation": "share",
-        "fileId": {
-          "__rl": true,
-          "mode": "id",
-          "value": "={{ $json.id }}"
-        },
-        "permissionsUi": {
-          "permissionsValues": {
-            "role": "reader",
-            "type": "anyone",
-            "allowFileDiscovery": false
-          }
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.googleDrive",
-      "typeVersion": 3,
-      "position": [
-        904,
-        -288
-      ],
-      "id": "b6e2a6a1-2c8b-4b7a-9c1a-3f6e5a2d8c4f",
-      "name": "Share file",
-      "credentials": {
-        "googleDriveOAuth2Api": {
-          "id": "AU1Fom2bJxYQkeKG",
-          "name": "n8n072826"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "// Fetch the uploaded file metadata directly from 'Upload file' — the\n// 'Share file' node's output is a permission resource, not file metadata,\n// so we read name/webViewLink from the upload step instead (same item count,\n// Share runs first to guarantee the link is open before we log/send it).\nconst items = $('Upload file').all();\nconst attachmentList = [];\n\nitems.forEach(item => {\n    // Access item JSON data aggregated from the Google Drive node\n    const data = item.json;\n\n    // Handle whether Aggregate outputted an array or individual item objects\n    const fileArray = Array.isArray(data) ? data : (data.data || [data]);\n\n    fileArray.forEach(file => {\n        // Skip execution metadata or items without a webViewLink\n        if (!file || !file.webViewLink) return;\n\n        const fileName = file.name || file.fileName || 'Attachment';\n        const fileUrl = file.webViewLink;\n\n        attachmentList.push({\n            name: fileName,\n            url: fileUrl\n        });\n    });\n});\n\n// Return as a formatted JSON string for Postgres $3 parameter\nreturn [{\n    json: {\n        attachments_json: JSON.stringify(attachmentList)\n    }\n}];"
+        "jsCode": "// Fetch the aggregated items list\nconst items = $input.all();\nconst attachmentList = [];\n\nitems.forEach(item => {\n    // Access item JSON data aggregated from the Google Drive node\n    const data = item.json;\n\n    // Handle whether Aggregate outputted an array or individual item objects\n    const fileArray = Array.isArray(data) ? data : (data.data || [data]);\n\n    fileArray.forEach(file => {\n        // Skip execution metadata or items without a webViewLink\n        if (!file || !file.webViewLink) return;\n\n        const fileName = file.name || file.fileName || 'Attachment';\n        const fileUrl = file.webViewLink;\n\n        attachmentList.push({\n            name: fileName,\n            url: fileUrl\n        });\n    });\n});\n\n// Return as a formatted JSON string for Postgres $3 parameter\nreturn [{\n    json: {\n        attachments_json: JSON.stringify(attachmentList)\n    }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1024,
-        -224
+        3104,
+        1216
       ],
-      "id": "d679c7c9-81cb-4cec-bbfa-e0df31833805",
+      "id": "b90c3f89-e596-460c-8115-81678f60df11",
       "name": "build attachment json"
     },
     {
@@ -152,10 +120,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        592,
-        -176
+        2672,
+        1264
       ],
-      "id": "883d24e3-cc8c-440c-8756-8bb2b2f9ad33",
+      "id": "5b8bd27a-c5bb-4bf9-895d-dbe499e556d1",
       "name": "separate binary items"
     },
     {
@@ -165,10 +133,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        208,
-        0
+        2288,
+        1440
       ],
-      "id": "3330f77c-12bc-41d7-b355-9e8137f110f4",
+      "id": "5376aa7e-d31d-4cb7-bcb3-8003aa4e1c53",
       "name": "format base64"
     },
     {
@@ -182,10 +150,10 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        768,
-        128
+        2848,
+        1568
       ],
-      "id": "593f6333-ece7-430a-8707-956606a93dc0",
+      "id": "c431bde1-bd44-46e1-aff4-6375773abaef",
       "name": "Send a message1",
       "webhookId": "c8cc0589-78a6-4dc1-8cba-f8bcfa0c62ca",
       "credentials": {
@@ -223,10 +191,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        512,
-        96
+        2592,
+        1536
       ],
-      "id": "9578ce18-d908-4402-9741-f15c0144235d",
+      "id": "bbe63db8-b74e-47ab-b142-8999d914cc10",
       "name": "If"
     },
     {
@@ -238,16 +206,16 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        1408,
-        256
+        3488,
+        1696
       ],
-      "id": "f478b3d1-84c3-48e5-8fd4-194df8de4490",
+      "id": "f054a4d6-3e1e-4d77-a4e1-d33811e4661e",
       "name": "Respond to Webhook1"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE contacts\nSET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object(\n    'type', 'sent',\n    'subject', $1::text,\n    'message', $2::text,\n    'sent_at', NOW(),\n    'is_read', true)\n    \nWHERE id = $3\nRETURNING email_logs;",
+        "query": "UPDATE contacts\nSET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object(\n    'type', 'sent',\n    'subject', $1::text,\n    'message', $2::text,\n    'sent_at', NOW())\n    \nWHERE id = $3\nRETURNING email_logs;",
         "options": {
           "queryReplacement": "={{ $('Webhook').item.json.body.subject || '' }}, {{ $('Webhook').item.json.body.message || '' }}, {{ Number($('Webhook').item.json.body.contact_id) }}"
         }
@@ -255,10 +223,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1056,
-        208
+        3136,
+        1648
       ],
-      "id": "46e8ab2b-f05b-4228-8057-dd3c6821a574",
+      "id": "74809e87-7cc0-4439-8c26-5dc85f7d3d42",
       "name": "Log email",
       "credentials": {
         "postgres": {
@@ -270,7 +238,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE contacts\nSET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object(\n    'type', 'sent',\n    'subject', $1::text,\n    'message', $2::text,\n    'sent_at', NOW(),\n    'is_read', true,\n    'attachments', $3::jsonb\n)::jsonb\nWHERE id = $4\nRETURNING email_logs;",
+        "query": "UPDATE contacts\nSET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object(\n    'type', 'sent',\n    'subject', $1::text,\n    'message', $2::text,\n    'sent_at', NOW(),\n    'attachments', $3::jsonb\n)::jsonb\nWHERE id = $4\nRETURNING email_logs;",
         "options": {
           "queryReplacement": "={{ $('Webhook').item.json.body.subject || '' }}, {{ $('Webhook').item.json.body.message || '' }}, {{ $json.attachments_json }}, {{ Number($('Webhook').item.json.body.contact_id) }}"
         }
@@ -278,10 +246,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1248,
-        -64
+        3328,
+        1376
       ],
-      "id": "9b759fce-06dd-4f73-ae1d-c10a8e4af149",
+      "id": "42e21886-d32c-41a2-a2b0-3cb61e11c4bb",
       "name": "Log email with attachments",
       "credentials": {
         "postgres": {
@@ -291,50 +259,7 @@
       }
     }
   ],
-  "pinData": {
-    "Webhook": [
-      {
-        "json": {
-          "headers": {
-            "host": "cornball-empathy-bath.ngrok-free.dev",
-            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
-            "content-length": "143",
-            "accept": "*/*",
-            "accept-encoding": "gzip, deflate, br, zstd",
-            "accept-language": "en-GB,en-US;q=0.9,en;q=0.8",
-            "content-type": "application/json",
-            "ngrok-skip-browser-warning": "true",
-            "origin": "http://127.0.0.1:5500",
-            "priority": "u=1, i",
-            "referer": "http://127.0.0.1:5500/",
-            "sec-ch-ua": "\"Not;A=Brand\";v=\"8\", \"Chromium\";v=\"150\", \"Google Chrome\";v=\"150\"",
-            "sec-ch-ua-mobile": "?0",
-            "sec-ch-ua-platform": "\"macOS\"",
-            "sec-fetch-dest": "empty",
-            "sec-fetch-mode": "cors",
-            "sec-fetch-site": "cross-site",
-            "x-forwarded-for": "62.84.33.4",
-            "x-forwarded-host": "cornball-empathy-bath.ngrok-free.dev",
-            "x-forwarded-proto": "https"
-          },
-          "params": {},
-          "query": {},
-          "body": {
-            "contact_id": 1,
-            "to_email": "imageandmotionphotography@gmail.com",
-            "subject": "last testing",
-            "message": "Last testing. Yahoooooo",
-            "attachments": []
-          },
-          "webhookUrl": "https://cornball-empathy-bath.ngrok-free.dev/webhook/send-email",
-          "executionMode": "production"
-        },
-        "pairedItem": {
-          "item": 0
-        }
-      }
-    ]
-  },
+  "pinData": {},
   "connections": {
     "Send a message": {
       "main": [
@@ -359,17 +284,6 @@
       ]
     },
     "Upload file": {
-      "main": [
-        [
-          {
-            "node": "Share file",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Share file": {
       "main": [
         [
           {
@@ -474,7 +388,7 @@
     "errorWorkflow": "U7jX0H3oE5a25GrV",
     "callerPolicy": "workflowsFromSameOwner"
   },
-  "versionId": "dc448df3-a9bc-4dbb-8b5f-3b9a11725f02",
+  "versionId": "d9d9ca7f-4338-42d8-8223-6232462ceabe",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "6a773e6041cc88fd4a5b60f3e46f2119d58608faafd09936499001d589f5c1af"

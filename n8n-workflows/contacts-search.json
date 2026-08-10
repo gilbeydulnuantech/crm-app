@@ -1,0 +1,323 @@
+{
+  "name": "contacts-search",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "global-search",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "aabfdd50-3b87-49de-a08e-ea090343bd8f",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        352,
+        896
+      ],
+      "webhookId": "5536eb86-6657-430f-a173-adde93366cf5"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\n// Try to find the header regardless of capitalization\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\n\nif (!authHeader) {\n  throw new Error('No Authorization header sent from browser.');\n}\n\nconst token = authHeader.replace('Bearer ', '').trim();\n\nif (!token || token === 'null' || token === 'undefined') {\n  throw new Error('Token received was empty or the string \"null\". Check localStorage.');\n}\n\n// This regex matches: token_ (digits) _ (digits)\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\n\nif (!match) {\n  // This will tell you exactly what the token looked like in the error message\n  throw new Error(`Token format invalid. Starts with: ${token.substring(0, 10)}...`);\n}\n\nconst requesterId = parseInt(match[1], 10);\nconst body = $input.first().json.body || {};\nconst rawSearch = (body.query || '').toString().trim();\n\nreturn [{ json: { requesterId, rawSearch } }];"
+      },
+      "id": "e4daf91a-0f38-4dca-9ce3-2c357af5eb7d",
+      "name": "Parse Token & Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        576,
+        896
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "d5366db8-976b-4663-bc8a-63f577455881",
+      "name": "Look Up Requester",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        800,
+        896
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "srch-cond-0001",
+              "leftValue": "={{ $json.rawSearch.length }}",
+              "rightValue": 2,
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "4ad041a1-362a-4c3d-804f-223d9dc45d7e",
+      "name": "Query Too Short?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1024,
+        896
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nconst { rawSearch } = $('Parse Token & Query').first().json;\n\nif (!requester.id || !requester.active) throw new Error('Invalid session or user not found.');\n\nconst searchPattern = `%${rawSearch}%`;\n\nconst sqlQuery = `\n  -- 1. SEARCH CONTACTS (Added lead_status and lead_source to WHERE)\n  SELECT DISTINCT\n    'contact' AS entity_type,\n    c.id,\n    TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS title,\n    c.email AS subtitle,\n    c.lead_status AS tag,\n    co.name AS company\n  FROM contacts c\n  LEFT JOIN companies co ON co.id = c.account_id\n  LEFT JOIN taggables tg ON (tg.entity_id = c.id AND tg.entity_type = 'contact')\n  LEFT JOIN tags t ON t.id = tg.tag_id\n  WHERE ($2 = 'admin' OR c.owner_id = $1)\n    AND c.is_archived = false\n    AND (\n      c.first_name ILIKE $3 OR c.last_name ILIKE $3 OR c.email ILIKE $3 \n      OR c.phone ILIKE $3 OR c.job_title ILIKE $3 OR c.city ILIKE $3 \n      OR c.state ILIKE $3 OR c.country ILIKE $3 OR t.name ILIKE $3\n      OR c.lead_status ILIKE $3   -- Added this\n      OR c.lead_source ILIKE $3   -- Added this\n    )\n\n  UNION ALL\n\n  -- 2. SEARCH COMPANIES\n  SELECT DISTINCT\n    'company' AS entity_type,\n    cp.id,\n    cp.name AS title,\n    cp.industry AS subtitle,\n    cp.city AS tag,\n    cp.website AS company\n  FROM companies cp\n  LEFT JOIN taggables tg ON (tg.entity_id = cp.id AND tg.entity_type = 'company')\n  LEFT JOIN tags t ON t.id = tg.tag_id\n  WHERE ($2 = 'admin' OR cp.owner_id = $1)\n    AND cp.is_archived = false\n    AND (\n      cp.name ILIKE $3 OR cp.industry ILIKE $3 OR cp.website ILIKE $3 \n      OR cp.phone ILIKE $3 OR cp.city ILIKE $3 OR cp.state ILIKE $3 \n      OR cp.country ILIKE $3 OR t.name ILIKE $3\n    )\n\n  UNION ALL\n\n  -- 3. SEARCH OPPORTUNITIES (DEALS)\n  SELECT DISTINCT\n    'deal' AS entity_type,\n    o.id,\n    o.name AS title,\n    CAST(o.deal_value AS TEXT) AS subtitle,\n    o.status AS tag,\n    '' AS company\n  FROM opportunities o\n  WHERE ($2 = 'admin' OR o.assigned_user = $1)\n    AND (o.name ILIKE $3 OR o.status ILIKE $3)\n\n  LIMIT 40;\n`;\n\nconst queryParams = [requester.id, requester.role, searchPattern];\n\nreturn [{ json: { sqlQuery, queryParams } }];"
+      },
+      "id": "568ca347-33d8-4ac9-a197-39e9ad3827e0",
+      "name": "Build Search Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1232,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sqlQuery }}",
+        "options": {
+          "queryReplacement": "={{ $json.queryParams }}"
+        }
+      },
+      "id": "ff9699ea-52a8-46f9-a6d9-20c4443edd43",
+      "name": "Execute Search",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1456,
+        816
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst grouped = { contacts: [], deals: [], companies: [], totalMatches: 0 };\n\nfor (const item of items) {\n  const row = item.json;\n  if (!row || !row.id) continue; // Skip empty results from alwaysOutputData\n\n  const resultItem = {\n    id: row.id,\n    title: row.title || 'No Name',\n    subtitle: row.subtitle || '',\n    tag: row.tag || '',\n    company: row.company || ''\n  };\n\n  const entityType = row.entity_type || 'contact';\n  if (entityType === 'contact') grouped.contacts.push(resultItem);\n  grouped.totalMatches++;\n}\n\nreturn [{ json: grouped }];"
+      },
+      "id": "656087da-4167-4c92-95c6-3ee43505769d",
+      "name": "Organize Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        816
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { contacts: [], deals: [], companies: [], totalMatches: 0 } }];"
+      },
+      "id": "0f39ea6a-6ca8-40e9-960b-2b72420a83de",
+      "name": "Empty Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1232,
+        1008
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "18ef128e-f6db-430d-96c4-d02ab787c564",
+      "name": "Respond - Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1904,
+        896
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Search failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "375bd875-9ce5-45f3-be42-c6d3f565664f",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        800,
+        1168
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Token & Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token & Query": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester": {
+      "main": [
+        [
+          {
+            "node": "Query Too Short?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Too Short?": {
+      "main": [
+        [
+          {
+            "node": "Empty Results",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Search Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Search Query": {
+      "main": [
+        [
+          {
+            "node": "Execute Search",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Search": {
+      "main": [
+        [
+          {
+            "node": "Organize Results",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Organize Results": {
+      "main": [
+        [
+          {
+            "node": "Respond - Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Empty Results": {
+      "main": [
+        [
+          {
+            "node": "Respond - Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "46958e3c-1ec2-4290-a89a-f9da307cf9eb",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6a773e6041cc88fd4a5b60f3e46f2119d58608faafd09936499001d589f5c1af"
+  },
+  "id": "GYBtRu0tNZUPEY2t",
+  "tags": []
+}

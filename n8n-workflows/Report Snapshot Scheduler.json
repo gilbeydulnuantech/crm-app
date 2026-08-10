@@ -5,15 +5,21 @@
       "parameters": {
         "rule": {
           "interval": [
-            { "field": "cronExpression", "expression": "0 1 * * *" }
+            {
+              "field": "cronExpression",
+              "expression": "0 1 * * *"
+            }
           ]
         }
       },
-      "id": "cron-nightly",
+      "id": "e202a6ab-044c-45fd-9be8-b832f231603b",
       "name": "Nightly at 1:00 AM",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [0, 0]
+      "position": [
+        0,
+        0
+      ]
     },
     {
       "parameters": {
@@ -21,24 +27,51 @@
         "query": "INSERT INTO report_snapshots (snapshot_date, metric, scope, value) VALUES (CURRENT_DATE, 'total_revenue', 'company', (SELECT COALESCE(SUM(deal_value), 0) FROM opportunities WHERE status = 'Won')) ON CONFLICT (snapshot_date, metric, scope) DO UPDATE SET value = EXCLUDED.value; INSERT INTO report_snapshots (snapshot_date, metric, scope, value) VALUES (CURRENT_DATE, 'new_contacts', 'company', (SELECT COUNT(*) FROM contacts WHERE created_at::date = CURRENT_DATE)) ON CONFLICT (snapshot_date, metric, scope) DO UPDATE SET value = EXCLUDED.value; INSERT INTO report_snapshots (snapshot_date, metric, scope, value) VALUES (CURRENT_DATE, 'activity_volume', 'company', (SELECT COUNT(*) FROM activities WHERE created_at::date = CURRENT_DATE)) ON CONFLICT (snapshot_date, metric, scope) DO UPDATE SET value = EXCLUDED.value;",
         "options": {}
       },
-      "id": "pg-write-snapshots",
+      "id": "a5be631f-a874-4265-ac05-4bc757524099",
       "name": "Postgres: Write Daily Snapshots",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [220, 0],
+      "position": [
+        224,
+        0
+      ],
       "credentials": {
-        "postgres": { "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID", "name": "Postgres CRM DB" }
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
       },
       "notes": "Writes/updates 3 metrics for today's date: total_revenue (all-time cumulative, snapshotted daily so the Overview trend line is stable even as raw opportunity rows change), new_contacts (count created today), activity_volume (count created today). Add more INSERT...ON CONFLICT blocks here following the same pattern if you want more tracked metrics later (e.g. per-rep revenue snapshots using scope = user_id::text instead of 'company')."
     }
   ],
+  "pinData": {},
   "connections": {
     "Nightly at 1:00 AM": {
-      "main": [[{ "node": "Postgres: Write Daily Snapshots", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Postgres: Write Daily Snapshots",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
-    "executionOrder": "v1"
-  }
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "e0760166-9615-466e-929a-cc4be1e37c0e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6a773e6041cc88fd4a5b60f3e46f2119d58608faafd09936499001d589f5c1af"
+  },
+  "id": "yPfbonvBzFgeNjnn",
+  "tags": []
 }

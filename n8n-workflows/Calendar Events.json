@@ -1,0 +1,635 @@
+{
+  "name": "Calendar Events",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "get-events",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "53cafe57-c475-4df9-8e3e-a624fa52ebc8",
+      "name": "Webhook: get-events",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "5d692435-8f21-454e-8666-f5ee2d5aef15"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT a.id, a.contact_id, TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS contact_name, a.opportunity_id, o.name AS opportunity_name, co.name AS company_name, a.user_id, u.name AS assigned_user_name, a.type, a.subject, a.body, a.is_completed, a.due_at, a.completed_at, a.created_at FROM activities a LEFT JOIN contacts c ON c.id = a.contact_id LEFT JOIN opportunities o ON o.id = a.opportunity_id LEFT JOIN companies co ON co.id = o.account_id LEFT JOIN users u ON u.id = a.user_id WHERE a.due_at IS NOT NULL AND a.due_at >= $1::date AND a.due_at <= ($2::date + interval '1 day') ORDER BY a.due_at ASC;",
+        "options": {
+          "queryReplacement": "={{ [$json.query.start, $json.query.end] }}"
+        }
+      },
+      "id": "24e25fa1-2454-46c7-8bc5-09c12588460e",
+      "name": "Postgres: Select Events",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        224,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization, ngrok-skip-browser-warning"
+              }
+            ]
+          }
+        }
+      },
+      "id": "8a8fd12b-2174-45d4-8793-a1b9d6d40933",
+      "name": "Respond: get-events",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        448,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "add-event",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "d89c29f3-55e2-412d-a06b-cc42e33f003d",
+      "name": "Webhook: add-event",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        224
+      ],
+      "webhookId": "7841834f-2e2a-45c0-a1b7-08522aeb5d35"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO activities (contact_id, opportunity_id, user_id, type, subject, body, due_at) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, subject, due_at, created_at;",
+        "options": {
+          "queryReplacement": "={{ [$json.body.contact_id || null, $json.body.opportunity_id || null, $json.body.user_id || $json.body.requester_id || null, $json.body.type || 'meeting', $json.body.subject, $json.body.body || null, $json.body.due_at] }}"
+        }
+      },
+      "id": "bf04f093-2874-4134-ac24-6669dd81340e",
+      "name": "Postgres: Insert Event",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        224,
+        224
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"id\": $json.id } }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization, ngrok-skip-browser-warning"
+              }
+            ]
+          }
+        }
+      },
+      "id": "1dc33463-aa94-4197-b937-028013aa3bdf",
+      "name": "Respond: add-event",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        448,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "update-event",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "eea8f457-3198-476c-871b-c0e2ca31be46",
+      "name": "Webhook: update-event",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        448
+      ],
+      "webhookId": "32f5a8b5-7022-4452-aa92-82df1e361950"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE activities SET subject = COALESCE($1, subject), body = COALESCE($2, body), type = COALESCE($3, type), contact_id = COALESCE($4, contact_id), opportunity_id = COALESCE($5, opportunity_id), user_id = COALESCE($6, user_id), due_at = COALESCE($7, due_at), is_completed = COALESCE($8, is_completed), completed_at = CASE WHEN $9::text IS NOT NULL THEN $9::timestamptz ELSE completed_at END WHERE id = $10 RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [$json.body.subject || null, $json.body.body || null, $json.body.type || null, $json.body.contact_id || null, $json.body.opportunity_id || null, $json.body.user_id || null, $json.body.due_at || null, $json.body.is_completed !== undefined ? $json.body.is_completed : null, $json.body.completed_at || null, $json.body.id] }}"
+        }
+      },
+      "id": "898a6266-6993-4969-b70d-65ae210ca328",
+      "name": "Postgres: Update Event",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        224,
+        448
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": $json.id ? true : false } }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization, ngrok-skip-browser-warning"
+              }
+            ]
+          }
+        }
+      },
+      "id": "cf4edfde-a4fb-415b-8d0a-d5e314afd954",
+      "name": "Respond: update-event",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        448,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "delete-event",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "f574e53c-b693-4c0c-b66c-953c9793dee5",
+      "name": "Webhook: delete-event",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        672
+      ],
+      "webhookId": "d2b2d009-aa59-4c6f-91f9-c10a7dd3e09c"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM activities WHERE id = ANY($1::int[]) RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [$json.body.ids] }}"
+        }
+      },
+      "id": "700b7690-887b-4f65-9830-07912dc74e6c",
+      "name": "Postgres: Delete Event",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        224,
+        672
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true } }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization, ngrok-skip-browser-warning"
+              }
+            ]
+          }
+        }
+      },
+      "id": "fbb2b654-de33-4aab-a1ec-079c5a83aa12",
+      "name": "Respond: delete-event",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        448,
+        672
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "OPTIONS",
+        "path": "get-events",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "28e6216f-989e-4872-b868-273926b95181",
+      "name": "Webhook OPTIONS: get-events",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        880
+      ],
+      "webhookId": "88e9583c-a0d2-4b0c-827f-3de664e0797f"
+    },
+    {
+      "parameters": {
+        "respondWith": "noData",
+        "options": {
+          "responseCode": 204,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization, ngrok-skip-browser-warning"
+              }
+            ]
+          }
+        }
+      },
+      "id": "b5b446a9-d04b-41c9-a706-5c56e98c927c",
+      "name": "Respond OPTIONS: get-events",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        224,
+        880
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "OPTIONS",
+        "path": "add-event",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "1d27ada0-577c-436f-a395-515dce49fc61",
+      "name": "Webhook OPTIONS: add-event",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        1008
+      ],
+      "webhookId": "7ca0817d-0860-4e94-9b0d-e5fa3c3feacf"
+    },
+    {
+      "parameters": {
+        "respondWith": "noData",
+        "options": {
+          "responseCode": 204,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization, ngrok-skip-browser-warning"
+              }
+            ]
+          }
+        }
+      },
+      "id": "df23d54a-3a34-40f1-af69-6e0ed1b88d91",
+      "name": "Respond OPTIONS: add-event",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        224,
+        1008
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "OPTIONS",
+        "path": "update-event",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "d77c0db4-cad1-4f3b-acb0-ae4a66062761",
+      "name": "Webhook OPTIONS: update-event",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        1120
+      ],
+      "webhookId": "6f649189-b6a1-4669-a558-7004349f6015"
+    },
+    {
+      "parameters": {
+        "respondWith": "noData",
+        "options": {
+          "responseCode": 204,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization, ngrok-skip-browser-warning"
+              }
+            ]
+          }
+        }
+      },
+      "id": "48fbaaba-e961-493d-b490-0816ac527a69",
+      "name": "Respond OPTIONS: update-event",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        224,
+        1120
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "OPTIONS",
+        "path": "delete-event",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "5da0b9ef-b383-4ce6-868e-d278b0f4f147",
+      "name": "Webhook OPTIONS: delete-event",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        1248
+      ],
+      "webhookId": "6b97e506-6326-4d2b-9fcf-1760fb753910"
+    },
+    {
+      "parameters": {
+        "respondWith": "noData",
+        "options": {
+          "responseCode": 204,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization, ngrok-skip-browser-warning"
+              }
+            ]
+          }
+        }
+      },
+      "id": "de830af5-fe06-4e9f-822b-8349b28e27e9",
+      "name": "Respond OPTIONS: delete-event",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        224,
+        1248
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook: get-events": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Events": {
+      "main": [
+        [
+          {
+            "node": "Respond: get-events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: add-event": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Insert Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Insert Event": {
+      "main": [
+        [
+          {
+            "node": "Respond: add-event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: update-event": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Update Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Update Event": {
+      "main": [
+        [
+          {
+            "node": "Respond: update-event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: delete-event": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Delete Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Delete Event": {
+      "main": [
+        [
+          {
+            "node": "Respond: delete-event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook OPTIONS: get-events": {
+      "main": [
+        [
+          {
+            "node": "Respond OPTIONS: get-events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook OPTIONS: add-event": {
+      "main": [
+        [
+          {
+            "node": "Respond OPTIONS: add-event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook OPTIONS: update-event": {
+      "main": [
+        [
+          {
+            "node": "Respond OPTIONS: update-event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook OPTIONS: delete-event": {
+      "main": [
+        [
+          {
+            "node": "Respond OPTIONS: delete-event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "08c9e709-306a-465d-88b4-2921d006b4d7",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6a773e6041cc88fd4a5b60f3e46f2119d58608faafd09936499001d589f5c1af"
+  },
+  "id": "lLyzbXUKfmGury2K",
+  "tags": []
+}

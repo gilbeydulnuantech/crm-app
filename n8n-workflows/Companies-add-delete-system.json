@@ -1,18 +1,23 @@
 {
-  "name": "Companies CRUD",
+  "name": "Companies-add-delete-system",
   "nodes": [
     {
       "parameters": {
-        "httpMethod": "GET",
         "path": "get-companies",
         "responseMode": "responseNode",
-        "options": {}
+        "options": {
+          "allowedOrigins": "*"
+        }
       },
-      "id": "wh-get-companies",
+      "id": "75423062-a23f-4823-97d6-1a7c1449eab5",
       "name": "Webhook: get-companies",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 0]
+      "position": [
+        496,
+        384
+      ],
+      "webhookId": "bf5d92e4-980e-42c3-83e6-453438bb7429"
     },
     {
       "parameters": {
@@ -20,15 +25,18 @@
         "query": "SELECT c.id, c.name, c.website, c.industry, c.city, c.state, c.country, c.phone, c.owner_id, u.name AS owner_name, c.created_by, c.is_archived, c.created_at, c.updated_at, COALESCE(cc.contact_count, 0) AS contact_count, COALESCE(oc.opportunity_count, 0) AS opportunity_count FROM companies c LEFT JOIN users u ON u.id = c.owner_id LEFT JOIN (SELECT account_id, COUNT(*) AS contact_count FROM contacts WHERE is_archived = false GROUP BY account_id) cc ON cc.account_id = c.id LEFT JOIN (SELECT account_id, COUNT(*) AS opportunity_count FROM opportunities GROUP BY account_id) oc ON oc.account_id = c.id WHERE c.is_archived = false ORDER BY c.name ASC;",
         "options": {}
       },
-      "id": "pg-get-companies",
+      "id": "9e36d93d-0cbf-4269-a3e8-bcd9438ec4a0",
       "name": "Postgres: Select Active Companies",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [220, 0],
+      "position": [
+        720,
+        384
+      ],
       "credentials": {
         "postgres": {
-          "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID",
-          "name": "Postgres CRM DB"
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
         }
       }
     },
@@ -37,25 +45,32 @@
         "respondWith": "allIncomingItems",
         "options": {}
       },
-      "id": "resp-get-companies",
+      "id": "93de3dcd-a12a-4976-acf0-29531e253f39",
       "name": "Respond: get-companies",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [440, 0]
+      "position": [
+        944,
+        384
+      ]
     },
-
     {
       "parameters": {
-        "httpMethod": "GET",
         "path": "get-archived-companies",
         "responseMode": "responseNode",
-        "options": {}
+        "options": {
+          "allowedOrigins": "*"
+        }
       },
-      "id": "wh-get-archived-companies",
+      "id": "eea97caa-16f5-41cf-8010-0b930a7c696d",
       "name": "Webhook: get-archived-companies",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 200]
+      "position": [
+        496,
+        592
+      ],
+      "webhookId": "6e07bde6-dd00-40a7-9526-bad865daf70d"
     },
     {
       "parameters": {
@@ -63,15 +78,18 @@
         "query": "SELECT c.id, c.name, c.website, c.industry, c.city, c.state, c.country, c.phone, c.owner_id, u.name AS owner_name, c.created_by, c.is_archived, c.created_at, c.updated_at FROM companies c LEFT JOIN users u ON u.id = c.owner_id WHERE c.is_archived = true ORDER BY c.updated_at DESC;",
         "options": {}
       },
-      "id": "pg-get-archived-companies",
+      "id": "c42d4407-312c-4003-bc26-2dac65abb722",
       "name": "Postgres: Select Archived Companies",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [220, 200],
+      "position": [
+        720,
+        592
+      ],
       "credentials": {
         "postgres": {
-          "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID",
-          "name": "Postgres CRM DB"
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
         }
       }
     },
@@ -80,25 +98,33 @@
         "respondWith": "allIncomingItems",
         "options": {}
       },
-      "id": "resp-get-archived-companies",
+      "id": "6617eb13-62a1-4473-b2d6-d44b930e88e2",
       "name": "Respond: get-archived-companies",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [440, 200]
+      "position": [
+        944,
+        592
+      ]
     },
-
     {
       "parameters": {
         "httpMethod": "POST",
         "path": "add-companies",
         "responseMode": "responseNode",
-        "options": {}
+        "options": {
+          "allowedOrigins": "*"
+        }
       },
-      "id": "wh-add-companies",
+      "id": "b29b027a-9c24-485d-bd04-bc6850554585",
       "name": "Webhook: add-companies",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 400]
+      "position": [
+        496,
+        784
+      ],
+      "webhookId": "382766d8-f701-4334-a753-8c5f5026511e"
     },
     {
       "parameters": {
@@ -108,15 +134,18 @@
           "queryReplacement": "={{ [$json.body.name, $json.body.website || null, $json.body.industry || null, $json.body.city || null, $json.body.state || null, $json.body.country || null, $json.body.phone || null, $json.body.owner_id || null, $json.body.requester_id || $json.body.owner_id || null] }}"
         }
       },
-      "id": "pg-add-companies",
+      "id": "b3f2a463-5075-4b4f-95b4-67cf39d13dcf",
       "name": "Postgres: Insert Company",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [220, 400],
+      "position": [
+        720,
+        784
+      ],
       "credentials": {
         "postgres": {
-          "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID",
-          "name": "Postgres CRM DB"
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
         }
       }
     },
@@ -126,25 +155,33 @@
         "responseBody": "={{ { \"success\": true, \"id\": $json.id } }}",
         "options": {}
       },
-      "id": "resp-add-companies",
+      "id": "5f0640b2-20de-4098-b077-4af7e8ed442b",
       "name": "Respond: add-companies",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [440, 400]
+      "position": [
+        944,
+        784
+      ]
     },
-
     {
       "parameters": {
         "httpMethod": "POST",
         "path": "update-companies",
         "responseMode": "responseNode",
-        "options": {}
+        "options": {
+          "allowedOrigins": "*"
+        }
       },
-      "id": "wh-update-companies",
+      "id": "a5c6f102-317b-42fa-8601-3e4a72a0c2a8",
       "name": "Webhook: update-companies",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 600]
+      "position": [
+        496,
+        992
+      ],
+      "webhookId": "8a2a8af4-188b-45a2-8944-1f97e1ed9fe5"
     },
     {
       "parameters": {
@@ -154,15 +191,18 @@
           "queryReplacement": "={{ [$json.body.name, $json.body.website || null, $json.body.industry || null, $json.body.city || null, $json.body.state || null, $json.body.country || null, $json.body.phone || null, $json.body.owner_id || null, $json.body.id] }}"
         }
       },
-      "id": "pg-update-companies",
+      "id": "6585be97-f7e3-4c28-8d8a-67477064cd79",
       "name": "Postgres: Update Company",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [220, 600],
+      "position": [
+        720,
+        992
+      ],
       "credentials": {
         "postgres": {
-          "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID",
-          "name": "Postgres CRM DB"
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
         }
       }
     },
@@ -172,25 +212,33 @@
         "responseBody": "={{ { \"success\": $json.id ? true : false } }}",
         "options": {}
       },
-      "id": "resp-update-companies",
+      "id": "e25392a3-3a5b-4145-9a18-94df1a5b13d6",
       "name": "Respond: update-companies",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [440, 600]
+      "position": [
+        944,
+        992
+      ]
     },
-
     {
       "parameters": {
         "httpMethod": "POST",
         "path": "archive-companies",
         "responseMode": "responseNode",
-        "options": {}
+        "options": {
+          "allowedOrigins": "*"
+        }
       },
-      "id": "wh-archive-companies",
+      "id": "4318a40d-feb7-47d3-9c30-e86487500994",
       "name": "Webhook: archive-companies",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 800]
+      "position": [
+        496,
+        1184
+      ],
+      "webhookId": "84079545-2b60-478d-8224-0c5a2fad650f"
     },
     {
       "parameters": {
@@ -200,15 +248,18 @@
           "queryReplacement": "={{ [$json.body.ids] }}"
         }
       },
-      "id": "pg-archive-companies",
+      "id": "b057e9e9-d74c-4cb8-b159-e7d2580011f8",
       "name": "Postgres: Archive Companies",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [220, 800],
+      "position": [
+        720,
+        1184
+      ],
       "credentials": {
         "postgres": {
-          "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID",
-          "name": "Postgres CRM DB"
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
         }
       }
     },
@@ -218,25 +269,33 @@
         "responseBody": "={{ { \"success\": true } }}",
         "options": {}
       },
-      "id": "resp-archive-companies",
+      "id": "58f869e4-c23b-4883-8f84-d6ce71a84f72",
       "name": "Respond: archive-companies",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [440, 800]
+      "position": [
+        944,
+        1184
+      ]
     },
-
     {
       "parameters": {
         "httpMethod": "POST",
         "path": "delete-companies",
         "responseMode": "responseNode",
-        "options": {}
+        "options": {
+          "allowedOrigins": "*"
+        }
       },
-      "id": "wh-delete-companies",
+      "id": "43337c1d-5af3-4176-8437-bcc200ab2499",
       "name": "Webhook: delete-companies",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 1000]
+      "position": [
+        496,
+        1392
+      ],
+      "webhookId": "81542b9b-6d07-432b-b530-18246967a44a"
     },
     {
       "parameters": {
@@ -246,15 +305,18 @@
           "queryReplacement": "={{ [$json.body.ids] }}"
         }
       },
-      "id": "pg-delete-companies",
+      "id": "99e7cefd-05ea-4e2f-8fbe-90f7e416884d",
       "name": "Postgres: Delete Companies",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [220, 1000],
+      "position": [
+        720,
+        1392
+      ],
       "credentials": {
         "postgres": {
-          "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID",
-          "name": "Postgres CRM DB"
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
         }
       }
     },
@@ -264,53 +326,165 @@
         "responseBody": "={{ { \"success\": true } }}",
         "options": {}
       },
-      "id": "resp-delete-companies",
+      "id": "95cc678d-a799-45c5-a4a3-b57904b3a8dd",
       "name": "Respond: delete-companies",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [440, 1000]
+      "position": [
+        944,
+        1392
+      ]
     }
   ],
+  "pinData": {},
   "connections": {
     "Webhook: get-companies": {
-      "main": [[{ "node": "Postgres: Select Active Companies", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Active Companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Postgres: Select Active Companies": {
-      "main": [[{ "node": "Respond: get-companies", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond: get-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Webhook: get-archived-companies": {
-      "main": [[{ "node": "Postgres: Select Archived Companies", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Archived Companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Postgres: Select Archived Companies": {
-      "main": [[{ "node": "Respond: get-archived-companies", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond: get-archived-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Webhook: add-companies": {
-      "main": [[{ "node": "Postgres: Insert Company", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Postgres: Insert Company",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Postgres: Insert Company": {
-      "main": [[{ "node": "Respond: add-companies", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond: add-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Webhook: update-companies": {
-      "main": [[{ "node": "Postgres: Update Company", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Postgres: Update Company",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Postgres: Update Company": {
-      "main": [[{ "node": "Respond: update-companies", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond: update-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Webhook: archive-companies": {
-      "main": [[{ "node": "Postgres: Archive Companies", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Postgres: Archive Companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Postgres: Archive Companies": {
-      "main": [[{ "node": "Respond: archive-companies", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond: archive-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Webhook: delete-companies": {
-      "main": [[{ "node": "Postgres: Delete Companies", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Postgres: Delete Companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Postgres: Delete Companies": {
-      "main": [[{ "node": "Respond: delete-companies", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond: delete-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
-    "executionOrder": "v1"
-  }
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "77c5118f-c1ab-4d81-a297-957ccdfd85c1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6a773e6041cc88fd4a5b60f3e46f2119d58608faafd09936499001d589f5c1af"
+  },
+  "id": "ovG5ygtMRz1k72Mr",
+  "tags": []
 }

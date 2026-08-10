@@ -9,13 +9,13 @@
           "allowedOrigins": "*"
         }
       },
-      "id": "244eaa7b-470d-4f82-a3a1-7c691b012cee",
+      "id": "3cc29a6d-fcc6-4dbb-9979-9ca4451e78fc",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        0,
-        0
+        688,
+        -160
       ],
       "webhookId": "a4353b6f-b453-4ca1-b9dc-5a75cbec5b47"
     },
@@ -23,13 +23,13 @@
       "parameters": {
         "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst userId = parseInt(match[1], 10);\nreturn [{ json: { userId } }];"
       },
-      "id": "72a64ff9-7885-4f51-a74f-e98c75626790",
+      "id": "c87805aa-3fcd-45b3-805d-ee3fbeebcb09",
       "name": "Parse Token",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        224,
-        0
+        912,
+        -160
       ]
     },
     {
@@ -40,13 +40,13 @@
           "queryReplacement": "={{ [ $json.userId ] }}"
         }
       },
-      "id": "4120bb2f-ece2-463a-9ab8-74325c7d8482",
+      "id": "21a52bf4-3e95-4e49-bfbf-552792303fa6",
       "name": "Look Up Requester",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        448,
-        0
+        1136,
+        -160
       ],
       "credentials": {
         "postgres": {
@@ -59,13 +59,13 @@
       "parameters": {
         "jsCode": "const user = $input.first().json;\n\nif (!user.id || !user.active) {\n  throw new Error('Invalid session.');\n}\n\n// Reuses this same get-contacts webhook for both the active list and the\n// Archived tab:\n//   GET /webhook/get-contacts?archived=false   (All Contacts / My Contacts)\n//   GET /webhook/get-contacts?archived=true    (Archived tab)\nconst webhookQuery = $('Webhook').first().json.query || {};\nconst showArchived = String(webhookQuery.archived || '').toLowerCase() === 'true';\n\n// archived_by_name is only meaningful (and only joined) for the archived\n// view — harmless left join either way, just always null when not archived.\n// tags is embedded via json_agg so the Contacts table can render them\n// without an extra get-entity-tags round trip per row (taggables/tags\n// schema matches contacts-Tags System.json).\nconst sqlQuery = `\n  SELECT c.*, co.name AS company_name, u.name AS owner_name,\n         ab.name AS archived_by_name,\n         (SELECT COALESCE(json_agg(json_build_object('id', t.id, 'name', t.name)), '[]'::json)\n          FROM taggables tg JOIN tags t ON t.id = tg.tag_id\n          WHERE tg.entity_type = 'contact' AND tg.entity_id = c.id) AS tags\n  FROM contacts c\n  LEFT JOIN companies co ON co.id = c.account_id\n  LEFT JOIN users u ON u.id = c.owner_id\n  LEFT JOIN users ab ON ab.id = c.archived_by\n  WHERE c.is_archived = $1\n  ORDER BY c.id;\n`;\n\nreturn [{ json: { sqlQuery, queryParams: [showArchived] } }];\n"
       },
-      "id": "4f4de5e5-9a9e-4fd0-8590-7aed801f7a60",
+      "id": "e3cb2a82-3624-4966-9604-4a8995388eec",
       "name": "Build Query",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        672,
-        0
+        1360,
+        -160
       ]
     },
     {
@@ -76,13 +76,13 @@
           "queryReplacement": "={{ $json.queryParams }}"
         }
       },
-      "id": "cbb7e9df-4df3-4816-b34f-666c9a4645fd",
+      "id": "d833869b-a67d-4775-a952-b48a95474ea6",
       "name": "Execute Query",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        880,
-        0
+        1568,
+        -160
       ],
       "credentials": {
         "postgres": {
@@ -96,13 +96,13 @@
         "respondWith": "allIncomingItems",
         "options": {}
       },
-      "id": "36792aae-2e4b-4164-b8b4-34ff4990d01b",
+      "id": "923dbfdd-e55b-48c3-8bc8-d932a7c01df4",
       "name": "Respond - Success",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        1104,
-        0
+        1792,
+        -160
       ]
     },
     {
@@ -113,13 +113,13 @@
           "responseCode": 400
         }
       },
-      "id": "1de16ba3-f7a2-41dd-b6b5-027026160fd2",
+      "id": "c5be7f68-bdae-4109-ae13-1335975bedd9",
       "name": "Respond - Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        448,
-        192
+        1136,
+        32
       ]
     }
   ],
@@ -210,7 +210,7 @@
     "errorWorkflow": "U7jX0H3oE5a25GrV",
     "callerPolicy": "workflowsFromSameOwner"
   },
-  "versionId": "fae196a3-fec6-4885-a68a-2c5347af9b39",
+  "versionId": "1b0175a2-970b-454b-a5f1-b35ee2cdb3dc",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "6a773e6041cc88fd4a5b60f3e46f2119d58608faafd09936499001d589f5c1af"

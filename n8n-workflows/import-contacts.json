@@ -1,0 +1,248 @@
+{
+  "name": "import-contacts",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "import-contacts",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "4b8f7235-6805-4dca-9443-03048f0d4afb",
+      "name": "Webhook - Import Contacts",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        640,
+        -112
+      ],
+      "webhookId": "import-contacts"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) {\n  throw new Error('Invalid or missing session token.');\n}\n\nconst requesterId = parseInt(match[1], 10);\nconst body = $input.first().json.body || {};\nconst contacts = Array.isArray(body.contacts) ? body.contacts : [];\n\nif (contacts.length === 0) {\n  throw new Error('No contacts provided to import.');\n}\nif (contacts.length > 500) {\n  throw new Error('Cannot import more than 500 contacts at once.');\n}\n\nconst cleaned = contacts.map((c) => {\n  const firstName = (c.first_name || '').toString().trim();\n  if (!firstName) return null;\n  return {\n    first_name: firstName,\n    last_name: (c.last_name || '').toString().trim(),\n    email: (c.email || '').toString().trim(),\n    phone: (c.phone || '').toString().trim(),\n    city: (c.city || '').toString().trim(),\n    country: (c.country || '').toString().trim(),\n    lead_status: (c.lead_status || 'New').toString().trim()\n  };\n}).filter(Boolean);\n\nif (cleaned.length === 0) {\n  throw new Error('No valid rows (missing first_name) found.');\n}\n\nreturn [{ json: { requesterId, contacts: cleaned } }];"
+      },
+      "id": "cfc79fe8-65c7-40a1-b563-b8ceec942b50",
+      "name": "Validate Token & Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        864,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "a0113e92-18ee-4e1d-a423-b767f173e9c1",
+      "name": "Look Up Requester",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1088,
+        -112
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nconst { contacts } = $('Validate Token & Rows').first().json;\n\nif (!requester.id || !requester.active) {\n  throw new Error('Invalid session.');\n}\n\nconst valuesSql = [];\nconst queryParams = [];\nlet paramIndex = 1;\n\nfor (const c of contacts) {\n  valuesSql.push(`($${paramIndex}, $${paramIndex+1}, $${paramIndex+2}, $${paramIndex+3}, $${paramIndex+4}, $${paramIndex+5}, $${paramIndex+6}, $${paramIndex+7}, NOW(), NOW())`);\n  queryParams.push(\n    c.first_name, c.last_name, c.email,\n    c.phone, c.city, c.country, c.lead_status, requester.id\n  );\n  paramIndex += 8;\n}\n\nconst sqlQuery = `\n  INSERT INTO contacts (first_name, last_name, email, phone, city, country, lead_status, owner_id, created_at, updated_at)\n  VALUES ${valuesSql.join(', ')}\n  RETURNING id;\n`;\n\nreturn [{ json: { sqlQuery, queryParams } }];"
+      },
+      "id": "d8bf870e-209e-4ce1-a8f5-d2f7563f733e",
+      "name": "Build Bulk Insert Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1312,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sqlQuery }}",
+        "options": {
+          "queryReplacement": "={{ $json.queryParams }}"
+        }
+      },
+      "id": "751778cc-3935-43a3-814a-6394ea6b1ead",
+      "name": "Insert Contacts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1520,
+        -112
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const insertedRows = $input.all().map((item) => item.json);\nreturn [{\n  json: {\n    success: true,\n    inserted_count: insertedRows.length,\n    inserted_ids: insertedRows.map((r) => r.id)\n  }\n}];"
+      },
+      "id": "f8804da2-d6a7-4ddf-a085-cae860c62c58",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1744,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "b37d187d-fe65-47d2-bc39-1b0c8775d84f",
+      "name": "Respond - Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1968,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Import failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "a5c8c924-4dca-4a9f-addc-0681f9cb0270",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1088,
+        80
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook - Import Contacts": {
+      "main": [
+        [
+          {
+            "node": "Validate Token & Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Token & Rows": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester": {
+      "main": [
+        [
+          {
+            "node": "Build Bulk Insert Query",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Bulk Insert Query": {
+      "main": [
+        [
+          {
+            "node": "Insert Contacts",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Contacts": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond - Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "142c0b5c-f062-44fa-88d0-92c61bca509d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6a773e6041cc88fd4a5b60f3e46f2119d58608faafd09936499001d589f5c1af"
+  },
+  "id": "srbNmxaO587YHR6o",
+  "tags": []
+}

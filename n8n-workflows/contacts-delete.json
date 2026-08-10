@@ -1,0 +1,248 @@
+{
+  "name": "contacts-delete",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "delete-contacts",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "22a662a9-d6af-41d5-8d04-59146407db7a",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        208,
+        112
+      ],
+      "webhookId": "delete-contacts"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate the incoming payload from the frontend: { ids: [1, 2, 3] }\nconst headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) {\n  throw new Error('Invalid or missing session token.');\n}\n\nconst requesterId = parseInt(match[1], 10);\n\nconst body = $input.first().json.body ?? {};\nconst rawIds = body.ids;\n\nif (!Array.isArray(rawIds) || rawIds.length === 0) {\n  throw new Error('Request must include a non-empty \"ids\" array.');\n}\n\nconst ids = rawIds\n  .map((v) => parseInt(v, 10))\n  .filter((v) => Number.isInteger(v));\n\nif (ids.length === 0) {\n  throw new Error('No valid numeric ids were provided.');\n}\n\nreturn [{ json: { requesterId, ids } }];"
+      },
+      "id": "1f776cce-2cfe-4b0b-b579-968fc39b1003",
+      "name": "Validate Token & IDs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "a938b317-f295-4dfb-bf35-54fb837341ff",
+      "name": "Look Up Requester",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        656,
+        112
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nconst { ids } = $('Validate Token & IDs').first().json;\n\nif (!requester.id || !requester.active) {\n  throw new Error('Invalid session.');\n}\nif (requester.role !== 'admin') {\n  throw new Error('Only admins can permanently delete contacts. Use archive instead.');\n}\n\nreturn [{ json: { ids } }];"
+      },
+      "id": "d746c162-0e93-4c3a-b26f-9ff7db35ba3a",
+      "name": "Require Admin",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM contacts\nWHERE id = ANY($1::int[])\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.ids ] }}"
+        }
+      },
+      "id": "d4c43164-6d5e-4a09-be5f-31b4d2c6e594",
+      "name": "Delete From Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1088,
+        112
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const deletedIds = $input.all().map((item) => item.json.id);\nreturn [{\n  json: {\n    success: true,\n    deleted_count: deletedIds.length,\n    deleted_ids: deletedIds\n  }\n}];"
+      },
+      "id": "92d04f93-f723-455b-ac3e-32a28db5f2c6",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1312,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "20094791-22f9-463c-9afc-8ee97093a78b",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.2,
+      "position": [
+        1536,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Failed to delete contacts.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "958bf06d-27f5-419b-94cf-2bfdbcdb6aaa",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.2,
+      "position": [
+        656,
+        304
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Token & IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Token & IDs": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester": {
+      "main": [
+        [
+          {
+            "node": "Require Admin",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Require Admin": {
+      "main": [
+        [
+          {
+            "node": "Delete From Postgres",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete From Postgres": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "7ab1ac13-fa76-4716-9e5c-c940547e7a87",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6a773e6041cc88fd4a5b60f3e46f2119d58608faafd09936499001d589f5c1af"
+  },
+  "id": "2kZDULWPkagcBQEW",
+  "tags": []
+}

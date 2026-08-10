@@ -1,18 +1,21 @@
 {
-  "name": "Tasks CRUD",
+  "name": "Tasks",
   "nodes": [
     {
       "parameters": {
-        "httpMethod": "GET",
         "path": "get-tasks",
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "wh-get-tasks",
+      "id": "4887baff-b1aa-4846-8d8e-cb985b666dbb",
       "name": "Webhook: get-tasks",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 0]
+      "position": [
+        608,
+        336
+      ],
+      "webhookId": "22af2e25-09e9-421b-87c5-c6466a5cbee4"
     },
     {
       "parameters": {
@@ -20,13 +23,19 @@
         "query": "SELECT a.id, a.contact_id, TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS contact_name, a.opportunity_id, o.name AS opportunity_name, a.user_id, u.name AS assigned_user_name, a.type, a.subject, a.body, a.is_completed, a.due_at, a.completed_at, a.created_at FROM activities a LEFT JOIN contacts c ON c.id = a.contact_id LEFT JOIN opportunities o ON o.id = a.opportunity_id LEFT JOIN users u ON u.id = a.user_id WHERE a.type = 'task' ORDER BY a.due_at ASC NULLS LAST, a.created_at DESC;",
         "options": {}
       },
-      "id": "pg-get-tasks",
+      "id": "7627365e-6be1-44d8-923b-0c4000a7ddc2",
       "name": "Postgres: Select Tasks",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [220, 0],
+      "position": [
+        832,
+        336
+      ],
       "credentials": {
-        "postgres": { "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID", "name": "Postgres CRM DB" }
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
       }
     },
     {
@@ -35,20 +44,31 @@
         "options": {
           "responseHeaders": {
             "entries": [
-              { "name": "Access-Control-Allow-Origin", "value": "*" },
-              { "name": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
-              { "name": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, ngrok-skip-browser-warning" }
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization, ngrok-skip-browser-warning"
+              }
             ]
           }
         }
       },
-      "id": "resp-get-tasks",
+      "id": "192db3cf-a04d-4802-9819-7c6efea1aff6",
       "name": "Respond: get-tasks",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [440, 0]
+      "position": [
+        1056,
+        336
+      ]
     },
-
     {
       "parameters": {
         "httpMethod": "POST",
@@ -56,11 +76,15 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "wh-add-task",
+      "id": "a9952735-1fb7-4868-9aa8-401249809ed0",
       "name": "Webhook: add-task",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 200]
+      "position": [
+        608,
+        544
+      ],
+      "webhookId": "a28510de-6e59-4113-94d2-0e5ab153c95e"
     },
     {
       "parameters": {
@@ -70,13 +94,19 @@
           "queryReplacement": "={{ [$json.body.contact_id || null, $json.body.opportunity_id || null, $json.body.user_id || $json.body.requester_id || null, $json.body.subject, $json.body.body || null, $json.body.due_at || null] }}"
         }
       },
-      "id": "pg-add-task",
+      "id": "170bcc9a-edfa-4636-87c7-efe0f75a8163",
       "name": "Postgres: Insert Task",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [220, 200],
+      "position": [
+        832,
+        544
+      ],
       "credentials": {
-        "postgres": { "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID", "name": "Postgres CRM DB" }
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
       }
     },
     {
@@ -86,20 +116,31 @@
         "options": {
           "responseHeaders": {
             "entries": [
-              { "name": "Access-Control-Allow-Origin", "value": "*" },
-              { "name": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
-              { "name": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, ngrok-skip-browser-warning" }
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization, ngrok-skip-browser-warning"
+              }
             ]
           }
         }
       },
-      "id": "resp-add-task",
+      "id": "e3fa7ff3-534e-4ecf-83f2-75120e1951dd",
       "name": "Respond: add-task",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [440, 200]
+      "position": [
+        1056,
+        544
+      ]
     },
-
     {
       "parameters": {
         "httpMethod": "POST",
@@ -107,11 +148,15 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "wh-update-task",
+      "id": "2f18e8ec-e1c1-4418-a38f-838d08216ee2",
       "name": "Webhook: update-task",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 400]
+      "position": [
+        608,
+        736
+      ],
+      "webhookId": "c3940064-0b95-4b79-b3e7-b54d5eb3ba56"
     },
     {
       "parameters": {
@@ -121,13 +166,19 @@
           "queryReplacement": "={{ [$json.body.subject || null, $json.body.body || null, $json.body.contact_id || null, $json.body.opportunity_id || null, $json.body.user_id || null, $json.body.due_at || null, $json.body.is_completed !== undefined ? $json.body.is_completed : null, $json.body.completed_at !== undefined ? $json.body.completed_at : null, $json.body.id] }}"
         }
       },
-      "id": "pg-update-task",
+      "id": "757a985d-9a39-490b-8761-e64f841e7336",
       "name": "Postgres: Update Task",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [220, 400],
+      "position": [
+        832,
+        736
+      ],
       "credentials": {
-        "postgres": { "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID", "name": "Postgres CRM DB" }
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
       }
     },
     {
@@ -137,20 +188,31 @@
         "options": {
           "responseHeaders": {
             "entries": [
-              { "name": "Access-Control-Allow-Origin", "value": "*" },
-              { "name": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
-              { "name": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, ngrok-skip-browser-warning" }
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization, ngrok-skip-browser-warning"
+              }
             ]
           }
         }
       },
-      "id": "resp-update-task",
+      "id": "e038f3d4-89bf-4c0f-ad60-b82811d54e58",
       "name": "Respond: update-task",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [440, 400]
+      "position": [
+        1056,
+        736
+      ]
     },
-
     {
       "parameters": {
         "httpMethod": "POST",
@@ -158,11 +220,15 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "wh-delete-tasks",
+      "id": "f89909e2-863e-41a8-ae27-d9aafd481dc5",
       "name": "Webhook: delete-tasks",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 600]
+      "position": [
+        608,
+        944
+      ],
+      "webhookId": "0f122b9b-745a-45c5-b725-29af31ef1f3d"
     },
     {
       "parameters": {
@@ -172,13 +238,19 @@
           "queryReplacement": "={{ [$json.body.ids] }}"
         }
       },
-      "id": "pg-delete-tasks",
+      "id": "704154da-8880-4ff5-8716-0b26e70cdd93",
       "name": "Postgres: Delete Tasks",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [220, 600],
+      "position": [
+        832,
+        944
+      ],
       "credentials": {
-        "postgres": { "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID", "name": "Postgres CRM DB" }
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
       }
     },
     {
@@ -188,20 +260,31 @@
         "options": {
           "responseHeaders": {
             "entries": [
-              { "name": "Access-Control-Allow-Origin", "value": "*" },
-              { "name": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
-              { "name": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, ngrok-skip-browser-warning" }
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization, ngrok-skip-browser-warning"
+              }
             ]
           }
         }
       },
-      "id": "resp-delete-tasks",
+      "id": "7d504e1c-38bc-4f4f-976a-dab29485d7a1",
       "name": "Respond: delete-tasks",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [440, 600]
+      "position": [
+        1056,
+        944
+      ]
     },
-
     {
       "parameters": {
         "httpMethod": "OPTIONS",
@@ -209,11 +292,15 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "wh-options-get-tasks",
+      "id": "3735e592-0940-4a46-ac4d-fcca276214b0",
       "name": "Webhook OPTIONS: get-tasks",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 800],
+      "position": [
+        608,
+        1136
+      ],
+      "webhookId": "85e05328-9500-470c-854f-a0d33e4aa219",
       "notes": "Handles the browser's CORS preflight request. Duplicate this OPTIONS node (path + Respond node) for add-task / update-task / delete-tasks too if preflight errors show up on those in the browser console."
     },
     {
@@ -223,51 +310,148 @@
           "responseCode": 204,
           "responseHeaders": {
             "entries": [
-              { "name": "Access-Control-Allow-Origin", "value": "*" },
-              { "name": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
-              { "name": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, ngrok-skip-browser-warning" }
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization, ngrok-skip-browser-warning"
+              }
             ]
           }
         }
       },
-      "id": "resp-options-get-tasks",
+      "id": "653d1163-e285-4104-886f-0407a349f60d",
       "name": "Respond OPTIONS: get-tasks",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [220, 800]
+      "position": [
+        832,
+        1136
+      ]
     }
   ],
+  "pinData": {},
   "connections": {
     "Webhook: get-tasks": {
-      "main": [[{ "node": "Postgres: Select Tasks", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Postgres: Select Tasks": {
-      "main": [[{ "node": "Respond: get-tasks", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond: get-tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Webhook: add-task": {
-      "main": [[{ "node": "Postgres: Insert Task", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Postgres: Insert Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Postgres: Insert Task": {
-      "main": [[{ "node": "Respond: add-task", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond: add-task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Webhook: update-task": {
-      "main": [[{ "node": "Postgres: Update Task", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Postgres: Update Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Postgres: Update Task": {
-      "main": [[{ "node": "Respond: update-task", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond: update-task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Webhook: delete-tasks": {
-      "main": [[{ "node": "Postgres: Delete Tasks", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Postgres: Delete Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Postgres: Delete Tasks": {
-      "main": [[{ "node": "Respond: delete-tasks", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond: delete-tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Webhook OPTIONS: get-tasks": {
-      "main": [[{ "node": "Respond OPTIONS: get-tasks", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond OPTIONS: get-tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
-    "executionOrder": "v1"
-  }
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "e4206e8d-0569-4288-90c0-2fb8e893dff9",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6a773e6041cc88fd4a5b60f3e46f2119d58608faafd09936499001d589f5c1af"
+  },
+  "id": "GJxDUooGXNmyhfec",
+  "tags": []
 }

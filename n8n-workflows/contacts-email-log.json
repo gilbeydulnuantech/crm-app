@@ -1,13 +1,11 @@
 {
-  "name": "06My-CRM-Email-mark-log-read",
+  "name": "Contacts-Email-log",
   "nodes": [
     {
       "parameters": {
-        "httpMethod": "POST",
-        "path": "mark-log-read",
-        "responseMode": "responseNode",
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"id\": $json.id } }}",
         "options": {
-          "allowedOrigins": "*",
           "responseHeaders": {
             "entries": [
               {
@@ -15,39 +13,59 @@
                 "value": "*"
               },
               {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
                 "name": "Access-Control-Allow-Headers",
-                "value": "*"
+                "value": "Content-Type, Authorization, ngrok-skip-browser-warning"
               }
             ]
           }
         }
       },
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2.1,
+      "id": "7adedef2-42a9-4e61-8a18-78b94a0abf2f",
+      "name": "Respond: mark-log-read",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
       "position": [
-        0,
-        0
+        1392,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mark-log-read",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "01d28067-6a55-478d-b588-63388fdfad0d",
+      "name": "Webhook: mark-log-read",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        368,
+        -176
       ],
-      "id": "4ddaa332-78df-4d05-9226-8263849da672",
-      "name": "Webhook",
-      "webhookId": "1c32a707-2054-41be-a956-c281f425b52f"
+      "webhookId": "5a245ef8-e3a6-4b17-b35d-a9cd16b08530"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE contacts \nSET email_logs = $1::jsonb \nWHERE id = $2;",
+        "query": "-- Rebuilds email_logs, flipping is_read=true on the entry whose id\n-- matches $1. Entries written before this id field existed can't be\n-- targeted this way (elem->>'id' is null for them) - harmless no-op.\nUPDATE contacts\nSET email_logs = (\n  SELECT COALESCE(jsonb_agg(\n    CASE WHEN elem->>'id' = $1\n      THEN elem || jsonb_build_object('is_read', true)\n      ELSE elem\n    END\n  ), '[]'::jsonb)\n  FROM jsonb_array_elements(COALESCE(email_logs, '[]'::jsonb)) AS elem\n)\nWHERE id = $2\nRETURNING id, email_logs;",
         "options": {
-          "queryReplacement": "={{ typeof $json.body.email_logs === 'string' ? $json.body.email_logs : JSON.stringify($json.body.email_logs) }}, ={{ Number($json.body.contact_id) }}"
+          "queryReplacement": "={{ [$('Webhook: mark-log-read').item.json.body.log_id, $('Webhook: mark-log-read').item.json.body.contact_id] }}"
         }
       },
+      "id": "19910f38-7eaf-4730-8a84-b565b0d41873",
+      "name": "Postgres: Mark Email Read",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
+      "typeVersion": 2.5,
       "position": [
-        208,
-        0
+        1088,
+        -176
       ],
-      "id": "e926e0ba-209d-48b9-ac1f-176770351054",
-      "name": "Execute a SQL query",
       "credentials": {
         "postgres": {
           "id": "OJlr1rmibAS2w3rj",
@@ -57,38 +75,114 @@
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "{\n  \"Status\": \"Success\"\n}",
+        "operation": "executeQuery",
+        "query": "ALTER TABLE contacts ADD COLUMN IF NOT EXISTS email_logs jsonb DEFAULT '[]'::jsonb;",
         "options": {}
       },
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.5,
+      "id": "c1cd4268-0170-44ab-acac-c6a2efaf60e2",
+      "name": "Postgres: Ensure email_logs Column (Mark Read)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
       "position": [
-        416,
-        0
+        720,
+        -192
       ],
-      "id": "4df9d007-8118-4fca-8e21-fe4fa7494fa7",
-      "name": "Respond to Webhook"
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "OPTIONS",
+        "path": "mark-log-read",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "5091d9cc-17ba-4b7f-9b94-b004b121b673",
+      "name": "Webhook OPTIONS: mark-log-read",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        752,
+        -16
+      ],
+      "webhookId": "b6dce24f-41d1-45a6-8ecc-1156d9c748fc"
+    },
+    {
+      "parameters": {
+        "respondWith": "noData",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization, ngrok-skip-browser-warning"
+              }
+            ]
+          }
+        }
+      },
+      "id": "d5cc52ba-189b-4682-8a53-4b16ea3fc756",
+      "name": "Respond OPTIONS: mark-log-read",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        976,
+        -16
+      ]
     }
   ],
   "pinData": {},
   "connections": {
-    "Webhook": {
+    "Webhook: mark-log-read": {
       "main": [
         [
           {
-            "node": "Execute a SQL query",
+            "node": "Postgres: Ensure email_logs Column (Mark Read)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Execute a SQL query": {
+    "Postgres: Ensure email_logs Column (Mark Read)": {
       "main": [
         [
           {
-            "node": "Respond to Webhook",
+            "node": "Postgres: Mark Email Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Mark Email Read": {
+      "main": [
+        [
+          {
+            "node": "Respond: mark-log-read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook OPTIONS: mark-log-read": {
+      "main": [
+        [
+          {
+            "node": "Respond OPTIONS: mark-log-read",
             "type": "main",
             "index": 0
           }
@@ -105,7 +199,7 @@
     "errorWorkflow": "U7jX0H3oE5a25GrV",
     "callerPolicy": "workflowsFromSameOwner"
   },
-  "versionId": "9326378f-a5f4-47ed-bf73-bb0743326d2a",
+  "versionId": "a6762967-31b8-4d9b-add2-45cbf3437b03",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "6a773e6041cc88fd4a5b60f3e46f2119d58608faafd09936499001d589f5c1af"

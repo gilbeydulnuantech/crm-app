@@ -1,18 +1,23 @@
 {
-  "name": "Pipeline CRUD",
+  "name": "Pipeline",
   "nodes": [
     {
       "parameters": {
-        "httpMethod": "GET",
         "path": "get-pipelines",
         "responseMode": "responseNode",
-        "options": {}
+        "options": {
+          "allowedOrigins": "*"
+        }
       },
-      "id": "wh-get-pipelines",
+      "id": "d885b806-5027-49af-8976-4fa695e0f0e1",
       "name": "Webhook: get-pipelines",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 0]
+      "position": [
+        816,
+        512
+      ],
+      "webhookId": "129b077d-8136-4f15-b74d-b6177ba24fa2"
     },
     {
       "parameters": {
@@ -20,36 +25,52 @@
         "query": "SELECT id, name, is_default FROM pipelines ORDER BY is_default DESC, name ASC;",
         "options": {}
       },
-      "id": "pg-get-pipelines",
+      "id": "2af4a8af-9323-4e81-b2c1-77f93be0a803",
       "name": "Postgres: Select Pipelines",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [220, 0],
+      "position": [
+        1040,
+        512
+      ],
       "credentials": {
-        "postgres": { "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID", "name": "Postgres CRM DB" }
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
       }
     },
     {
-      "parameters": { "respondWith": "allIncomingItems", "options": {} },
-      "id": "resp-get-pipelines",
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "c45df098-98d0-4b98-9898-ec9946f43157",
       "name": "Respond: get-pipelines",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [440, 0]
+      "position": [
+        1264,
+        512
+      ]
     },
-
     {
       "parameters": {
-        "httpMethod": "GET",
         "path": "get-stages",
         "responseMode": "responseNode",
-        "options": {}
+        "options": {
+          "allowedOrigins": "*"
+        }
       },
-      "id": "wh-get-stages",
+      "id": "d90e9e71-32f9-493d-a768-7b64dcf32aa4",
       "name": "Webhook: get-stages",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 180]
+      "position": [
+        816,
+        704
+      ],
+      "webhookId": "c7b07016-6692-4fbc-a91e-f19cbecec889"
     },
     {
       "parameters": {
@@ -59,36 +80,52 @@
           "queryReplacement": "={{ [$json.query.pipeline_id] }}"
         }
       },
-      "id": "pg-get-stages",
+      "id": "a8067643-f26b-486a-b84b-1bf36176c7df",
       "name": "Postgres: Select Stages",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [220, 180],
+      "position": [
+        1040,
+        704
+      ],
       "credentials": {
-        "postgres": { "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID", "name": "Postgres CRM DB" }
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
       }
     },
     {
-      "parameters": { "respondWith": "allIncomingItems", "options": {} },
-      "id": "resp-get-stages",
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "f7b5ed45-44bb-4f3a-b70f-947a76c3c9ef",
       "name": "Respond: get-stages",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [440, 180]
+      "position": [
+        1264,
+        704
+      ]
     },
-
     {
       "parameters": {
-        "httpMethod": "GET",
         "path": "get-opportunities",
         "responseMode": "responseNode",
-        "options": {}
+        "options": {
+          "allowedOrigins": "*"
+        }
       },
-      "id": "wh-get-opportunities",
+      "id": "f5c7a640-c524-409f-90be-dc6b39ffbaf6",
       "name": "Webhook: get-opportunities",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 360]
+      "position": [
+        816,
+        880
+      ],
+      "webhookId": "1ba03016-051c-4a33-95d8-4f21140ec007"
     },
     {
       "parameters": {
@@ -98,36 +135,53 @@
           "queryReplacement": "={{ [$json.query.pipeline_id] }}"
         }
       },
-      "id": "pg-get-opportunities",
+      "id": "2d3387c2-2ba5-413e-bd81-642ce2d56c07",
       "name": "Postgres: Select Opportunities",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [220, 360],
+      "position": [
+        1040,
+        880
+      ],
       "credentials": {
-        "postgres": { "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID", "name": "Postgres CRM DB" }
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
       }
     },
     {
-      "parameters": { "respondWith": "allIncomingItems", "options": {} },
-      "id": "resp-get-opportunities",
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "06e0cb1b-cd60-4279-90d3-558a2652ed9d",
       "name": "Respond: get-opportunities",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [440, 360]
+      "position": [
+        1264,
+        880
+      ]
     },
-
     {
       "parameters": {
         "httpMethod": "POST",
         "path": "add-opportunity",
         "responseMode": "responseNode",
-        "options": {}
+        "options": {
+          "allowedOrigins": "*"
+        }
       },
-      "id": "wh-add-opportunity",
+      "id": "cadd356b-984f-42ee-97f0-1c154e14fe76",
       "name": "Webhook: add-opportunity",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 540]
+      "position": [
+        816,
+        1056
+      ],
+      "webhookId": "d660879e-dde1-4775-a132-55371291fc79"
     },
     {
       "parameters": {
@@ -137,13 +191,19 @@
           "queryReplacement": "={{ [$json.body.name, $json.body.contact_id, $json.body.account_id || null, $json.body.pipeline_id, $json.body.stage_id, $json.body.assigned_user || $json.body.requester_id || null, $json.body.requester_id || null, $json.body.deal_value || null, $json.body.probability || 0, $json.body.expected_close || null] }}"
         }
       },
-      "id": "pg-add-opportunity",
+      "id": "14d80507-0856-4732-8f22-4d2ce018133d",
       "name": "Postgres: Insert Opportunity",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [220, 540],
+      "position": [
+        1040,
+        1056
+      ],
       "credentials": {
-        "postgres": { "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID", "name": "Postgres CRM DB" }
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
       }
     },
     {
@@ -152,13 +212,15 @@
         "responseBody": "={{ { \"success\": true, \"id\": $json.id } }}",
         "options": {}
       },
-      "id": "resp-add-opportunity",
+      "id": "56c4d4cc-b828-42a1-a8e8-54da28844b84",
       "name": "Respond: add-opportunity",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [440, 540]
+      "position": [
+        1264,
+        1056
+      ]
     },
-
     {
       "parameters": {
         "httpMethod": "POST",
@@ -166,11 +228,15 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "wh-update-opportunity",
+      "id": "fa32b790-54a1-4335-a684-22c7cfe80cb1",
       "name": "Webhook: update-opportunity",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 720]
+      "position": [
+        816,
+        1232
+      ],
+      "webhookId": "3591281b-53e4-4d7f-9b16-e51bbb44e09c"
     },
     {
       "parameters": {
@@ -180,13 +246,19 @@
           "queryReplacement": "={{ [$json.body.name || null, $json.body.contact_id || null, $json.body.account_id || null, $json.body.stage_id || null, $json.body.assigned_user || null, $json.body.deal_value !== undefined ? $json.body.deal_value : null, $json.body.probability !== undefined ? $json.body.probability : null, $json.body.status || null, $json.body.expected_close || null, $json.body.closed_at || null, $json.body.id] }}"
         }
       },
-      "id": "pg-update-opportunity",
+      "id": "ada2c882-6de2-422e-8faf-c2fa3fcbdb93",
       "name": "Postgres: Update Opportunity",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [220, 720],
+      "position": [
+        1040,
+        1232
+      ],
       "credentials": {
-        "postgres": { "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID", "name": "Postgres CRM DB" }
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
       }
     },
     {
@@ -195,25 +267,33 @@
         "responseBody": "={{ { \"success\": $json.id ? true : false } }}",
         "options": {}
       },
-      "id": "resp-update-opportunity",
+      "id": "44d60ba9-1b2c-42d3-9926-493fabc32e7c",
       "name": "Respond: update-opportunity",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [440, 720]
+      "position": [
+        1264,
+        1232
+      ]
     },
-
     {
       "parameters": {
         "httpMethod": "POST",
         "path": "move-opportunity-stage",
         "responseMode": "responseNode",
-        "options": {}
+        "options": {
+          "allowedOrigins": "*"
+        }
       },
-      "id": "wh-move-stage",
+      "id": "d9cfc7bb-c84b-475b-9e30-65380f19177b",
       "name": "Webhook: move-opportunity-stage",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 900]
+      "position": [
+        816,
+        1424
+      ],
+      "webhookId": "a57f12b7-2cc7-4826-b174-3a7cf377d428"
     },
     {
       "parameters": {
@@ -223,13 +303,19 @@
           "queryReplacement": "={{ [$json.body.stage_id, $json.body.id] }}"
         }
       },
-      "id": "pg-move-stage",
+      "id": "3695263b-129a-4edf-b2d3-16b309e72440",
       "name": "Postgres: Move Stage (auto Won/Lost)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [220, 900],
+      "position": [
+        1040,
+        1424
+      ],
       "credentials": {
-        "postgres": { "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID", "name": "Postgres CRM DB" }
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
       }
     },
     {
@@ -238,25 +324,33 @@
         "responseBody": "={{ { \"success\": true, \"status\": $json.status } }}",
         "options": {}
       },
-      "id": "resp-move-stage",
+      "id": "975da9e7-ef15-43a6-a450-8aa5bcba1f64",
       "name": "Respond: move-opportunity-stage",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [440, 900]
+      "position": [
+        1264,
+        1424
+      ]
     },
-
     {
       "parameters": {
         "httpMethod": "POST",
         "path": "delete-opportunities",
         "responseMode": "responseNode",
-        "options": {}
+        "options": {
+          "allowedOrigins": "*"
+        }
       },
-      "id": "wh-delete-opportunities",
+      "id": "97e32b69-5eb4-4a34-bf92-dca7415b1488",
       "name": "Webhook: delete-opportunities",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 1080]
+      "position": [
+        816,
+        1600
+      ],
+      "webhookId": "b8a1fe8c-4467-49d5-b675-372957ca556b"
     },
     {
       "parameters": {
@@ -266,13 +360,19 @@
           "queryReplacement": "={{ [$json.body.ids] }}"
         }
       },
-      "id": "pg-delete-opportunities",
+      "id": "3af790b7-b9d7-4a55-b682-897ddc23b01c",
       "name": "Postgres: Delete Opportunities",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [220, 1080],
+      "position": [
+        1040,
+        1600
+      ],
       "credentials": {
-        "postgres": { "id": "REPLACE_WITH_YOUR_POSTGRES_CREDENTIAL_ID", "name": "Postgres CRM DB" }
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
       }
     },
     {
@@ -281,59 +381,187 @@
         "responseBody": "={{ { \"success\": true } }}",
         "options": {}
       },
-      "id": "resp-delete-opportunities",
+      "id": "9067dc3a-7c93-4f59-a412-7b26d270886c",
       "name": "Respond: delete-opportunities",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [440, 1080]
+      "position": [
+        1264,
+        1600
+      ]
     }
   ],
+  "pinData": {},
   "connections": {
     "Webhook: get-pipelines": {
-      "main": [[{ "node": "Postgres: Select Pipelines", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Pipelines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Postgres: Select Pipelines": {
-      "main": [[{ "node": "Respond: get-pipelines", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond: get-pipelines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Webhook: get-stages": {
-      "main": [[{ "node": "Postgres: Select Stages", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Postgres: Select Stages": {
-      "main": [[{ "node": "Respond: get-stages", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond: get-stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Webhook: get-opportunities": {
-      "main": [[{ "node": "Postgres: Select Opportunities", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Postgres: Select Opportunities": {
-      "main": [[{ "node": "Respond: get-opportunities", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond: get-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Webhook: add-opportunity": {
-      "main": [[{ "node": "Postgres: Insert Opportunity", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Postgres: Insert Opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Postgres: Insert Opportunity": {
-      "main": [[{ "node": "Respond: add-opportunity", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond: add-opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Webhook: update-opportunity": {
-      "main": [[{ "node": "Postgres: Update Opportunity", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Postgres: Update Opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Postgres: Update Opportunity": {
-      "main": [[{ "node": "Respond: update-opportunity", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond: update-opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Webhook: move-opportunity-stage": {
-      "main": [[{ "node": "Postgres: Move Stage (auto Won/Lost)", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Postgres: Move Stage (auto Won/Lost)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Postgres: Move Stage (auto Won/Lost)": {
-      "main": [[{ "node": "Respond: move-opportunity-stage", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond: move-opportunity-stage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Webhook: delete-opportunities": {
-      "main": [[{ "node": "Postgres: Delete Opportunities", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Postgres: Delete Opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Postgres: Delete Opportunities": {
-      "main": [[{ "node": "Respond: delete-opportunities", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond: delete-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
-    "executionOrder": "v1"
-  }
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "41cc8791-79fb-437c-bb82-f09d2f3d2bc3",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6a773e6041cc88fd4a5b60f3e46f2119d58608faafd09936499001d589f5c1af"
+  },
+  "id": "6uohZ5g6HXJNJwPK",
+  "tags": []
 }

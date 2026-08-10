@@ -1,0 +1,363 @@
+{
+  "name": "contacts-add-by-calendar-booking",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "calendarId": {
+          "__rl": true,
+          "value": "gilbeydulnuan@gmail.com",
+          "mode": "list",
+          "cachedResultName": "GD AI Automation"
+        },
+        "triggerOn": "eventCreated",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendarTrigger",
+      "typeVersion": 1,
+      "position": [
+        32,
+        -176
+      ],
+      "id": "9ad66401-5f4f-445f-aab3-7a41d2be3142",
+      "name": "Google Calendar Trigger",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "GHh5WnpZKV3DPZJd",
+          "name": "n8n072826"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "bd0e0a2a-661c-41e4-9bff-76850e76d0e4",
+              "name": "status",
+              "value": "={{ $json.status }}",
+              "type": "string"
+            },
+            {
+              "id": "adc018ee-db00-4545-a8f5-9265ea30a670",
+              "name": "start",
+              "value": "={{ $json.start.dateTime.toDateTime().format('yyyy-MM-dd | hh:mm:ss a') }}",
+              "type": "string"
+            },
+            {
+              "id": "9a08a5ea-c4c3-44d6-a826-59175eb8a0a5",
+              "name": "attendees[1].email",
+              "value": "={{ $json.attendees[1].email }}",
+              "type": "string"
+            },
+            {
+              "id": "399c3402-e93c-4f3a-838f-2b9312f68068",
+              "name": "summary",
+              "value": "={{ $json.summary.split('(')[1].replace(')', '').toTitleCase() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        272,
+        -176
+      ],
+      "id": "dc71f8c7-48db-4361-ac64-05c9097bef79",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.Email }}",
+        "subject": "Confirmed: Your AI Automation Discovery Call",
+        "message": "=<br><br><br><br>\n\nHi <strong>{{ $json.Name }}</strong>,<br><br>\n\nThanks for scheduling a discovery call! <br><br>I’m looking forward to diving into your workflow and exploring how we can build<br>custom AI automations to save you time and scale your operations.<br><br>\n\n<strong>Meeting Details:</strong><br>\n\nDate & Time: {{ $json.start }}<br><br>\n\n<strong>Location:</strong><br> Google Meet (link in calendar invite)<br><br>\n\n<strong>To help us make the most of our time:</strong><br>\nIf you have any specific tools (like your CRM, webhooks, or current manual pipelines) <br>you’d like us to focus on, feel free to reply directly to this email with a brief overview.<br><br>\n\nSee you then!<br><br>\n\nBest regards,<br><br>\n\nGilbert Dulnuan<br>\nAI Automation & CRM Specialist",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        864,
+        -368
+      ],
+      "id": "f8a9d7c0-2c15-4d2a-b8c2-dc2b6539e296",
+      "name": "Send a message",
+      "webhookId": "af192893-b019-48bc-b2f3-2b28f81d0c2a",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "contacts",
+          "mode": "list",
+          "cachedResultName": "contacts"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "email": "={{ $('format data').item.json.Email }}",
+            "first_name": "={{ $json.Name.split(' ')[0] }}",
+            "last_name": "={{ $json.Name.split(' ')[1] }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "first_name",
+              "displayName": "first_name",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "company",
+              "displayName": "company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "lead_status",
+              "displayName": "lead_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "last_name",
+              "displayName": "last_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "lead_source",
+              "displayName": "lead_source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "city",
+              "displayName": "city",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "state",
+              "displayName": "state",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "zip_code",
+              "displayName": "zip_code",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "country",
+              "displayName": "country",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        864,
+        -176
+      ],
+      "id": "3b2aa0ea-17c4-44f7-b8dd-af1aa49fef2f",
+      "name": "Insert rows in a table",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "for (const item of items) {\n  const summary = item.json.summary || \"\";\n  const attendees = item.json.attendees || [];\n  \n  // 1. EXTRACT AND CLEAN NAME\n  // This looks for text inside (parentheses). If not found, it uses the whole summary.\n  let extractedName = summary;\n  const nameMatch = summary.match(/\\(([^)]+)\\)/);\n  \n  if (nameMatch) {\n    extractedName = nameMatch[1];\n  }\n\n  // Clean up: Remove extra spaces and convert to Title Case (e.g. \"babushka bey\" -> \"Babushka Bey\")\n  extractedName = extractedName.trim().split(' ')\n    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())\n    .join(' ');\n\n  // 2. EXTRACT EMAIL\n  // This filters out 'null' items and finds the first valid email address\n  const guest = attendees.find(a => a && a.email);\n  const extractedEmail = guest ? guest.email : \"No email found\";\n\n  // 3. ADD TO OUTPUT\n  item.json.Name = extractedName;\n  item.json.Email = extractedEmail;\n}\n\nreturn items;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        464,
+        -176
+      ],
+      "id": "e7aac008-edfb-4b09-bc04-0b24216e995a",
+      "name": "format data"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Calendar Trigger": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "format data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        []
+      ]
+    },
+    "Insert rows in a table": {
+      "main": [
+        []
+      ]
+    },
+    "format data": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Insert rows in a table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "timezone": "Asia/Aqtobe",
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "U7jX0H3oE5a25GrV"
+  },
+  "versionId": "59d39d0e-4eef-43ee-8677-652e053d2741",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6a773e6041cc88fd4a5b60f3e46f2119d58608faafd09936499001d589f5c1af"
+  },
+  "id": "07YS3Ho40id80Xd8",
+  "tags": []
+}

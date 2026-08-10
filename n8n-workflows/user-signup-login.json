@@ -1,0 +1,407 @@
+{
+  "name": "user-signup-login",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "user-sign-up",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        304,
+        224
+      ],
+      "id": "30a08744-999a-478d-9d2d-d264e9ff814d",
+      "name": "Webhook: Sign Up",
+      "webhookId": "6c21d3fb-5a40-4882-b69f-ca4658463d81"
+    },
+    {
+      "parameters": {
+        "jsCode": "const bcrypt = require('bcryptjs');\nconst body = $input.first().json.body || $input.first().json;\n\nconst name = (body.name || '').trim();\nconst email = (body.email || '').trim().toLowerCase();\nconst rawPassword = body.password || '';\n\nif (!name || !email || !rawPassword) {\n  throw new Error('Name, email, and password are required.');\n}\n\nconst salt = bcrypt.genSaltSync(10);\nconst passwordHash = bcrypt.hashSync(rawPassword, salt);\n\nconst sqlQuery = `\n  INSERT INTO users (name, email, password_hash, role, active, created_at, updated_at)\n  VALUES ($1, $2, $3, 'user', true, NOW(), NOW())\n  RETURNING id, name, email, role, active, created_at;\n`;\n\nreturn [{\n  json: {\n    sqlQuery,\n    queryParams: [name, email, passwordHash]\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        528,
+        224
+      ],
+      "id": "2b3a1e06-b54b-4234-9c11-e76792c0b6b6",
+      "name": "Format Sign Up Data"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sqlQuery }}",
+        "options": {
+          "queryReplacement": "={{ $json.queryParams }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        752,
+        224
+      ],
+      "id": "c3ae8118-83f4-45df-8e97-b5c73744850f",
+      "name": "Insert New User",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\n\n// When onError = continueRegularOutput, a failed query (e.g. duplicate email\n// hitting the users_email_key unique constraint) lands here with an `error`\n// field instead of throwing, so we can return a friendly message.\nif (item.error || !item.id) {\n  return [{\n    json: {\n      success: false,\n      message: 'Email already registered or database error occurred.'\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    success: true,\n    message: 'Account created successfully!',\n    user: {\n      id: item.id,\n      name: item.name,\n      email: item.email,\n      role: item.role\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        976,
+        224
+      ],
+      "id": "204cfffe-dfad-47ab-bfb5-82c552fc8322",
+      "name": "Format Sign Up Response"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1184,
+        224
+      ],
+      "id": "30a37840-2a6b-484c-ac7f-5c77398c415f",
+      "name": "Respond Sign Up"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "user-login",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        304,
+        496
+      ],
+      "id": "1a4ce57f-dc83-4e88-a44a-fac21cb3f69f",
+      "name": "Webhook: Login",
+      "webhookId": "dfc33ab4-13d6-463f-9307-9e38a2793cfe"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst email = (body.email || '').trim().toLowerCase();\nconst password = body.password || '';\n\nconst sqlQuery = `\n  SELECT id, name, email, password_hash, role, active\n  FROM users\n  WHERE email = $1\n  LIMIT 1;\n`;\n\nreturn [{\n  json: {\n    rawPassword: password,\n    sqlQuery,\n    queryParams: [email]\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        528,
+        496
+      ],
+      "id": "f445eb9b-d216-4f17-861b-3a512d529974",
+      "name": "Format Login Query"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sqlQuery }}",
+        "options": {
+          "queryReplacement": "={{ $json.queryParams }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        752,
+        496
+      ],
+      "id": "b508b1bb-ed0f-4e9c-96ec-429b76947355",
+      "name": "Query User DB",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const bcrypt = require('bcryptjs');\nconst dbResult = $input.first().json;\nconst rawPassword = $('Format Login Query').first().json.rawPassword;\n\nif (!dbResult.id || !dbResult.active) {\n  return [{\n    json: {\n      success: false,\n      message: 'Invalid credentials or account inactive.'\n    }\n  }];\n}\n\nconst isPasswordValid = bcrypt.compareSync(rawPassword, dbResult.password_hash);\n\nif (!isPasswordValid) {\n  return [{\n    json: {\n      success: false,\n      message: 'Invalid credentials.'\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    success: true,\n    message: 'Login successful.',\n    token: `token_${dbResult.id}_${Date.now()}`,\n    user: {\n      id: dbResult.id,\n      name: dbResult.name,\n      email: dbResult.email,\n      role: dbResult.role\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        976,
+        496
+      ],
+      "id": "736623b4-6c7c-40bd-9db1-c70a95ab2dda",
+      "name": "Verify Password & Generate Token"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1184,
+        496
+      ],
+      "id": "d71650cd-0382-4461-9b2a-a234a6aba060",
+      "name": "Respond Login"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "verify-session",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        672,
+        0
+      ],
+      "id": "ca1bacf5-35b6-4915-bc9f-e602724dce16",
+      "name": "Webhook: verify session",
+      "webhookId": "d6875fc6-9dcc-411d-be21-b8f521eb0d9b"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sqlQuery }}",
+        "options": {
+          "queryReplacement": "={{ $json.queryParams }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1088,
+        0
+      ],
+      "id": "0bab9de2-9e18-4972-886c-0aff460ef79e",
+      "name": "Execute a SQL query",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\n\nif (!item.id || !item.active) {\n  return [{ json: { valid: false } }];\n}\n\nreturn [{\n  json: {\n    valid: true,\n    user: { id: item.id, name: item.name, email: item.email, role: item.role }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1296,
+        0
+      ],
+      "id": "a5156f1b-ee80-47a6-be2d-02b415c559f2",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{$json}}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1504,
+        0
+      ],
+      "id": "c2283b45-0a02-4f13-a176-a686e919a8f2",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst token = (body.token || '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) {\n  return [{ json: { valid: false } }];\n}\n\nconst userId = parseInt(match[1], 10);\nconst issuedAt = parseInt(match[2], 10);\nconst TTL_MS = 24 * 60 * 60 * 1000;\n\nif (Date.now() - issuedAt > TTL_MS) {\n  return [{ json: { valid: false } }];\n}\n\nconst sqlQuery = `SELECT id, name, email, role, active FROM users WHERE id = $1 LIMIT 1;`;\n\nreturn [{ json: { sqlQuery, queryParams: [userId] } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        0
+      ],
+      "id": "c14689a8-e53b-4f0c-b8c1-a3c7e105bc49",
+      "name": "verify token"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook: Sign Up": {
+      "main": [
+        [
+          {
+            "node": "Format Sign Up Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Sign Up Data": {
+      "main": [
+        [
+          {
+            "node": "Insert New User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert New User": {
+      "main": [
+        [
+          {
+            "node": "Format Sign Up Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Sign Up Response": {
+      "main": [
+        [
+          {
+            "node": "Respond Sign Up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Login": {
+      "main": [
+        [
+          {
+            "node": "Format Login Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Login Query": {
+      "main": [
+        [
+          {
+            "node": "Query User DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query User DB": {
+      "main": [
+        [
+          {
+            "node": "Verify Password & Generate Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Password & Generate Token": {
+      "main": [
+        [
+          {
+            "node": "Respond Login",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: verify session": {
+      "main": [
+        [
+          {
+            "node": "verify token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "verify token": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "82abfaf8-400f-4004-ba67-7e27a3d56ebe",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6a773e6041cc88fd4a5b60f3e46f2119d58608faafd09936499001d589f5c1af"
+  },
+  "id": "GqfsZhtdof3p4qMJ",
+  "tags": []
+}

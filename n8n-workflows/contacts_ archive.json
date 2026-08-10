@@ -1,0 +1,253 @@
+{
+  "name": "contacts: archive",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "archive-contact",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "1a7fbc57-1e86-4067-a69f-64ed7156244a",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "archive-contact"
+    },
+    {
+      "parameters": {
+        "jsCode": "// RESTORES the actual token-parsing logic that got overwritten — this needs\n// to go back in the \"Parse Token\" node specifically (not \"Build Archive\n// Query\", where my earlier message's snippet was meant to go instead).\nconst headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst requesterId = parseInt(match[1], 10);\n\nconst body = $input.first().json.body || {};\nconst contactId = parseInt(body.contact_id, 10);\nconst reason = (body.reason || '').trim() || null;\n\nif (!Number.isInteger(contactId)) {\n  throw new Error('\"contact_id\" must be an integer.');\n}\n\nreturn [{ json: { requesterId, contactId, reason } }];\n"
+      },
+      "id": "11394397-6b39-441b-97b5-38bf4b365141",
+      "name": "Parse Token",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "ed4f922b-323a-4135-a504-bde3163fc3bf",
+      "name": "Look Up Requester",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        448,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Goes in \"Build Archive Query\" — keeps your existing owner/admin permission\n// check intact, and adds the archived_by / archived_at / archive_reason\n// columns (requires the ALTER TABLE migration to have been run already).\nconst requester = $input.first().json;\nconst { contactId, reason } = $('Parse Token').first().json;\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst sqlQuery = `\n  UPDATE contacts\n  SET is_archived = true,\n      archived_by = $1,\n      archived_at = now(),\n      archive_reason = $2\n  WHERE id = $3 AND ($4 = 'admin' OR owner_id = $1)\n  RETURNING id, is_archived;\n`;\nconst queryParams = [requester.id, reason, contactId, requester.role];\n\nreturn [{ json: { sqlQuery, queryParams } }];\n"
+      },
+      "id": "45390bc8-44d7-457b-8b59-1d95ce5ad677",
+      "name": "Build Archive Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sqlQuery }}",
+        "options": {
+          "queryReplacement": "={{ $json.queryParams }}"
+        }
+      },
+      "id": "735040a9-10be-42e5-bc02-c492f4a6f697",
+      "name": "Execute Archive",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        880,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) {\n  throw new Error('Contact not found or you do not have permission to archive it.');\n}\nreturn [{ json: { success: true, contact: result.json } }];"
+      },
+      "id": "f85d78f2-fb10-4c12-b76e-0e6a2a62a24e",
+      "name": "Check Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1104,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "f749618d-af5b-4933-adbb-0e05bd5bb346",
+      "name": "Respond - Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1328,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Archive failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "7c4c5b8b-4f03-42e5-8f30-17c2eddc091c",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        448,
+        192
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester": {
+      "main": [
+        [
+          {
+            "node": "Build Archive Query",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Archive Query": {
+      "main": [
+        [
+          {
+            "node": "Execute Archive",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Archive": {
+      "main": [
+        [
+          {
+            "node": "Check Result",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Result": {
+      "main": [
+        [
+          {
+            "node": "Respond - Success",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "badc4b0b-dc77-4028-8c64-328f31eabdce",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6a773e6041cc88fd4a5b60f3e46f2119d58608faafd09936499001d589f5c1af"
+  },
+  "id": "tFhvYPsFMBJerkuW",
+  "tags": []
+}

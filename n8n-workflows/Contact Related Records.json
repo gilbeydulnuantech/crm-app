@@ -1,0 +1,177 @@
+{
+  "name": "Contact Related Records",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "get-contact-related",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "bd9011f7-dcbf-4da3-935d-f5c83aa953d9",
+      "name": "Webhook: get-contact-related",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "3626126c-2c75-4737-acab-7d2da78cd5fb"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT json_build_object('company', (SELECT json_build_object('id', co.id, 'name', co.name) FROM contacts c JOIN companies co ON co.id = c.account_id WHERE c.id = $1), 'deal', (SELECT json_build_object('id', o.id, 'name', o.name, 'deal_value', o.deal_value, 'stage_name', st.name) FROM opportunities o JOIN stages st ON st.id = o.stage_id WHERE o.contact_id = $1 AND o.status = 'Open' ORDER BY o.created_at DESC LIMIT 1), 'task', (SELECT json_build_object('id', a.id, 'subject', a.subject, 'due_at', a.due_at) FROM activities a WHERE a.contact_id = $1 AND a.type = 'task' AND a.is_completed = false ORDER BY a.due_at ASC NULLS LAST LIMIT 1), 'event', (SELECT json_build_object('id', a.id, 'subject', a.subject, 'due_at', a.due_at) FROM activities a WHERE a.contact_id = $1 AND a.type != 'task' AND a.due_at >= now() ORDER BY a.due_at ASC LIMIT 1)) AS result;",
+        "options": {
+          "queryReplacement": "={{ [$json.query.contact_id] }}"
+        }
+      },
+      "id": "121e281a-6e89-48ab-9e97-2eec2dc9b25c",
+      "name": "Postgres: Contact Related",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        224,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.result }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization, ngrok-skip-browser-warning"
+              }
+            ]
+          }
+        }
+      },
+      "id": "1000525a-779a-4700-8929-d91f0514574a",
+      "name": "Respond: get-contact-related",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        448,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "OPTIONS",
+        "path": "get-contact-related",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "cb58de7a-9292-4460-940d-95609b532663",
+      "name": "Webhook OPTIONS: get-contact-related",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        224
+      ],
+      "webhookId": "aa8f45bb-8002-4fd5-8085-a9837ea95fee"
+    },
+    {
+      "parameters": {
+        "respondWith": "noData",
+        "options": {
+          "responseCode": 204,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization, ngrok-skip-browser-warning"
+              }
+            ]
+          }
+        }
+      },
+      "id": "9ba10a9a-48e1-46e5-ace6-cdded28aa95a",
+      "name": "Respond OPTIONS: get-contact-related",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        224,
+        224
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook: get-contact-related": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Contact Related",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Contact Related": {
+      "main": [
+        [
+          {
+            "node": "Respond: get-contact-related",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook OPTIONS: get-contact-related": {
+      "main": [
+        [
+          {
+            "node": "Respond OPTIONS: get-contact-related",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "24fad267-b671-4f0c-9d07-aeebf20d3837",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6a773e6041cc88fd4a5b60f3e46f2119d58608faafd09936499001d589f5c1af"
+  },
+  "id": "Q9fVy9iJyLdxPMnZ",
+  "tags": []
+}

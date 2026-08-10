@@ -1,0 +1,335 @@
+{
+  "name": "Users: Assignment",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "get-users",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "39cc5640-aac2-4586-93ec-0bce795eb323",
+      "name": "Webhook - Get Users",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        960,
+        880
+      ],
+      "webhookId": "get-users"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, email FROM users WHERE active = true ORDER BY name ASC;",
+        "options": {}
+      },
+      "id": "7ed2f986-ccc4-420e-a7d7-15a2fb090650",
+      "name": "Select Active Users",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1184,
+        880
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().map(item => item.json) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "b9dd35dc-c4de-4d16-a229-7af804821ddd",
+      "name": "Respond - Get Users",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1408,
+        880
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "assign-contact-owner",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "227b265c-e5fc-4863-8355-f062affdfee7",
+      "name": "Webhook - Assign Contact Owner",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        960,
+        1088
+      ],
+      "webhookId": "assign-contact-owner"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) {\n  throw new Error('Invalid or missing session token.');\n}\n\nconst requesterId = parseInt(match[1], 10);\n\nreturn [{ json: { requesterId } }];"
+      },
+      "id": "ce9a2811-4253-400a-9a93-b141a3f90ec8",
+      "name": "Parse Requester Token",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        1088
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "85b30d63-f8e5-45ca-a8ba-9657bdaecf4d",
+      "name": "Look Up Requester Role",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1408,
+        1088
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Assign Contact Owner').first().json.body || {};\n\nif (!requester.id || !requester.active) {\n  throw new Error('Invalid session.');\n}\n\nif (requester.role !== 'admin') {\n  throw new Error('Only admins can assign contact owners.');\n}\n\nconst contactId = parseInt(body.contact_id, 10);\nconst ownerIdRaw = body.owner_id;\nconst ownerId = (ownerIdRaw === null || ownerIdRaw === undefined || ownerIdRaw === '')\n  ? null\n  : parseInt(ownerIdRaw, 10);\n\nif (!Number.isInteger(contactId)) {\n  throw new Error('\"contact_id\" must be an integer.');\n}\nif (ownerId !== null && !Number.isInteger(ownerId)) {\n  throw new Error('\"owner_id\" must be an integer or null.');\n}\n\nreturn [{ json: { contactId, ownerId } }];"
+      },
+      "id": "b797039c-8668-460b-9e16-894146608f81",
+      "name": "Validate Admin & Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        1088
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts\nSET owner_id = $1\nWHERE id = $2\nRETURNING id, owner_id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.ownerId, $json.contactId ] }}"
+        }
+      },
+      "id": "f6d22997-26b6-43f2-8083-df31ed86d870",
+      "name": "Update Contact Owner",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1840,
+        1088
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) {\n  throw new Error('Contact not found.');\n}\nreturn [{ json: { success: true, contact: result.json } }];"
+      },
+      "id": "bc0e3e6e-ee8e-4946-879c-cdaf4613cacf",
+      "name": "Check Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2064,
+        1088
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "b8a5d50e-0b5c-4947-b37f-b85076876e3f",
+      "name": "Respond - Assign Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2288,
+        1088
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "80eb0be7-3a6a-4288-8742-25648fca5aa4",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1184,
+        1264
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook - Get Users": {
+      "main": [
+        [
+          {
+            "node": "Select Active Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Active Users": {
+      "main": [
+        [
+          {
+            "node": "Respond - Get Users",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Assign Contact Owner": {
+      "main": [
+        [
+          {
+            "node": "Parse Requester Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Requester Token": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester Role",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester Role": {
+      "main": [
+        [
+          {
+            "node": "Validate Admin & Payload",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Admin & Payload": {
+      "main": [
+        [
+          {
+            "node": "Update Contact Owner",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Contact Owner": {
+      "main": [
+        [
+          {
+            "node": "Check Result",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Result": {
+      "main": [
+        [
+          {
+            "node": "Respond - Assign Success",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "5ace15ef-2334-4f4d-aab1-4604ebd221e4",
+  "meta": {
+    "instanceId": "6a773e6041cc88fd4a5b60f3e46f2119d58608faafd09936499001d589f5c1af"
+  },
+  "id": "S3TBILMyfflok8tu",
+  "tags": []
+}
