@@ -1,5 +1,5 @@
 import { apiFetch } from './client';
-import { ArchivedContact, Contact } from '../types/contact';
+import { ArchivedContact, Contact, ImportContactRow } from '../types/contact';
 import { ContactRelated } from '../types/contactRelated';
 
 export function fetchContacts() {
@@ -18,6 +18,19 @@ export function addContact(payload: Partial<Contact>) {
     method: 'POST',
     body: JSON.stringify(payload),
   });
+}
+
+// import-contacts.json caps this at 500 rows per request and silently drops
+// any row missing first_name — inserted_count tells the caller how many of
+// the rows sent actually landed.
+export function importContacts(contacts: ImportContactRow[]) {
+  return apiFetch<{ success: boolean; inserted_count: number; inserted_ids: number[]; error?: string }>(
+    '/webhook/import-contacts',
+    {
+      method: 'POST',
+      body: JSON.stringify({ contacts }),
+    }
+  );
 }
 
 export function updateContact(id: number, payload: Partial<Contact>) {
@@ -120,12 +133,6 @@ export function fetchTags() {
 
 export function fetchContactRelated(contactId: number) {
   return apiFetch<ContactRelated>(`/webhook/get-contact-related?contact_id=${contactId}`);
-}
-
-export function fetchContactTags(contactId: number) {
-  return apiFetch<{ id: number; name: string }[]>(
-    `/webhook/get-entity-tags?entity_type=contact&entity_id=${contactId}`
-  );
 }
 
 export async function createTag(name: string) {

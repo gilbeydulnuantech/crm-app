@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { CalendarEvent, EVENT_TYPE_META } from '../../types/event';
 import { useDeleteEvent, useUpdateEvent } from '../../hooks/useEvents';
+import { toTitleCase } from '../../utils/text';
 
 interface Props {
   event: CalendarEvent | null;
@@ -92,7 +93,7 @@ export default function EventDetailPanel({
                 onClick={() => event.contact_id && onOpenContact?.(event.contact_id)}
                 className="text-sm text-indigo-600 hover:underline"
               >
-                {event.contact_name}
+                {toTitleCase(event.contact_name)}
               </button>
             </div>
           )}

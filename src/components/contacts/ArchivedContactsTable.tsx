@@ -6,6 +6,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { ArchivedContact } from '../../types/contact';
+import { toTitleCase } from '../../utils/text';
 
 interface Props {
   contacts: ArchivedContact[];
@@ -52,7 +53,7 @@ export default function ArchivedContactsTable({
         id: 'name',
         header: 'Name',
         cell: (info) => (
-          <span className="font-medium text-slate-800">{info.getValue() || 'No Name'}</span>
+          <span className="font-medium text-slate-800">{toTitleCase(info.getValue()) || 'No Name'}</span>
         ),
       }),
       columnHelper.accessor('company_name', {
@@ -61,7 +62,7 @@ export default function ArchivedContactsTable({
       }),
       columnHelper.accessor('owner_name', {
         header: 'Owner',
-        cell: (info) => info.getValue() || '--',
+        cell: (info) => toTitleCase(info.getValue()) || '--',
       }),
       columnHelper.accessor('archived_by_name', {
         header: 'Archived By',

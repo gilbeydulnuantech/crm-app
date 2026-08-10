@@ -7,6 +7,7 @@ import {
 } from '@tanstack/react-table';
 import { Task, taskStatus } from '../../types/task';
 import { useToggleTaskComplete } from '../../hooks/useTasks';
+import { toTitleCase } from '../../utils/text';
 
 interface Props {
   tasks: Task[];
@@ -98,6 +99,10 @@ export default function TasksTable({
         {
           id: 'related_to',
           header: 'Related To',
+          cell: (info) => {
+            const row = info.row.original;
+            return row.contact_name ? toTitleCase(row.contact_name) : row.opportunity_name || '--';
+          },
         }
       ),
       columnHelper.accessor('assigned_user_name', {

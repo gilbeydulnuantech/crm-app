@@ -1,4 +1,5 @@
 import { useAuth } from '../context/AuthContext';
+import { toTitleCase } from '../utils/text';
 
 export default function TopBar() {
   const { user } = useAuth();
@@ -12,7 +13,7 @@ export default function TopBar() {
           <i className="fa-solid fa-bell" />
         </button>
         <span className="text-sm font-medium text-slate-600 flex items-center gap-1">
-          {user?.name ?? 'Account'}
+          {user?.name ? toTitleCase(user.name) : 'Account'}
           <i className="fa-solid fa-chevron-down text-[10px] text-slate-400" />
         </span>
       </div>

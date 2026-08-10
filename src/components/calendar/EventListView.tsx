@@ -1,4 +1,5 @@
 import { CalendarEvent, EVENT_TYPE_META } from '../../types/event';
+import { toTitleCase } from '../../utils/text';
 
 interface Props {
   events: CalendarEvent[];
@@ -37,7 +38,7 @@ export function EventListView({ events, onEventClick, emptyLabel = 'No events.' 
             </div>
             {(e.company_name || e.contact_name) && (
               <div className="text-xs text-slate-400 truncate">
-                {e.company_name || e.contact_name}
+                {e.company_name || toTitleCase(e.contact_name)}
               </div>
             )}
           </div>

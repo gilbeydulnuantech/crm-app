@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { toTitleCase } from '../utils/text';
 
 interface NavItem {
   to: string;
@@ -60,7 +61,8 @@ export default function Sidebar() {
         </NavLink>
 
         <div className="px-3 py-2 text-xs text-slate-500">
-          Signed in as <span className="font-medium text-slate-700">{user?.name ?? '--'}</span>
+          Signed in as{' '}
+          <span className="font-medium text-slate-700">{user?.name ? toTitleCase(user.name) : '--'}</span>
         </div>
 
         <button

@@ -1,6 +1,7 @@
 import { Company } from '../../types/company';
 import { useContacts } from '../../hooks/useContacts';
 import { usePipelines, useStages, useOpportunities } from '../../hooks/useOpportunities';
+import { toTitleCase } from '../../utils/text';
 
 const STATUS_COLORS: Record<string, string> = {
   New: 'bg-slate-100 text-slate-800',
@@ -109,7 +110,7 @@ export default function CompanyDetailModal({ company, onClose, onEdit, onContact
               ) : (
                 <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg">
                   {companyContacts.map((c) => {
-                    const fullName = `${c.first_name} ${c.last_name}`.trim() || 'No Name';
+                    const fullName = toTitleCase(`${c.first_name} ${c.last_name}`.trim()) || 'No Name';
                     const status = c.lead_status || 'New';
                     return (
                       <button

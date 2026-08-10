@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as api from '../api/contacts';
-import { Contact } from '../types/contact';
+import { Contact, ImportContactRow } from '../types/contact';
 
 export function useContacts() {
   return useQuery({
@@ -44,6 +44,14 @@ export function useAddContact() {
   const invalidate = useInvalidateContacts();
   return useMutation({
     mutationFn: (payload: Partial<Contact>) => api.addContact(payload),
+    onSuccess: invalidate,
+  });
+}
+
+export function useImportContacts() {
+  const invalidate = useInvalidateContacts();
+  return useMutation({
+    mutationFn: (contacts: ImportContactRow[]) => api.importContacts(contacts),
     onSuccess: invalidate,
   });
 }
@@ -151,14 +159,6 @@ export function useContactIdsByTag(tagName: string | null) {
   });
 }
 
-export function useContactTags(contactId: number | null) {
-  return useQuery({
-    queryKey: ['contact-tags', contactId],
-    queryFn: () => api.fetchContactTags(contactId!),
-    enabled: !!contactId,
-  });
-}
-
 export function useCreateTag() {
   const qc = useQueryClient();
   return useMutation({
@@ -172,10 +172,7 @@ export function useTagContact() {
   return useMutation({
     mutationFn: ({ contactId, tagId }: { contactId: number; tagId: number }) =>
       api.tagContact(contactId, tagId),
-    onSuccess: (_data, { contactId }) => {
-      qc.invalidateQueries({ queryKey: ['contact-tags', contactId] });
-      qc.invalidateQueries({ queryKey: ['contacts'] });
-    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['contacts'] }),
   });
 }
 
@@ -184,9 +181,6 @@ export function useUntagContact() {
   return useMutation({
     mutationFn: ({ contactId, tagId }: { contactId: number; tagId: number }) =>
       api.untagContact(contactId, tagId),
-    onSuccess: (_data, { contactId }) => {
-      qc.invalidateQueries({ queryKey: ['contact-tags', contactId] });
-      qc.invalidateQueries({ queryKey: ['contacts'] });
-    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['contacts'] }),
   });
 }

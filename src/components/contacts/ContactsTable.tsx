@@ -8,6 +8,7 @@ import {
 import { Contact } from '../../types/contact';
 import { useAuth } from '../../context/AuthContext';
 import { getTagColorClasses } from '../../utils/tagColors';
+import { toTitleCase } from '../../utils/text';
 
 const STATUS_COLORS: Record<string, string> = {
   New: 'bg-slate-100 text-slate-800',
@@ -21,6 +22,7 @@ interface Props {
   contacts: Contact[];
   selectedIds: Set<number>;
   visibleColumns: Record<string, boolean>;
+  columnOrder: string[];
   onToggleSelect: (id: number) => void;
   onToggleSelectAll: () => void;
   onRowClick: (contact: Contact) => void;
@@ -35,6 +37,7 @@ export default function ContactsTable({
   contacts,
   selectedIds,
   visibleColumns,
+  columnOrder,
   onToggleSelect,
   onToggleSelectAll,
   onRowClick,
@@ -79,67 +82,46 @@ export default function ContactsTable({
       }),
     ];
 
-    if (visibleColumns.id) {
-      cols.push(
+    const columnBuilders: Record<string, () => any> = {
+      id: () =>
         columnHelper.accessor('id', {
           header: 'ID',
           cell: (info) => <span className="text-slate-400">{info.getValue()}</span>,
-        }) as any
-      );
-    }
-
-    cols.push(
-      columnHelper.accessor((row) => `${row.first_name} ${row.last_name}`.trim(), {
-        id: 'name',
-        header: 'Name',
-        cell: (info) => (
-          <span className="font-medium text-slate-800">{info.getValue() || 'No Name'}</span>
-        ),
-      }) as any
-    );
-
-    if (visibleColumns.company_name) {
-      cols.push(
+        }),
+      name: () =>
+        columnHelper.accessor((row) => `${row.first_name} ${row.last_name}`.trim(), {
+          id: 'name',
+          header: 'Name',
+          cell: (info) => (
+            <span className="font-medium text-slate-800">{toTitleCase(info.getValue()) || 'No Name'}</span>
+          ),
+        }),
+      company_name: () =>
         columnHelper.accessor('company_name', {
           header: 'Company',
           cell: (info) => info.getValue() || '--',
-        }) as any
-      );
-    }
-    if (visibleColumns.email) {
-      cols.push(
+        }),
+      email: () =>
         columnHelper.accessor('email', {
           header: 'Email',
           cell: (info) => info.getValue() || '--',
-        }) as any
-      );
-    }
-    if (visibleColumns.phone) {
-      cols.push(
+        }),
+      phone: () =>
         columnHelper.accessor('phone', {
           header: 'Phone',
           cell: (info) => info.getValue() || '--',
-        }) as any
-      );
-    }
-    if (visibleColumns.job_title) {
-      cols.push(
+        }),
+      job_title: () =>
         columnHelper.accessor('job_title', {
           header: 'Job Title',
           cell: (info) => info.getValue() || '--',
-        }) as any
-      );
-    }
-    if (visibleColumns.owner_name) {
-      cols.push(
+        }),
+      owner_name: () =>
         columnHelper.accessor('owner_name', {
           header: 'Owner',
-          cell: (info) => info.getValue() || '--',
-        }) as any
-      );
-    }
-    if (visibleColumns.tags) {
-      cols.push(
+          cell: (info) => toTitleCase(info.getValue()) || '--',
+        }),
+      tags: () =>
         columnHelper.accessor('tags', {
           header: 'Tags',
           cell: (info) => {
@@ -167,11 +149,8 @@ export default function ContactsTable({
               </div>
             );
           },
-        }) as any
-      );
-    }
-    if (visibleColumns.lead_status) {
-      cols.push(
+        }),
+      lead_status: () =>
         columnHelper.accessor('lead_status', {
           header: 'Status',
           cell: (info) => {
@@ -186,19 +165,13 @@ export default function ContactsTable({
               </span>
             );
           },
-        }) as any
-      );
-    }
-    if (visibleColumns.lead_source) {
-      cols.push(
+        }),
+      lead_source: () =>
         columnHelper.accessor('lead_source', {
           header: 'Lead Source',
           cell: (info) => info.getValue() || '--',
-        }) as any
-      );
-    }
-    if (visibleColumns.location) {
-      cols.push(
+        }),
+      location: () =>
         columnHelper.accessor(
           (row) => [row.city, row.state, row.country].filter(Boolean).join(', '),
           {
@@ -206,17 +179,23 @@ export default function ContactsTable({
             header: 'Location',
             cell: (info) => info.getValue() || '--',
           }
-        ) as any
-      );
-    }
-    if (visibleColumns.created_at) {
-      cols.push(
+        ),
+      created_at: () =>
         columnHelper.accessor('created_at', {
           header: 'Created At',
           cell: (info) => (info.getValue() ? new Date(info.getValue()!).toLocaleDateString() : '--'),
-        }) as any
-      );
-    }
+        }),
+    };
+
+    // "name" is always shown regardless of visibleColumns (it's the locked
+    // column in ManageColumnsModal) — everything else follows the user's
+    // configurable order + visibility.
+    columnOrder
+      .filter((key) => key === 'name' || visibleColumns[key])
+      .forEach((key) => {
+        const build = columnBuilders[key];
+        if (build) cols.push(build());
+      });
 
     // Actions column — pen (edit) and trash (delete), always last.
     // Hidden entirely for contacts the current user doesn't own (unless
@@ -262,7 +241,7 @@ export default function ContactsTable({
     );
 
     return cols;
-  }, [selectedIds, allSelected, visibleColumns, user, isAdmin]);
+  }, [selectedIds, allSelected, visibleColumns, columnOrder, user, isAdmin]);
 
   const table = useReactTable({
     data: contacts,

@@ -13,15 +13,19 @@ import {
 } from '../hooks/useContacts';
 import { usePipelines, useStages } from '../hooks/useOpportunities';
 import { useCompanies } from '../hooks/useCompanies';
-import ContactsStatsBar from '../components/contacts/ContactsStatsBar';
 import ContactsTabs from '../components/contacts/ContactsTabs';
 import ContactsFilterRow from '../components/contacts/ContactsFilterRow';
 import ContactsFilterModal, { AdvancedFilterValue } from '../components/contacts/ContactsFilterModal';
-import ManageColumnsModal, { DEFAULT_VISIBLE_COLUMNS } from '../components/contacts/ManageColumnsModal';
+import ManageColumnsModal, {
+  DEFAULT_COLUMN_ORDER,
+  DEFAULT_VISIBLE_COLUMNS,
+} from '../components/contacts/ManageColumnsModal';
 import ContactsTable from '../components/contacts/ContactsTable';
 import ArchivedContactsTable from '../components/contacts/ArchivedContactsTable';
 import BulkActionsMenu from '../components/contacts/BulkActionsMenu';
+import AddContactDropdown from '../components/contacts/AddContactDropdown';
 import AddContactModal from '../components/contacts/AddContactModal';
+import ImportContactsModal from '../components/contacts/ImportContactsModal';
 import ContactDetailModal from '../components/contacts/ContactDetailModal';
 import ArchiveReasonModal from '../components/contacts/ArchiveReasonModal';
 import SearchToolbar from '../components/SearchToolbar';
@@ -29,6 +33,7 @@ import SearchToolbar from '../components/SearchToolbar';
 const EMPTY_FILTERS = { tag: '', owner: '', company: '', status: '' };
 const EMPTY_ADVANCED_FILTERS: AdvancedFilterValue = { company: '', stage: '', task: '' };
 const COLUMNS_STORAGE_KEY = 'contacts-visible-columns';
+const COLUMN_ORDER_STORAGE_KEY = 'contacts-column-order';
 
 function loadVisibleColumns(): Record<string, boolean> {
   try {
@@ -36,6 +41,21 @@ function loadVisibleColumns(): Record<string, boolean> {
     return raw ? { ...DEFAULT_VISIBLE_COLUMNS, ...JSON.parse(raw) } : DEFAULT_VISIBLE_COLUMNS;
   } catch {
     return DEFAULT_VISIBLE_COLUMNS;
+  }
+}
+
+function loadColumnOrder(): string[] {
+  try {
+    const raw = localStorage.getItem(COLUMN_ORDER_STORAGE_KEY);
+    if (!raw) return DEFAULT_COLUMN_ORDER;
+    const stored: string[] = JSON.parse(raw);
+    // Drop keys that no longer exist, append any new ones not yet stored —
+    // keeps a saved order valid across column-set changes.
+    const known = stored.filter((key) => DEFAULT_COLUMN_ORDER.includes(key));
+    const missing = DEFAULT_COLUMN_ORDER.filter((key) => !known.includes(key));
+    return [...known, ...missing];
+  } catch {
+    return DEFAULT_COLUMN_ORDER;
   }
 }
 
@@ -49,8 +69,10 @@ export default function Contacts() {
   const [filterModalOpen, setFilterModalOpen] = useState(false);
   const [columnsModalOpen, setColumnsModalOpen] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>(loadVisibleColumns);
+  const [columnOrder, setColumnOrder] = useState<string[]>(loadColumnOrder);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [addOpen, setAddOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [activeContactId, setActiveContactId] = useState<number | null>(null);
   const [archiveTargetIds, setArchiveTargetIds] = useState<number[] | null>(null);
@@ -69,10 +91,19 @@ export default function Contacts() {
   const deleteContacts = useDeleteContacts();
   const restoreContacts = useRestoreContacts();
 
-  // Persist column visibility across sessions.
+  // Persist column visibility and order across sessions.
   useEffect(() => {
     localStorage.setItem(COLUMNS_STORAGE_KEY, JSON.stringify(visibleColumns));
   }, [visibleColumns]);
+
+  useEffect(() => {
+    localStorage.setItem(COLUMN_ORDER_STORAGE_KEY, JSON.stringify(columnOrder));
+  }, [columnOrder]);
+
+  function resetColumns() {
+    setVisibleColumns(DEFAULT_VISIBLE_COLUMNS);
+    setColumnOrder(DEFAULT_COLUMN_ORDER);
+  }
 
   // Keep the detail modal's contact object reactive to list updates (tag
   // assignment, owner change, status change) instead of showing a stale
@@ -186,18 +217,6 @@ export default function Contacts() {
     );
   }, [archivedContacts, isAdmin, user]);
 
-  const stats = useMemo(() => {
-    const today = new Date().toDateString();
-    return {
-      total: allContacts.length,
-      mine: allContacts.filter((c) => c.owner_id === user?.id).length,
-      archived: visibleArchivedContacts.length,
-      newToday: allContacts.filter(
-        (c) => c.created_at && new Date(c.created_at).toDateString() === today
-      ).length,
-    };
-  }, [allContacts, visibleArchivedContacts, user]);
-
   function toggleSelect(id: number) {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -267,16 +286,9 @@ export default function Contacts() {
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       <div className="px-4 py-4 flex items-center justify-between shrink-0 border-b border-slate-200">
         <h1 className="text-lg font-bold text-slate-800">Contacts</h1>
-        <button
-          onClick={openAddModal}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-3 py-1.5 rounded-lg flex items-center space-x-2 shadow-sm transition-all"
-        >
-          <i className="fa-solid fa-plus text-xs" />
-          <span>Add Contact</span>
-        </button>
+        <AddContactDropdown onAddContact={openAddModal} onImportCsv={() => setImportOpen(true)} />
       </div>
 
-      <ContactsStatsBar {...stats} />
       <ContactsTabs view={view} onChange={changeView} />
 
       {view !== 'archived' && (
@@ -285,7 +297,6 @@ export default function Contacts() {
             search={search}
             onSearchChange={setSearch}
             placeholder="Search contacts..."
-            onFiltersClick={() => setFilterModalOpen(true)}
             onColumnsClick={() => setColumnsModalOpen(true)}
           />
           <ContactsFilterRow
@@ -300,6 +311,7 @@ export default function Contacts() {
             contacts={visibleContacts}
             selectedIds={selectedIds}
             visibleColumns={visibleColumns}
+            columnOrder={columnOrder}
             onToggleSelect={toggleSelect}
             onToggleSelectAll={toggleSelectAll}
             onRowClick={(c) => setActiveContactId(c.id)}
@@ -351,6 +363,7 @@ export default function Contacts() {
           setEditingContact(null);
         }}
       />
+      <ImportContactsModal open={importOpen} onClose={() => setImportOpen(false)} />
       <ContactDetailModal contact={activeContact} onClose={() => setActiveContactId(null)} />
       <ContactsFilterModal
         open={filterModalOpen}
@@ -363,7 +376,10 @@ export default function Contacts() {
       <ManageColumnsModal
         open={columnsModalOpen}
         visible={visibleColumns}
+        order={columnOrder}
         onChange={setVisibleColumns}
+        onReorder={setColumnOrder}
+        onReset={resetColumns}
         onClose={() => setColumnsModalOpen(false)}
       />
       <ArchiveReasonModal

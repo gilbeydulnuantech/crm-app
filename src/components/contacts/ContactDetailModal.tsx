@@ -9,6 +9,7 @@ import ContactQuickEditPopover from './ContactQuickEditPopover';
 import ComposeEmailPopover from './ComposeEmailPopover';
 import DealFormModal from '../pipeline/DealFormModal';
 import TaskFormModal from '../tasks/TaskFormModal';
+import { toTitleCase } from '../../utils/text';
 
 const STATUS_COLORS: Record<string, string> = {
   New: 'bg-slate-100 text-slate-800',
@@ -39,17 +40,20 @@ function ActionButton({
   label,
   onClick,
   disabled,
+  title,
 }: {
   icon: string;
   label: string;
   onClick?: () => void;
   disabled?: boolean;
+  title?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled || !onClick}
+      title={title}
       className="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-lg text-slate-600 hover:bg-white hover:shadow-sm disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:shadow-none transition-colors"
     >
       <i className={`fa-solid ${icon} text-sm`} />
@@ -83,7 +87,7 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
   // edit the ones they own. Admins can always edit.
   const isReadOnly = !isAdmin && contact.owner_id !== user?.id;
 
-  const fullName = `${contact.first_name} ${contact.last_name}`.trim() || 'No Name';
+  const fullName = toTitleCase(`${contact.first_name} ${contact.last_name}`.trim()) || 'No Name';
   const initials =
     fullName !== 'No Name'
       ? fullName
@@ -93,7 +97,7 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
           .slice(0, 2)
       : '--';
 
-  const positionAtCompany = [contact.job_title, contact.company_name]
+  const positionAtCompany = [toTitleCase(contact.job_title), toTitleCase(contact.company_name)]
     .filter(Boolean)
     .join(contact.job_title && contact.company_name ? ' at ' : '');
 
@@ -118,77 +122,49 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
         <div className="flex-1 grid grid-cols-3 min-h-0">
           {/* Column 1: Contact Details */}
           <div className="border-r border-slate-200 overflow-y-auto px-6 pb-6 space-y-5">
-            <div className="flex items-start gap-3">
-              <div className="w-14 h-14 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-lg shrink-0">
-                {initials}
-              </div>
-              <div className="min-w-0 flex-1 pt-1">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-bold text-slate-800 truncate">{fullName}</h2>
-                  {!isReadOnly && (
-                    <button
-                      onClick={() => setQuickEditOpen(true)}
-                      className="text-slate-300 hover:text-indigo-600"
-                      title="Quick edit"
-                    >
-                      <i className="fa-solid fa-pen text-xs" />
-                    </button>
-                  )}
+            <div className="border border-slate-200 rounded-xl p-4 space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="w-14 h-14 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-lg shrink-0">
+                  {initials}
                 </div>
-                <p className="text-sm text-slate-500 truncate">{positionAtCompany || 'No position set'}</p>
-                <p className="text-sm text-slate-500 truncate">{contact.email || '--'}</p>
-              </div>
-            </div>
-
-            {isReadOnly && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold bg-slate-100 text-slate-500 rounded-full border border-slate-200">
-                <i className="fa-solid fa-lock text-[10px]" />
-                {contact.owner_name ? `Read Only — Owned by ${contact.owner_name}` : 'Read Only'}
-              </span>
-            )}
-
-            <div className="flex items-center gap-4 flex-wrap">
-              <TagsDropdown contact={contact} disabled={isReadOnly} />
-              <OwnerDropdown contact={contact} disabled={isReadOnly} />
-            </div>
-
-            <div className="flex items-stretch gap-1 bg-slate-50 border border-slate-200 rounded-xl p-1.5">
-              <ActionButton
-                icon="fa-envelope"
-                label="Email"
-                onClick={!isReadOnly ? () => setComposeOpen(true) : undefined}
-              />
-              <ActionButton icon="fa-phone" label="Call" />
-              <ActionButton
-                icon="fa-note-sticky"
-                label="Notes"
-                onClick={() => notesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-              />
-              <ActionButton
-                icon="fa-check"
-                label="Tasks"
-                onClick={!isReadOnly ? () => setTaskFormOpen(true) : undefined}
-              />
-            </div>
-
-            <div>
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
-                Contact Information
-              </h3>
-              <div className="border border-slate-200 rounded-xl p-4 grid grid-cols-2 gap-x-6 gap-y-4">
-                <DetailField label="First Name" value={contact.first_name} />
-                <DetailField label="Last Name" value={contact.last_name} />
-                <DetailField label="Email" value={contact.email} />
-                <DetailField label="Phone" value={contact.phone} />
-                <DetailField label="Position" value={contact.job_title} />
-                <DetailField label="Company" value={contact.company_name} />
-                <div>
-                  <label className="block text-[11px] font-medium text-slate-500 mb-1">Status</label>
+                <div className="min-w-0 flex-1 pt-1">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-bold text-slate-800 truncate">{fullName}</h2>
+                    {!isReadOnly && (
+                      <button
+                        onClick={() => setQuickEditOpen(true)}
+                        className="text-slate-300 hover:text-indigo-600"
+                        title="Quick edit"
+                      >
+                        <i className="fa-solid fa-pen text-xs" />
+                      </button>
+                    )}
+                    <label
+                      className={`flex items-center gap-1 text-[11px] font-medium ml-auto ${
+                        isReadOnly ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 cursor-pointer'
+                      }`}
+                      title="Do not Disturb"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!!contact.do_not_contact}
+                        disabled={isReadOnly}
+                        onChange={(e) =>
+                          !isReadOnly &&
+                          toggleDnc.mutate({ contactId: contact.id, value: e.target.checked })
+                        }
+                        className="rounded border-slate-300 text-rose-600 focus:ring-rose-500 disabled:opacity-50"
+                      />
+                      DND
+                    </label>
+                  </div>
+                  <p className="text-xs text-slate-500 truncate">{positionAtCompany || 'No position set'}</p>
+                  <p className="text-xs text-slate-500 truncate">{contact.email || '--'}</p>
                   <select
                     value={contact.lead_status ?? 'New'}
                     onChange={(e) => handleStatusChange(e.target.value)}
                     disabled={isReadOnly}
-                    className={`px-2 py-1 text-xs font-medium rounded-full border-0 ${
+                    className={`mt-1.5 px-1.5 py-0.5 text-[10px] font-medium rounded-full border-0 ${
                       STATUS_COLORS[contact.lead_status ?? 'New'] ?? 'bg-slate-100 text-slate-800'
                     } ${isReadOnly ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
                   >
@@ -199,15 +175,66 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                     ))}
                   </select>
                 </div>
+              </div>
+
+              {isReadOnly && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold bg-slate-100 text-slate-500 rounded-full border border-slate-200">
+                  <i className="fa-solid fa-lock text-[10px]" />
+                  {contact.owner_name
+                    ? `Read Only — Owned by ${toTitleCase(contact.owner_name)}`
+                    : 'Read Only'}
+                </span>
+              )}
+
+              <div className="grid grid-cols-2 gap-4 items-start">
+                <TagsDropdown contact={contact} disabled={isReadOnly} />
+                <OwnerDropdown contact={contact} disabled={isReadOnly} />
+              </div>
+
+              <div className="flex items-stretch gap-1 bg-slate-50 border border-slate-200 rounded-xl p-1.5">
+                <ActionButton
+                  icon="fa-envelope"
+                  label="Email"
+                  onClick={!isReadOnly ? () => setComposeOpen(true) : undefined}
+                  disabled={!!contact.do_not_contact}
+                  title={contact.do_not_contact ? 'Marked Do Not Contact' : undefined}
+                />
+                <ActionButton icon="fa-phone" label="Call" />
+                <ActionButton
+                  icon="fa-note-sticky"
+                  label="Notes"
+                  onClick={() => notesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                />
+                <ActionButton
+                  icon="fa-check"
+                  label="Tasks"
+                  onClick={!isReadOnly ? () => setTaskFormOpen(true) : undefined}
+                />
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
+                Contact Information
+              </h3>
+              <div className="border border-slate-200 rounded-xl p-4 grid grid-cols-2 gap-x-6 gap-y-4">
+                <DetailField label="First Name" value={toTitleCase(contact.first_name)} />
+                <DetailField label="Last Name" value={toTitleCase(contact.last_name)} />
+                {/* Full width — a long email would otherwise overflow into
+                    Phone's column and visually overlap it. */}
+                <DetailField label="Email" value={contact.email} className="col-span-2" />
+                <DetailField label="Phone" value={toTitleCase(contact.phone)} />
+                <DetailField label="Position" value={toTitleCase(contact.job_title)} />
+                <DetailField label="Company" value={toTitleCase(contact.company_name)} />
                 <DetailField
                   label="Created"
                   value={contact.created_at ? new Date(contact.created_at).toLocaleDateString() : undefined}
                 />
                 <DetailField
                   label="Location"
-                  value={[contact.city, contact.state, contact.country].filter(Boolean).join(', ')}
+                  value={toTitleCase([contact.city, contact.state, contact.country].filter(Boolean).join(', '))}
                 />
-                <DetailField label="Lead Source" value={contact.lead_source} />
+                <DetailField label="Lead Source" value={toTitleCase(contact.lead_source)} />
               </div>
             </div>
 
@@ -251,24 +278,6 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                 </div>
               )}
             </div>
-
-            <label
-              className={`flex items-center gap-2 text-sm ${
-                isReadOnly ? 'text-slate-400 cursor-not-allowed' : 'text-slate-700'
-              }`}
-            >
-              <input
-                type="checkbox"
-                checked={!!contact.do_not_contact}
-                disabled={isReadOnly}
-                onChange={(e) =>
-                  !isReadOnly &&
-                  toggleDnc.mutate({ contactId: contact.id, value: e.target.checked })
-                }
-                className="rounded border-slate-300 text-rose-600 focus:ring-rose-500 disabled:opacity-50"
-              />
-              Do Not Contact
-            </label>
           </div>
 
           {/* Column 2: Activity Log */}
@@ -468,11 +477,19 @@ function EmailLogModal({ log, onClose }: { log: EmailLog | null; onClose: () => 
   );
 }
 
-function DetailField({ label, value }: { label: string; value?: string }) {
+function DetailField({
+  label,
+  value,
+  className = '',
+}: {
+  label: string;
+  value?: string;
+  className?: string;
+}) {
   return (
-    <div>
+    <div className={className}>
       <label className="block text-[11px] font-medium text-slate-500 mb-1">{label}</label>
-      <p className="text-sm text-slate-700">{value || '--'}</p>
+      <p className="text-xs text-slate-700 break-words">{value || '--'}</p>
     </div>
   );
 }

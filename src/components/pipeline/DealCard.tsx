@@ -71,6 +71,7 @@ export default function DealCard({ opportunity, onClick }: Props) {
 
 import { useDraggable } from '@dnd-kit/core';
 import { Opportunity } from '../../types/opportunity';
+import { toTitleCase } from '../../utils/text';
 
 interface Props {
   opportunity: Opportunity;
@@ -144,7 +145,7 @@ export default function DealCard({ opportunity, onClick }: Props) {
 
       {/* Company/Contact Name */}
       <div className="text-[11px] text-slate-500 truncate">
-        {opportunity.company_name || opportunity.contact_name || 'No Company'}
+        {opportunity.company_name || toTitleCase(opportunity.contact_name) || 'No Company'}
       </div>
 
       {/* Expected Close Date */}

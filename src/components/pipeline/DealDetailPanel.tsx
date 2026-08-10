@@ -166,6 +166,7 @@ function Field({ label, value }: { label: string; value?: string }) {
 */
 import { Opportunity, Stage } from '../../types/opportunity';
 import { useDeleteOpportunities, useUpdateOpportunity } from '../../hooks/useOpportunities';
+import { toTitleCase } from '../../utils/text';
 
 interface Props {
   opportunity: Opportunity | null;
@@ -284,7 +285,7 @@ export default function DealDetailPanel({
         <div className="flex-1 overflow-y-auto p-5 space-y-6">
           <div className="grid grid-cols-2 gap-4">
             <Field label="Company" value={opportunity.company_name} />
-            <Field label="Contact" value={opportunity.contact_name} />
+            <Field label="Contact" value={toTitleCase(opportunity.contact_name)} />
             <Field label="Value" value={currency(opportunity.deal_value)} />
             <Field label="Assigned To" value={opportunity.assigned_user_name} />
           </div>

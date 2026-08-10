@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Contact } from '../../types/contact';
 import { useAssignOwner, useUsers } from '../../hooks/useContacts';
+import { toTitleCase } from '../../utils/text';
 
 interface Props {
   contact: Contact;
@@ -24,17 +25,17 @@ export default function OwnerDropdown({ contact, disabled }: Props) {
 
   return (
     <div>
-      <label className="block text-[11px] font-medium text-slate-500 mb-1">Owner</label>
+      <label className="block text-[11px] font-medium text-slate-500 mb-1 text-right">Owner</label>
       <div className="relative">
         <button
           onClick={() => !disabled && setOpen((v) => !v)}
           disabled={disabled}
-          className={`w-full flex items-center justify-between px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg ${
+          className={`w-full flex items-center justify-between px-2 py-1 text-xs border border-slate-200 rounded-lg ${
             disabled ? 'bg-slate-50 cursor-not-allowed' : 'hover:border-slate-300'
           }`}
         >
           <span className={contact.owner_name ? 'text-slate-700' : 'text-slate-400'}>
-            {contact.owner_name ?? 'Unassigned'}
+            {contact.owner_name ? toTitleCase(contact.owner_name) : 'Unassigned'}
           </span>
           {!disabled && <i className="fa-solid fa-chevron-down text-[10px] text-slate-400" />}
         </button>
@@ -43,7 +44,7 @@ export default function OwnerDropdown({ contact, disabled }: Props) {
           <>
             <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
             <div className="absolute top-full mt-1 left-0 w-full min-w-[180px] bg-white border border-slate-200 rounded-lg shadow-lg z-20 py-1 max-h-52 overflow-y-auto">
-              <label className="flex items-center gap-2 px-2.5 py-1.5 text-sm hover:bg-slate-50 cursor-pointer">
+              <label className="flex items-center gap-2 px-2.5 py-1.5 text-xs hover:bg-slate-50 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={!contact.owner_id}
@@ -55,7 +56,7 @@ export default function OwnerDropdown({ contact, disabled }: Props) {
               {users.map((u) => (
                 <label
                   key={u.id}
-                  className="flex items-center gap-2 px-2.5 py-1.5 text-sm hover:bg-slate-50 cursor-pointer"
+                  className="flex items-center gap-2 px-2.5 py-1.5 text-xs hover:bg-slate-50 cursor-pointer"
                 >
                   <input
                     type="checkbox"
@@ -63,7 +64,7 @@ export default function OwnerDropdown({ contact, disabled }: Props) {
                     onChange={() => handleSelect(u.id)}
                     className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                   />
-                  <span className="text-slate-700">{u.name}</span>
+                  <span className="text-slate-700">{toTitleCase(u.name)}</span>
                 </label>
               ))}
             </div>

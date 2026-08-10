@@ -1,12 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Contact } from '../../types/contact';
-import {
-  useContactTags,
-  useCreateTag,
-  useTagContact,
-  useTags,
-  useUntagContact,
-} from '../../hooks/useContacts';
+import { useCreateTag, useTagContact, useTags, useUntagContact } from '../../hooks/useContacts';
 import { getTagColorClasses } from '../../utils/tagColors';
 
 interface Props {
@@ -19,11 +13,11 @@ export default function TagsDropdown({ contact, disabled }: Props) {
   const [query, setQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  // Fetched directly per-contact via get-entity-tags, matching how the old
-  // app loaded tags — get-contacts likely doesn't embed a tags array in the
-  // list payload, so relying on contact.tags here would always show stale/
-  // empty data even after a successful assignment.
-  const { data: contactTags = [], isLoading: tagsLoading } = useContactTags(contact.id);
+  // get-contacts already embeds each contact's tags via a json_agg subquery,
+  // so this renders instantly from data already in memory instead of firing
+  // a redundant get-entity-tags round trip on every modal open. Tag/untag
+  // mutations invalidate ['contacts'], which keeps this in sync.
+  const contactTags = contact.tags ?? [];
   const { data: allTags = [] } = useTags();
   const createTag = useCreateTag();
   const tagContact = useTagContact();
@@ -75,24 +69,21 @@ export default function TagsDropdown({ contact, disabled }: Props) {
     <div>
       <label className="block text-[11px] font-medium text-slate-500 mb-1">Tags</label>
       <div className="flex flex-wrap items-center gap-1.5">
-        {tagsLoading && <span className="text-[11px] text-slate-400">Loading...</span>}
-
-        {!tagsLoading &&
-          contactTags.map((t) => (
-            <span
-              key={t.id}
-              className={`flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${getTagColorClasses(
-                t.name
-              )}`}
-            >
-              {t.name}
-              {!disabled && (
-                <button onClick={() => handleUntag(t.id)} className="opacity-60 hover:opacity-100">
-                  <i className="fa-solid fa-xmark text-[9px]" />
-                </button>
-              )}
-            </span>
-          ))}
+        {contactTags.map((t) => (
+          <span
+            key={t.id}
+            className={`flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${getTagColorClasses(
+              t.name
+            )}`}
+          >
+            {t.name}
+            {!disabled && (
+              <button onClick={() => handleUntag(t.id)} className="opacity-60 hover:opacity-100">
+                <i className="fa-solid fa-xmark text-[9px]" />
+              </button>
+            )}
+          </span>
+        ))}
 
         {!disabled && (
           <div className="relative">

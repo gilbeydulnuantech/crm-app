@@ -52,3 +52,17 @@ export interface ArchivedContact extends Contact {
 export type ContactsView = 'all' | 'mine' | 'archived';
 
 export const LEAD_STATUS_OPTIONS = ['New', 'Contacted', 'Qualified', 'Unqualified', 'Customer'];
+
+// Matches import-contacts.json's "Validate Token & Rows" node — only
+// first_name is required there, everything else is optional and trimmed.
+export interface ImportContactRow {
+  first_name: string;
+  last_name?: string;
+  email?: string;
+  phone?: string;
+  city?: string;
+  country?: string;
+  lead_status?: string;
+}
+
+export const IMPORT_CONTACTS_MAX_ROWS = 500;

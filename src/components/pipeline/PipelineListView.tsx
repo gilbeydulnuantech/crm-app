@@ -142,6 +142,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { Opportunity, Stage } from '../../types/opportunity';
+import { toTitleCase } from '../../utils/text';
 
 interface Props {
   opportunities: Opportunity[];
@@ -187,7 +188,7 @@ export default function PipelineListView({ opportunities, stages, onRowClick, is
       }),
       columnHelper.accessor('contact_name', {
         header: 'Contact',
-        cell: (info) => info.getValue() || '--',
+        cell: (info) => toTitleCase(info.getValue()) || '--',
       }),
       columnHelper.accessor((row) => stageName(row.stage_id), {
         id: 'stage',
