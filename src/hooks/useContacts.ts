@@ -91,13 +91,15 @@ export function useSendContactEmail() {
       message,
       to,
       from,
+      attachments,
     }: {
       contactId: number;
       subject: string;
       message: string;
       to: string;
       from: string;
-    }) => api.sendContactEmail(contactId, subject, message, to, from),
+      attachments: { name: string; url: string }[];
+    }) => api.sendContactEmail(contactId, subject, message, to, from, attachments),
     onSuccess: invalidate,
   });
 }

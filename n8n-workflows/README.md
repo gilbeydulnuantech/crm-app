@@ -509,12 +509,36 @@ missing). They're stored on the log entry and are exactly what you'd wire
 into a real Send Email / Gmail node's To/From fields later.
 
 What it does: appends a `{ id, type: 'sent', subject, message, to, from,
-sent_at, is_read: true }` entry onto the contact's `email_logs`, which is
-what the detail modal's Activity Log column already reads — so a "sent"
-message shows up there immediately after sending, same as before. `id` is
-a fresh `gen_random_uuid()` (built into Postgres core since v13, no
-extension needed) — it's what lets `mark-log-read` (below) target one
-specific log entry later.
+attachments, sent_at, is_read: true }` entry onto the contact's
+`email_logs`, which is what the detail modal's Activity Log column already
+reads — so a "sent" message shows up there immediately after sending, same
+as before. `id` is a fresh `gen_random_uuid()` (built into Postgres core
+since v13, no extension needed) — it's what lets `mark-log-read` (below)
+target one specific log entry later.
+
+**Attachments (added later):** `ComposeEmailPopover.tsx` now supports
+picking files (capped client-side at 3 files / 4MB each) and reads them as
+base64 `data:` URLs via `FileReader` — no upload endpoint or file storage
+exists for this app, so `attachments: [{ name, url }]` rides along in the
+same JSON POST body as `subject`/`message`, and gets stored inline on the
+log entry (`jsonb_build_object('attachments', COALESCE($5::jsonb, '[]'))`).
+The Activity Log renders each as a small clickable chip
+(`<a href={dataUrl} download>`) — clicking downloads/opens it directly,
+no backend round-trip needed since the whole file lives in the JSON.
+
+Two things worth knowing:
+- **This bloats the `contacts` row.** A base64 PDF is ~33% larger than the
+  original file, and it's stored per-entry, forever, inline on the
+  contact — fine for occasional small attachments (the 4MB/3-file cap
+  keeps a single email under ~16MB), but not a real file storage strategy.
+  If attachments become a real feature, move to actual object storage
+  (S3/R2/etc.) and store a URL instead of the base64 blob.
+- **Watch your webhook body size limit.** n8n's webhook (and ngrok, on the
+  free tier) may reject request bodies past a certain size — 3 files at
+  the cap could approach ~16MB once base64-inflated. If you get a
+  size-limit error sending multiple large attachments, either lower the
+  client-side caps in `ComposeEmailPopover.tsx` or raise your n8n
+  instance's payload size limit.
 
 **Correction:** the first version of this workflow assumed `email_logs`
 already existed as a column on `contacts` (the frontend's `Contact` type

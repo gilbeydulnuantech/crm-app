@@ -69,7 +69,7 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
   const [composeOpen, setComposeOpen] = useState(false);
   const [dealFormOpen, setDealFormOpen] = useState(false);
   const [taskFormOpen, setTaskFormOpen] = useState(false);
-  const [expandedLogKey, setExpandedLogKey] = useState<string | null>(null);
+  const [selectedLog, setSelectedLog] = useState<EmailLog | null>(null);
   const [markReadError, setMarkReadError] = useState<string | null>(null);
 
   const { data: pipelines = [] } = usePipelines();
@@ -288,49 +288,35 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
             ) : (
               logs.map((log, i) => {
                 const isReceived = log.type === 'received';
-                const isUnread = isReceived && log.is_read === false;
+                const isUnread = isReceived && log.is_read !== true;
                 const canMarkRead = isUnread && !!log.id;
                 const logKey = String(log.id ?? i);
-                const isExpanded = expandedLogKey === logKey;
                 return (
                   <div
                     key={logKey}
                     onClick={() => {
-                      console.log('[ActivityLog] card clicked', {
-                        logId: log.id,
-                        type: log.type,
-                        is_read: log.is_read,
-                        isUnread,
-                        canMarkRead,
-                      });
                       if (canMarkRead) {
                         setMarkReadError(null);
                         markEmailRead.mutate(
                           { contactId: contact.id, logId: log.id! },
                           {
-                            onSuccess: (result) =>
-                              console.log('[ActivityLog] mark-log-read succeeded', result),
-                            onError: (err) => {
-                              console.error('[ActivityLog] mark-log-read failed', err);
+                            onError: (err) =>
                               setMarkReadError(
                                 err instanceof Error ? err.message : 'Failed to mark as read.'
-                              );
-                            },
+                              ),
                           }
                         );
-                      } else {
-                        console.log('[ActivityLog] skipped mark-read: canMarkRead is false');
                       }
-                      setExpandedLogKey((prev) => (prev === logKey ? null : logKey));
+                      setSelectedLog(log);
                     }}
                     className={`p-3 rounded-lg border space-y-1 cursor-pointer ${
-                      isUnread
-                        ? 'bg-emerald-50/80 border-emerald-200'
-                        : isReceived
-                          ? 'bg-green-50/60 border-green-100'
-                          : 'bg-slate-50 border-slate-100'
+                      isReceived
+                        ? isUnread
+                          ? 'bg-sky-50 border-sky-200'
+                          : 'bg-green-50 border-green-200'
+                        : 'bg-slate-50 border-slate-100'
                     }`}
-                    title={canMarkRead ? 'Click to mark as read' : 'Click to expand'}
+                    title="Click to view"
                   >
                     <div className="flex items-center justify-between text-xs font-medium">
                       <span className="flex items-center gap-1.5 text-slate-700 min-w-0">
@@ -345,15 +331,8 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                           {isReceived ? 'Reply:' : 'Sent:'} {log.subject || 'No Subject'}
                         </span>
                       </span>
-                      <span className="flex items-center gap-1.5 shrink-0">
-                        <span className="text-slate-400 text-[10px]">
-                          {log.sent_at ? new Date(log.sent_at).toLocaleDateString() : ''}
-                        </span>
-                        <i
-                          className={`fa-solid fa-chevron-down text-[9px] text-slate-400 transition-transform ${
-                            isExpanded ? 'rotate-180' : ''
-                          }`}
-                        />
+                      <span className="text-slate-400 text-[10px] shrink-0">
+                        {log.sent_at ? new Date(log.sent_at).toLocaleDateString() : ''}
                       </span>
                     </div>
                     {(log.to || log.from) && (
@@ -361,13 +340,15 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                         {isReceived ? `From: ${log.from ?? '--'}` : `To: ${log.to ?? '--'}`}
                       </p>
                     )}
-                    <p
-                      className={`text-slate-600 text-xs whitespace-pre-wrap ${
-                        isExpanded ? '' : 'line-clamp-2'
-                      }`}
-                    >
+                    <p className="text-slate-600 text-xs whitespace-pre-wrap line-clamp-2">
                       {log.message}
                     </p>
+                    {log.attachments && log.attachments.length > 0 && (
+                      <p className="flex items-center gap-1 text-[10px] text-slate-400 pt-0.5">
+                        <i className="fa-solid fa-paperclip text-[9px]" />
+                        {log.attachments.length} attachment{log.attachments.length > 1 ? 's' : ''}
+                      </p>
+                    )}
                   </div>
                 );
               })
@@ -419,6 +400,70 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
         defaultContactId={contact.id}
         onClose={() => setTaskFormOpen(false)}
       />
+      <EmailLogModal log={selectedLog} onClose={() => setSelectedLog(null)} />
+    </div>
+  );
+}
+
+function EmailLogModal({ log, onClose }: { log: EmailLog | null; onClose: () => void }) {
+  if (!log) return null;
+  const isReceived = log.type === 'received';
+
+  return (
+    <div
+      className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[110] flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-slate-100 shrink-0">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
+              {isReceived ? 'Reply' : 'Sent'}
+            </p>
+            <h3 className="text-sm font-bold text-slate-800 truncate">{log.subject || 'No Subject'}</h3>
+            {(log.to || log.from) && (
+              <p className="text-xs text-slate-500 mt-0.5">
+                {isReceived ? `From: ${log.from ?? '--'}` : `To: ${log.to ?? '--'}`}
+              </p>
+            )}
+            {log.sent_at && (
+              <p className="text-[11px] text-slate-400 mt-0.5">{new Date(log.sent_at).toLocaleString()}</p>
+            )}
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 shrink-0">
+            <i className="fa-solid fa-xmark text-lg" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+          <p className="text-sm text-slate-700 whitespace-pre-wrap">{log.message || '--'}</p>
+
+          {log.attachments && log.attachments.length > 0 && (
+            <div>
+              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">
+                Attachments ({log.attachments.length})
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {log.attachments.map((a, ai) => (
+                  <a
+                    key={ai}
+                    href={a.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium bg-slate-50 text-slate-600 border border-slate-200 rounded-full hover:border-indigo-300 hover:text-indigo-600"
+                  >
+                    <i className="fa-solid fa-paperclip text-[10px]" />
+                    <span className="max-w-[180px] truncate">{a.name}</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

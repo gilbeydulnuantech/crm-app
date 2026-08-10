@@ -63,17 +63,20 @@ export function restoreContacts(ids: number[]) {
 
 // New workflow (contact-email-crud.json, not part of the original backend) —
 // appends a "sent" entry to the contact's email_logs. Doesn't actually
-// deliver an email yet; see n8n-workflows/README.md.
+// deliver an email yet; see n8n-workflows/README.md. Attachments are sent as
+// data: URLs (base64) — no file storage exists, so they're stored inline on
+// the log entry itself.
 export function sendContactEmail(
   contactId: number,
   subject: string,
   message: string,
   to: string,
-  from: string
+  from: string,
+  attachments: { name: string; url: string }[]
 ) {
   return apiFetch<{ success: boolean; error?: string }>('/webhook/send-email', {
     method: 'POST',
-    body: JSON.stringify({ contact_id: contactId, subject, message, to, from }),
+    body: JSON.stringify({ contact_id: contactId, subject, message, to, from, attachments }),
   });
 }
 

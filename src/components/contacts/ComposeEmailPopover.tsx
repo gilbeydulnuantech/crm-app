@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import { Contact } from '../../types/contact';
 import { useSendContactEmail } from '../../hooks/useContacts';
 import { useAuth } from '../../context/AuthContext';
@@ -9,22 +9,80 @@ interface Props {
   onClose: () => void;
 }
 
+// Attachments are base64-encoded client-side and stored inline as data: URLs
+// on the email_logs entry (jsonb) — no file storage/S3 exists for this app,
+// so this keeps it self-contained. Caps exist to avoid bloating the contacts
+// row: 4MB/file (grows ~33% as base64) and 3 files, well under typical
+// webhook body-size limits (n8n/ngrok) but not unlimited.
+const MAX_FILE_BYTES = 4 * 1024 * 1024;
+const MAX_FILES = 3;
+
+interface PendingAttachment {
+  name: string;
+  url: string; // data: URL
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error ?? new Error('Failed to read file.'));
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function ComposeEmailPopover({ contact, open, onClose }: Props) {
   const { user } = useAuth();
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
+  const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const sendEmail = useSendContactEmail();
 
   useEffect(() => {
     if (open) {
       setSubject('');
       setMessage('');
+      setAttachments([]);
       setError(null);
     }
   }, [open]);
 
   if (!open) return null;
+
+  async function handleFilesSelected(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setError(null);
+
+    const incoming = Array.from(files);
+    if (attachments.length + incoming.length > MAX_FILES) {
+      setError(`You can attach up to ${MAX_FILES} files.`);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+    const tooBig = incoming.find((f) => f.size > MAX_FILE_BYTES);
+    if (tooBig) {
+      setError(`"${tooBig.name}" is over the ${MAX_FILE_BYTES / (1024 * 1024)}MB limit.`);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    try {
+      const read = await Promise.all(
+        incoming.map(async (f) => ({ name: f.name, url: await readFileAsDataUrl(f) }))
+      );
+      setAttachments((prev) => [...prev, ...read]);
+    } catch {
+      setError('Failed to read one of the selected files.');
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }
+
+  function removeAttachment(name: string) {
+    setAttachments((prev) => prev.filter((a) => a.name !== name));
+  }
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -34,7 +92,7 @@ export default function ComposeEmailPopover({ contact, open, onClose }: Props) {
       return;
     }
     sendEmail.mutate(
-      { contactId: contact.id, subject, message, to: contact.email!, from: user.email },
+      { contactId: contact.id, subject, message, to: contact.email!, from: user.email, attachments },
       {
         onSuccess: () => onClose(),
         onError: (err) => setError(err instanceof Error ? err.message : 'Failed to send email.'),
@@ -85,6 +143,43 @@ export default function ComposeEmailPopover({ contact, open, onClose }: Props) {
                 onChange={(e) => setMessage(e.target.value)}
                 className="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
+            </div>
+            <div>
+              <label className="block text-[11px] font-medium text-slate-500 mb-1">Attachments</label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx"
+                onChange={(e) => handleFilesSelected(e.target.files)}
+                disabled={attachments.length >= MAX_FILES}
+                className="block w-full text-xs text-slate-500 file:mr-2 file:px-2.5 file:py-1.5 file:rounded-md file:border file:border-dashed file:border-slate-300 file:bg-white file:text-xs file:text-slate-600 hover:file:border-indigo-400 hover:file:text-indigo-600 disabled:opacity-50"
+              />
+              <p className="text-[10px] text-slate-400 mt-1">
+                Up to {MAX_FILES} files, {MAX_FILE_BYTES / (1024 * 1024)}MB each.
+              </p>
+              {attachments.length > 0 && (
+                <ul className="mt-1.5 space-y-1">
+                  {attachments.map((a) => (
+                    <li
+                      key={a.name}
+                      className="flex items-center justify-between gap-2 px-2 py-1 text-xs bg-slate-50 border border-slate-200 rounded-md"
+                    >
+                      <span className="flex items-center gap-1.5 min-w-0 text-slate-600">
+                        <i className="fa-solid fa-paperclip text-[10px] shrink-0" />
+                        <span className="truncate">{a.name}</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeAttachment(a.name)}
+                        className="text-slate-400 hover:text-rose-600 shrink-0"
+                      >
+                        <i className="fa-solid fa-xmark text-[10px]" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             {error && (

@@ -102,7 +102,39 @@
     },
     {
       "parameters": {
-        "jsCode": "// Fetch the aggregated items list\nconst items = $input.all();\nconst attachmentList = [];\n\nitems.forEach(item => {\n    // Access item JSON data aggregated from the Google Drive node\n    const data = item.json;\n\n    // Handle whether Aggregate outputted an array or individual item objects\n    const fileArray = Array.isArray(data) ? data : (data.data || [data]);\n\n    fileArray.forEach(file => {\n        // Skip execution metadata or items without a webViewLink\n        if (!file || !file.webViewLink) return;\n\n        const fileName = file.name || file.fileName || 'Attachment';\n        const fileUrl = file.webViewLink;\n\n        attachmentList.push({\n            name: fileName,\n            url: fileUrl\n        });\n    });\n});\n\n// Return as a formatted JSON string for Postgres $3 parameter\nreturn [{\n    json: {\n        attachments_json: JSON.stringify(attachmentList)\n    }\n}];"
+        "operation": "share",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.id }}"
+        },
+        "permissionsUi": {
+          "permissionsValues": {
+            "role": "reader",
+            "type": "anyone",
+            "allowFileDiscovery": false
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        904,
+        -288
+      ],
+      "id": "b6e2a6a1-2c8b-4b7a-9c1a-3f6e5a2d8c4f",
+      "name": "Share file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "AU1Fom2bJxYQkeKG",
+          "name": "n8n072826"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Fetch the uploaded file metadata directly from 'Upload file' — the\n// 'Share file' node's output is a permission resource, not file metadata,\n// so we read name/webViewLink from the upload step instead (same item count,\n// Share runs first to guarantee the link is open before we log/send it).\nconst items = $('Upload file').all();\nconst attachmentList = [];\n\nitems.forEach(item => {\n    // Access item JSON data aggregated from the Google Drive node\n    const data = item.json;\n\n    // Handle whether Aggregate outputted an array or individual item objects\n    const fileArray = Array.isArray(data) ? data : (data.data || [data]);\n\n    fileArray.forEach(file => {\n        // Skip execution metadata or items without a webViewLink\n        if (!file || !file.webViewLink) return;\n\n        const fileName = file.name || file.fileName || 'Attachment';\n        const fileUrl = file.webViewLink;\n\n        attachmentList.push({\n            name: fileName,\n            url: fileUrl\n        });\n    });\n});\n\n// Return as a formatted JSON string for Postgres $3 parameter\nreturn [{\n    json: {\n        attachments_json: JSON.stringify(attachmentList)\n    }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -128,7 +160,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $json.body || $json;\nconst attachments = body.attachments || [];\n\nconst binaryData = {};\n\nif (Array.isArray(attachments) && attachments.length > 0) {\n    attachments.forEach((att, index) => {\n        // Use 'data' for the first item if there's only 1, or attachment_0, attachment_1\n        const key = attachments.length === 1 ? 'data' : `attachment_${index}`;\n        \n        binaryData[key] = {\n            data: att.data, // Base64 string from frontend\n            mimeType: att.mimeType || 'application/octet-stream',\n            fileName: att.filename || `attachment_${index}`\n        };\n    });\n}\n\nreturn [\n    {\n        json: body,\n        binary: binaryData\n    }\n];"
+        "jsCode": "const body = $json.body || $json;\nconst attachments = body.attachments || [];\n\nconst binaryData = {};\n\nif (Array.isArray(attachments) && attachments.length > 0) {\n    attachments.forEach((att, index) => {\n        // Frontend sends { name, url } where url is a data: URL\n        // (e.g. 'data:application/pdf;base64,JVBERi0...') from FileReader.\n        const match = /^data:([^;,]+)?(?:;[^,]*)?,(.*)$/s.exec(att.url || '');\n        if (!match) return;\n        const [, mimeType, base64] = match;\n\n        // Use 'data' for the first item if there's only 1, or attachment_0, attachment_1\n        const key = attachments.length === 1 ? 'data' : `attachment_${index}`;\n\n        binaryData[key] = {\n            data: base64,\n            mimeType: mimeType || 'application/octet-stream',\n            fileName: att.name || `attachment_${index}`\n        };\n    });\n}\n\nreturn [\n    {\n        json: body,\n        binary: binaryData\n    }\n];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -215,7 +247,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE contacts\nSET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object(\n    'type', 'sent',\n    'subject', $1::text,\n    'message', $2::text,\n    'sent_at', NOW())\n    \nWHERE id = $3\nRETURNING email_logs;",
+        "query": "UPDATE contacts\nSET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object(\n    'type', 'sent',\n    'subject', $1::text,\n    'message', $2::text,\n    'sent_at', NOW(),\n    'is_read', true)\n    \nWHERE id = $3\nRETURNING email_logs;",
         "options": {
           "queryReplacement": "={{ $('Webhook').item.json.body.subject || '' }}, {{ $('Webhook').item.json.body.message || '' }}, {{ Number($('Webhook').item.json.body.contact_id) }}"
         }
@@ -238,9 +270,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE contacts\nSET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object(\n    'type', 'sent',\n    'subject', $1::text,\n    'message', $2::text,\n    'sent_at', NOW(),\n    'attachments', $3::jsonb\n)::jsonb\nWHERE id = $4\nRETURNING email_logs;",
+        "query": "UPDATE contacts\nSET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object(\n    'type', 'sent',\n    'subject', $1::text,\n    'message', $2::text,\n    'sent_at', NOW(),\n    'is_read', true,\n    'attachments', $3::jsonb\n)::jsonb\nWHERE id = $4\nRETURNING email_logs;",
         "options": {
-          "queryReplacement": "={{ $('Webhook').item.json.body.subject || '' }}, {{ $('Webhook').item.json.body.message || '' }}, ={{ $json.attachments_json }}, {{ Number($('Webhook').item.json.body.contact_id) }}"
+          "queryReplacement": "={{ $('Webhook').item.json.body.subject || '' }}, {{ $('Webhook').item.json.body.message || '' }}, {{ $json.attachments_json }}, {{ Number($('Webhook').item.json.body.contact_id) }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -327,6 +359,17 @@
       ]
     },
     "Upload file": {
+      "main": [
+        [
+          {
+            "node": "Share file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Share file": {
       "main": [
         [
           {
