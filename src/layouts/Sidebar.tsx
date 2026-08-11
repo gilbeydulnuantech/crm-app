@@ -25,15 +25,41 @@ const navLinkClasses = (isActive: boolean) =>
       : 'text-slate-600 hover:bg-slate-50'
   }`;
 
-export default function Sidebar() {
+interface Props {
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
+}
+
+export default function Sidebar({ collapsed, onToggleCollapsed }: Props) {
   const { user, logout } = useAuth();
+
+  if (collapsed) {
+    return (
+      <aside className="w-7 bg-white border-r border-slate-200 flex flex-col items-center pt-4 shrink-0">
+        <button
+          onClick={onToggleCollapsed}
+          title="Show navigation"
+          className="text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded p-1.5"
+        >
+          <i className="fa-solid fa-chevron-right text-xs" />
+        </button>
+      </aside>
+    );
+  }
 
   return (
     <aside className="w-60 bg-white border-r border-slate-200 flex flex-col shrink-0 overflow-hidden">
       <div className="flex-1 overflow-y-auto">
         <div className="p-3 space-y-1">
-          <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-3 mb-2">
-            CRM
+          <div className="flex items-center justify-between px-3 mb-2">
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">CRM</span>
+            <button
+              onClick={onToggleCollapsed}
+              title="Hide navigation"
+              className="text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded p-1"
+            >
+              <i className="fa-solid fa-chevron-left text-xs" />
+            </button>
           </div>
 
           <nav className="space-y-0.5">
