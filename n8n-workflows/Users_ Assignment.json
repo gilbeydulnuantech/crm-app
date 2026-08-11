@@ -22,7 +22,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, name, email FROM users WHERE active = true ORDER BY name ASC;",
+        "query": "SELECT id, name, email, color FROM users WHERE active = true ORDER BY name ASC;",
         "options": {}
       },
       "id": "7ed2f986-ccc4-420e-a7d7-15a2fb090650",
@@ -194,6 +194,122 @@
         1184,
         1264
       ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "update-user-color",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "d1e2f001-1111-4a5a-9b1a-usercolor0001",
+      "name": "Webhook - Update User Color",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        1456
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) {\n  throw new Error('Invalid or missing session token.');\n}\n\nconst requesterId = parseInt(match[1], 10);\n\nreturn [{ json: { requesterId } }];"
+      },
+      "id": "d1e2f002-2222-4a5a-9b1a-usercolor0002",
+      "name": "Parse Requester Token (Color)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        1456
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "d1e2f003-3333-4a5a-9b1a-usercolor0003",
+      "name": "Look Up Requester Role (Color)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1408,
+        1456
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Update User Color').first().json.body || {};\n\nif (!requester.id || !requester.active) {\n  throw new Error('Invalid session.');\n}\n\nconst targetUserId = parseInt(body.user_id, 10);\nif (!Number.isInteger(targetUserId)) {\n  throw new Error('\"user_id\" must be an integer.');\n}\n\n// Admins can recolor anyone; everyone else can only recolor themselves.\nif (requester.role !== 'admin' && requester.id !== targetUserId) {\n  throw new Error('You can only change your own color.');\n}\n\nconst color = (body.color || '').toString().trim();\nif (!/^#[0-9A-Fa-f]{6}$/.test(color)) {\n  throw new Error('\"color\" must be a hex code like #3B82F6.');\n}\n\nreturn [{ json: { targetUserId, color } }];"
+      },
+      "id": "d1e2f004-4444-4a5a-9b1a-usercolor0004",
+      "name": "Validate Color Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        1456
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE users SET color = $1 WHERE id = $2 RETURNING id, name, color;",
+        "options": {
+          "queryReplacement": "={{ [ $json.color, $json.targetUserId ] }}"
+        }
+      },
+      "id": "d1e2f005-5555-4a5a-9b1a-usercolor0005",
+      "name": "Update User Color",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1840,
+        1456
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) {\n  throw new Error('User not found.');\n}\nreturn [{ json: { success: true, user: result.json } }];"
+      },
+      "id": "d1e2f006-6666-4a5a-9b1a-usercolor0006",
+      "name": "Check Color Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2064,
+        1456
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "d1e2f007-7777-4a5a-9b1a-usercolor0007",
+      "name": "Respond - Update User Color Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2288,
+        1456
+      ]
     }
   ],
   "pinData": {},
@@ -305,6 +421,102 @@
         [
           {
             "node": "Respond - Assign Success",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Update User Color": {
+      "main": [
+        [
+          {
+            "node": "Parse Requester Token (Color)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Requester Token (Color)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester Role (Color)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester Role (Color)": {
+      "main": [
+        [
+          {
+            "node": "Validate Color Payload",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Color Payload": {
+      "main": [
+        [
+          {
+            "node": "Update User Color",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update User Color": {
+      "main": [
+        [
+          {
+            "node": "Check Color Result",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Color Result": {
+      "main": [
+        [
+          {
+            "node": "Respond - Update User Color Success",
             "type": "main",
             "index": 0
           },

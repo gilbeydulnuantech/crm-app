@@ -25,6 +25,17 @@ export function useUsers() {
   });
 }
 
+export function useUpdateUserColor() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, color }: { userId: number; color: string }) => api.updateUserColor(userId, color),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['users'] });
+      qc.invalidateQueries({ queryKey: ['events'] });
+    },
+  });
+}
+
 export function useTags() {
   return useQuery({
     queryKey: ['tags'],

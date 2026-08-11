@@ -1,0 +1,58 @@
+{
+  "name": "Resources",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "get-resources",
+        "responseMode": "responseNode",
+        "options": { "allowedOrigins": "*" }
+      },
+      "id": "e5f6a001-1111-4a5a-9b1a-resources0001",
+      "name": "Webhook: get-resources",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 560],
+      "webhookId": "e5f6a001-1111-4a5a-9b1a-webhookres01"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, type, color, is_active FROM resources WHERE is_active = true ORDER BY name ASC;",
+        "options": {}
+      },
+      "id": "e5f6a002-2222-4a5a-9b1a-resources0002",
+      "name": "Postgres: Select Resources",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [464, 560],
+      "credentials": {
+        "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "e5f6a003-3333-4a5a-9b1a-resources0003",
+      "name": "Respond: get-resources",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [688, 560]
+    }
+  ],
+  "connections": {
+    "Webhook: get-resources": {
+      "main": [[{ "node": "Postgres: Select Resources", "type": "main", "index": 0 }]]
+    },
+    "Postgres: Select Resources": {
+      "main": [[{ "node": "Respond: get-resources", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "resourcesWorkflow001",
+  "tags": []
+}

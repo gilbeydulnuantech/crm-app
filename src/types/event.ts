@@ -33,6 +33,7 @@ export interface CalendarEvent {
   company_name?: string; // joined (via opportunity's account_id)
   user_id?: number | null;
   assigned_user_name?: string; // joined
+  assigned_user_color?: string; // joined from users.color
   type: EventType;
   subject: string;
   body?: string; // used as "Notes"
@@ -41,6 +42,9 @@ export interface CalendarEvent {
   end_at?: string | null; // NOT in schema — see gap note in api/events.ts
   completed_at?: string | null;
   created_at?: string;
+  // Linked via activity_resources — which shared resources (rooms, vehicles,
+  // equipment) this event has booked.
+  resources?: { id: number; name: string }[];
 }
 
 export type CalendarViewMode = 'month' | 'week' | 'day' | 'agenda';

@@ -123,8 +123,22 @@ export function fetchContactIdsByTag(tagName: string) {
   );
 }
 
+export interface TeamUser {
+  id: number;
+  name: string;
+  email?: string;
+  color?: string;
+}
+
 export function fetchUsers() {
-  return apiFetch<{ id: number; name: string }[]>('/webhook/get-users');
+  return apiFetch<TeamUser[]>('/webhook/get-users');
+}
+
+export function updateUserColor(userId: number, color: string) {
+  return apiFetch<{ success: boolean; user?: TeamUser; error?: string }>('/webhook/update-user-color', {
+    method: 'POST',
+    body: JSON.stringify({ user_id: userId, color }),
+  });
 }
 
 export function fetchTags() {

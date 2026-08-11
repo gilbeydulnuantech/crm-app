@@ -20,7 +20,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT a.id, a.contact_id, TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS contact_name, a.opportunity_id, o.name AS opportunity_name, co.name AS company_name, a.user_id, u.name AS assigned_user_name, a.type, a.subject, a.body, a.is_completed, a.due_at, a.completed_at, a.created_at FROM activities a LEFT JOIN contacts c ON c.id = a.contact_id LEFT JOIN opportunities o ON o.id = a.opportunity_id LEFT JOIN companies co ON co.id = o.account_id LEFT JOIN users u ON u.id = a.user_id WHERE a.due_at IS NOT NULL AND a.due_at >= $1::date AND a.due_at <= ($2::date + interval '1 day') ORDER BY a.due_at ASC;",
+        "query": "SELECT a.id, a.contact_id, TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS contact_name, a.opportunity_id, o.name AS opportunity_name, co.name AS company_name, a.user_id, u.name AS assigned_user_name, u.color AS assigned_user_color, a.type, a.subject, a.body, a.is_completed, a.due_at, a.completed_at, a.created_at,\n  (SELECT COALESCE(json_agg(json_build_object('id', r.id, 'name', r.name)), '[]'::json)\n   FROM activity_resources ar JOIN resources r ON r.id = ar.resource_id\n   WHERE ar.activity_id = a.id) AS resources\nFROM activities a LEFT JOIN contacts c ON c.id = a.contact_id LEFT JOIN opportunities o ON o.id = a.opportunity_id LEFT JOIN companies co ON co.id = o.account_id LEFT JOIN users u ON u.id = a.user_id WHERE a.due_at IS NOT NULL AND a.due_at >= $1::date AND a.due_at <= ($2::date + interval '1 day') ORDER BY a.due_at ASC;",
         "options": {
           "queryReplacement": "={{ [$json.query.start, $json.query.end] }}"
         }

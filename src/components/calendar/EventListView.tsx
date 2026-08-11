@@ -26,8 +26,15 @@ export function EventListView({ events, onEventClick, emptyLabel = 'No events.' 
         <div
           key={e.id}
           onClick={() => onEventClick(e)}
-          className="flex items-center gap-3 border border-slate-200 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-slate-50"
+          className="flex items-center gap-3 border border-slate-200 rounded-lg pl-2 pr-3 py-2.5 cursor-pointer hover:bg-slate-50"
         >
+          {/* Assigned user's color — lets an overlaid multi-person view tell
+              whose event this is at a glance, separate from the type dot. */}
+          <span
+            className="w-1 self-stretch rounded-full shrink-0"
+            style={{ backgroundColor: e.assigned_user_color || 'transparent' }}
+            title={e.assigned_user_name}
+          />
           <span className={`w-2 h-2 rounded-full shrink-0 ${EVENT_TYPE_META[e.type]?.dot ?? 'bg-slate-400'}`} />
           <div className="w-20 shrink-0 text-xs text-slate-500">
             {new Date(e.due_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
@@ -43,7 +50,7 @@ export function EventListView({ events, onEventClick, emptyLabel = 'No events.' 
             )}
           </div>
           {e.assigned_user_name && (
-            <span className="text-xs text-slate-500 shrink-0">{e.assigned_user_name}</span>
+            <span className="text-xs text-slate-500 shrink-0">{toTitleCase(e.assigned_user_name)}</span>
           )}
         </div>
       ))}
