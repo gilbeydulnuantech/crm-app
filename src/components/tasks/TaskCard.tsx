@@ -14,20 +14,29 @@ const PRIORITY_DOT: Record<string, string> = {
   Low: 'bg-emerald-500',
 };
 
+function hexToRgba(hex: string, alpha: number): string {
+  const clean = hex.replace('#', '');
+  const full = clean.length === 3 ? clean.split('').map((c) => c + c).join('') : clean;
+  const n = parseInt(full, 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
+
 export default function TaskCard({ task, onClick }: Props) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
     data: { task },
   });
 
-  // The card's left border is the assigned owner's color — same color
-  // picker/palette as the Team Members sidebar and the Calendar's per-user
-  // colors, so a task's owner is recognizable at a glance without reading
-  // the "Assigned To" line.
+  // The card's background/left border are the assigned owner's color —
+  // same color picker/palette as the Team Members sidebar and the
+  // Calendar's per-user colors, so a task's owner is recognizable at a
+  // glance without reading the "Assigned To" line. A light tint (not the
+  // full color) keeps card text readable.
   const ownerColor = task.user_id ? task.assigned_user_color || DEFAULT_USER_COLOR : undefined;
 
   const style = {
     ...(transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, zIndex: 50 } : undefined),
+    backgroundColor: ownerColor ? hexToRgba(ownerColor, 0.14) : undefined,
     borderLeftWidth: '3px',
     borderLeftColor: ownerColor || '#E2E8F0',
   };
@@ -42,7 +51,7 @@ export default function TaskCard({ task, onClick }: Props) {
         if (transform && (Math.abs(transform.x) > 5 || Math.abs(transform.y) > 5)) return;
         onClick();
       }}
-      className={`bg-white border border-slate-200 rounded-lg p-2.5 shadow-sm hover:shadow-md cursor-grab active:cursor-grabbing transition-all ${
+      className={`${ownerColor ? '' : 'bg-white'} border border-slate-200 rounded-lg p-2.5 shadow-sm hover:shadow-md cursor-grab active:cursor-grabbing transition-all ${
         isDragging ? 'opacity-40 ring-2 ring-indigo-400 border-transparent scale-105' : ''
       }`}
     >
