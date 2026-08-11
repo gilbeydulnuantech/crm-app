@@ -1,9 +1,15 @@
 import { ReactNode } from 'react';
 import { TeamUser } from '../../api/contacts';
 import { TASK_PRIORITIES, TaskPriority } from '../../types/task';
+import { useUpdateUserColor } from '../../hooks/useContacts';
 import { toTitleCase } from '../../utils/text';
+import UserColorPicker from '../calendar/UserColorPicker';
 
 export type TaskStatusFilter = 'open' | 'completed' | 'overdue';
+
+// Matches EventQuickView/CalendarSidebar's fallback so an unset users.color
+// renders the same neutral gray everywhere in the app.
+export const DEFAULT_USER_COLOR = '#94A3B8';
 
 const STATUS_OPTIONS: { key: TaskStatusFilter; label: string }[] = [
   { key: 'open', label: 'Open' },
@@ -14,6 +20,7 @@ const STATUS_OPTIONS: { key: TaskStatusFilter; label: string }[] = [
 interface Props {
   users: TeamUser[];
   currentUserId?: number;
+  isAdmin: boolean;
   checkedUserIds: Set<number>;
   onToggleUser: (id: number) => void;
   onToggleAllUsers: () => void;
@@ -35,16 +42,27 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function Row({ label, checked, onToggle }: { label: string; checked: boolean; onToggle: () => void }) {
+function Row({
+  dot,
+  label,
+  checked,
+  onToggle,
+}: {
+  dot?: ReactNode;
+  label: string;
+  checked: boolean;
+  onToggle: () => void;
+}) {
   return (
     <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+      {dot}
+      <span className="flex-1 truncate">{label}</span>
       <input
         type="checkbox"
         checked={checked}
         onChange={onToggle}
         className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
       />
-      <span className="flex-1 truncate">{label}</span>
     </label>
   );
 }
@@ -58,6 +76,7 @@ const RAIL_ICONS: { icon: string; title: string }[] = [
 export default function TasksSidebar({
   users,
   currentUserId,
+  isAdmin,
   checkedUserIds,
   onToggleUser,
   onToggleAllUsers,
@@ -69,6 +88,7 @@ export default function TasksSidebar({
   collapsed,
   onToggleCollapsed,
 }: Props) {
+  const updateUserColor = useUpdateUserColor();
   const allUsersChecked = users.length > 0 && users.every((u) => checkedUserIds.has(u.id));
 
   if (collapsed) {
@@ -110,10 +130,24 @@ export default function TasksSidebar({
       </div>
 
       <Section title="Team Members">
-        {users.length > 0 && <Row label="All Members" checked={allUsersChecked} onToggle={onToggleAllUsers} />}
+        {users.length > 0 && (
+          <Row
+            dot={<span className="w-2.5 h-2.5 rounded-full bg-slate-300 shrink-0" />}
+            label="All Members"
+            checked={allUsersChecked}
+            onToggle={onToggleAllUsers}
+          />
+        )}
         {users.map((u) => (
           <Row
             key={u.id}
+            dot={
+              <UserColorPicker
+                color={u.color || DEFAULT_USER_COLOR}
+                disabled={!isAdmin && u.id !== currentUserId}
+                onChange={(hex) => updateUserColor.mutate({ userId: u.id, color: hex })}
+              />
+            }
             label={`${toTitleCase(u.name)}${u.id === currentUserId ? ' (Me)' : ''}`}
             checked={checkedUserIds.has(u.id)}
             onToggle={() => onToggleUser(u.id)}

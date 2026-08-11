@@ -20,7 +20,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT a.id, a.contact_id, TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS contact_name, co.name AS company_name, a.opportunity_id, o.name AS opportunity_name, a.user_id, u.name AS assigned_user_name, a.type, a.subject, a.body, a.is_completed, a.due_at, a.completed_at, a.created_at, a.priority, a.task_type, a.status FROM activities a LEFT JOIN contacts c ON c.id = a.contact_id LEFT JOIN companies co ON co.id = c.account_id LEFT JOIN opportunities o ON o.id = a.opportunity_id LEFT JOIN users u ON u.id = a.user_id WHERE a.type = 'task' ORDER BY a.due_at ASC NULLS LAST, a.created_at DESC, a.id DESC;",
+        "query": "SELECT a.id, a.contact_id, TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS contact_name, co.name AS company_name, a.opportunity_id, o.name AS opportunity_name, a.user_id, u.name AS assigned_user_name, u.color AS assigned_user_color, a.type, a.subject, a.body, a.is_completed, a.due_at, a.completed_at, a.created_at, a.priority, a.task_type, a.status FROM activities a LEFT JOIN contacts c ON c.id = a.contact_id LEFT JOIN companies co ON co.id = c.account_id LEFT JOIN opportunities o ON o.id = a.opportunity_id LEFT JOIN users u ON u.id = a.user_id WHERE a.type = 'task' ORDER BY a.due_at ASC NULLS LAST, a.created_at DESC, a.id DESC;",
         "options": {}
       },
       "id": "7627365e-6be1-44d8-923b-0c4000a7ddc2",

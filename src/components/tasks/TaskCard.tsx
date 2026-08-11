@@ -1,6 +1,7 @@
 import { useDraggable } from '@dnd-kit/core';
 import { Task } from '../../types/task';
 import { toTitleCase } from '../../utils/text';
+import { DEFAULT_USER_COLOR } from './TasksSidebar';
 
 interface Props {
   task: Task;
@@ -19,9 +20,17 @@ export default function TaskCard({ task, onClick }: Props) {
     data: { task },
   });
 
-  const style = transform
-    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, zIndex: 50 }
-    : undefined;
+  // The card's left border is the assigned owner's color — same color
+  // picker/palette as the Team Members sidebar and the Calendar's per-user
+  // colors, so a task's owner is recognizable at a glance without reading
+  // the "Assigned To" line.
+  const ownerColor = task.user_id ? task.assigned_user_color || DEFAULT_USER_COLOR : undefined;
+
+  const style = {
+    ...(transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, zIndex: 50 } : undefined),
+    borderLeftWidth: '3px',
+    borderLeftColor: ownerColor || '#E2E8F0',
+  };
 
   return (
     <div

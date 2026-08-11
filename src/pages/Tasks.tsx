@@ -15,7 +15,7 @@ import SearchToolbar from '../components/SearchToolbar';
 type BoardView = 'list' | 'kanban';
 
 export default function Tasks() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   const [view, setView] = useState<TasksView>('all');
   const [boardView, setBoardView] = useState<BoardView>('list');
@@ -184,6 +184,7 @@ export default function Tasks() {
       <TasksSidebar
         users={users}
         currentUserId={user?.id}
+        isAdmin={isAdmin}
         checkedUserIds={checkedUserIds}
         onToggleUser={toggleUser}
         onToggleAllUsers={toggleAllUsers}

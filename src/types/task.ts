@@ -26,6 +26,7 @@ export interface Task {
   opportunity_name?: string; // joined
   user_id?: number | null;
   assigned_user_name?: string; // joined
+  assigned_user_color?: string; // joined from users.color
   type: 'task';
   subject: string;
   body?: string;
