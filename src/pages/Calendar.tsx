@@ -17,6 +17,7 @@ import DealMonthView from '../components/calendar/DealMonthView';
 import DealWeekView from '../components/calendar/DealWeekView';
 import DealListView from '../components/calendar/DealListView';
 import EventDetailPanel from '../components/calendar/EventDetailPanel';
+import EventQuickView from '../components/calendar/EventQuickView';
 import EventFormModal from '../components/calendar/EventFormModal';
 import DealDetailPanel from '../components/pipeline/DealDetailPanel';
 import DealFormModal from '../components/pipeline/DealFormModal';
@@ -50,6 +51,7 @@ export default function Calendar() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [activeEvent, setActiveEvent] = useState<CalendarEvent | null>(null);
+  const [quickViewEvent, setQuickViewEvent] = useState<CalendarEvent | null>(null);
   const [addDefaultDate, setAddDefaultDate] = useState<Date | null>(null);
 
   const [activeDeal, setActiveDeal] = useState<Opportunity | null>(null);
@@ -387,18 +389,18 @@ export default function Calendar() {
               <MonthView
                 monthDate={cursorDate}
                 events={visibleEvents}
-                onEventClick={setActiveEvent}
+                onEventClick={setQuickViewEvent}
                 onDayClick={(date) => openAddModal(date)}
               />
             )}
             {viewMode === 'week' && (
-              <WeekView weekStart={startOfWeek(cursorDate)} events={weekEvents} onEventClick={setActiveEvent} />
+              <WeekView weekStart={startOfWeek(cursorDate)} events={weekEvents} onEventClick={setQuickViewEvent} />
             )}
             {viewMode === 'day' && (
-              <EventListView events={dayEvents} onEventClick={setActiveEvent} emptyLabel="No events on this day." />
+              <EventListView events={dayEvents} onEventClick={setQuickViewEvent} emptyLabel="No events on this day." />
             )}
             {viewMode === 'agenda' && (
-              <EventListView events={visibleEvents} onEventClick={setActiveEvent} emptyLabel="No events this month." />
+              <EventListView events={visibleEvents} onEventClick={setQuickViewEvent} emptyLabel="No events this month." />
             )}
           </>
         ) : (
@@ -438,6 +440,15 @@ export default function Calendar() {
           event={editingEvent}
           defaultDate={addDefaultDate}
           onClose={() => setFormOpen(false)}
+        />
+
+        <EventQuickView
+          event={quickViewEvent}
+          onClose={() => setQuickViewEvent(null)}
+          onEdit={(event) => {
+            setQuickViewEvent(null);
+            setActiveEvent(event);
+          }}
         />
 
         <EventDetailPanel
