@@ -20,7 +20,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT a.id, a.contact_id, TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS contact_name, a.opportunity_id, o.name AS opportunity_name, a.user_id, u.name AS assigned_user_name, a.type, a.subject, a.body, a.is_completed, a.due_at, a.completed_at, a.created_at FROM activities a LEFT JOIN contacts c ON c.id = a.contact_id LEFT JOIN opportunities o ON o.id = a.opportunity_id LEFT JOIN users u ON u.id = a.user_id WHERE a.type = 'task' ORDER BY a.due_at ASC NULLS LAST, a.created_at DESC;",
+        "query": "SELECT a.id, a.contact_id, TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS contact_name, a.opportunity_id, o.name AS opportunity_name, a.user_id, u.name AS assigned_user_name, a.type, a.subject, a.body, a.is_completed, a.due_at, a.completed_at, a.created_at, a.priority, a.task_type FROM activities a LEFT JOIN contacts c ON c.id = a.contact_id LEFT JOIN opportunities o ON o.id = a.opportunity_id LEFT JOIN users u ON u.id = a.user_id WHERE a.type = 'task' ORDER BY a.due_at ASC NULLS LAST, a.created_at DESC;",
         "options": {}
       },
       "id": "7627365e-6be1-44d8-923b-0c4000a7ddc2",
@@ -89,9 +89,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO activities (contact_id, opportunity_id, user_id, type, subject, body, due_at) VALUES ($1, $2, $3, 'task', $4, $5, $6) RETURNING id, subject, is_completed, created_at;",
+        "query": "INSERT INTO activities (contact_id, opportunity_id, user_id, type, subject, body, due_at, priority, task_type) VALUES ($1, $2, $3, 'task', $4, $5, $6, $7, $8) RETURNING id, subject, is_completed, created_at;",
         "options": {
-          "queryReplacement": "={{ [$json.body.contact_id || null, $json.body.opportunity_id || null, $json.body.user_id || $json.body.requester_id || null, $json.body.subject, $json.body.body || null, $json.body.due_at || null] }}"
+          "queryReplacement": "={{ [ $('Webhook: add-task').first().json.body.contact_id || null, $('Webhook: add-task').first().json.body.opportunity_id || null, $('Webhook: add-task').first().json.body.user_id || $('Webhook: add-task').first().json.body.requester_id || null, $('Webhook: add-task').first().json.body.subject, $('Webhook: add-task').first().json.body.body || null, $('Webhook: add-task').first().json.body.due_at || null, $('Webhook: add-task').first().json.body.priority || 'Medium', $('Webhook: add-task').first().json.body.task_type || null ] }}"
         }
       },
       "id": "170bcc9a-edfa-4636-87c7-efe0f75a8163",
@@ -161,9 +161,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE activities SET subject = COALESCE($1, subject), body = COALESCE($2, body), contact_id = COALESCE($3, contact_id), opportunity_id = COALESCE($4, opportunity_id), user_id = COALESCE($5, user_id), due_at = COALESCE($6, due_at), is_completed = COALESCE($7, is_completed), completed_at = $8 WHERE id = $9 RETURNING id;",
+        "query": "UPDATE activities SET subject = COALESCE($1, subject), body = COALESCE($2, body), contact_id = COALESCE($3, contact_id), opportunity_id = COALESCE($4, opportunity_id), user_id = COALESCE($5, user_id), due_at = COALESCE($6, due_at), is_completed = COALESCE($7, is_completed), completed_at = $8, priority = COALESCE($9, priority), task_type = COALESCE($10, task_type) WHERE id = $11 RETURNING id;",
         "options": {
-          "queryReplacement": "={{ [$json.body.subject || null, $json.body.body || null, $json.body.contact_id || null, $json.body.opportunity_id || null, $json.body.user_id || null, $json.body.due_at || null, $json.body.is_completed !== undefined ? $json.body.is_completed : null, $json.body.completed_at !== undefined ? $json.body.completed_at : null, $json.body.id] }}"
+          "queryReplacement": "={{ [ $('Webhook: update-task').first().json.body.subject || null, $('Webhook: update-task').first().json.body.body || null, $('Webhook: update-task').first().json.body.contact_id || null, $('Webhook: update-task').first().json.body.opportunity_id || null, $('Webhook: update-task').first().json.body.user_id || null, $('Webhook: update-task').first().json.body.due_at || null, $('Webhook: update-task').first().json.body.is_completed !== undefined ? $('Webhook: update-task').first().json.body.is_completed : null, $('Webhook: update-task').first().json.body.completed_at !== undefined ? $('Webhook: update-task').first().json.body.completed_at : null, $('Webhook: update-task').first().json.body.priority || null, $('Webhook: update-task').first().json.body.task_type || null, $('Webhook: update-task').first().json.body.id ] }}"
         }
       },
       "id": "757a985d-9a39-490b-8761-e64f841e7336",
@@ -334,6 +334,48 @@
         832,
         1136
       ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "ALTER TABLE activities ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT 'Medium';\nALTER TABLE activities ADD COLUMN IF NOT EXISTS task_type VARCHAR(50);",
+        "options": {}
+      },
+      "id": "f8e4ff52-0602-431a-bf1f-81f63068b362",
+      "name": "Postgres: Ensure Task Columns (add)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        720,
+        544
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "ALTER TABLE activities ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT 'Medium';\nALTER TABLE activities ADD COLUMN IF NOT EXISTS task_type VARCHAR(50);",
+        "options": {}
+      },
+      "id": "f5a8b78b-9f90-4ec1-9464-f18b6cdc79c4",
+      "name": "Postgres: Ensure Task Columns (update)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        720,
+        736
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
     }
   ],
   "pinData": {},
@@ -364,7 +406,7 @@
       "main": [
         [
           {
-            "node": "Postgres: Insert Task",
+            "node": "Postgres: Ensure Task Columns (add)",
             "type": "main",
             "index": 0
           }
@@ -386,7 +428,7 @@
       "main": [
         [
           {
-            "node": "Postgres: Update Task",
+            "node": "Postgres: Ensure Task Columns (update)",
             "type": "main",
             "index": 0
           }
@@ -431,6 +473,28 @@
         [
           {
             "node": "Respond OPTIONS: get-tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Ensure Task Columns (add)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Insert Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Ensure Task Columns (update)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Update Task",
             "type": "main",
             "index": 0
           }

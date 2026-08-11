@@ -1,3 +1,9 @@
+export const TASK_PRIORITIES = ['Low', 'Medium', 'High'] as const;
+export type TaskPriority = (typeof TASK_PRIORITIES)[number];
+
+export const TASK_TYPES = ['Follow-up', 'Call', 'Email', 'Meeting', 'Proposal', 'Other'] as const;
+export type TaskType = (typeof TASK_TYPES)[number];
+
 export interface Task {
   id: number;
   contact_id?: number | null;
@@ -13,6 +19,8 @@ export interface Task {
   due_at?: string | null;
   completed_at?: string | null;
   created_at?: string;
+  priority?: TaskPriority | null;
+  task_type?: TaskType | null;
 }
 
 export type TasksView = 'all' | 'mine' | 'completed';

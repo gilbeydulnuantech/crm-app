@@ -19,6 +19,7 @@ import DealListView from '../components/calendar/DealListView';
 import EventDetailPanel from '../components/calendar/EventDetailPanel';
 import EventQuickView from '../components/calendar/EventQuickView';
 import EventFormModal from '../components/calendar/EventFormModal';
+import DealQuickView from '../components/calendar/DealQuickView';
 import DealDetailPanel from '../components/pipeline/DealDetailPanel';
 import DealFormModal from '../components/pipeline/DealFormModal';
 import SearchToolbar from '../components/SearchToolbar';
@@ -61,6 +62,7 @@ export default function Calendar() {
   const [addDefaultDate, setAddDefaultDate] = useState<Date | null>(null);
 
   const [activeDeal, setActiveDeal] = useState<Opportunity | null>(null);
+  const [quickViewDeal, setQuickViewDeal] = useState<Opportunity | null>(null);
   const [dealFormOpen, setDealFormOpen] = useState(false);
   const [editingDeal, setEditingDeal] = useState<Opportunity | null>(null);
 
@@ -475,21 +477,21 @@ export default function Calendar() {
         ) : (
           <>
             {viewMode === 'month' && (
-              <DealMonthView monthDate={cursorDate} deals={visibleDeals} onDealClick={setActiveDeal} />
+              <DealMonthView monthDate={cursorDate} deals={visibleDeals} onDealClick={setQuickViewDeal} />
             )}
             {viewMode === 'week' && (
               <DealWeekView
                 weekStart={startOfWeek(cursorDate)}
                 deals={weekDeals}
                 stagesById={stagesById}
-                onDealClick={setActiveDeal}
+                onDealClick={setQuickViewDeal}
               />
             )}
             {viewMode === 'day' && (
               <DealListView
                 deals={dayDeals}
                 stagesById={stagesById}
-                onDealClick={setActiveDeal}
+                onDealClick={setQuickViewDeal}
                 emptyLabel="No deals closing this day."
               />
             )}
@@ -497,7 +499,7 @@ export default function Calendar() {
               <DealListView
                 deals={visibleDeals}
                 stagesById={stagesById}
-                onDealClick={setActiveDeal}
+                onDealClick={setQuickViewDeal}
                 emptyLabel="No deals closing this month."
               />
             )}
@@ -526,6 +528,16 @@ export default function Calendar() {
           onEdit={openEditModal}
           onOpenContact={() => navigate('/contacts')}
           onOpenOpportunity={() => navigate('/pipeline')}
+        />
+
+        <DealQuickView
+          deal={quickViewDeal}
+          stagesById={stagesById}
+          onClose={() => setQuickViewDeal(null)}
+          onEdit={(deal) => {
+            setQuickViewDeal(null);
+            setActiveDeal(deal);
+          }}
         />
 
         <DealDetailPanel
