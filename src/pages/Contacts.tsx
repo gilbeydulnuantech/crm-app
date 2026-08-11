@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Contact, ContactsView } from '../types/contact';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -61,6 +62,7 @@ function loadColumnOrder(): string[] {
 
 export default function Contacts() {
   const { user, isAdmin } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [view, setView] = useState<ContactsView>('all');
   const [search, setSearch] = useState('');
@@ -112,6 +114,20 @@ export default function Contacts() {
     () => allContacts.find((c) => c.id === activeContactId) ?? null,
     [allContacts, activeContactId]
   );
+
+  // Deep link from the notification bell — ?contactId=<id> opens that
+  // contact's detail modal once the list has loaded, then clears the param
+  // so a refresh/back-nav doesn't keep reopening it.
+  useEffect(() => {
+    const contactIdParam = searchParams.get('contactId');
+    if (!contactIdParam) return;
+    const id = Number(contactIdParam);
+    if (!allContacts.some((c) => c.id === id)) return;
+    setActiveContactId(id);
+    const next = new URLSearchParams(searchParams);
+    next.delete('contactId');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, allContacts, setSearchParams]);
 
   function changeView(next: ContactsView) {
     setView(next);

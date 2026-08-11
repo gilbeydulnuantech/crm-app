@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as api from '../api/contacts';
 import { Contact, ImportContactRow } from '../types/contact';
-import { countUnreadEmails } from '../utils/emailLogs';
+import { getContactsWithUnreadEmail } from '../utils/emailLogs';
 
 export function useContacts() {
   return useQuery({
@@ -10,17 +10,20 @@ export function useContacts() {
   });
 }
 
-// Bell-icon badge count — active contacts already carry email_logs
-// (get-contacts is `SELECT c.*`), so no dedicated endpoint is needed.
-// Polls on a short interval so a reply landing in another tab/session shows
-// up without the user having to touch the Contacts page.
-export function useUnreadEmailCount() {
-  const { data: contacts = [] } = useQuery({
+// Backs the notification bell — active contacts already carry email_logs
+// (get-contacts is `SELECT c.*`), so no dedicated endpoint is needed. Shares
+// the ['contacts'] cache key with useContacts(), just adds polling so a
+// reply landing in another tab/session shows up without visiting Contacts.
+function useContactsForNotifications() {
+  return useQuery({
     queryKey: ['contacts'],
     queryFn: api.fetchContacts,
     refetchInterval: 60_000,
-  });
-  return countUnreadEmails(contacts);
+  }).data ?? [];
+}
+
+export function useUnreadEmailContacts() {
+  return getContactsWithUnreadEmail(useContactsForNotifications());
 }
 
 export function useArchivedContacts(enabled: boolean) {

@@ -24,3 +24,28 @@ export function countUnreadEmails(contacts: Contact[]): number {
     0
   );
 }
+
+export interface ContactUnreadSummary {
+  contact: Contact;
+  unreadCount: number;
+  latestLog: EmailLog;
+}
+
+// One row per contact (not per email) for the notification bell dropdown —
+// sorted most-recently-received first.
+export function getContactsWithUnreadEmail(contacts: Contact[]): ContactUnreadSummary[] {
+  const summaries: ContactUnreadSummary[] = [];
+
+  contacts.forEach((contact) => {
+    const unread = parseEmailLogs(contact.email_logs).filter(isUnreadEmailLog);
+    if (unread.length === 0) return;
+    const latestLog = unread.reduce((latest, log) =>
+      new Date(log.sent_at ?? 0).getTime() > new Date(latest.sent_at ?? 0).getTime() ? log : latest
+    );
+    summaries.push({ contact, unreadCount: unread.length, latestLog });
+  });
+
+  return summaries.sort(
+    (a, b) => new Date(b.latestLog.sent_at ?? 0).getTime() - new Date(a.latestLog.sent_at ?? 0).getTime()
+  );
+}
