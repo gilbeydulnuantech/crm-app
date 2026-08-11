@@ -143,9 +143,10 @@ export default function DealCard({ opportunity, onClick }: Props) {
         {opportunity.name}
       </div>
 
-      {/* Company/Contact Name */}
+      {/* Contact (always present) with Company as extra context when set */}
       <div className="text-[11px] text-slate-500 truncate">
-        {opportunity.company_name || toTitleCase(opportunity.contact_name) || 'No Company'}
+        {toTitleCase(opportunity.contact_name) || 'No Contact'}
+        {opportunity.company_name && ` · ${opportunity.company_name}`}
       </div>
 
       {/* Expected Close Date */}

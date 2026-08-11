@@ -20,7 +20,7 @@ import { useDashboard } from '../hooks/useDashboard';
 import AddContactModal from '../components/contacts/AddContactModal';
 import DealFormModal from '../components/pipeline/DealFormModal';
 import TaskFormModal from '../components/tasks/TaskFormModal';
-import { usePipelines, useStages } from '../hooks/useOpportunities';
+import { usePipelines } from '../hooks/useOpportunities';
 import { toTitleCase } from '../utils/text';
 
 // Color theme
@@ -115,7 +115,6 @@ export default function Dashboard() {
 
   const { data: pipelines = [] } = usePipelines();
   const defaultPipelineId = pipelines.find((p) => p.is_default)?.id ?? pipelines[0]?.id;
-  const { data: stages = [] } = useStages(defaultPipelineId);
 
   const today = new Date().toLocaleDateString(undefined, {
     year: 'numeric',
@@ -496,7 +495,6 @@ export default function Dashboard() {
         <DealFormModal
           open={addDealOpen}
           opportunity={null}
-          stages={stages}
           pipelineId={defaultPipelineId}
           onClose={() => setAddDealOpen(false)}
         />

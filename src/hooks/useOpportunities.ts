@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as api from '../api/opportunities';
 import { Opportunity } from '../types/opportunity';
 
@@ -6,6 +6,14 @@ export function usePipelines() {
   return useQuery({
     queryKey: ['pipelines'],
     queryFn: api.fetchPipelines,
+  });
+}
+
+export function useAddPipeline() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) => api.addPipeline(name),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['pipelines'] }),
   });
 }
 
@@ -23,6 +31,37 @@ export function useOpportunities(pipelineId?: number) {
     queryFn: () => api.fetchOpportunities(pipelineId!),
     enabled: !!pipelineId,
   });
+}
+
+// get-opportunities/get-stages only take a single pipeline_id — there's no
+// "all pipelines" endpoint. These fan out one query per pipeline (reusing
+// the same ['opportunities', id]/['stages', id] cache keys the single-
+// pipeline hooks already use) and merge the results, for views like the
+// Calendar's Deals mode that need every deal regardless of pipeline.
+export function useAllOpportunities(pipelineIds: number[]) {
+  const results = useQueries({
+    queries: pipelineIds.map((id) => ({
+      queryKey: ['opportunities', id],
+      queryFn: () => api.fetchOpportunities(id),
+    })),
+  });
+  return {
+    data: results.flatMap((r) => r.data ?? []),
+    isLoading: results.some((r) => r.isLoading),
+  };
+}
+
+export function useAllStages(pipelineIds: number[]) {
+  const results = useQueries({
+    queries: pipelineIds.map((id) => ({
+      queryKey: ['stages', id],
+      queryFn: () => api.fetchStages(id),
+    })),
+  });
+  return {
+    data: results.flatMap((r) => r.data ?? []),
+    isLoading: results.some((r) => r.isLoading),
+  };
 }
 
 function useInvalidateOpportunities(pipelineId?: number) {

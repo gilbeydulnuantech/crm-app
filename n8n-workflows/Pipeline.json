@@ -130,7 +130,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT o.id, o.name, o.contact_id, TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS contact_name, o.account_id, co.name AS company_name, o.pipeline_id, o.stage_id, o.assigned_user, u.name AS assigned_user_name, o.created_by, o.deal_value, o.probability, o.status, o.expected_close, o.closed_at, o.created_at, o.updated_at FROM opportunities o LEFT JOIN contacts c ON c.id = o.contact_id LEFT JOIN companies co ON co.id = o.account_id LEFT JOIN users u ON u.id = o.assigned_user WHERE o.pipeline_id = $1 ORDER BY o.created_at DESC;",
+        "query": "SELECT o.id, o.name, o.contact_id, TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS contact_name, o.account_id, co.name AS company_name, o.pipeline_id, o.stage_id, o.assigned_user, u.name AS assigned_user_name, o.created_by, o.deal_value, o.probability, o.status, o.expected_close, o.closed_at, o.created_at, o.updated_at,\n  (SELECT COALESCE(json_agg(json_build_object('id', t.id, 'name', t.name)), '[]'::json)\n   FROM taggables tg JOIN tags t ON t.id = tg.tag_id\n   WHERE tg.entity_type = 'opportunity' AND tg.entity_id = o.id) AS tags\nFROM opportunities o LEFT JOIN contacts c ON c.id = o.contact_id LEFT JOIN companies co ON co.id = o.account_id LEFT JOIN users u ON u.id = o.assigned_user WHERE o.pipeline_id = $1 ORDER BY o.created_at DESC;",
         "options": {
           "queryReplacement": "={{ [$json.query.pipeline_id] }}"
         }
@@ -389,6 +389,63 @@
         1264,
         1600
       ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "add-pipeline",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "b1c2d3e4-0001-4a5a-9b1a-add1pipe1ine1",
+      "name": "Webhook: add-pipeline",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        816,
+        1808
+      ],
+      "webhookId": "b1c2d3e4-0001-4a5a-9b1a-webhook0add1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO pipelines (name, is_default) VALUES ($1, false) RETURNING id, name, is_default;",
+        "options": {
+          "queryReplacement": "={{ [$json.body.name] }}"
+        }
+      },
+      "id": "b1c2d3e4-0002-4a5a-9b1a-add1pipe1ine2",
+      "name": "Postgres: Insert Pipeline",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1056,
+        1808
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"id\": $json.id, \"name\": $json.name, \"is_default\": $json.is_default } }}",
+        "options": {}
+      },
+      "id": "b1c2d3e4-0003-4a5a-9b1a-add1pipe1ine3",
+      "name": "Respond: add-pipeline",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1296,
+        1808
+      ]
     }
   ],
   "pinData": {},
@@ -541,6 +598,28 @@
         [
           {
             "node": "Respond: delete-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: add-pipeline": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Insert Pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Insert Pipeline": {
+      "main": [
+        [
+          {
+            "node": "Respond: add-pipeline",
             "type": "main",
             "index": 0
           }

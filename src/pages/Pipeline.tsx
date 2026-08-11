@@ -6,14 +6,83 @@ import {
   usePipelines,
   useStages,
 } from '../hooks/useOpportunities';
+import { useTags, useUsers } from '../hooks/useContacts';
+import { useAuth } from '../context/AuthContext';
 import PipelineStatsBar from '../components/pipeline/PipelineStatsBar';
 import PipelineBoard from '../components/pipeline/PipelineBoard';
 import PipelineListView from '../components/pipeline/PipelineListView';
+import PipelineSelector from '../components/pipeline/PipelineSelector';
+import PipelineFilterPanel, {
+  countActiveDealFilters,
+  DealFilters,
+  EMPTY_DEAL_FILTERS,
+} from '../components/pipeline/PipelineFilterPanel';
 import DealFormModal from '../components/pipeline/DealFormModal';
 import DealDetailPanel from '../components/pipeline/DealDetailPanel';
 import SearchToolbar from '../components/SearchToolbar';
 
+function dateRangeForPreset(filters: DealFilters): [Date, Date] | null {
+  const now = new Date();
+  switch (filters.datePreset) {
+    case 'this_month': {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+      return [start, end];
+    }
+    case 'next_30': {
+      const end = new Date(now);
+      end.setDate(now.getDate() + 30);
+      return [now, end];
+    }
+    case 'this_quarter': {
+      const quarter = Math.floor(now.getMonth() / 3);
+      const start = new Date(now.getFullYear(), quarter * 3, 1);
+      const end = new Date(now.getFullYear(), quarter * 3 + 3, 0, 23, 59, 59);
+      return [start, end];
+    }
+    case 'custom': {
+      if (!filters.customStart && !filters.customEnd) return null;
+      const start = filters.customStart ? new Date(filters.customStart) : new Date(0);
+      const end = filters.customEnd ? new Date(filters.customEnd + 'T23:59:59') : new Date(8640000000000000);
+      return [start, end];
+    }
+    default:
+      return null;
+  }
+}
+
+function matchesDealFilters(o: Opportunity, filters: DealFilters, currentUserId?: number): boolean {
+  if (filters.owner === 'mine' && o.assigned_user !== currentUserId) return false;
+  if (filters.owner === 'unassigned' && o.assigned_user) return false;
+  if (!['all', 'mine', 'unassigned'].includes(filters.owner) && String(o.assigned_user ?? '') !== filters.owner) {
+    return false;
+  }
+
+  const range = dateRangeForPreset(filters);
+  if (range) {
+    if (!o.expected_close) return false;
+    const closeDate = new Date(o.expected_close);
+    if (closeDate < range[0] || closeDate > range[1]) return false;
+  }
+
+  const min = filters.minValue ? Number(filters.minValue) : null;
+  const max = filters.maxValue ? Number(filters.maxValue) : null;
+  if (min !== null || max !== null) {
+    if (o.deal_value == null) return false;
+    if (min !== null && o.deal_value < min) return false;
+    if (max !== null && o.deal_value > max) return false;
+  }
+
+  if (filters.tagIds.length > 0) {
+    const dealTagIds = new Set((o.tags ?? []).map((t) => t.id));
+    if (!filters.tagIds.some((id) => dealTagIds.has(id))) return false;
+  }
+
+  return true;
+}
+
 export default function Pipeline() {
+  const { user, isAdmin } = useAuth();
   const { data: pipelines = [] } = usePipelines();
   const [pipelineId, setPipelineId] = useState<number | undefined>();
   const [viewMode, setViewMode] = useState<PipelineViewMode>('board');
@@ -21,6 +90,8 @@ export default function Pipeline() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingOpportunity, setEditingOpportunity] = useState<Opportunity | null>(null);
   const [activeOpportunity, setActiveOpportunity] = useState<Opportunity | null>(null);
+  const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+  const [filters, setFilters] = useState<DealFilters>(EMPTY_DEAL_FILTERS);
 
   // Default to the pipeline marked is_default, falling back to the first one
   // returned, once pipelines load.
@@ -32,18 +103,27 @@ export default function Pipeline() {
 
   const { data: stages = [] } = useStages(pipelineId);
   const { data: opportunities = [], isLoading } = useOpportunities(pipelineId);
+  const { data: users = [] } = useUsers();
+  const { data: tags = [] } = useTags();
   const moveStage = useMoveOpportunityStage(pipelineId);
 
   const visibleOpportunities = useMemo(() => {
-    if (!search.trim()) return opportunities;
-    const q = search.trim().toLowerCase();
-    return opportunities.filter(
-      (o) =>
-        o.name.toLowerCase().includes(q) ||
-        o.company_name?.toLowerCase().includes(q) ||
-        o.contact_name?.toLowerCase().includes(q)
-    );
-  }, [opportunities, search]);
+    let list = opportunities;
+
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      list = list.filter(
+        (o) =>
+          o.name.toLowerCase().includes(q) ||
+          o.company_name?.toLowerCase().includes(q) ||
+          o.contact_name?.toLowerCase().includes(q)
+      );
+    }
+
+    return list.filter((o) => matchesDealFilters(o, filters, user?.id));
+  }, [opportunities, search, filters, user]);
+
+  const activeFilterCount = countActiveDealFilters(filters);
 
   function openAddModal() {
     setEditingOpportunity(null);
@@ -63,22 +143,12 @@ export default function Pipeline() {
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       <div className="px-4 py-4 flex items-center justify-between shrink-0 border-b border-slate-200">
-        <div className="flex items-center gap-2">
-          <h1 className="text-lg font-bold text-slate-800">Sales Pipeline</h1>
-          {pipelines.length > 1 && (
-            <select
-              value={pipelineId ?? ''}
-              onChange={(e) => setPipelineId(Number(e.target.value))}
-              className="text-sm border border-slate-200 rounded-lg px-2 py-1 font-medium text-slate-600"
-            >
-              {pipelines.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
+        <PipelineSelector
+          pipelines={pipelines}
+          pipelineId={pipelineId}
+          isAdmin={isAdmin}
+          onChange={setPipelineId}
+        />
         <button
           onClick={openAddModal}
           className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-3 py-1.5 rounded-lg flex items-center space-x-2 shadow-sm transition-all"
@@ -95,25 +165,40 @@ export default function Pipeline() {
         onSearchChange={setSearch}
         placeholder="Search deals..."
         rightExtra={
-          <div className="flex items-center gap-1 border border-slate-200 rounded-md p-0.5 bg-slate-50">
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => setViewMode('board')}
-              className={`px-2.5 py-1 text-xs font-semibold rounded ${
-                viewMode === 'board' ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500'
-              }`}
+              onClick={() => setFilterPanelOpen(true)}
+              className="relative flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-indigo-600 py-1.5 px-2.5 border border-slate-200 rounded-md bg-white transition-colors"
             >
-              <i className="fa-solid fa-table-columns text-[10px] mr-1" />
-              Board
+              <i className="fa-solid fa-filter text-[10px]" />
+              Filter
+              {activeFilterCount > 0 && (
+                <span className="ml-0.5 w-4 h-4 flex items-center justify-center rounded-full bg-indigo-600 text-white text-[9px] font-bold">
+                  {activeFilterCount}
+                </span>
+              )}
             </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`px-2.5 py-1 text-xs font-semibold rounded ${
-                viewMode === 'list' ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500'
-              }`}
-            >
-              <i className="fa-solid fa-list text-[10px] mr-1" />
-              List
-            </button>
+
+            <div className="flex items-center gap-1 border border-slate-200 rounded-md p-0.5 bg-slate-50">
+              <button
+                onClick={() => setViewMode('board')}
+                className={`px-2.5 py-1 text-xs font-semibold rounded ${
+                  viewMode === 'board' ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500'
+                }`}
+              >
+                <i className="fa-solid fa-table-columns text-[10px] mr-1" />
+                Board
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`px-2.5 py-1 text-xs font-semibold rounded ${
+                  viewMode === 'list' ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500'
+                }`}
+              >
+                <i className="fa-solid fa-list text-[10px] mr-1" />
+                List
+              </button>
+            </div>
           </div>
         }
       />
@@ -138,7 +223,6 @@ export default function Pipeline() {
         <DealFormModal
           open={formOpen}
           opportunity={editingOpportunity}
-          stages={stages}
           pipelineId={pipelineId}
           onClose={() => setFormOpen(false)}
         />
@@ -153,6 +237,15 @@ export default function Pipeline() {
           onEdit={openEditModal}
         />
       )}
+
+      <PipelineFilterPanel
+        open={filterPanelOpen}
+        value={filters}
+        users={users}
+        tags={tags}
+        onChange={setFilters}
+        onClose={() => setFilterPanelOpen(false)}
+      />
     </div>
   );
 }

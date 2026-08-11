@@ -31,6 +31,9 @@ export interface Opportunity {
   closed_at?: string | null;
   created_at?: string;
   updated_at?: string;
+  // Reuses the generic taggables system (entity_type = 'opportunity') the
+  // same way contacts already do — see get-opportunities' SQL.
+  tags?: { id: number; name: string }[];
 }
 
 export type PipelineViewMode = 'board' | 'list';

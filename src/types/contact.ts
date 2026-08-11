@@ -28,6 +28,11 @@ export interface Contact {
   // from an EXISTS check against activities. Documented in n8n-workflows/README.md.
   stage_name?: string;
   has_open_task?: boolean;
+  // ASSUMPTION: no `timezone` column exists on contacts yet (unlike
+  // secondary_email/secondary_phone/linkedin_url, which are already wired
+  // through add-contact/update-contact/get-contacts). Renders as "--" until
+  // a real column + form field are added.
+  timezone?: string;
 }
 
 export interface EmailLog {

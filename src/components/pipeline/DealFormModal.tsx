@@ -1,12 +1,16 @@
-import { FormEvent, useEffect, useState } from 'react';
-import { Opportunity, Stage } from '../../types/opportunity';
-import { useAddOpportunity, useUpdateOpportunity } from '../../hooks/useOpportunities';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { Opportunity } from '../../types/opportunity';
+import { useAddOpportunity, useUpdateOpportunity, usePipelines, useStages } from '../../hooks/useOpportunities';
+import { useContacts, useUsers } from '../../hooks/useContacts';
+import { toTitleCase } from '../../utils/text';
+import CompanyPicker from '../contacts/CompanyPicker';
+import ContactPicker from './ContactPicker';
 
 interface Props {
   open: boolean;
   opportunity: Opportunity | null; // null = add mode
-  stages: Stage[];
-  pipelineId: number;
+  pipelineId: number; // initial/default pipeline
   defaultStageId?: number;
   defaultContactId?: number;
   onClose: () => void;
@@ -15,16 +19,20 @@ interface Props {
 const EMPTY = {
   name: '',
   contact_id: '',
+  contact_name: '',
   account_id: '',
+  company_name: '',
+  pipeline_id: '',
   stage_id: '',
   deal_value: '',
+  assigned_user: '',
   expected_close: '',
+  probability: '',
 };
 
 export default function DealFormModal({
   open,
   opportunity,
-  stages,
   pipelineId,
   defaultStageId,
   defaultContactId,
@@ -32,31 +40,70 @@ export default function DealFormModal({
 }: Props) {
   const [form, setForm] = useState(EMPTY);
   const [error, setError] = useState<string | null>(null);
-  const addOpportunity = useAddOpportunity(pipelineId);
-  const updateOpportunity = useUpdateOpportunity(pipelineId);
+  const qc = useQueryClient();
 
   const isEdit = !!opportunity;
+  // Locked to a single contact only when opened straight from that
+  // contact's own detail modal in add mode — otherwise the contact is
+  // searchable (editing an existing deal, or creating one from the
+  // Pipeline board with no contact context yet).
+  const isContactLocked = !isEdit && !!defaultContactId;
+
+  const { data: pipelines = [] } = usePipelines();
+  const { data: contacts = [] } = useContacts();
+  const { data: users = [] } = useUsers();
+
+  const selectedPipelineId = form.pipeline_id ? Number(form.pipeline_id) : undefined;
+  const { data: stages = [] } = useStages(selectedPipelineId);
+  const sortedStages = useMemo(
+    () => stages.slice().sort((a, b) => a.display_order - b.display_order),
+    [stages]
+  );
+
+  const addOpportunity = useAddOpportunity(selectedPipelineId);
+  const updateOpportunity = useUpdateOpportunity(selectedPipelineId);
   const isSaving = addOpportunity.isPending || updateOpportunity.isPending;
 
   useEffect(() => {
+    if (!open) return;
+
     if (opportunity) {
       setForm({
         name: opportunity.name ?? '',
         contact_id: String(opportunity.contact_id ?? ''),
+        contact_name: opportunity.contact_name ?? '',
         account_id: opportunity.account_id ? String(opportunity.account_id) : '',
+        company_name: opportunity.company_name ?? '',
+        pipeline_id: opportunity.pipeline_id ? String(opportunity.pipeline_id) : String(pipelineId),
         stage_id: String(opportunity.stage_id ?? ''),
         deal_value: opportunity.deal_value ? String(opportunity.deal_value) : '',
+        assigned_user: opportunity.assigned_user ? String(opportunity.assigned_user) : '',
         expected_close: opportunity.expected_close?.slice(0, 10) ?? '',
+        probability: opportunity.probability != null ? String(opportunity.probability) : '',
       });
-    } else {
-      setForm({
-        ...EMPTY,
-        stage_id: defaultStageId ? String(defaultStageId) : '',
-        contact_id: defaultContactId ? String(defaultContactId) : '',
-      });
+      setError(null);
+      return;
     }
+
+    const defaultContact = defaultContactId ? contacts.find((c) => c.id === defaultContactId) : undefined;
+
+    setForm({
+      ...EMPTY,
+      pipeline_id: String(pipelineId),
+      stage_id: defaultStageId ? String(defaultStageId) : '',
+      contact_id: defaultContact ? String(defaultContact.id) : '',
+      contact_name: defaultContact ? `${defaultContact.first_name} ${defaultContact.last_name}`.trim() : '',
+      account_id: defaultContact?.account_id ? String(defaultContact.account_id) : '',
+      company_name: defaultContact?.company_name ?? '',
+      assigned_user: defaultContact?.owner_id ? String(defaultContact.owner_id) : '',
+    });
     setError(null);
-  }, [opportunity, open, defaultStageId, defaultContactId]);
+    // `contacts` intentionally excluded — it refetches on the app's polling
+    // interval and we only want this to (re)seed the form when the modal
+    // actually opens for a (possibly) different opportunity/contact, not
+    // every time the background contacts list happens to refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opportunity, open, pipelineId, defaultStageId, defaultContactId]);
 
   if (!open) return null;
 
@@ -64,32 +111,74 @@ export default function DealFormModal({
     setForm((f) => ({ ...f, [key]: value }));
   }
 
+  function handleContactChange(id: number | null, name: string) {
+    const matched = id ? contacts.find((c) => c.id === id) : undefined;
+    setForm((f) => ({
+      ...f,
+      contact_id: id ? String(id) : '',
+      contact_name: name,
+      account_id: matched?.account_id ? String(matched.account_id) : f.account_id,
+      company_name: matched?.company_name ?? f.company_name,
+      assigned_user: matched?.owner_id ? String(matched.owner_id) : f.assigned_user,
+    }));
+  }
+
+  function handleStageChange(stageId: string) {
+    const idx = sortedStages.findIndex((s) => String(s.id) === stageId);
+    const computed =
+      idx >= 0 && sortedStages.length > 0 ? Math.round(((idx + 1) / sortedStages.length) * 100) : undefined;
+    setForm((f) => ({
+      ...f,
+      stage_id: stageId,
+      probability: computed != null ? String(computed) : f.probability,
+    }));
+  }
+
+  function handlePipelineChange(newPipelineId: string) {
+    setForm((f) => ({ ...f, pipeline_id: newPipelineId, stage_id: '', probability: '' }));
+  }
+
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+
+    if (!form.pipeline_id || !form.stage_id) {
+      setError('Pipeline and stage are required.');
+      return;
+    }
 
     const payload = {
       name: form.name,
       contact_id: Number(form.contact_id),
       account_id: form.account_id ? Number(form.account_id) : null,
+      pipeline_id: Number(form.pipeline_id),
       stage_id: Number(form.stage_id),
-      pipeline_id: pipelineId,
       deal_value: form.deal_value ? Number(form.deal_value) : null,
+      assigned_user: form.assigned_user ? Number(form.assigned_user) : null,
       expected_close: form.expected_close || null,
+      probability: form.probability ? Number(form.probability) : 0,
     };
+
+    // A deal can be created/moved under a different pipeline than the one
+    // this form started with — invalidate broadly so any pipeline board
+    // picks up the change, not just the one tied to selectedPipelineId.
+    const invalidateAll = () => qc.invalidateQueries({ queryKey: ['opportunities'] });
 
     if (isEdit && opportunity) {
       updateOpportunity.mutate(
         { id: opportunity.id, payload },
         {
-          onSuccess: () => onClose(),
-          onError: (err) =>
-            setError(err instanceof Error ? err.message : 'Failed to update deal.'),
+          onSuccess: () => {
+            invalidateAll();
+            onClose();
+          },
+          onError: (err) => setError(err instanceof Error ? err.message : 'Failed to update deal.'),
         }
       );
     } else {
       addOpportunity.mutate(payload, {
         onSuccess: () => {
+          invalidateAll();
           setForm(EMPTY);
           onClose();
         },
@@ -100,7 +189,7 @@ export default function DealFormModal({
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold text-slate-800">{isEdit ? 'Edit Deal' : 'Add Deal'}</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
@@ -120,49 +209,70 @@ export default function DealFormModal({
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Contact ID</label>
-              <input
-                required
-                type="number"
-                value={form.contact_id}
-                onChange={(e) => update('contact_id', e.target.value)}
-                className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="e.g. 42"
+            {isContactLocked ? (
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Contact</label>
+                <div className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg bg-slate-50 text-slate-700 truncate">
+                  {toTitleCase(form.contact_name) || '--'}
+                </div>
+              </div>
+            ) : (
+              <ContactPicker
+                contactId={form.contact_id ? Number(form.contact_id) : null}
+                contactName={form.contact_name}
+                onChange={handleContactChange}
               />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Company ID</label>
-              <input
-                type="number"
-                value={form.account_id}
-                onChange={(e) => update('account_id', e.target.value)}
-                className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="optional"
-              />
-            </div>
+            )}
+            <CompanyPicker
+              accountId={form.account_id ? Number(form.account_id) : null}
+              companyName={form.company_name}
+              onChange={(accountId, name) =>
+                setForm((f) => ({
+                  ...f,
+                  account_id: accountId ? String(accountId) : '',
+                  company_name: name,
+                }))
+              }
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Pipeline</label>
+              <select
+                required
+                value={form.pipeline_id}
+                onChange={(e) => handlePipelineChange(e.target.value)}
+                className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="">--</option>
+                {pipelines.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Stage</label>
               <select
                 required
                 value={form.stage_id}
-                onChange={(e) => update('stage_id', e.target.value)}
-                className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                onChange={(e) => handleStageChange(e.target.value)}
+                disabled={!form.pipeline_id}
+                className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-400"
               >
                 <option value="">--</option>
-                {stages
-                  .slice()
-                  .sort((a, b) => a.display_order - b.display_order)
-                  .map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
+                {sortedStages.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
               </select>
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Deal Value</label>
               <input
@@ -173,16 +283,45 @@ export default function DealFormModal({
                 placeholder="$"
               />
             </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Owner</label>
+              <select
+                value={form.assigned_user}
+                onChange={(e) => update('assigned_user', e.target.value)}
+                className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="">Unassigned</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {toTitleCase(u.name)}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Expected Close</label>
-            <input
-              type="date"
-              value={form.expected_close}
-              onChange={(e) => update('expected_close', e.target.value)}
-              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Expected Close</label>
+              <input
+                type="date"
+                value={form.expected_close}
+                onChange={(e) => update('expected_close', e.target.value)}
+                className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Win Probability (%)</label>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                value={form.probability}
+                onChange={(e) => update('probability', e.target.value)}
+                className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                placeholder="Auto from stage"
+              />
+            </div>
           </div>
 
           {error && (
@@ -190,11 +329,6 @@ export default function DealFormModal({
               {error}
             </div>
           )}
-
-          <p className="text-[11px] text-slate-400 italic">
-            Contact/Company use raw IDs for now — an autocomplete picker (reusing the Contacts
-            search) is a good next step once this is wired to live data.
-          </p>
 
           <div className="flex justify-end gap-2 pt-2">
             <button

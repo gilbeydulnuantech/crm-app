@@ -224,17 +224,23 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                     Phone's column and visually overlap it. */}
                 <DetailField label="Email" value={contact.email} className="col-span-2" />
                 <DetailField label="Phone" value={toTitleCase(contact.phone)} />
-                <DetailField label="Position" value={toTitleCase(contact.job_title)} />
+                <DetailField label="Secondary Phone" value={toTitleCase(contact.secondary_phone)} />
                 <DetailField label="Company" value={toTitleCase(contact.company_name)} />
-                <DetailField
-                  label="Created"
-                  value={contact.created_at ? new Date(contact.created_at).toLocaleDateString() : undefined}
-                />
+                <DetailField label="Position" value={toTitleCase(contact.job_title)} />
+                <DetailField label="Secondary Email" value={contact.secondary_email} className="col-span-2" />
                 <DetailField
                   label="Location"
                   value={toTitleCase([contact.city, contact.state, contact.country].filter(Boolean).join(', '))}
+                  className="col-span-2"
                 />
-                <DetailField label="Lead Source" value={toTitleCase(contact.lead_source)} />
+                <DetailField label="Timezone" value={contact.timezone} className="col-span-2" />
+                <DetailField label="LinkedIn Profile" value={contact.linkedin_url} className="col-span-2" />
+                <DetailField label="Lead Source" value={toTitleCase(contact.lead_source)} className="col-span-2" />
+                <DetailField
+                  label="Created"
+                  value={contact.created_at ? new Date(contact.created_at).toLocaleDateString() : undefined}
+                  className="col-span-2"
+                />
               </div>
             </div>
 
@@ -397,7 +403,6 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
         <DealFormModal
           open={dealFormOpen}
           opportunity={null}
-          stages={stages}
           pipelineId={defaultPipelineId}
           defaultContactId={contact.id}
           onClose={() => setDealFormOpen(false)}

@@ -5,6 +5,16 @@ export function fetchPipelines() {
   return apiFetch<Pipeline[]>('/webhook/get-pipelines');
 }
 
+export function addPipeline(name: string) {
+  return apiFetch<{ success: boolean; id?: number; name?: string; is_default?: boolean; error?: string }>(
+    '/webhook/add-pipeline',
+    {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    }
+  );
+}
+
 export function fetchStages(pipelineId: number) {
   return apiFetch<Stage[]>(`/webhook/get-stages?pipeline_id=${pipelineId}`);
 }

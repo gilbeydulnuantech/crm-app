@@ -1,16 +1,25 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CalendarEvent, CalendarViewMode } from '../types/event';
+import { Opportunity } from '../types/opportunity';
 import { useEvents } from '../hooks/useEvents';
+import { useAllOpportunities, useAllStages, usePipelines } from '../hooks/useOpportunities';
 import CalendarStatsBar from '../components/calendar/CalendarStatsBar';
 import CalendarLegend from '../components/calendar/CalendarLegend';
 import MonthView from '../components/calendar/MonthView';
 import WeekView from '../components/calendar/WeekView';
 import { EventListView } from '../components/calendar/EventListView';
+import DealMonthView from '../components/calendar/DealMonthView';
+import DealWeekView from '../components/calendar/DealWeekView';
+import DealListView from '../components/calendar/DealListView';
 import TodayAndUpcoming from '../components/calendar/TodayAndUpcoming';
 import EventDetailPanel from '../components/calendar/EventDetailPanel';
 import EventFormModal from '../components/calendar/EventFormModal';
+import DealDetailPanel from '../components/pipeline/DealDetailPanel';
+import DealFormModal from '../components/pipeline/DealFormModal';
 import SearchToolbar from '../components/SearchToolbar';
+
+type CalendarMode = 'events' | 'deals';
 
 function startOfMonth(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), 1);
@@ -30,6 +39,7 @@ function toISODate(d: Date) {
 
 export default function Calendar() {
   const navigate = useNavigate();
+  const [mode, setMode] = useState<CalendarMode>('events');
   const [viewMode, setViewMode] = useState<CalendarViewMode>('month');
   const [cursorDate, setCursorDate] = useState(new Date());
   const [search, setSearch] = useState('');
@@ -38,11 +48,38 @@ export default function Calendar() {
   const [activeEvent, setActiveEvent] = useState<CalendarEvent | null>(null);
   const [addDefaultDate, setAddDefaultDate] = useState<Date | null>(null);
 
+  const [activeDeal, setActiveDeal] = useState<Opportunity | null>(null);
+  const [dealFormOpen, setDealFormOpen] = useState(false);
+  const [editingDeal, setEditingDeal] = useState<Opportunity | null>(null);
+
   // Always fetch a full month range regardless of view mode — keeps the
   // query cache simple and lets Week/Day/Agenda reuse the same fetched set.
   const rangeStart = startOfMonth(cursorDate);
   const rangeEnd = endOfMonth(cursorDate);
-  const { data: allEvents = [], isLoading } = useEvents(toISODate(rangeStart), toISODate(rangeEnd));
+  const { data: allEvents = [], isLoading: eventsLoading } = useEvents(toISODate(rangeStart), toISODate(rangeEnd));
+
+  // get-opportunities is per-pipeline — fan out across every pipeline so
+  // "all deals" really means all of them, not just the default pipeline.
+  const { data: pipelines = [] } = usePipelines();
+  const pipelineIds = useMemo(() => pipelines.map((p) => p.id), [pipelines]);
+  const activePipelineIds = mode === 'deals' ? pipelineIds : [];
+  const { data: allDealsRaw = [], isLoading: dealsLoading } = useAllOpportunities(activePipelineIds);
+  const { data: allStages = [] } = useAllStages(activePipelineIds);
+
+  const stagesById = useMemo(() => new Map(allStages.map((s) => [s.id, s])), [allStages]);
+  const stagesByPipelineId = useMemo(() => {
+    const map = new Map<number, typeof allStages>();
+    allStages.forEach((s) => {
+      if (!map.has(s.pipeline_id)) map.set(s.pipeline_id, []);
+      map.get(s.pipeline_id)!.push(s);
+    });
+    return map;
+  }, [allStages]);
+
+  // Only deals with an expected close date can be placed on the calendar.
+  const allDeals = useMemo(() => allDealsRaw.filter((d) => !!d.expected_close), [allDealsRaw]);
+
+  const isLoading = mode === 'events' ? eventsLoading : dealsLoading;
 
   const visibleEvents = useMemo(() => {
     if (!search.trim()) return allEvents;
@@ -70,6 +107,32 @@ export default function Calendar() {
     [visibleEvents, cursorDate]
   );
 
+  const visibleDeals = useMemo(() => {
+    if (!search.trim()) return allDeals;
+    const q = search.trim().toLowerCase();
+    return allDeals.filter(
+      (d) =>
+        d.name.toLowerCase().includes(q) ||
+        d.contact_name?.toLowerCase().includes(q) ||
+        d.company_name?.toLowerCase().includes(q)
+    );
+  }, [allDeals, search]);
+
+  const weekDeals = useMemo(() => {
+    const start = startOfWeek(cursorDate);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 7);
+    return visibleDeals.filter((d) => {
+      const dt = new Date(d.expected_close!);
+      return dt >= start && dt < end;
+    });
+  }, [visibleDeals, cursorDate]);
+
+  const dayDeals = useMemo(
+    () => visibleDeals.filter((d) => new Date(d.expected_close!).toDateString() === cursorDate.toDateString()),
+    [visibleDeals, cursorDate]
+  );
+
   function openAddModal(date?: Date) {
     setEditingEvent(null);
     setAddDefaultDate(date ?? cursorDate);
@@ -80,6 +143,17 @@ export default function Calendar() {
     setActiveEvent(null);
     setEditingEvent(event);
     setFormOpen(true);
+  }
+
+  function openAddDeal() {
+    setEditingDeal(null);
+    setDealFormOpen(true);
+  }
+
+  function openEditDeal(deal: Opportunity) {
+    setActiveDeal(null);
+    setEditingDeal(deal);
+    setDealFormOpen(true);
   }
 
   function goToday() {
@@ -102,17 +176,19 @@ export default function Calendar() {
     setCursorDate(d);
   }
 
+  const defaultPipelineId = pipelines.find((p) => p.is_default)?.id ?? pipelines[0]?.id;
+
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       {/* Header */}
       <div className="px-4 py-4 flex items-center justify-between shrink-0 border-b border-slate-200">
         <h1 className="text-lg font-bold text-slate-800">Calendar</h1>
         <button
-          onClick={() => openAddModal()}
+          onClick={() => (mode === 'events' ? openAddModal() : openAddDeal())}
           className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-3 py-1.5 rounded-lg flex items-center space-x-2 shadow-sm transition-all"
         >
           <i className="fa-solid fa-plus text-xs" />
-          <span>New Event</span>
+          <span>{mode === 'events' ? 'New Event' : 'New Deal'}</span>
         </button>
       </div>
 
@@ -134,37 +210,52 @@ export default function Calendar() {
         </div>
       </div>
 
-      <CalendarStatsBar events={allEvents} />
+      {mode === 'events' && <CalendarStatsBar events={allEvents} />}
 
-      {/* View toggle + search */}
+      {/* Events/Deals toggle + view toggle + search */}
       <SearchToolbar
         search={search}
         onSearchChange={setSearch}
-        placeholder="Search events..."
+        placeholder={mode === 'events' ? 'Search events...' : 'Search deals...'}
         rightExtra={
-          <div className="flex items-center gap-1 border border-slate-200 rounded-md p-0.5 bg-slate-50">
-            {(['month', 'week', 'day', 'agenda'] as CalendarViewMode[]).map((m) => (
-              <button
-                key={m}
-                onClick={() => setViewMode(m)}
-                className={`px-2.5 py-1 text-xs font-semibold rounded capitalize ${
-                  viewMode === m ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500'
-                }`}
-              >
-                {m}
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 border border-slate-200 rounded-md p-0.5 bg-slate-50">
+              {(['events', 'deals'] as CalendarMode[]).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setMode(m)}
+                  className={`px-2.5 py-1 text-xs font-semibold rounded capitalize ${
+                    mode === m ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500'
+                  }`}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-1 border border-slate-200 rounded-md p-0.5 bg-slate-50">
+              {(['month', 'week', 'day', 'agenda'] as CalendarViewMode[]).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setViewMode(m)}
+                  className={`px-2.5 py-1 text-xs font-semibold rounded capitalize ${
+                    viewMode === m ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500'
+                  }`}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
           </div>
         }
       />
 
-      <CalendarLegend />
+      {mode === 'events' && <CalendarLegend />}
 
       {isLoading ? (
         <div className="flex-1 flex items-center justify-center text-sm text-slate-400">
-          Loading events...
+          {mode === 'events' ? 'Loading events...' : 'Loading deals...'}
         </div>
-      ) : (
+      ) : mode === 'events' ? (
         <>
           {viewMode === 'month' && (
             <MonthView
@@ -178,21 +269,43 @@ export default function Calendar() {
             <WeekView weekStart={startOfWeek(cursorDate)} events={weekEvents} onEventClick={setActiveEvent} />
           )}
           {viewMode === 'day' && (
-            <EventListView
-              events={dayEvents}
-              onEventClick={setActiveEvent}
-              emptyLabel="No events on this day."
-            />
+            <EventListView events={dayEvents} onEventClick={setActiveEvent} emptyLabel="No events on this day." />
           )}
           {viewMode === 'agenda' && (
-            <EventListView
-              events={visibleEvents}
-              onEventClick={setActiveEvent}
-              emptyLabel="No events this month."
-            />
+            <EventListView events={visibleEvents} onEventClick={setActiveEvent} emptyLabel="No events this month." />
           )}
 
           {viewMode === 'month' && <TodayAndUpcoming events={allEvents} onEventClick={setActiveEvent} />}
+        </>
+      ) : (
+        <>
+          {viewMode === 'month' && (
+            <DealMonthView monthDate={cursorDate} deals={visibleDeals} onDealClick={setActiveDeal} />
+          )}
+          {viewMode === 'week' && (
+            <DealWeekView
+              weekStart={startOfWeek(cursorDate)}
+              deals={weekDeals}
+              stagesById={stagesById}
+              onDealClick={setActiveDeal}
+            />
+          )}
+          {viewMode === 'day' && (
+            <DealListView
+              deals={dayDeals}
+              stagesById={stagesById}
+              onDealClick={setActiveDeal}
+              emptyLabel="No deals closing this day."
+            />
+          )}
+          {viewMode === 'agenda' && (
+            <DealListView
+              deals={visibleDeals}
+              stagesById={stagesById}
+              onDealClick={setActiveDeal}
+              emptyLabel="No deals closing this month."
+            />
+          )}
         </>
       )}
 
@@ -210,6 +323,23 @@ export default function Calendar() {
         onOpenContact={() => navigate('/contacts')}
         onOpenOpportunity={() => navigate('/pipeline')}
       />
+
+      <DealDetailPanel
+        opportunity={activeDeal}
+        stages={activeDeal?.pipeline_id ? stagesByPipelineId.get(activeDeal.pipeline_id) ?? [] : []}
+        pipelineId={activeDeal?.pipeline_id ?? defaultPipelineId ?? 0}
+        onClose={() => setActiveDeal(null)}
+        onEdit={openEditDeal}
+      />
+
+      {defaultPipelineId && (
+        <DealFormModal
+          open={dealFormOpen}
+          opportunity={editingDeal}
+          pipelineId={editingDeal?.pipeline_id ?? defaultPipelineId}
+          onClose={() => setDealFormOpen(false)}
+        />
+      )}
     </div>
   );
 }
