@@ -51,7 +51,7 @@ export default function CalendarStatsBar({ events, activeFilter, onSelect }: Pro
   ];
 
   return (
-    <div className="px-4 pt-4 grid grid-cols-5 gap-3 shrink-0">
+    <div className="flex items-center gap-1.5">
       {cards.map((c) => {
         const isActive = activeFilter === c.filter;
         return (
@@ -59,14 +59,16 @@ export default function CalendarStatsBar({ events, activeFilter, onSelect }: Pro
             key={c.label}
             onClick={() => onSelect(c.filter)}
             title={`Filter to ${c.label}`}
-            className={`border rounded-lg p-3 text-center cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5 ${
+            className={`flex items-center gap-1 px-2 py-1 rounded-full border text-[11px] font-medium cursor-pointer transition-all hover:shadow-sm ${
               isActive
-                ? 'border-indigo-400 ring-2 ring-indigo-100 bg-indigo-50/50'
-                : 'border-slate-200 hover:border-slate-300'
+                ? 'border-indigo-400 ring-1 ring-indigo-100 bg-indigo-50 text-indigo-700'
+                : 'border-slate-200 text-slate-600 hover:border-slate-300'
             }`}
           >
-            <div className={`text-xl font-bold ${c.tone ?? 'text-slate-800'}`}>{c.value}</div>
-            <div className="text-[11px] text-slate-500 uppercase tracking-wide">{c.label}</div>
+            <span className={`font-bold ${c.tone ?? (isActive ? 'text-indigo-700' : 'text-slate-800')}`}>
+              {c.value}
+            </span>
+            {c.label}
           </button>
         );
       })}

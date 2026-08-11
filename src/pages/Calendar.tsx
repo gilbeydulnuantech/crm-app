@@ -120,6 +120,7 @@ export default function Calendar() {
   function selectStatFilter(filter: CalendarStatFilter) {
     if (statFilter === filter) {
       setStatFilter(null);
+      if (filter === 'today' || filter === 'week') setViewMode('month');
       return;
     }
     setStatFilter(filter);
@@ -297,12 +298,17 @@ export default function Calendar() {
           </button>
         </div>
 
-        {/* Month label + nav */}
-        <div className="px-4 py-3 flex items-center justify-between shrink-0 border-b border-slate-200">
-          <h2 className="text-sm font-semibold text-slate-700">
-            {cursorDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
-          </h2>
-          <div className="flex items-center gap-2">
+        {/* Month label + stats + nav */}
+        <div className="px-4 py-3 flex items-center justify-between shrink-0 border-b border-slate-200 gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <h2 className="text-sm font-semibold text-slate-700 shrink-0">
+              {cursorDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+            </h2>
+            {mode === 'events' && (
+              <CalendarStatsBar events={overlayFilteredEvents} activeFilter={statFilter} onSelect={selectStatFilter} />
+            )}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
             <button onClick={goPrev} className="text-xs font-medium text-slate-600 hover:bg-slate-100 px-2 py-1 rounded">
               &#9664; Previous
             </button>
@@ -314,10 +320,6 @@ export default function Calendar() {
             </button>
           </div>
         </div>
-
-        {mode === 'events' && (
-          <CalendarStatsBar events={overlayFilteredEvents} activeFilter={statFilter} onSelect={selectStatFilter} />
-        )}
 
         {/* Events/Deals toggle + view toggle + search */}
         <SearchToolbar
