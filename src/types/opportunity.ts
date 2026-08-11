@@ -23,6 +23,7 @@ export interface Opportunity {
   stage_id: number;
   assigned_user?: number | null;
   assigned_user_name?: string; // joined
+  assigned_user_color?: string; // joined from users.color
   created_by?: number | null;
   deal_value?: number | null;
   probability?: number;

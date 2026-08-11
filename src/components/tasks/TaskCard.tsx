@@ -1,7 +1,7 @@
 import { useDraggable } from '@dnd-kit/core';
 import { Task } from '../../types/task';
 import { toTitleCase } from '../../utils/text';
-import { DEFAULT_USER_COLOR } from './TasksSidebar';
+import { DEFAULT_USER_COLOR, hexToRgba } from '../../utils/userColor';
 
 interface Props {
   task: Task;
@@ -13,13 +13,6 @@ const PRIORITY_DOT: Record<string, string> = {
   Medium: 'bg-amber-500',
   Low: 'bg-emerald-500',
 };
-
-function hexToRgba(hex: string, alpha: number): string {
-  const clean = hex.replace('#', '');
-  const full = clean.length === 3 ? clean.split('').map((c) => c + c).join('') : clean;
-  const n = parseInt(full, 16);
-  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
-}
 
 export default function TaskCard({ task, onClick }: Props) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({

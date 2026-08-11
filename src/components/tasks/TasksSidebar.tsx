@@ -3,13 +3,10 @@ import { TeamUser } from '../../api/contacts';
 import { TASK_PRIORITIES, TaskPriority } from '../../types/task';
 import { useUpdateUserColor } from '../../hooks/useContacts';
 import { toTitleCase } from '../../utils/text';
+import { DEFAULT_USER_COLOR } from '../../utils/userColor';
 import UserColorPicker from '../calendar/UserColorPicker';
 
 export type TaskStatusFilter = 'open' | 'completed' | 'overdue';
-
-// Matches EventQuickView/CalendarSidebar's fallback so an unset users.color
-// renders the same neutral gray everywhere in the app.
-export const DEFAULT_USER_COLOR = '#94A3B8';
 
 const STATUS_OPTIONS: { key: TaskStatusFilter; label: string }[] = [
   { key: 'open', label: 'Open' },

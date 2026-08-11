@@ -72,6 +72,7 @@ export default function DealCard({ opportunity, onClick }: Props) {
 import { useDraggable } from '@dnd-kit/core';
 import { Opportunity } from '../../types/opportunity';
 import { toTitleCase } from '../../utils/text';
+import { DEFAULT_USER_COLOR, hexToRgba } from '../../utils/userColor';
 
 interface Props {
   opportunity: Opportunity;
@@ -115,13 +116,20 @@ export default function DealCard({ opportunity, onClick }: Props) {
     data: { opportunity },
   });
 
-  // Apply dnd-kit transform styles
-  const style = transform
-    ? {
-        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-        zIndex: 50,
-      }
+  // The card's background/left border/owner badge are the assigned owner's
+  // color — same picker/palette as the Calendar and Tasks sidebars, so a
+  // deal's owner is recognizable at a glance without reading the badge's
+  // initials. A light tint (not the full color) keeps card text readable.
+  const ownerColor = opportunity.assigned_user
+    ? opportunity.assigned_user_color || DEFAULT_USER_COLOR
     : undefined;
+
+  const style = {
+    ...(transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, zIndex: 50 } : undefined),
+    backgroundColor: ownerColor ? hexToRgba(ownerColor, 0.14) : undefined,
+    borderLeftWidth: '3px',
+    borderLeftColor: ownerColor || '#E2E8F0',
+  };
 
   return (
     <div
@@ -134,7 +142,7 @@ export default function DealCard({ opportunity, onClick }: Props) {
         if (transform && (Math.abs(transform.x) > 5 || Math.abs(transform.y) > 5)) return;
         onClick();
       }}
-      className={`bg-white border border-slate-200 rounded-lg p-2.5 shadow-sm hover:shadow-md cursor-grab active:cursor-grabbing transition-all ${
+      className={`${ownerColor ? '' : 'bg-white'} border border-slate-200 rounded-lg p-2.5 shadow-sm hover:shadow-md cursor-grab active:cursor-grabbing transition-all ${
         isDragging ? 'opacity-40 ring-2 ring-indigo-400 border-transparent scale-105' : ''
       }`}
     >
@@ -163,9 +171,12 @@ export default function DealCard({ opportunity, onClick }: Props) {
           {currency(opportunity.deal_value)}
         </span>
         
-        <div 
+        <div
           title={opportunity.assigned_user_name || 'Unassigned'}
-          className="w-5 h-5 rounded-full bg-slate-100 text-slate-500 text-[9px] flex items-center justify-center font-bold border border-white shadow-sm"
+          style={ownerColor ? { backgroundColor: ownerColor } : undefined}
+          className={`w-5 h-5 rounded-full text-[9px] flex items-center justify-center font-bold border border-white shadow-sm ${
+            ownerColor ? 'text-white' : 'bg-slate-100 text-slate-500'
+          }`}
         >
           {initials(opportunity.assigned_user_name)}
         </div>
