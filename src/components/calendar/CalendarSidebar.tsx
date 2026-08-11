@@ -14,6 +14,8 @@ interface Props {
   checkedResourceIds: Set<number>;
   onToggleUser: (id: number) => void;
   onToggleResource: (id: number) => void;
+  onToggleAllUsers: () => void;
+  onToggleAllResources: () => void;
   collapsed: boolean;
   onToggleCollapsed: () => void;
 }
@@ -78,10 +80,14 @@ export default function CalendarSidebar({
   checkedResourceIds,
   onToggleUser,
   onToggleResource,
+  onToggleAllUsers,
+  onToggleAllResources,
   collapsed,
   onToggleCollapsed,
 }: Props) {
   const updateUserColor = useUpdateUserColor();
+  const allUsersChecked = users.length > 0 && users.every((u) => checkedUserIds.has(u.id));
+  const allResourcesChecked = resources.length > 0 && resources.every((r) => checkedResourceIds.has(r.id));
 
   if (collapsed) {
     return (
@@ -111,6 +117,14 @@ export default function CalendarSidebar({
       </div>
 
       <Section title="Team Members">
+        {users.length > 0 && (
+          <Row
+            dot={<span className="w-2.5 h-2.5 rounded-full bg-slate-300 shrink-0" />}
+            label="All Team Members"
+            checked={allUsersChecked}
+            onToggle={onToggleAllUsers}
+          />
+        )}
         {users.map((u) => (
           <Row
             key={u.id}
@@ -130,6 +144,14 @@ export default function CalendarSidebar({
       </Section>
 
       <Section title="Resources">
+        {resources.length > 0 && (
+          <Row
+            dot={<span className="w-2.5 h-2.5 rounded-full bg-slate-300 shrink-0" />}
+            label="All Resources"
+            checked={allResourcesChecked}
+            onToggle={onToggleAllResources}
+          />
+        )}
         {resources.map((r) => (
           <Row
             key={r.id}

@@ -115,6 +115,20 @@ export default function Calendar() {
     });
   }
 
+  function toggleAllUsers() {
+    setCheckedUserIds((prev) =>
+      users.length > 0 && users.every((u) => prev.has(u.id)) ? new Set() : new Set(users.map((u) => u.id))
+    );
+  }
+
+  function toggleAllResources() {
+    setCheckedResourceIds((prev) =>
+      resources.length > 0 && resources.every((r) => prev.has(r.id))
+        ? new Set()
+        : new Set(resources.map((r) => r.id))
+    );
+  }
+
   function toggleType(type: EventType) {
     setVisibleTypes((prev) => (prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]));
   }
@@ -286,6 +300,8 @@ export default function Calendar() {
         checkedResourceIds={checkedResourceIds}
         onToggleUser={toggleUser}
         onToggleResource={toggleResource}
+        onToggleAllUsers={toggleAllUsers}
+        onToggleAllResources={toggleAllResources}
         collapsed={!sidebarOpen}
         onToggleCollapsed={() => setSidebarOpen((v) => !v)}
       />
