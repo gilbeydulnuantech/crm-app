@@ -6,7 +6,6 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { Task, taskStatus } from '../../types/task';
-import { useToggleTaskComplete } from '../../hooks/useTasks';
 import { toTitleCase } from '../../utils/text';
 
 interface Props {
@@ -35,7 +34,6 @@ export default function TasksTable({
   onRowClick,
   isLoading,
 }: Props) {
-  const toggleComplete = useToggleTaskComplete();
   const allSelected = tasks.length > 0 && tasks.every((t) => selectedIds.has(t.id));
 
   const columns = useMemo(
@@ -63,24 +61,6 @@ export default function TasksTable({
           />
         ),
         size: 36,
-      }),
-      columnHelper.display({
-        id: 'complete',
-        header: '',
-        cell: ({ row }) => (
-          <input
-            type="checkbox"
-            checked={row.original.is_completed}
-            onChange={(e) => {
-              e.stopPropagation();
-              toggleComplete.mutate({ id: row.original.id, is_completed: e.target.checked });
-            }}
-            onClick={(e) => e.stopPropagation()}
-            title="Mark complete"
-            className="rounded-full border-slate-300 text-emerald-600 focus:ring-emerald-500"
-          />
-        ),
-        size: 32,
       }),
       columnHelper.accessor('subject', {
         header: 'Task',
