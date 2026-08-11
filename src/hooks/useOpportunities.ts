@@ -1,6 +1,27 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRef } from 'react';
 import * as api from '../api/opportunities';
 import { Opportunity } from '../types/opportunity';
+
+// useQueries returns a new `results` array every render, and a plain
+// `.flatMap()` over it would hand callers a brand-new array reference every
+// 15s poll even when nothing actually changed — that unstable reference
+// then cascades through every useMemo downstream (Calendar's allDeals /
+// visibleDeals / weekDeals / dayDeals), forcing the deals grid to re-render
+// on a timer and reading as a visible "blink". Individual `r.data`
+// references ARE stable across unchanged refetches (React Query's
+// structural sharing), so caching on those lets everything downstream skip
+// the pointless recompute.
+function useStableFlatData<T>(results: { data?: T[] }[]): T[] {
+  const cache = useRef<{ sources: (T[] | undefined)[]; result: T[] }>({ sources: [], result: [] });
+  const sources = results.map((r) => r.data);
+  const changed =
+    sources.length !== cache.current.sources.length || sources.some((s, i) => s !== cache.current.sources[i]);
+  if (changed) {
+    cache.current = { sources, result: results.flatMap((r) => r.data ?? []) };
+  }
+  return cache.current.result;
+}
 
 export function usePipelines() {
   return useQuery({
@@ -46,7 +67,7 @@ export function useAllOpportunities(pipelineIds: number[]) {
     })),
   });
   return {
-    data: results.flatMap((r) => r.data ?? []),
+    data: useStableFlatData(results),
     isLoading: results.some((r) => r.isLoading),
   };
 }
@@ -59,7 +80,7 @@ export function useAllStages(pipelineIds: number[]) {
     })),
   });
   return {
-    data: results.flatMap((r) => r.data ?? []),
+    data: useStableFlatData(results),
     isLoading: results.some((r) => r.isLoading),
   };
 }

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CalendarEvent, CalendarViewMode, EVENT_TYPES, EventType } from '../types/event';
 import { Opportunity } from '../types/opportunity';
@@ -24,6 +24,10 @@ import DealFormModal from '../components/pipeline/DealFormModal';
 import SearchToolbar from '../components/SearchToolbar';
 
 type CalendarMode = 'events' | 'deals';
+
+// 'deals' is still the internal mode/data name (Opportunity records), but
+// the tab reads "Pipeline" to match the rest of the app's terminology.
+const MODE_LABELS: Record<CalendarMode, string> = { events: 'Events', deals: 'Pipeline' };
 
 function startOfMonth(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), 1);
@@ -103,7 +107,21 @@ export default function Calendar() {
   // Only deals with an expected close date can be placed on the calendar.
   const allDeals = useMemo(() => allDealsRaw.filter((d) => !!d.expected_close), [allDealsRaw]);
 
-  const isLoading = mode === 'events' ? eventsLoading : dealsLoading;
+  // Once a mode has successfully loaded once, never show the full-page
+  // "Loading..." state for it again — the 15s background poll (global
+  // default) can flip isLoading true again mid-session even with cached
+  // data present, which was blanking the whole grid every cycle instead of
+  // updating it in place. Background refreshes should be invisible.
+  const [eventsEverLoaded, setEventsEverLoaded] = useState(false);
+  const [dealsEverLoaded, setDealsEverLoaded] = useState(false);
+  useEffect(() => {
+    if (!eventsLoading) setEventsEverLoaded(true);
+  }, [eventsLoading]);
+  useEffect(() => {
+    if (!dealsLoading) setDealsEverLoaded(true);
+  }, [dealsLoading]);
+
+  const isLoading = mode === 'events' ? eventsLoading && !eventsEverLoaded : dealsLoading && !dealsEverLoaded;
 
   function toggleUser(id: number) {
     setCheckedUserIds((prev) => {
@@ -224,16 +242,25 @@ export default function Calendar() {
     [visibleEvents, cursorDate]
   );
 
+  // Same opt-in overlay as Events — a deal only shows once its owner
+  // (assigned_user) is checked under Team Members in the sidebar.
+  const overlayFilteredDeals = useMemo(() => {
+    return allDeals.filter((d) => {
+      if (d.assigned_user == null) return true; // unassigned — nobody to toggle it under
+      return checkedUserIds.has(d.assigned_user);
+    });
+  }, [allDeals, checkedUserIds]);
+
   const visibleDeals = useMemo(() => {
-    if (!search.trim()) return allDeals;
+    if (!search.trim()) return overlayFilteredDeals;
     const q = search.trim().toLowerCase();
-    return allDeals.filter(
+    return overlayFilteredDeals.filter(
       (d) =>
         d.name.toLowerCase().includes(q) ||
         d.contact_name?.toLowerCase().includes(q) ||
         d.company_name?.toLowerCase().includes(q)
     );
-  }, [allDeals, search]);
+  }, [overlayFilteredDeals, search]);
 
   const weekDeals = useMemo(() => {
     const start = startOfWeek(cursorDate);
@@ -374,11 +401,11 @@ export default function Calendar() {
                   <button
                     key={m}
                     onClick={() => setMode(m)}
-                    className={`px-2.5 py-1 text-xs font-semibold rounded capitalize ${
+                    className={`px-2.5 py-1 text-xs font-semibold rounded ${
                       mode === m ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500'
                     }`}
                   >
-                    {m}
+                    {MODE_LABELS[m]}
                   </button>
                 ))}
               </div>
