@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as api from '../api/events';
 
-export function useEvents(monthStart: string, monthEnd: string) {
+export function useEvents(monthStart: string, monthEnd: string, enabled = true) {
   return useQuery({
     queryKey: ['events', monthStart, monthEnd],
     queryFn: () => api.fetchEvents(monthStart, monthEnd),
+    enabled: enabled && !!monthStart && !!monthEnd,
   });
 }
 

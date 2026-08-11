@@ -1,11 +1,10 @@
-import { FormEvent, useEffect, useRef, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { CalendarEvent, EVENT_TYPE_META, EVENT_TYPES, EventType } from '../../types/event';
-import { useAddEvent, useUpdateEvent } from '../../hooks/useEvents';
-import { useUsers } from '../../hooks/useContacts';
+import { useAddEvent, useEvents, useUpdateEvent } from '../../hooks/useEvents';
+import { useContacts, useSendContactEmail, useUsers } from '../../hooks/useContacts';
 import { useAuth } from '../../context/AuthContext';
 import { toTitleCase } from '../../utils/text';
 import ContactPicker from '../pipeline/ContactPicker';
-import OpportunityPicker from './OpportunityPicker';
 import ResourcePicker from './ResourcePicker';
 
 interface Props {
@@ -18,19 +17,17 @@ interface Props {
 const EMPTY = {
   subject: '',
   type: 'meeting' as EventType,
-  startDate: '',
-  startTime: '',
-  endDate: '',
-  endTime: '',
-  isAllDay: false,
   contact_id: '',
   contact_name: '',
-  opportunity_id: '',
-  opportunity_name: '',
+  company_name: '',
+  date: '',
+  startTime: '',
+  endTime: '',
   assigned_user: '',
   location: '',
   resource_ids: [] as number[],
   body: '',
+  sendConfirmation: true,
 };
 
 function toDateInput(iso: string) {
@@ -41,8 +38,8 @@ function toTimeInput(iso: string) {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 function combineDateTime(date: string, time: string): string | null {
-  if (!date) return null;
-  return new Date(`${date}T${time || '00:00'}`).toISOString();
+  if (!date || !time) return null;
+  return new Date(`${date}T${time}`).toISOString();
 }
 
 function TypeSelect({ value, onChange }: { value: EventType; onChange: (t: EventType) => void }) {
@@ -89,11 +86,12 @@ function TypeSelect({ value, onChange }: { value: EventType; onChange: (t: Event
 export default function EventFormModal({ open, event, defaultDate, onClose }: Props) {
   const { user } = useAuth();
   const { data: users = [] } = useUsers();
+  const { data: contacts = [] } = useContacts();
   const [form, setForm] = useState(EMPTY);
   const [error, setError] = useState<string | null>(null);
-  const notesRef = useRef<HTMLTextAreaElement>(null);
   const addEvent = useAddEvent();
   const updateEvent = useUpdateEvent();
+  const sendConfirmationEmail = useSendContactEmail();
 
   const isEdit = !!event;
   const isSaving = addEvent.isPending || updateEvent.isPending;
@@ -105,25 +103,23 @@ export default function EventFormModal({ open, event, defaultDate, onClose }: Pr
       setForm({
         subject: event.subject ?? '',
         type: event.type ?? 'meeting',
-        startDate: toDateInput(event.due_at),
-        startTime: toTimeInput(event.due_at),
-        endDate: event.end_at ? toDateInput(event.end_at) : '',
-        endTime: event.end_at ? toTimeInput(event.end_at) : '',
-        isAllDay: !!event.is_all_day,
         contact_id: event.contact_id ? String(event.contact_id) : '',
         contact_name: event.contact_name ?? '',
-        opportunity_id: event.opportunity_id ? String(event.opportunity_id) : '',
-        opportunity_name: event.opportunity_name ?? '',
+        company_name: event.company_name ?? '',
+        date: toDateInput(event.due_at),
+        startTime: toTimeInput(event.due_at),
+        endTime: event.end_at ? toTimeInput(event.end_at) : '',
         assigned_user: event.user_id ? String(event.user_id) : '',
         location: event.location ?? '',
         resource_ids: (event.resources ?? []).map((r) => r.id),
         body: event.body ?? '',
+        sendConfirmation: false,
       });
     } else {
       const base = defaultDate ?? new Date();
       setForm({
         ...EMPTY,
-        startDate: toDateInput(base.toISOString()),
+        date: toDateInput(base.toISOString()),
         startTime: '09:00',
         assigned_user: user ? String(user.id) : '',
       });
@@ -131,51 +127,55 @@ export default function EventFormModal({ open, event, defaultDate, onClose }: Pr
     setError(null);
   }, [event, open, defaultDate, user]);
 
+  // Which resources are already booked by another event overlapping this
+  // date/time — informational, not a hard block on selecting them anyway.
+  const { data: dayEvents = [] } = useEvents(form.date, form.date, open && !!form.date);
+
+  const bookedResourceIds = useMemo(() => {
+    const ids = new Set<number>();
+    if (!form.date || !form.startTime) return ids;
+    const start = new Date(`${form.date}T${form.startTime}`);
+    const end = new Date(`${form.date}T${form.endTime || form.startTime}`);
+    dayEvents.forEach((e) => {
+      if (event && e.id === event.id) return; // skip the event being edited
+      if (!e.resources || e.resources.length === 0) return;
+      const eStart = new Date(e.due_at);
+      const eEnd = e.end_at ? new Date(e.end_at) : eStart;
+      if (start < eEnd && eStart < end) {
+        e.resources.forEach((r) => ids.add(r.id));
+      }
+    });
+    return ids;
+  }, [dayEvents, form.date, form.startTime, form.endTime, event]);
+
   if (!open) return null;
 
   function update<K extends keyof typeof EMPTY>(key: K, value: (typeof EMPTY)[K]) {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
-  function wrapSelection(before: string, after: string) {
-    const el = notesRef.current;
-    if (!el) return;
-    const start = el.selectionStart;
-    const end = el.selectionEnd;
-    const selected = form.body.slice(start, end);
-    const next = form.body.slice(0, start) + before + selected + after + form.body.slice(end);
-    update('body', next);
-    requestAnimationFrame(() => {
-      el.focus();
-      el.selectionStart = start + before.length;
-      el.selectionEnd = start + before.length + selected.length;
-    });
-  }
-
-  function prefixLines(prefix: (i: number) => string) {
-    const el = notesRef.current;
-    if (!el) return;
-    const start = el.selectionStart;
-    const end = el.selectionEnd;
-    const lineStart = form.body.lastIndexOf('\n', start - 1) + 1;
-    const lineEnd = form.body.indexOf('\n', end);
-    const blockEnd = lineEnd === -1 ? form.body.length : lineEnd;
-    const block = form.body.slice(lineStart, blockEnd);
-    const prefixed = block
-      .split('\n')
-      .map((line, i) => prefix(i) + line)
-      .join('\n');
-    update('body', form.body.slice(0, lineStart) + prefixed + form.body.slice(blockEnd));
-    requestAnimationFrame(() => el.focus());
+  function handleContactChange(id: number | null, name: string) {
+    const matched = id ? contacts.find((c) => c.id === id) : undefined;
+    setForm((f) => ({
+      ...f,
+      contact_id: id ? String(id) : '',
+      contact_name: name,
+      company_name: matched?.company_name ?? (id ? f.company_name : ''),
+      // Only auto-fill if the user hasn't already typed a location.
+      location:
+        !f.location && matched
+          ? [matched.city, matched.state, matched.country].filter(Boolean).join(', ')
+          : f.location,
+    }));
   }
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
 
-    const due_at = combineDateTime(form.startDate, form.isAllDay ? '00:00' : form.startTime);
+    const due_at = combineDateTime(form.date, form.startTime);
     if (!due_at) {
-      setError('Start date is required.');
+      setError('Date and start time are required.');
       return;
     }
 
@@ -184,26 +184,44 @@ export default function EventFormModal({ open, event, defaultDate, onClose }: Pr
       type: form.type,
       body: form.body || undefined,
       contact_id: form.contact_id ? Number(form.contact_id) : null,
-      opportunity_id: form.opportunity_id ? Number(form.opportunity_id) : null,
       user_id: form.assigned_user ? Number(form.assigned_user) : null,
       due_at,
-      end_at: combineDateTime(form.endDate, form.isAllDay ? '23:59' : form.endTime),
+      end_at: combineDateTime(form.date, form.endTime),
       location: form.location || null,
-      is_all_day: form.isAllDay,
       resource_ids: form.resource_ids,
     };
+
+    function maybeSendConfirmation() {
+      const contact = form.contact_id ? contacts.find((c) => c.id === Number(form.contact_id)) : undefined;
+      if (!form.sendConfirmation || !contact?.email) return;
+      const when = new Date(due_at!).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+      sendConfirmationEmail.mutate({
+        contactId: contact.id,
+        subject: `Appointment Confirmed: ${form.subject}`,
+        message: `Hi ${contact.first_name || 'there'},\n\nThis confirms your upcoming ${EVENT_TYPE_META[form.type].label.toLowerCase()} "${form.subject}" scheduled for ${when}.${
+          form.location ? `\nLocation: ${form.location}` : ''
+        }\n\nSee you then!`,
+        to: contact.email,
+        from: user?.email ?? '',
+        attachments: [],
+      });
+    }
 
     if (isEdit && event) {
       updateEvent.mutate(
         { id: event.id, payload },
         {
-          onSuccess: () => onClose(),
+          onSuccess: () => {
+            maybeSendConfirmation();
+            onClose();
+          },
           onError: (err) => setError(err instanceof Error ? err.message : 'Failed to update event.'),
         }
       );
     } else {
       addEvent.mutate(payload, {
         onSuccess: () => {
+          maybeSendConfirmation();
           setForm(EMPTY);
           onClose();
         },
@@ -214,200 +232,137 @@ export default function EventFormModal({ open, event, defaultDate, onClose }: Pr
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-lg font-bold text-slate-800">{isEdit ? 'Edit Event' : 'Create New Event'}</h3>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold text-slate-800">{isEdit ? 'Edit Event' : 'New Event'}</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
             <i className="fa-solid fa-xmark" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <h4 className="text-xs font-semibold text-slate-800 uppercase tracking-wide mb-2">Event Basics</h4>
-            <div className="grid grid-cols-2 gap-3">
+            <label className="block text-xs font-medium text-slate-600 mb-1">Event Title</label>
+            <input
+              required
+              value={form.subject}
+              onChange={(e) => update('subject', e.target.value)}
+              placeholder="Roof Inspection - ABC Roofing"
+              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Event Type</label>
+            <TypeSelect value={form.type} onChange={(t) => update('type', t)} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <ContactPicker
+              contactId={form.contact_id ? Number(form.contact_id) : null}
+              contactName={form.contact_name}
+              onChange={handleContactChange}
+            />
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Company</label>
+              <div className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg bg-slate-50 text-slate-500 truncate">
+                {toTitleCase(form.company_name) || '--'}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Date</label>
+            <div className="grid grid-cols-3 gap-3">
+              <input
+                required
+                type="date"
+                value={form.date}
+                onChange={(e) => update('date', e.target.value)}
+                className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">
-                  Title/Subject <span className="text-slate-400 font-normal">(Required)</span>
-                </label>
+                <span className="block text-[11px] text-slate-400 mb-1">Start Time</span>
                 <input
                   required
-                  value={form.subject}
-                  onChange={(e) => update('subject', e.target.value)}
-                  placeholder="e.g., Storm Damage Inspection - 123 Main St"
+                  type="time"
+                  value={form.startTime}
+                  onChange={(e) => update('startTime', e.target.value)}
                   className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Activity Type</label>
-                <TypeSelect value={form.type} onChange={(t) => update('type', t)} />
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <h4 className="text-xs font-semibold text-slate-800 uppercase tracking-wide mb-2">Time &amp; Schedule</h4>
-            <div className="grid grid-cols-3 gap-3 items-end">
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Start Date/Time</label>
-                <div className="flex gap-1.5">
-                  <input
-                    required
-                    type="date"
-                    value={form.startDate}
-                    onChange={(e) => update('startDate', e.target.value)}
-                    className="w-1/2 px-2 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                  <input
-                    type="time"
-                    disabled={form.isAllDay}
-                    value={form.startTime}
-                    onChange={(e) => update('startTime', e.target.value)}
-                    className="w-1/2 px-2 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-400"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">End Date/Time</label>
-                <div className="flex gap-1.5">
-                  <input
-                    type="date"
-                    value={form.endDate}
-                    onChange={(e) => update('endDate', e.target.value)}
-                    className="w-1/2 px-2 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                  <input
-                    type="time"
-                    disabled={form.isAllDay}
-                    value={form.endTime}
-                    onChange={(e) => update('endTime', e.target.value)}
-                    className="w-1/2 px-2 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-400"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">All-Day Event</label>
-                <button
-                  type="button"
-                  onClick={() => update('isAllDay', !form.isAllDay)}
-                  className="flex items-center gap-2 px-3 py-1.5 border border-slate-200 rounded-lg w-full"
-                >
-                  <span
-                    className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
-                      form.isAllDay ? 'bg-indigo-600' : 'bg-slate-300'
-                    }`}
-                  >
-                    <span
-                      className="inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform"
-                      style={{ transform: form.isAllDay ? 'translateX(18px)' : 'translateX(2px)' }}
-                    />
-                  </span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <h4 className="text-xs font-semibold text-slate-800 uppercase tracking-wide mb-2">
-              Participants &amp; Associations
-            </h4>
-            <div className="grid grid-cols-3 gap-3">
-              <ContactPicker
-                contactId={form.contact_id ? Number(form.contact_id) : null}
-                contactName={form.contact_name}
-                onChange={(id, name) => setForm((f) => ({ ...f, contact_id: id ? String(id) : '', contact_name: name }))}
-              />
-              <OpportunityPicker
-                opportunityId={form.opportunity_id ? Number(form.opportunity_id) : null}
-                opportunityName={form.opportunity_name}
-                onChange={(id, name) =>
-                  setForm((f) => ({ ...f, opportunity_id: id ? String(id) : '', opportunity_name: name }))
-                }
-              />
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Assigned To</label>
-                <select
-                  value={form.assigned_user}
-                  onChange={(e) => update('assigned_user', e.target.value)}
-                  className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">Unassigned</option>
-                  {users.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {toTitleCase(u.name)}
-                      {u.id === user?.id ? ' (Me)' : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <h4 className="text-xs font-semibold text-slate-800 uppercase tracking-wide mb-2">
-              Resources &amp; Location
-            </h4>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Location/Address</label>
+                <span className="block text-[11px] text-slate-400 mb-1">End Time</span>
                 <input
-                  value={form.location}
-                  onChange={(e) => update('location', e.target.value)}
-                  placeholder="Enter Address or Meeting Link (e.g., 123 Main St, Zoom link)"
+                  type="time"
+                  value={form.endTime}
+                  onChange={(e) => update('endTime', e.target.value)}
                   className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
-              <ResourcePicker
-                selectedIds={form.resource_ids}
-                onChange={(ids) => update('resource_ids', ids)}
-              />
             </div>
           </div>
 
           <div>
-            <h4 className="text-xs font-semibold text-slate-800 uppercase tracking-wide mb-2">Details &amp; Notes</h4>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Event Notes/Body</label>
-            {/* Plain-text formatting tokens (**bold**, *italic*, <u>underline</u>,
-                "- "/"1. " list prefixes) saved as-is into activities.body —
-                there's no rich-text renderer elsewhere in the app (the detail
-                panel shows body as plain text), so this doesn't pretend to be
-                a full WYSIWYG editor, just a faster way to type the tokens. */}
-            <div className="flex items-center gap-1 border border-slate-200 border-b-0 rounded-t-lg px-2 py-1.5 bg-slate-50">
-              <button type="button" onClick={() => wrapSelection('**', '**')} title="Bold" className="w-6 h-6 rounded hover:bg-slate-200 text-slate-600 font-bold text-xs">
-                B
-              </button>
-              <button type="button" onClick={() => wrapSelection('*', '*')} title="Italic" className="w-6 h-6 rounded hover:bg-slate-200 text-slate-600 italic text-xs">
-                I
-              </button>
-              <button type="button" onClick={() => wrapSelection('<u>', '</u>')} title="Underline" className="w-6 h-6 rounded hover:bg-slate-200 text-slate-600 underline text-xs">
-                U
-              </button>
-              <div className="w-px h-4 bg-slate-300 mx-1" />
-              <button
-                type="button"
-                onClick={() => prefixLines(() => '- ')}
-                title="Bullet list"
-                className="w-6 h-6 rounded hover:bg-slate-200 text-slate-600"
-              >
-                <i className="fa-solid fa-list-ul text-xs" />
-              </button>
-              <button
-                type="button"
-                onClick={() => prefixLines((i) => `${i + 1}. `)}
-                title="Numbered list"
-                className="w-6 h-6 rounded hover:bg-slate-200 text-slate-600"
-              >
-                <i className="fa-solid fa-list-ol text-xs" />
-              </button>
-            </div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Assigned To</label>
+            <select
+              value={form.assigned_user}
+              onChange={(e) => update('assigned_user', e.target.value)}
+              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="">Unassigned</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {toTitleCase(u.name)}
+                  {u.id === user?.id ? ' (Me)' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Location</label>
+            <input
+              value={form.location}
+              onChange={(e) => update('location', e.target.value)}
+              placeholder="123 Main Street"
+              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <p className="text-[11px] text-slate-400 mt-1">Auto-filled from the contact's address — edit freely.</p>
+          </div>
+
+          <ResourcePicker
+            selectedIds={form.resource_ids}
+            onChange={(ids) => update('resource_ids', ids)}
+            bookedIds={bookedResourceIds}
+          />
+
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Description</label>
             <textarea
-              ref={notesRef}
               value={form.body}
               onChange={(e) => update('body', e.target.value)}
-              rows={4}
-              placeholder="Add internal notes, meeting agenda, or job details..."
-              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-b-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              rows={3}
+              placeholder="Initial roof inspection..."
+              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
+          </div>
+
+          <div className="space-y-1.5 pt-1">
+            <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.sendConfirmation}
+                onChange={(e) => update('sendConfirmation', e.target.checked)}
+                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              Send confirmation to contact
+            </label>
+            <label className="flex items-center gap-2 text-sm text-slate-400 cursor-not-allowed" title="No reminder/notification system exists yet">
+              <input type="checkbox" disabled className="rounded border-slate-300" />
+              Add reminder
+              <span className="text-[10px] text-slate-400">(coming soon)</span>
+            </label>
           </div>
 
           {error && (
@@ -416,7 +371,7 @@ export default function EventFormModal({ open, event, defaultDate, onClose }: Pr
             </div>
           )}
 
-          <div className="flex justify-end gap-2 pt-1">
+          <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"
               onClick={onClose}
@@ -429,7 +384,7 @@ export default function EventFormModal({ open, event, defaultDate, onClose }: Pr
               disabled={isSaving}
               className="px-4 py-2 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white rounded-lg"
             >
-              {isSaving ? 'Saving...' : isEdit ? 'Save Changes' : 'Save & Schedule Event'}
+              {isSaving ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Event'}
             </button>
           </div>
         </form>

@@ -4,9 +4,13 @@ import { useAddResource, useResources } from '../../hooks/useResources';
 interface Props {
   selectedIds: number[];
   onChange: (ids: number[]) => void;
+  // Resource ids already booked by another event overlapping the currently
+  // selected date/time — shown as a warning, not a hard block (sometimes a
+  // double-booking is intentional, e.g. two crews sharing a truck).
+  bookedIds?: Set<number>;
 }
 
-export default function ResourcePicker({ selectedIds, onChange }: Props) {
+export default function ResourcePicker({ selectedIds, onChange, bookedIds }: Props) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,17 +55,24 @@ export default function ResourcePicker({ selectedIds, onChange }: Props) {
     <div className="relative">
       <label className="block text-xs font-medium text-slate-600 mb-1">Equipment/Resources</label>
       <div className="border border-slate-200 rounded-lg p-1.5 flex flex-wrap items-center gap-1.5 focus-within:ring-2 focus-within:ring-indigo-500">
-        {selected.map((r) => (
-          <span
-            key={r.id}
-            className="flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-indigo-50 text-indigo-700"
-          >
-            {r.name}
-            <button type="button" onClick={() => remove(r.id)} className="opacity-60 hover:opacity-100">
-              <i className="fa-solid fa-xmark text-[9px]" />
-            </button>
-          </span>
-        ))}
+        {selected.map((r) => {
+          const isBooked = bookedIds?.has(r.id);
+          return (
+            <span
+              key={r.id}
+              title={isBooked ? 'Already booked at this date/time' : undefined}
+              className={`flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${
+                isBooked ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-indigo-50 text-indigo-700'
+              }`}
+            >
+              {isBooked && <i className="fa-solid fa-triangle-exclamation text-[9px]" />}
+              {r.name}
+              <button type="button" onClick={() => remove(r.id)} className="opacity-60 hover:opacity-100">
+                <i className="fa-solid fa-xmark text-[9px]" />
+              </button>
+            </span>
+          );
+        })}
         <input
           value={query}
           onChange={(e) => {
@@ -79,16 +90,25 @@ export default function ResourcePicker({ selectedIds, onChange }: Props) {
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
           <div className="absolute top-full mt-1 left-0 w-full bg-white border border-slate-200 rounded-lg shadow-lg z-20 py-1 max-h-40 overflow-y-auto">
-            {filtered.map((r) => (
-              <button
-                key={r.id}
-                type="button"
-                onClick={() => select(r.id)}
-                className="w-full text-left px-3 py-1.5 text-sm hover:bg-slate-50 text-slate-700"
-              >
-                {r.name}
-              </button>
-            ))}
+            {filtered.map((r) => {
+              const isBooked = bookedIds?.has(r.id);
+              return (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => select(r.id)}
+                  className="w-full flex items-center justify-between gap-2 text-left px-3 py-1.5 text-sm hover:bg-slate-50 text-slate-700"
+                >
+                  <span>{r.name}</span>
+                  {isBooked && (
+                    <span className="flex items-center gap-1 text-[10px] text-amber-700 shrink-0">
+                      <i className="fa-solid fa-triangle-exclamation text-[9px]" />
+                      Booked
+                    </span>
+                  )}
+                </button>
+              );
+            })}
             {filtered.length === 0 && !query.trim() && (
               <p className="text-[11px] text-slate-400 px-3 py-1.5">No more resources.</p>
             )}
