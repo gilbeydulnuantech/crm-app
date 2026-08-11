@@ -15,6 +15,8 @@ interface Props {
   onToggleSelectAll: () => void;
   onRowClick: (task: Task) => void;
   isLoading: boolean;
+  isAdmin: boolean;
+  currentUserId?: number;
 }
 
 const columnHelper = createColumnHelper<Task>();
@@ -33,33 +35,46 @@ export default function TasksTable({
   onToggleSelectAll,
   onRowClick,
   isLoading,
+  isAdmin,
+  currentUserId,
 }: Props) {
-  const allSelected = tasks.length > 0 && tasks.every((t) => selectedIds.has(t.id));
+  // View All, Edit Owned Only: standard users can see every task but only
+  // select/edit the ones assigned to them. Admins can act on anything.
+  function canEdit(task: Task) {
+    return isAdmin || task.user_id === currentUserId;
+  }
+
+  const selectableTasks = useMemo(() => tasks.filter(canEdit), [tasks, isAdmin, currentUserId]);
+  const allSelected = selectableTasks.length > 0 && selectableTasks.every((t) => selectedIds.has(t.id));
 
   const columns = useMemo(
     () => [
       columnHelper.display({
         id: 'select',
-        header: () => (
-          <input
-            type="checkbox"
-            checked={allSelected}
-            onChange={onToggleSelectAll}
-            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-          />
-        ),
-        cell: ({ row }) => (
-          <input
-            type="checkbox"
-            checked={selectedIds.has(row.original.id)}
-            onChange={(e) => {
-              e.stopPropagation();
-              onToggleSelect(row.original.id);
-            }}
-            onClick={(e) => e.stopPropagation()}
-            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-          />
-        ),
+        header: () =>
+          selectableTasks.length > 0 ? (
+            <input
+              type="checkbox"
+              checked={allSelected}
+              onChange={onToggleSelectAll}
+              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+            />
+          ) : null,
+        cell: ({ row }) =>
+          canEdit(row.original) ? (
+            <input
+              type="checkbox"
+              checked={selectedIds.has(row.original.id)}
+              onChange={(e) => {
+                e.stopPropagation();
+                onToggleSelect(row.original.id);
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+            />
+          ) : (
+            <i className="fa-solid fa-lock text-slate-300 text-xs" title="Not assigned to you" />
+          ),
         size: 36,
       }),
       columnHelper.accessor('subject', {
@@ -108,7 +123,7 @@ export default function TasksTable({
         },
       }),
     ],
-    [selectedIds, allSelected]
+    [selectedIds, allSelected, isAdmin, currentUserId]
   );
 
   const table = useReactTable({
@@ -154,10 +169,11 @@ export default function TasksTable({
           {table.getRowModel().rows.map((row) => (
             <tr
               key={row.id}
-              onClick={() => onRowClick(row.original)}
-              className={`border-b border-slate-100 cursor-pointer hover:bg-slate-50 ${
-                selectedIds.has(row.original.id) ? 'bg-indigo-50/40' : ''
-              }`}
+              onClick={() => canEdit(row.original) && onRowClick(row.original)}
+              title={canEdit(row.original) ? undefined : 'You can only open tasks assigned to you'}
+              className={`border-b border-slate-100 hover:bg-slate-50 ${
+                canEdit(row.original) ? 'cursor-pointer' : 'cursor-not-allowed'
+              } ${selectedIds.has(row.original.id) ? 'bg-indigo-50/40' : ''}`}
             >
               {row.getVisibleCells().map((cell) => (
                 <td key={cell.id} className="py-2 px-2 align-middle">

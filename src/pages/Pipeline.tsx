@@ -164,6 +164,13 @@ export default function Pipeline() {
     moveStage.mutate({ id: opportunityId, stage_id: stageId });
   }
 
+  // View All, Edit Owned Only: standard users can see every deal but only
+  // edit/delete/move-stage/mark-won-lost the ones assigned to them. Admins
+  // can act on anything. Backend enforces this too (Pipeline.json).
+  function canEditDeal(opportunity: Opportunity) {
+    return isAdmin || opportunity.assigned_user === user?.id;
+  }
+
   function handlePipelineCreated(pipeline: NewPipelineResult) {
     setToast(`Pipeline "${pipeline.name}" created successfully.`);
   }
@@ -238,6 +245,7 @@ export default function Pipeline() {
           opportunities={visibleOpportunities}
           onCardClick={setActiveOpportunity}
           onMoveStage={handleMoveStage}
+          canEditDeal={canEditDeal}
         />
       ) : (
         <PipelineListView
@@ -264,6 +272,8 @@ export default function Pipeline() {
           pipelineId={pipelineId}
           onClose={() => setActiveOpportunity(null)}
           onEdit={openEditModal}
+          isAdmin={isAdmin}
+          currentUserId={user?.id}
         />
       )}
 

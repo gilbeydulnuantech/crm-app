@@ -241,9 +241,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE opportunities SET name = COALESCE($1, name), contact_id = COALESCE($2, contact_id), account_id = COALESCE($3, account_id), stage_id = COALESCE($4, stage_id), assigned_user = COALESCE($5, assigned_user), deal_value = COALESCE($6, deal_value), probability = COALESCE($7, probability), status = COALESCE($8, status), expected_close = COALESCE($9, expected_close), closed_at = COALESCE($10, closed_at), updated_at = now() WHERE id = $11 RETURNING id;",
+        "query": "UPDATE opportunities SET name = COALESCE($1, name), contact_id = COALESCE($2, contact_id), account_id = COALESCE($3, account_id), stage_id = COALESCE($4, stage_id), assigned_user = COALESCE($5, assigned_user), deal_value = COALESCE($6, deal_value), probability = COALESCE($7, probability), status = COALESCE($8, status), expected_close = COALESCE($9, expected_close), closed_at = COALESCE($10, closed_at), updated_at = now() WHERE id = $11 AND ($12 = 'admin' OR assigned_user = $13) RETURNING id;",
         "options": {
-          "queryReplacement": "={{ [$json.body.name || null, $json.body.contact_id || null, $json.body.account_id || null, $json.body.stage_id || null, $json.body.assigned_user || null, $json.body.deal_value !== undefined ? $json.body.deal_value : null, $json.body.probability !== undefined ? $json.body.probability : null, $json.body.status || null, $json.body.expected_close || null, $json.body.closed_at || null, $json.body.id] }}"
+          "queryReplacement": "={{ [ $('Webhook: update-opportunity').first().json.body.name || null, $('Webhook: update-opportunity').first().json.body.contact_id || null, $('Webhook: update-opportunity').first().json.body.account_id || null, $('Webhook: update-opportunity').first().json.body.stage_id || null, $('Webhook: update-opportunity').first().json.body.assigned_user || null, $('Webhook: update-opportunity').first().json.body.deal_value !== undefined ? $('Webhook: update-opportunity').first().json.body.deal_value : null, $('Webhook: update-opportunity').first().json.body.probability !== undefined ? $('Webhook: update-opportunity').first().json.body.probability : null, $('Webhook: update-opportunity').first().json.body.status || null, $('Webhook: update-opportunity').first().json.body.expected_close || null, $('Webhook: update-opportunity').first().json.body.closed_at || null, $('Webhook: update-opportunity').first().json.body.id, $('Look Up Requester: update-opportunity').first().json.role, $('Look Up Requester: update-opportunity').first().json.id ] }}"
         }
       },
       "id": "ada2c882-6de2-422e-8faf-c2fa3fcbdb93",
@@ -264,7 +264,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { \"success\": $json.id ? true : false } }}",
+        "responseBody": "={{ { \"success\": true } }}",
         "options": {}
       },
       "id": "44d60ba9-1b2c-42d3-9926-493fabc32e7c",
@@ -298,9 +298,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE opportunities o SET stage_id = $1, status = CASE WHEN s.name ILIKE '%won%' THEN 'Won' WHEN s.name ILIKE '%lost%' THEN 'Lost' ELSE 'Open' END, closed_at = CASE WHEN s.name ILIKE '%won%' OR s.name ILIKE '%lost%' THEN now() ELSE NULL END, probability = COALESCE(s.win_probability, o.probability), updated_at = now() FROM stages s WHERE s.id = $1 AND o.id = $2 RETURNING o.id, o.stage_id, o.status;",
+        "query": "UPDATE opportunities o SET stage_id = $1, status = CASE WHEN s.name ILIKE '%won%' THEN 'Won' WHEN s.name ILIKE '%lost%' THEN 'Lost' ELSE 'Open' END, closed_at = CASE WHEN s.name ILIKE '%won%' OR s.name ILIKE '%lost%' THEN now() ELSE NULL END, probability = COALESCE(s.win_probability, o.probability), updated_at = now() FROM stages s WHERE s.id = $1 AND o.id = $2 AND ($3 = 'admin' OR o.assigned_user = $4) RETURNING o.id, o.stage_id, o.status;",
         "options": {
-          "queryReplacement": "={{ [$json.body.stage_id, $json.body.id] }}"
+          "queryReplacement": "={{ [ $('Webhook: move-opportunity-stage').first().json.body.stage_id, $('Webhook: move-opportunity-stage').first().json.body.id, $('Look Up Requester: move-opportunity-stage').first().json.role, $('Look Up Requester: move-opportunity-stage').first().json.id ] }}"
         }
       },
       "id": "3695263b-129a-4edf-b2d3-16b309e72440",
@@ -355,9 +355,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "DELETE FROM opportunities WHERE id = ANY($1::int[]) RETURNING id;",
+        "query": "DELETE FROM opportunities WHERE id = ANY($1::int[]) AND ($2 = 'admin' OR assigned_user = $3) RETURNING id;",
         "options": {
-          "queryReplacement": "={{ [$json.body.ids] }}"
+          "queryReplacement": "={{ [ $('Webhook: delete-opportunities').first().json.body.ids, $('Look Up Requester: delete-opportunities').first().json.role, $('Look Up Requester: delete-opportunities').first().json.id ] }}"
         }
       },
       "id": "3af790b7-b9d7-4a55-b682-897ddc23b01c",
@@ -533,6 +533,191 @@
         2384,
         1808
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "08e61a56-3cda-48ad-af9b-cadd71a74962",
+      "name": "Parse Token: update-opportunity",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        916,
+        1132
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "9cc10f19-1712-49c3-a179-30824c0ee110",
+      "name": "Look Up Requester: update-opportunity",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1116,
+        1132
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) {\n  throw new Error(\"Deal not found or you do not have permission to edit it.\");\n}\nreturn [{ json: { success: true, ...result.json } }];"
+      },
+      "id": "290375c6-2df2-430b-8eb0-a6e180f297b3",
+      "name": "Check Result: update-opportunity",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1516,
+        1132
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Update failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "45e9b7fc-c4e5-412c-b96a-632095ecd733",
+      "name": "Respond - Error: update-opportunity",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1116,
+        1382
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "d024f2be-1023-4435-9512-71fa014dc2d7",
+      "name": "Parse Token: move-opportunity-stage",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        916,
+        1324
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "585afea0-2fdd-4124-b6d8-e05250c3b10d",
+      "name": "Look Up Requester: move-opportunity-stage",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1116,
+        1324
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) {\n  throw new Error(\"Deal not found or you do not have permission to move it.\");\n}\nreturn [{ json: { success: true, ...result.json } }];"
+      },
+      "id": "2648354b-e334-46f2-9691-f1020a08ae92",
+      "name": "Check Result: move-opportunity-stage",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1516,
+        1324
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Move failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "95bac055-69d5-4e34-923a-74368218ccc7",
+      "name": "Respond - Error: move-opportunity-stage",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1116,
+        1574
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "e7cde19d-eb14-4e13-8155-5f725f928fb8",
+      "name": "Parse Token: delete-opportunities",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        916,
+        1500
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "4d583971-5772-4d4e-b1ab-2b34b10f0a11",
+      "name": "Look Up Requester: delete-opportunities",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1116,
+        1500
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Delete failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "d2361c20-0c87-447d-ab0c-05a015a7e3fc",
+      "name": "Respond - Error: delete-opportunities",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1116,
+        1750
+      ]
     }
   ],
   "pinData": {},
@@ -629,7 +814,7 @@
       "main": [
         [
           {
-            "node": "Postgres: Update Opportunity",
+            "node": "Parse Token: update-opportunity",
             "type": "main",
             "index": 0
           }
@@ -640,7 +825,12 @@
       "main": [
         [
           {
-            "node": "Respond: update-opportunity",
+            "node": "Check Result: update-opportunity",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-opportunity",
             "type": "main",
             "index": 0
           }
@@ -651,7 +841,7 @@
       "main": [
         [
           {
-            "node": "Postgres: Move Stage (auto Won/Lost)",
+            "node": "Parse Token: move-opportunity-stage",
             "type": "main",
             "index": 0
           }
@@ -662,7 +852,12 @@
       "main": [
         [
           {
-            "node": "Respond: move-opportunity-stage",
+            "node": "Check Result: move-opportunity-stage",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: move-opportunity-stage",
             "type": "main",
             "index": 0
           }
@@ -673,7 +868,7 @@
       "main": [
         [
           {
-            "node": "Postgres: Delete Opportunities",
+            "node": "Parse Token: delete-opportunities",
             "type": "main",
             "index": 0
           }
@@ -762,6 +957,134 @@
         [
           {
             "node": "Respond: pipeline-create-new",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: update-opportunity": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: update-opportunity",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: update-opportunity": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Update Opportunity",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Result: update-opportunity": {
+      "main": [
+        [
+          {
+            "node": "Respond: update-opportunity",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: move-opportunity-stage": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: move-opportunity-stage",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: move-opportunity-stage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: move-opportunity-stage": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Move Stage (auto Won/Lost)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: move-opportunity-stage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Result: move-opportunity-stage": {
+      "main": [
+        [
+          {
+            "node": "Respond: move-opportunity-stage",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: move-opportunity-stage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: delete-opportunities": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: delete-opportunities",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: delete-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: delete-opportunities": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Delete Opportunities",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: delete-opportunities",
             "type": "main",
             "index": 0
           }

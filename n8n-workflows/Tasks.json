@@ -161,9 +161,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE activities SET subject = COALESCE($1, subject), body = COALESCE($2, body), contact_id = COALESCE($3, contact_id), opportunity_id = COALESCE($4, opportunity_id), user_id = COALESCE($5, user_id), due_at = COALESCE($6, due_at), is_completed = COALESCE($7, is_completed), completed_at = $8, priority = COALESCE($9, priority), task_type = COALESCE($10, task_type), status = COALESCE($11, status) WHERE id = $12 RETURNING id;",
+        "query": "UPDATE activities SET subject = COALESCE($1, subject), body = COALESCE($2, body), contact_id = COALESCE($3, contact_id), opportunity_id = COALESCE($4, opportunity_id), user_id = COALESCE($5, user_id), due_at = COALESCE($6, due_at), is_completed = COALESCE($7, is_completed), completed_at = $8, priority = COALESCE($9, priority), task_type = COALESCE($10, task_type), status = COALESCE($11, status) WHERE id = $12 AND type = 'task' AND ($13 = 'admin' OR user_id = $14) RETURNING id;",
         "options": {
-          "queryReplacement": "={{ [ $('Webhook: update-task').first().json.body.subject || null, $('Webhook: update-task').first().json.body.body || null, $('Webhook: update-task').first().json.body.contact_id || null, $('Webhook: update-task').first().json.body.opportunity_id || null, $('Webhook: update-task').first().json.body.user_id || null, $('Webhook: update-task').first().json.body.due_at || null, $('Webhook: update-task').first().json.body.is_completed !== undefined ? $('Webhook: update-task').first().json.body.is_completed : null, $('Webhook: update-task').first().json.body.completed_at !== undefined ? $('Webhook: update-task').first().json.body.completed_at : null, $('Webhook: update-task').first().json.body.priority || null, $('Webhook: update-task').first().json.body.task_type || null, $('Webhook: update-task').first().json.body.status || null, $('Webhook: update-task').first().json.body.id ] }}"
+          "queryReplacement": "={{ [ $('Webhook: update-task').first().json.body.subject || null, $('Webhook: update-task').first().json.body.body || null, $('Webhook: update-task').first().json.body.contact_id || null, $('Webhook: update-task').first().json.body.opportunity_id || null, $('Webhook: update-task').first().json.body.user_id || null, $('Webhook: update-task').first().json.body.due_at || null, $('Webhook: update-task').first().json.body.is_completed !== undefined ? $('Webhook: update-task').first().json.body.is_completed : null, $('Webhook: update-task').first().json.body.completed_at !== undefined ? $('Webhook: update-task').first().json.body.completed_at : null, $('Webhook: update-task').first().json.body.priority || null, $('Webhook: update-task').first().json.body.task_type || null, $('Webhook: update-task').first().json.body.status || null, $('Webhook: update-task').first().json.body.id, $('Look Up Requester: update-task').first().json.role, $('Look Up Requester: update-task').first().json.id ] }}"
         }
       },
       "id": "757a985d-9a39-490b-8761-e64f841e7336",
@@ -184,7 +184,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { \"success\": $json.id ? true : false } }}",
+        "responseBody": "={{ { \"success\": true } }}",
         "options": {
           "responseHeaders": {
             "entries": [
@@ -233,9 +233,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "DELETE FROM activities WHERE id = ANY($1::int[]) AND type = 'task' RETURNING id;",
+        "query": "DELETE FROM activities WHERE id = ANY($1::int[]) AND type = 'task' AND ($2 = 'admin' OR user_id = $3) RETURNING id;",
         "options": {
-          "queryReplacement": "={{ [$json.body.ids] }}"
+          "queryReplacement": "={{ [ $('Webhook: delete-tasks').first().json.body.ids, $('Look Up Requester: delete-tasks').first().json.role, $('Look Up Requester: delete-tasks').first().json.id ] }}"
         }
       },
       "id": "704154da-8880-4ff5-8716-0b26e70cdd93",
@@ -376,6 +376,125 @@
           "name": "myRag"
         }
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "c1870ddb-a120-4e87-9143-f77697466c3e",
+      "name": "Parse Token: update-task",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        708,
+        636
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "f5582608-e4a7-4b95-bf3c-3ecb914dfb81",
+      "name": "Look Up Requester: update-task",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        908,
+        636
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) {\n  throw new Error(\"Task not found or you do not have permission to edit it.\");\n}\nreturn [{ json: { success: true, id: result.json.id } }];"
+      },
+      "id": "89b42a27-fdfe-4a90-8131-ec239ed06d28",
+      "name": "Check Result: update-task",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1508,
+        636
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Update failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "d4a8810e-3ca8-425f-a7c5-b5734a45b6c6",
+      "name": "Respond - Error: update-task",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        908,
+        886
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "6b76d1ef-7009-495f-854c-ebd63feacb73",
+      "name": "Parse Token: delete-tasks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        708,
+        844
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "f7d41926-0e32-488f-b943-e1b82ed4a835",
+      "name": "Look Up Requester: delete-tasks",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        908,
+        844
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Delete failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "b25f4c7e-4dfd-4c96-baec-115bc88741ef",
+      "name": "Respond - Error: delete-tasks",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        908,
+        1094
+      ]
     }
   ],
   "pinData": {},
@@ -428,7 +547,7 @@
       "main": [
         [
           {
-            "node": "Postgres: Ensure Task Columns (update)",
+            "node": "Parse Token: update-task",
             "type": "main",
             "index": 0
           }
@@ -439,7 +558,12 @@
       "main": [
         [
           {
-            "node": "Respond: update-task",
+            "node": "Check Result: update-task",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-task",
             "type": "main",
             "index": 0
           }
@@ -450,7 +574,7 @@
       "main": [
         [
           {
-            "node": "Postgres: Delete Tasks",
+            "node": "Parse Token: delete-tasks",
             "type": "main",
             "index": 0
           }
@@ -495,6 +619,86 @@
         [
           {
             "node": "Postgres: Update Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: update-task": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: update-task",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: update-task": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure Task Columns (update)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Result: update-task": {
+      "main": [
+        [
+          {
+            "node": "Respond: update-task",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: delete-tasks": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: delete-tasks",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: delete-tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: delete-tasks": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Delete Tasks",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: delete-tasks",
             "type": "main",
             "index": 0
           }

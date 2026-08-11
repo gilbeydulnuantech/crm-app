@@ -520,6 +520,8 @@ export default function Calendar() {
             setQuickViewEvent(null);
             setActiveEvent(event);
           }}
+          isAdmin={isAdmin}
+          currentUserId={user?.id}
         />
 
         <EventDetailPanel
@@ -528,6 +530,8 @@ export default function Calendar() {
           onEdit={openEditModal}
           onOpenContact={() => navigate('/contacts')}
           onOpenOpportunity={() => navigate('/pipeline')}
+          isAdmin={isAdmin}
+          currentUserId={user?.id}
         />
 
         <DealQuickView
@@ -546,6 +550,8 @@ export default function Calendar() {
           pipelineId={activeDeal?.pipeline_id ?? defaultPipelineId ?? 0}
           onClose={() => setActiveDeal(null)}
           onEdit={openEditDeal}
+          isAdmin={isAdmin}
+          currentUserId={user?.id}
         />
 
         {defaultPipelineId && (

@@ -10,6 +10,8 @@ interface Props {
   onOpenContact?: (contactId: number) => void;
   onOpenCompany?: (opportunityId: number) => void;
   onOpenOpportunity?: (opportunityId: number) => void;
+  isAdmin: boolean;
+  currentUserId?: number;
 }
 
 export default function EventDetailPanel({
@@ -18,6 +20,8 @@ export default function EventDetailPanel({
   onEdit,
   onOpenContact,
   onOpenOpportunity,
+  isAdmin,
+  currentUserId,
 }: Props) {
   const updateEvent = useUpdateEvent();
   const deleteEvent = useDeleteEvent();
@@ -25,6 +29,11 @@ export default function EventDetailPanel({
   const [newDate, setNewDate] = useState('');
 
   if (!event) return null;
+
+  // View All, Edit Owned Only: standard users can see every event but only
+  // edit/reschedule/complete/delete the ones assigned to them. Admins can
+  // act on anything. Backend enforces this too (Calendar Events.json).
+  const canEdit = isAdmin || event.user_id === currentUserId;
 
   const meta = EVENT_TYPE_META[event.type];
 
@@ -174,38 +183,46 @@ export default function EventDetailPanel({
           )}
         </div>
 
-        <div className="p-4 border-t border-slate-200 shrink-0 space-y-2">
-          <div className="flex gap-2">
-            <button
-              onClick={() => onEdit(event)}
-              className="flex-1 border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-medium py-2 rounded-lg"
-            >
-              Edit
-            </button>
-            <button
-              onClick={() => setRescheduling(true)}
-              className="flex-1 border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-medium py-2 rounded-lg"
-            >
-              Reschedule
-            </button>
-          </div>
-          <div className="flex gap-2">
-            {!event.is_completed && (
+        {canEdit ? (
+          <div className="p-4 border-t border-slate-200 shrink-0 space-y-2">
+            <div className="flex gap-2">
               <button
-                onClick={handleComplete}
-                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold py-2 rounded-lg"
+                onClick={() => onEdit(event)}
+                className="flex-1 border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-medium py-2 rounded-lg"
               >
-                Complete
+                Edit
               </button>
-            )}
-            <button
-              onClick={handleDelete}
-              className="flex-1 border border-rose-200 hover:bg-rose-50 text-rose-600 text-sm font-medium py-2 rounded-lg"
-            >
-              Delete
-            </button>
+              <button
+                onClick={() => setRescheduling(true)}
+                className="flex-1 border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-medium py-2 rounded-lg"
+              >
+                Reschedule
+              </button>
+            </div>
+            <div className="flex gap-2">
+              {!event.is_completed && (
+                <button
+                  onClick={handleComplete}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold py-2 rounded-lg"
+                >
+                  Complete
+                </button>
+              )}
+              <button
+                onClick={handleDelete}
+                className="flex-1 border border-rose-200 hover:bg-rose-50 text-rose-600 text-sm font-medium py-2 rounded-lg"
+              >
+                Delete
+              </button>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="p-4 border-t border-slate-200 shrink-0">
+            <p className="text-xs text-slate-400 text-center">
+              This event is assigned to someone else — you can view it but not edit it.
+            </p>
+          </div>
+        )}
       </div>
     </>
   );

@@ -155,6 +155,14 @@ export default function Tasks() {
     moveTaskStatus.mutate({ id: taskId, status });
   }
 
+  // View All, Edit Owned Only: standard users can see every task but only
+  // edit/complete/delete/drag the ones assigned to them. Admins can act on
+  // anything. Backend enforces this too (Tasks.json), this just keeps the
+  // UI from offering actions that would be rejected.
+  function canEditTask(task: Task) {
+    return isAdmin || task.user_id === user?.id;
+  }
+
   function toggleSelect(id: number) {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -245,6 +253,8 @@ export default function Tasks() {
               onToggleSelectAll={toggleSelectAll}
               onRowClick={openEditModal}
               isLoading={isLoading}
+              isAdmin={isAdmin}
+              currentUserId={user?.id}
             />
 
             <div className="px-4 py-2.5 border-t border-slate-200 flex items-center justify-between shrink-0">
@@ -266,7 +276,12 @@ export default function Tasks() {
             </div>
           </>
         ) : (
-          <TasksKanbanBoard tasks={kanbanTasks} onMoveStatus={handleMoveTaskStatus} onCardClick={openEditModal} />
+          <TasksKanbanBoard
+            tasks={kanbanTasks}
+            onMoveStatus={handleMoveTaskStatus}
+            onCardClick={openEditModal}
+            canEditTask={canEditTask}
+          />
         )}
 
         <TaskFormModal open={formOpen} task={editingTask} onClose={() => setFormOpen(false)} />

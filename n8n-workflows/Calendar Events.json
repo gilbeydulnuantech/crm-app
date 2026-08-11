@@ -163,9 +163,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE activities SET subject = COALESCE($1, subject), body = COALESCE($2, body), type = COALESCE($3, type), contact_id = COALESCE($4, contact_id), opportunity_id = COALESCE($5, opportunity_id), user_id = COALESCE($6, user_id), due_at = COALESCE($7, due_at), is_completed = COALESCE($8, is_completed), completed_at = CASE WHEN $9::text IS NOT NULL THEN $9::timestamptz ELSE completed_at END, end_at = COALESCE($10, end_at), location = COALESCE($11, location), is_all_day = COALESCE($12, is_all_day) WHERE id = $13 RETURNING id;",
+        "query": "UPDATE activities SET subject = COALESCE($1, subject), body = COALESCE($2, body), type = COALESCE($3, type), contact_id = COALESCE($4, contact_id), opportunity_id = COALESCE($5, opportunity_id), user_id = COALESCE($6, user_id), due_at = COALESCE($7, due_at), is_completed = COALESCE($8, is_completed), completed_at = CASE WHEN $9::text IS NOT NULL THEN $9::timestamptz ELSE completed_at END, end_at = COALESCE($10, end_at), location = COALESCE($11, location), is_all_day = COALESCE($12, is_all_day) WHERE id = $13 AND ($14 = 'admin' OR user_id = $15) RETURNING id;",
         "options": {
-          "queryReplacement": "={{ [$('Webhook: update-event').first().json.body.subject || null, $('Webhook: update-event').first().json.body.body || null, $('Webhook: update-event').first().json.body.type || null, $('Webhook: update-event').first().json.body.contact_id || null, $('Webhook: update-event').first().json.body.opportunity_id || null, $('Webhook: update-event').first().json.body.user_id || null, $('Webhook: update-event').first().json.body.due_at || null, $('Webhook: update-event').first().json.body.is_completed !== undefined ? $('Webhook: update-event').first().json.body.is_completed : null, $('Webhook: update-event').first().json.body.completed_at || null, $('Webhook: update-event').first().json.body.end_at || null, $('Webhook: update-event').first().json.body.location || null, $('Webhook: update-event').first().json.body.is_all_day !== undefined ? ($('Webhook: update-event').first().json.body.is_all_day === true || $('Webhook: update-event').first().json.body.is_all_day === 'true') : null, $('Webhook: update-event').first().json.body.id] }}"
+          "queryReplacement": "={{ [$('Webhook: update-event').first().json.body.subject || null, $('Webhook: update-event').first().json.body.body || null, $('Webhook: update-event').first().json.body.type || null, $('Webhook: update-event').first().json.body.contact_id || null, $('Webhook: update-event').first().json.body.opportunity_id || null, $('Webhook: update-event').first().json.body.user_id || null, $('Webhook: update-event').first().json.body.due_at || null, $('Webhook: update-event').first().json.body.is_completed !== undefined ? $('Webhook: update-event').first().json.body.is_completed : null, $('Webhook: update-event').first().json.body.completed_at || null, $('Webhook: update-event').first().json.body.end_at || null, $('Webhook: update-event').first().json.body.location || null, $('Webhook: update-event').first().json.body.is_all_day !== undefined ? ($('Webhook: update-event').first().json.body.is_all_day === true || $('Webhook: update-event').first().json.body.is_all_day === 'true') : null, $('Webhook: update-event').first().json.body.id, $('Look Up Requester: update-event').first().json.role, $('Look Up Requester: update-event').first().json.id ] }}"
         }
       },
       "id": "898a6266-6993-4969-b70d-65ae210ca328",
@@ -235,9 +235,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "DELETE FROM activities WHERE id = ANY($1::int[]) RETURNING id;",
+        "query": "DELETE FROM activities WHERE id = ANY($1::int[]) AND ($2 = 'admin' OR user_id = $3) RETURNING id;",
         "options": {
-          "queryReplacement": "={{ [$json.body.ids] }}"
+          "queryReplacement": "={{ [ $('Webhook: delete-event').first().json.body.ids, $('Look Up Requester: delete-event').first().json.role, $('Look Up Requester: delete-event').first().json.id ] }}"
         }
       },
       "id": "700b7690-887b-4f65-9830-07912dc74e6c",
@@ -639,6 +639,157 @@
         784,
         448
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "7cb8d1ae-fec6-43ea-baaa-6b204ddf3118",
+      "name": "Parse Token: update-event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        100,
+        298
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "8ee421d8-5401-41c3-a6c8-e08bc1c970d7",
+      "name": "Look Up Requester: update-event",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        250,
+        298
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) {\n  throw new Error(\"Event not found or you do not have permission to edit it.\");\n}\nreturn [{ json: { success: true, ...result.json } }];"
+      },
+      "id": "149652a7-8d5b-44fd-bfbd-b62dfb4140ff",
+      "name": "Check Result: update-event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        298
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Update failed.\" } }}",
+        "options": {
+          "responseCode": 400,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization, ngrok-skip-browser-warning"
+              }
+            ]
+          }
+        }
+      },
+      "id": "d62669ae-2cbb-4665-a66c-73f4ec09b516",
+      "name": "Respond - Error: update-event",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        250,
+        698
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "cfc31abc-e366-4575-9188-e1e5555ea34e",
+      "name": "Parse Token: delete-event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        100,
+        522
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "5fb471e0-1091-428a-ad3b-87fbfefd7c0a",
+      "name": "Look Up Requester: delete-event",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        250,
+        522
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Delete failed.\" } }}",
+        "options": {
+          "responseCode": 400,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization, ngrok-skip-browser-warning"
+              }
+            ]
+          }
+        }
+      },
+      "id": "49b94a72-3f91-4a8d-a4fa-9f9f561dccd8",
+      "name": "Respond - Error: delete-event",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        250,
+        922
+      ]
     }
   ],
   "pinData": {},
@@ -691,7 +842,7 @@
       "main": [
         [
           {
-            "node": "Postgres: Ensure Event Columns (s003)",
+            "node": "Parse Token: update-event",
             "type": "main",
             "index": 0
           }
@@ -702,7 +853,12 @@
       "main": [
         [
           {
-            "node": "Build Resource Relink (Update)",
+            "node": "Check Result: update-event",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-event",
             "type": "main",
             "index": 0
           }
@@ -713,7 +869,7 @@
       "main": [
         [
           {
-            "node": "Postgres: Delete Event",
+            "node": "Parse Token: delete-event",
             "type": "main",
             "index": 0
           }
@@ -868,6 +1024,86 @@
         [
           {
             "node": "Respond: update-event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: update-event": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: update-event",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: update-event": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure Event Columns (s003)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Result: update-event": {
+      "main": [
+        [
+          {
+            "node": "Build Resource Relink (Update)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: delete-event": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: delete-event",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: delete-event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: delete-event": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Delete Event",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: delete-event",
             "type": "main",
             "index": 0
           }

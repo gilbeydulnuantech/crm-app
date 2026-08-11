@@ -186,9 +186,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE companies SET name = $1, website = $2, industry = $3, city = $4, state = $5, country = $6, phone = $7, owner_id = COALESCE($8, owner_id), updated_at = now() WHERE id = $9 RETURNING id;",
+        "query": "UPDATE companies SET name = $1, website = $2, industry = $3, city = $4, state = $5, country = $6, phone = $7, owner_id = COALESCE($8, owner_id), updated_at = now() WHERE id = $9 AND ($10 = 'admin' OR owner_id = $11) RETURNING id;",
         "options": {
-          "queryReplacement": "={{ [$json.body.name, $json.body.website || null, $json.body.industry || null, $json.body.city || null, $json.body.state || null, $json.body.country || null, $json.body.phone || null, $json.body.owner_id || null, $json.body.id] }}"
+          "queryReplacement": "={{ [ $('Webhook: update-companies').first().json.body.name, $('Webhook: update-companies').first().json.body.website || null, $('Webhook: update-companies').first().json.body.industry || null, $('Webhook: update-companies').first().json.body.city || null, $('Webhook: update-companies').first().json.body.state || null, $('Webhook: update-companies').first().json.body.country || null, $('Webhook: update-companies').first().json.body.phone || null, $('Webhook: update-companies').first().json.body.owner_id || null, $('Webhook: update-companies').first().json.body.id, $('Look Up Requester: update-companies').first().json.role, $('Look Up Requester: update-companies').first().json.id ] }}"
         }
       },
       "id": "6585be97-f7e3-4c28-8d8a-67477064cd79",
@@ -209,7 +209,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { \"success\": $json.id ? true : false } }}",
+        "responseBody": "={{ { \"success\": true } }}",
         "options": {}
       },
       "id": "e25392a3-3a5b-4145-9a18-94df1a5b13d6",
@@ -243,9 +243,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE companies SET is_archived = true, updated_at = now() WHERE id = ANY($1::int[]) RETURNING id;",
+        "query": "UPDATE companies SET is_archived = true, updated_at = now() WHERE id = ANY($1::int[]) AND ($2 = 'admin' OR owner_id = $3) RETURNING id;",
         "options": {
-          "queryReplacement": "={{ [$json.body.ids] }}"
+          "queryReplacement": "={{ [ $('Webhook: archive-companies').first().json.body.ids, $('Look Up Requester: archive-companies').first().json.role, $('Look Up Requester: archive-companies').first().json.id ] }}"
         }
       },
       "id": "b057e9e9-d74c-4cb8-b159-e7d2580011f8",
@@ -300,9 +300,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "DELETE FROM companies WHERE id = ANY($1::int[]) RETURNING id;",
+        "query": "DELETE FROM companies WHERE id = ANY($1::int[]) AND ($2 = 'admin' OR owner_id = $3) RETURNING id;",
         "options": {
-          "queryReplacement": "={{ [$json.body.ids] }}"
+          "queryReplacement": "={{ [ $('Webhook: delete-companies').first().json.body.ids, $('Look Up Requester: delete-companies').first().json.role, $('Look Up Requester: delete-companies').first().json.id ] }}"
         }
       },
       "id": "99e7cefd-05ea-4e2f-8fbe-90f7e416884d",
@@ -333,6 +333,178 @@
       "position": [
         944,
         1392
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "6e757c38-cadf-4819-a3a4-6c76b7de9f8c",
+      "name": "Parse Token: update-companies",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        656,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "71cd65df-bc30-4ea5-bfb2-e095f540f628",
+      "name": "Look Up Requester: update-companies",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        856,
+        912
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) {\n  throw new Error(\"Company not found or you do not have permission to edit it.\");\n}\nreturn [{ json: { success: true, id: result.json.id } }];"
+      },
+      "id": "2e8fc506-41aa-490e-b1cf-e6567781587f",
+      "name": "Check Result: update-companies",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1256,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Update failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "89713cce-60ce-4d3f-96dd-0f07faa1899c",
+      "name": "Respond - Error: update-companies",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        856,
+        1112
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "132c0ead-df95-4f55-8608-86b3ea6c3d99",
+      "name": "Parse Token: archive-companies",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        656,
+        1104
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "144d1e89-d322-44e8-8607-3c6d367fc93d",
+      "name": "Look Up Requester: archive-companies",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        856,
+        1104
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Archive failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "75fb7e9f-5ce9-4265-8c24-36e00d1dc396",
+      "name": "Respond - Error: archive-companies",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        856,
+        1304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "e1db9f92-a579-430a-b485-ef9dbe6db98e",
+      "name": "Parse Token: delete-companies",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        656,
+        1312
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "a272889b-2d59-4c1a-af45-a463b8be0fb1",
+      "name": "Look Up Requester: delete-companies",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        856,
+        1312
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Delete failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "38dd4422-a606-4322-ad34-ab4d82b9638f",
+      "name": "Respond - Error: delete-companies",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        856,
+        1512
       ]
     }
   ],
@@ -408,7 +580,7 @@
       "main": [
         [
           {
-            "node": "Postgres: Update Company",
+            "node": "Parse Token: update-companies",
             "type": "main",
             "index": 0
           }
@@ -419,7 +591,12 @@
       "main": [
         [
           {
-            "node": "Respond: update-companies",
+            "node": "Check Result: update-companies",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-companies",
             "type": "main",
             "index": 0
           }
@@ -430,7 +607,7 @@
       "main": [
         [
           {
-            "node": "Postgres: Archive Companies",
+            "node": "Parse Token: archive-companies",
             "type": "main",
             "index": 0
           }
@@ -452,7 +629,7 @@
       "main": [
         [
           {
-            "node": "Postgres: Delete Companies",
+            "node": "Parse Token: delete-companies",
             "type": "main",
             "index": 0
           }
@@ -464,6 +641,118 @@
         [
           {
             "node": "Respond: delete-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: update-companies": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: update-companies",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: update-companies": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Update Company",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Result: update-companies": {
+      "main": [
+        [
+          {
+            "node": "Respond: update-companies",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: archive-companies": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: archive-companies",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: archive-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: archive-companies": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Archive Companies",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: archive-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: delete-companies": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: delete-companies",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: delete-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: delete-companies": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Delete Companies",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: delete-companies",
             "type": "main",
             "index": 0
           }

@@ -218,6 +218,8 @@ export default function Companies() {
             onEdit={openEditModal}
             onDelete={handleDeleteOne}
             isLoading={isLoading}
+            isAdmin={isAdmin}
+            currentUserId={user?.id}
           />
         </>
       )}
@@ -232,6 +234,8 @@ export default function Companies() {
           onEdit={openEditModal}
           onDelete={handleDeleteOne}
           isLoading={isLoadingArchived}
+          isAdmin={isAdmin}
+          currentUserId={user?.id}
         />
       )}
 
@@ -245,7 +249,6 @@ export default function Companies() {
           <CompaniesBulkActionsMenu
             view={view}
             selectedCount={selectedIds.size}
-            isAdmin={isAdmin}
             onArchiveSelected={handleArchiveSelected}
             onDeleteSelected={handleDeleteSelected}
             onExport={handleExport}
@@ -265,6 +268,8 @@ export default function Companies() {
       <CompanyDetailModal
         company={activeCompany}
         onClose={() => setActiveCompanyId(null)}
+        isAdmin={isAdmin}
+        currentUserId={user?.id}
         onEdit={(company) => {
           setActiveCompanyId(null);
           openEditModal(company);

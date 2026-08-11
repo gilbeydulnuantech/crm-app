@@ -4,7 +4,6 @@ import { CompaniesView } from '../../types/company';
 interface Props {
   view: CompaniesView;
   selectedCount: number;
-  isAdmin: boolean;
   onArchiveSelected: () => void;
   onDeleteSelected: () => void;
   onExport: () => void;
@@ -13,7 +12,6 @@ interface Props {
 export default function CompaniesBulkActionsMenu({
   view,
   selectedCount,
-  isAdmin,
   onArchiveSelected,
   onDeleteSelected,
   onExport,
@@ -48,15 +46,13 @@ export default function CompaniesBulkActionsMenu({
                 Archive Selected
               </button>
             )}
-            {isAdmin && (
-              <button
-                disabled={selectedCount === 0}
-                onClick={() => run(onDeleteSelected)}
-                className="w-full text-left px-3 py-1.5 hover:bg-rose-50 text-rose-600 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Delete Permanently
-              </button>
-            )}
+            <button
+              disabled={selectedCount === 0}
+              onClick={() => run(onDeleteSelected)}
+              className="w-full text-left px-3 py-1.5 hover:bg-rose-50 text-rose-600 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Delete Permanently
+            </button>
             <div className="border-t border-slate-100 my-1" />
             <button
               onClick={() => run(onExport)}

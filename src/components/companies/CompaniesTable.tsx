@@ -16,6 +16,8 @@ interface Props {
   onEdit: (company: Company) => void;
   onDelete: (company: Company) => void;
   isLoading: boolean;
+  isAdmin: boolean;
+  currentUserId?: number;
 }
 
 const columnHelper = createColumnHelper<Company>();
@@ -39,29 +41,41 @@ export default function CompaniesTable({
   onEdit,
   onDelete,
   isLoading,
+  isAdmin,
+  currentUserId,
 }: Props) {
-  const allSelected = companies.length > 0 && companies.every((c) => selectedIds.has(c.id));
+  // View All, Edit Owned Only: standard users can see every company but
+  // only edit/delete/select the ones they own. Admins can act on anything.
+  function canEdit(company: Company) {
+    return isAdmin || company.owner_id === currentUserId;
+  }
+
+  const selectableCompanies = useMemo(() => companies.filter(canEdit), [companies, isAdmin, currentUserId]);
+  const allSelected =
+    selectableCompanies.length > 0 && selectableCompanies.every((c) => selectedIds.has(c.id));
 
   const columns = useMemo(
     () => [
       columnHelper.display({
         id: 'select',
-        header: () => (
-          <input
-            type="checkbox"
-            checked={allSelected}
-            onChange={onToggleSelectAll}
-            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-          />
-        ),
-        cell: ({ row }) => (
-          <input
-            type="checkbox"
-            checked={selectedIds.has(row.original.id)}
-            onChange={() => onToggleSelect(row.original.id)}
-            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-          />
-        ),
+        header: () =>
+          selectableCompanies.length > 0 ? (
+            <input
+              type="checkbox"
+              checked={allSelected}
+              onChange={onToggleSelectAll}
+              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+            />
+          ) : null,
+        cell: ({ row }) =>
+          canEdit(row.original) ? (
+            <input
+              type="checkbox"
+              checked={selectedIds.has(row.original.id)}
+              onChange={() => onToggleSelect(row.original.id)}
+              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+            />
+          ) : null,
         size: 36,
       }),
       columnHelper.accessor('name', {
@@ -96,33 +110,38 @@ export default function CompaniesTable({
       columnHelper.display({
         id: 'actions',
         header: '',
-        cell: ({ row }) => (
-          <div className="flex items-center gap-2 justify-end">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(row.original);
-              }}
-              className="text-slate-400 hover:text-indigo-600"
-              title="Edit"
-            >
-              <i className="fa-solid fa-pen text-xs" />
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(row.original);
-              }}
-              className="text-slate-400 hover:text-rose-600"
-              title="Delete"
-            >
-              <i className="fa-solid fa-trash text-xs" />
-            </button>
-          </div>
-        ),
+        cell: ({ row }) =>
+          canEdit(row.original) ? (
+            <div className="flex items-center gap-2 justify-end">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(row.original);
+                }}
+                className="text-slate-400 hover:text-indigo-600"
+                title="Edit"
+              >
+                <i className="fa-solid fa-pen text-xs" />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(row.original);
+                }}
+                className="text-slate-400 hover:text-rose-600"
+                title="Delete"
+              >
+                <i className="fa-solid fa-trash text-xs" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-end" title="You can only edit companies you own">
+              <i className="fa-solid fa-lock text-slate-300 text-xs" />
+            </div>
+          ),
       }),
     ],
-    [selectedIds, allSelected]
+    [selectedIds, allSelected, isAdmin, currentUserId]
   );
 
   const table = useReactTable({

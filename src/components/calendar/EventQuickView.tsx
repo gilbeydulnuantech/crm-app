@@ -6,6 +6,8 @@ interface Props {
   event: CalendarEvent | null;
   onClose: () => void;
   onEdit: (event: CalendarEvent) => void;
+  isAdmin: boolean;
+  currentUserId?: number;
 }
 
 function Row({ icon, children }: { icon: string; children: ReactNode }) {
@@ -17,8 +19,10 @@ function Row({ icon, children }: { icon: string; children: ReactNode }) {
   );
 }
 
-export default function EventQuickView({ event, onClose, onEdit }: Props) {
+export default function EventQuickView({ event, onClose, onEdit, isAdmin, currentUserId }: Props) {
   if (!event) return null;
+
+  const canEdit = isAdmin || event.user_id === currentUserId;
 
   const dateLabel = new Date(event.due_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   const startLabel = new Date(event.due_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
@@ -56,12 +60,18 @@ export default function EventQuickView({ event, onClose, onEdit }: Props) {
           {event.location && <Row icon="fa-location-dot">{event.location}</Row>}
         </div>
 
-        <button
-          onClick={() => onEdit(event)}
-          className="w-full mt-5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold py-2 rounded-lg"
-        >
-          Edit
-        </button>
+        {canEdit ? (
+          <button
+            onClick={() => onEdit(event)}
+            className="w-full mt-5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold py-2 rounded-lg"
+          >
+            Edit
+          </button>
+        ) : (
+          <p className="text-xs text-slate-400 text-center mt-5">
+            Assigned to someone else — view only.
+          </p>
+        )}
       </div>
     </div>
   );

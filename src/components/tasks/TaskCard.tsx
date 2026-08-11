@@ -6,6 +6,7 @@ import { DEFAULT_USER_COLOR, hexToRgba } from '../../utils/userColor';
 interface Props {
   task: Task;
   onClick: () => void;
+  canEdit: boolean;
 }
 
 const PRIORITY_DOT: Record<string, string> = {
@@ -14,10 +15,11 @@ const PRIORITY_DOT: Record<string, string> = {
   Low: 'bg-emerald-500',
 };
 
-export default function TaskCard({ task, onClick }: Props) {
+export default function TaskCard({ task, onClick, canEdit }: Props) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
     data: { task },
+    disabled: !canEdit,
   });
 
   // The card's background/left border are the assigned owner's color —
@@ -41,19 +43,24 @@ export default function TaskCard({ task, onClick }: Props) {
       {...listeners}
       {...attributes}
       onClick={() => {
+        if (!canEdit) return;
         if (transform && (Math.abs(transform.x) > 5 || Math.abs(transform.y) > 5)) return;
         onClick();
       }}
-      className={`${ownerColor ? '' : 'bg-white'} border border-slate-200 rounded-lg p-2.5 shadow-sm hover:shadow-md cursor-grab active:cursor-grabbing transition-all ${
-        isDragging ? 'opacity-40 ring-2 ring-indigo-400 border-transparent scale-105' : ''
-      }`}
+      title={canEdit ? undefined : 'You can only edit tasks assigned to you'}
+      className={`${ownerColor ? '' : 'bg-white'} border border-slate-200 rounded-lg p-2.5 shadow-sm hover:shadow-md transition-all ${
+        canEdit ? 'cursor-grab active:cursor-grabbing' : 'cursor-not-allowed'
+      } ${isDragging ? 'opacity-40 ring-2 ring-indigo-400 border-transparent scale-105' : ''}`}
     >
-      <div
-        className={`text-xs font-bold truncate ${
-          task.is_completed ? 'text-slate-400 line-through' : 'text-slate-800'
-        }`}
-      >
-        {task.subject}
+      <div className="flex items-center gap-1.5">
+        <div
+          className={`text-xs font-bold truncate flex-1 ${
+            task.is_completed ? 'text-slate-400 line-through' : 'text-slate-800'
+          }`}
+        >
+          {task.subject}
+        </div>
+        {!canEdit && <i className="fa-solid fa-lock text-slate-300 text-[10px] shrink-0" />}
       </div>
 
       {task.contact_name && (

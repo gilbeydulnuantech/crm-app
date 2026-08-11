@@ -16,9 +16,18 @@ interface Props {
   onClose: () => void;
   onEdit: (company: Company) => void;
   onContactClick?: (contactId: number) => void;
+  isAdmin: boolean;
+  currentUserId?: number;
 }
 
-export default function CompanyDetailModal({ company, onClose, onEdit, onContactClick }: Props) {
+export default function CompanyDetailModal({
+  company,
+  onClose,
+  onEdit,
+  onContactClick,
+  isAdmin,
+  currentUserId,
+}: Props) {
   const { data: allContacts = [], isLoading: contactsLoading } = useContacts();
   const { data: pipelines = [] } = usePipelines();
   const defaultPipelineId = pipelines.find((p) => p.is_default)?.id ?? pipelines[0]?.id;
@@ -26,6 +35,9 @@ export default function CompanyDetailModal({ company, onClose, onEdit, onContact
   const { data: opportunities = [], isLoading: oppsLoading } = useOpportunities(defaultPipelineId);
 
   if (!company) return null;
+
+  // View All, Edit Owned Only: matches Contacts/Companies table policy.
+  const canEdit = isAdmin || company.owner_id === currentUserId;
 
   const companyContacts = allContacts.filter((c) => c.account_id === company.id);
   const companyOpportunities = opportunities.filter((o) => o.account_id === company.id);
@@ -40,12 +52,14 @@ export default function CompanyDetailModal({ company, onClose, onEdit, onContact
             Company Details
           </span>
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => onEdit(company)}
-              className="text-xs font-semibold text-indigo-600 hover:underline"
-            >
-              Edit
-            </button>
+            {canEdit && (
+              <button
+                onClick={() => onEdit(company)}
+                className="text-xs font-semibold text-indigo-600 hover:underline"
+              >
+                Edit
+              </button>
+            )}
             <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
               <i className="fa-solid fa-xmark text-lg" />
             </button>
