@@ -249,7 +249,7 @@
         "operation": "executeQuery",
         "query": "UPDATE contacts\nSET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object(\n    'type', 'sent',\n    'subject', $1::text,\n    'message', $2::text,\n    'sent_at', NOW(),\n    'is_read', true)\n    \nWHERE id = $3\nRETURNING email_logs;",
         "options": {
-          "queryReplacement": "={{ $('Webhook').first().json.body.subject || '' }}, {{ $('Webhook').first().json.body.message || '' }}, {{ Number($('Webhook').first().json.body.contact_id) }}"
+          "queryReplacement": "={{ [ $('Webhook').first().json.body.subject || '', $('Webhook').first().json.body.message || '', Number($('Webhook').first().json.body.contact_id) ] }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -272,7 +272,7 @@
         "operation": "executeQuery",
         "query": "UPDATE contacts\nSET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object(\n    'type', 'sent',\n    'subject', $1::text,\n    'message', $2::text,\n    'sent_at', NOW(),\n    'is_read', true,\n    'attachments', $3::jsonb\n)::jsonb\nWHERE id = $4\nRETURNING email_logs;",
         "options": {
-          "queryReplacement": "={{ $('Webhook').first().json.body.subject || '' }}, {{ $('Webhook').first().json.body.message || '' }}, {{ $json.attachments_json }}, {{ Number($('Webhook').first().json.body.contact_id) }}"
+          "queryReplacement": "={{ [ $('Webhook').first().json.body.subject || '', $('Webhook').first().json.body.message || '', $json.attachments_json, Number($('Webhook').first().json.body.contact_id) ] }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
