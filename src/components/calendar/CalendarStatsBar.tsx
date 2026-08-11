@@ -13,21 +13,25 @@ export const STAT_FILTER_LABELS: Record<CalendarStatFilter, string> = {
 
 interface Props {
   events: CalendarEvent[];
+  // The Sun–Sat week currently shown in Week view — "This Week" counts
+  // against this range, not a rolling "next 7 days" from right now, so the
+  // stat always matches what Previous/Next/the grid actually display.
+  weekStart: Date;
   activeFilter: CalendarStatFilter | null;
   onSelect: (filter: CalendarStatFilter) => void;
 }
 
-export default function CalendarStatsBar({ events, activeFilter, onSelect }: Props) {
+export default function CalendarStatsBar({ events, weekStart, activeFilter, onSelect }: Props) {
   const stats = useMemo(() => {
     const today = new Date().toDateString();
     const now = new Date();
-    const weekFromNow = new Date();
-    weekFromNow.setDate(now.getDate() + 7);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 7);
 
     const eventsToday = events.filter((e) => new Date(e.due_at).toDateString() === today);
     const thisWeek = events.filter((e) => {
       const d = new Date(e.due_at);
-      return d >= now && d <= weekFromNow;
+      return d >= weekStart && d < weekEnd;
     });
     const inspections = events.filter((e) => e.type === 'inspection').length;
     const meetings = events.filter((e) => e.type === 'meeting').length;
@@ -40,7 +44,7 @@ export default function CalendarStatsBar({ events, activeFilter, onSelect }: Pro
       meetings,
       overdue,
     };
-  }, [events]);
+  }, [events, weekStart]);
 
   const cards: { filter: CalendarStatFilter; label: string; value: number; tone?: string }[] = [
     { filter: 'today', label: 'Events Today', value: stats.today },

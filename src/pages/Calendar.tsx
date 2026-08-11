@@ -166,11 +166,14 @@ export default function Calendar() {
         const today = now.toDateString();
         list = list.filter((e) => new Date(e.due_at).toDateString() === today);
       } else if (statFilter === 'week') {
-        const weekFromNow = new Date();
-        weekFromNow.setDate(now.getDate() + 7);
+        // Matches the Sun–Sat week the grid actually shows, not a rolling
+        // "next 7 days" from right now — same range CalendarStatsBar counts.
+        const weekStart = startOfWeek(cursorDate);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 7);
         list = list.filter((e) => {
           const d = new Date(e.due_at);
-          return d >= now && d <= weekFromNow;
+          return d >= weekStart && d < weekEnd;
         });
       } else if (statFilter === 'inspections') {
         list = list.filter((e) => e.type === 'inspection');
@@ -182,7 +185,7 @@ export default function Calendar() {
     }
 
     return list;
-  }, [overlayFilteredEvents, search, statFilter]);
+  }, [overlayFilteredEvents, search, statFilter, cursorDate]);
 
   const weekEvents = useMemo(() => {
     const start = startOfWeek(cursorDate);
@@ -305,7 +308,12 @@ export default function Calendar() {
               {cursorDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
             </h2>
             {mode === 'events' && (
-              <CalendarStatsBar events={overlayFilteredEvents} activeFilter={statFilter} onSelect={selectStatFilter} />
+              <CalendarStatsBar
+                events={overlayFilteredEvents}
+                weekStart={startOfWeek(cursorDate)}
+                activeFilter={statFilter}
+                onSelect={selectStatFilter}
+              />
             )}
           </div>
           <div className="flex items-center gap-2 shrink-0">

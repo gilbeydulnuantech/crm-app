@@ -9,9 +9,15 @@ export function useEvents(monthStart: string, monthEnd: string, enabled = true) 
   });
 }
 
+// Same underlying `activities` rows as Tasks (task = type: 'task' activity
+// with a due_at) — invalidate both query keys so a delete/edit made from
+// the Calendar side doesn't leave the Tasks page showing stale data either.
 function useInvalidateEvents() {
   const qc = useQueryClient();
-  return () => qc.invalidateQueries({ queryKey: ['events'] });
+  return () => {
+    qc.invalidateQueries({ queryKey: ['events'] });
+    qc.invalidateQueries({ queryKey: ['tasks'] });
+  };
 }
 
 export function useAddEvent() {

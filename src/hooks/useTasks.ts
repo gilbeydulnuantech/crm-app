@@ -9,9 +9,18 @@ export function useTasks() {
   });
 }
 
+// Tasks and Calendar events are the same `activities` rows (any activity
+// with a due_at set shows on the Calendar, task or not) — but they're
+// fetched under separate query keys (['tasks'] vs ['events', start, end]).
+// Without invalidating both, deleting/completing a task here leaves the
+// Calendar showing stale data (including its stats) until the next
+// background poll.
 function useInvalidateTasks() {
   const qc = useQueryClient();
-  return () => qc.invalidateQueries({ queryKey: ['tasks'] });
+  return () => {
+    qc.invalidateQueries({ queryKey: ['tasks'] });
+    qc.invalidateQueries({ queryKey: ['events'] });
+  };
 }
 
 export function useAddTask() {
@@ -52,7 +61,10 @@ export function useToggleTaskComplete() {
     onError: (_err, _vars, context) => {
       if (context?.previous) qc.setQueryData(['tasks'], context.previous);
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['tasks'] });
+      qc.invalidateQueries({ queryKey: ['events'] });
+    },
   });
 }
 
