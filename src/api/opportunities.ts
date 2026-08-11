@@ -5,14 +5,29 @@ export function fetchPipelines() {
   return apiFetch<Pipeline[]>('/webhook/get-pipelines');
 }
 
-export function addPipeline(name: string) {
-  return apiFetch<{ success: boolean; id?: number; name?: string; is_default?: boolean; error?: string }>(
-    '/webhook/add-pipeline',
-    {
-      method: 'POST',
-      body: JSON.stringify({ name }),
-    }
-  );
+export interface NewPipelineStage {
+  name: string;
+  win_probability: number;
+}
+
+export interface NewPipelinePayload {
+  name: string;
+  is_default: boolean;
+  stages: NewPipelineStage[];
+}
+
+export interface NewPipelineResult {
+  id: number;
+  name: string;
+  is_default: boolean;
+  stages: Stage[];
+}
+
+export function createPipeline(payload: NewPipelinePayload) {
+  return apiFetch<NewPipelineResult>('/webhook/pipeline-create-new', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }
 
 export function fetchStages(pipelineId: number) {

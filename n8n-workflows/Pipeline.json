@@ -393,36 +393,49 @@
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "add-pipeline",
+        "path": "pipeline-create-new",
         "responseMode": "responseNode",
         "options": {
           "allowedOrigins": "*"
         }
       },
-      "id": "b1c2d3e4-0001-4a5a-9b1a-add1pipe1ine1",
-      "name": "Webhook: add-pipeline",
+      "id": "c9e1a001-1111-4a5a-9b1a-pipecreatenew1",
+      "name": "Webhook: pipeline-create-new",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
         816,
         1808
       ],
-      "webhookId": "b1c2d3e4-0001-4a5a-9b1a-webhook0add1"
+      "webhookId": "c9e1a001-1111-4a5a-9b1a-webhookpcn001"
+    },
+    {
+      "parameters": {
+        "jsCode": "// No auth chain elsewhere in this workflow (add-opportunity, delete-\n// opportunities etc. are all unauthenticated too) \u2014 matching that existing\n// convention rather than introducing an inconsistent new pattern here.\nconst body = $json.body || {};\n\nconst name = (body.name || '').toString().trim();\nif (!name) {\n  throw new Error('\"name\" is required.');\n}\n\nconst isDefault = body.is_default === true || body.is_default === 'true';\n\nconst stagesInput = Array.isArray(body.stages) ? body.stages : [];\nconst stages = stagesInput\n  .map((s, i) => ({\n    name: (s.name || '').toString().trim(),\n    win_probability: Number(s.win_probability) || 0,\n    display_order: i + 1,\n  }))\n  .filter((s) => s.name);\n\nif (stages.length === 0) {\n  throw new Error('At least one stage is required.');\n}\n\nreturn [{ json: { name, isDefault, stages } }];"
+      },
+      "id": "c9e1a002-2222-4a5a-9b1a-pipecreatenew2",
+      "name": "Validate & Build Stages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        1808
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO pipelines (name, is_default) VALUES ($1, false) RETURNING id, name, is_default;",
+        "query": "UPDATE pipelines SET is_default = false WHERE $1::boolean = true;",
         "options": {
-          "queryReplacement": "={{ [$json.body.name] }}"
+          "queryReplacement": "={{ [$json.isDefault] }}"
         }
       },
-      "id": "b1c2d3e4-0002-4a5a-9b1a-add1pipe1ine2",
-      "name": "Postgres: Insert Pipeline",
+      "id": "c9e1a003-3333-4a5a-9b1a-pipecreatenew3",
+      "name": "Postgres: Unset Other Defaults",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1056,
+        1264,
         1808
       ],
       "credentials": {
@@ -434,16 +447,90 @@
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ { \"success\": true, \"id\": $json.id, \"name\": $json.name, \"is_default\": $json.is_default } }}",
-        "options": {}
+        "operation": "executeQuery",
+        "query": "INSERT INTO pipelines (name, is_default) VALUES ($1, $2) RETURNING id, name, is_default;",
+        "options": {
+          "queryReplacement": "={{ [$('Validate & Build Stages').item.json.name, $('Validate & Build Stages').item.json.isDefault] }}"
+        }
       },
-      "id": "b1c2d3e4-0003-4a5a-9b1a-add1pipe1ine3",
-      "name": "Respond: add-pipeline",
+      "id": "c9e1a004-4444-4a5a-9b1a-pipecreatenew4",
+      "name": "Postgres: Insert Pipeline",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1488,
+        1808
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// pipelines only has (id, name, is_default) as far as any query in this\n// app has ever selected \u2014 no confirmed created_by/created_at columns, so\n// those aren't written here (add them if your schema actually has them).\nconst pipelineId = $json.id;\nconst validated = $('Validate & Build Stages').item.json;\nconst stages = validated.stages;\n\nconst valuesSql = [];\nconst queryParams = [];\nlet idx = 1;\nfor (const s of stages) {\n  valuesSql.push(`($${idx}, $${idx + 1}, $${idx + 2}, $${idx + 3})`);\n  queryParams.push(pipelineId, s.name, s.win_probability, s.display_order);\n  idx += 4;\n}\n\nconst sqlQuery = `INSERT INTO stages (pipeline_id, name, win_probability, display_order) VALUES ${valuesSql.join(', ')} RETURNING id, pipeline_id, name, win_probability, display_order;`;\n\nreturn [{\n  json: {\n    sqlQuery,\n    queryParams,\n    pipeline_id: pipelineId,\n    pipeline_name: validated.name,\n    is_default: validated.isDefault,\n  },\n}];"
+      },
+      "id": "c9e1a005-5555-4a5a-9b1a-pipecreatenew5",
+      "name": "Build Stage Insert Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1712,
+        1808
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sqlQuery }}",
+        "options": {
+          "queryReplacement": "={{ $json.queryParams }}"
+        }
+      },
+      "id": "c9e1a006-6666-4a5a-9b1a-pipecreatenew6",
+      "name": "Postgres: Insert Stages",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1936,
+        1808
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const stageRows = $input.all().map((item) => item.json);\nconst meta = $('Build Stage Insert Query').first().json;\n\nreturn [{\n  json: {\n    id: meta.pipeline_id,\n    name: meta.pipeline_name,\n    is_default: meta.is_default,\n    stages: stageRows,\n  },\n}];"
+      },
+      "id": "c9e1a007-7777-4a5a-9b1a-pipecreatenew7",
+      "name": "Format Pipeline Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2160,
+        1808
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 201
+        }
+      },
+      "id": "c9e1a008-8888-4a5a-9b1a-pipecreatenew8",
+      "name": "Respond: pipeline-create-new",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        1296,
+        2384,
         1808
       ]
     }
@@ -604,7 +691,29 @@
         ]
       ]
     },
-    "Webhook: add-pipeline": {
+    "Webhook: pipeline-create-new": {
+      "main": [
+        [
+          {
+            "node": "Validate & Build Stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Build Stages": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Unset Other Defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Unset Other Defaults": {
       "main": [
         [
           {
@@ -619,7 +728,40 @@
       "main": [
         [
           {
-            "node": "Respond: add-pipeline",
+            "node": "Build Stage Insert Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Stage Insert Query": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Insert Stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Insert Stages": {
+      "main": [
+        [
+          {
+            "node": "Format Pipeline Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Pipeline Response": {
+      "main": [
+        [
+          {
+            "node": "Respond: pipeline-create-new",
             "type": "main",
             "index": 0
           }

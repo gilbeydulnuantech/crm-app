@@ -9,10 +9,10 @@ export function usePipelines() {
   });
 }
 
-export function useAddPipeline() {
+export function useCreatePipeline() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (name: string) => api.addPipeline(name),
+    mutationFn: (payload: api.NewPipelinePayload) => api.createPipeline(payload),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['pipelines'] }),
   });
 }

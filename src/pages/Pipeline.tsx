@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Opportunity, PipelineViewMode } from '../types/opportunity';
+import { NewPipelineResult } from '../api/opportunities';
 import {
   useMoveOpportunityStage,
   useOpportunities,
@@ -84,7 +86,11 @@ function matchesDealFilters(o: Opportunity, filters: DealFilters, currentUserId?
 export default function Pipeline() {
   const { user, isAdmin } = useAuth();
   const { data: pipelines = [] } = usePipelines();
-  const [pipelineId, setPipelineId] = useState<number | undefined>();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlPipelineId = searchParams.get('pipeline');
+  const [pipelineId, setPipelineIdState] = useState<number | undefined>(
+    urlPipelineId ? Number(urlPipelineId) : undefined
+  );
   const [viewMode, setViewMode] = useState<PipelineViewMode>('board');
   const [search, setSearch] = useState('');
   const [formOpen, setFormOpen] = useState(false);
@@ -92,14 +98,32 @@ export default function Pipeline() {
   const [activeOpportunity, setActiveOpportunity] = useState<Opportunity | null>(null);
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState<DealFilters>(EMPTY_DEAL_FILTERS);
+  const [toast, setToast] = useState<string | null>(null);
+
+  // Keeps ?pipeline= in sync so the current board is bookmarkable/refreshable.
+  function setPipelineId(id: number) {
+    setPipelineIdState(id);
+    const next = new URLSearchParams(searchParams);
+    next.set('pipeline', String(id));
+    setSearchParams(next, { replace: true });
+  }
 
   // Default to the pipeline marked is_default, falling back to the first one
-  // returned, once pipelines load.
+  // returned — also self-corrects a stale/invalid ?pipeline= id once the
+  // real pipeline list has loaded.
   useEffect(() => {
-    if (pipelineId || pipelines.length === 0) return;
+    if (pipelines.length === 0) return;
+    if (pipelineId && pipelines.some((p) => p.id === pipelineId)) return;
     const def = pipelines.find((p) => p.is_default) ?? pipelines[0];
     setPipelineId(def.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pipelines, pipelineId]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 3500);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   const { data: stages = [] } = useStages(pipelineId);
   const { data: opportunities = [], isLoading } = useOpportunities(pipelineId);
@@ -140,6 +164,10 @@ export default function Pipeline() {
     moveStage.mutate({ id: opportunityId, stage_id: stageId });
   }
 
+  function handlePipelineCreated(pipeline: NewPipelineResult) {
+    setToast(`Pipeline "${pipeline.name}" created successfully.`);
+  }
+
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       <div className="px-4 py-4 flex items-center justify-between shrink-0 border-b border-slate-200">
@@ -148,6 +176,7 @@ export default function Pipeline() {
           pipelineId={pipelineId}
           isAdmin={isAdmin}
           onChange={setPipelineId}
+          onCreated={handlePipelineCreated}
         />
         <button
           onClick={openAddModal}
@@ -246,6 +275,13 @@ export default function Pipeline() {
         onChange={setFilters}
         onClose={() => setFilterPanelOpen(false)}
       />
+
+      {toast && (
+        <div className="fixed bottom-4 right-4 z-[200] bg-slate-800 text-white text-sm px-4 py-2.5 rounded-lg shadow-lg flex items-center gap-2 animate-in fade-in">
+          <i className="fa-solid fa-circle-check text-emerald-400" />
+          {toast}
+        </div>
+      )}
     </div>
   );
 }
