@@ -52,7 +52,12 @@ export function useToggleTaskComplete() {
       qc.setQueryData<Task[]>(['tasks'], (old) =>
         old?.map((t) =>
           t.id === id
-            ? { ...t, is_completed, completed_at: is_completed ? new Date().toISOString() : null }
+            ? {
+                ...t,
+                is_completed,
+                completed_at: is_completed ? new Date().toISOString() : null,
+                status: is_completed ? 'completed' : 'to_do',
+              }
             : t
         )
       );

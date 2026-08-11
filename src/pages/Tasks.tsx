@@ -14,6 +14,16 @@ import SearchToolbar from '../components/SearchToolbar';
 
 type BoardView = 'list' | 'kanban';
 
+function matchesStatusFilters(task: Task, statusFilters: Set<TaskStatusFilter>): boolean {
+  if (statusFilters.size === 0) return true;
+  const isOverdue = !task.is_completed && taskStatus(task) === 'Overdue';
+  return (
+    (statusFilters.has('open') && !task.is_completed) ||
+    (statusFilters.has('completed') && task.is_completed) ||
+    (statusFilters.has('overdue') && isOverdue)
+  );
+}
+
 export default function Tasks() {
   const { user, isAdmin } = useAuth();
 
@@ -108,16 +118,7 @@ export default function Tasks() {
       list = list.filter((t) => t.user_id == null || checkedUserIds.has(t.user_id));
     }
 
-    if (statusFilters.size > 0) {
-      list = list.filter((t) => {
-        const isOverdue = !t.is_completed && taskStatus(t) === 'Overdue';
-        return (
-          (statusFilters.has('open') && !t.is_completed) ||
-          (statusFilters.has('completed') && t.is_completed) ||
-          (statusFilters.has('overdue') && isOverdue)
-        );
-      });
-    }
+    list = list.filter((t) => matchesStatusFilters(t, statusFilters));
 
     if (priorityFilters.size > 0) {
       list = list.filter((t) => t.priority && priorityFilters.has(t.priority));
@@ -131,14 +132,15 @@ export default function Tasks() {
   }, [allTasks, view, user, search, users, checkedUserIds, statusFilters, priorityFilters]);
 
   // Kanban groups by status across the whole board, so it bypasses the
-  // All/Mine/Completed tabs and the sidebar's Status section (both of which
-  // are is_completed-based and would otherwise permanently empty 3 of the 4
-  // columns) — but still respects Team Members/Priority/search.
+  // All/Mine/Completed tabs (is_completed-based, would permanently empty 3
+  // of the 4 columns) — but the sidebar's Status section still applies, so
+  // checking e.g. only "Completed" narrows the board down to just that.
   const kanbanTasks = useMemo(() => {
     let list = allTasks;
     if (users.length > 0 && checkedUserIds.size < users.length) {
       list = list.filter((t) => t.user_id == null || checkedUserIds.has(t.user_id));
     }
+    list = list.filter((t) => matchesStatusFilters(t, statusFilters));
     if (priorityFilters.size > 0) {
       list = list.filter((t) => t.priority && priorityFilters.has(t.priority));
     }
@@ -147,7 +149,7 @@ export default function Tasks() {
       list = list.filter((t) => t.subject.toLowerCase().includes(q));
     }
     return list;
-  }, [allTasks, users, checkedUserIds, priorityFilters, search]);
+  }, [allTasks, users, checkedUserIds, statusFilters, priorityFilters, search]);
 
   function handleMoveTaskStatus(taskId: number, status: TaskStatus) {
     moveTaskStatus.mutate({ id: taskId, status });

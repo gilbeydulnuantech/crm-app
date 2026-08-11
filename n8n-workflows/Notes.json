@@ -1,0 +1,526 @@
+{
+  "name": "Notes",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "get-notes",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "9c38d054-3ca1-4d54-94f9-509d73b5647f",
+      "name": "Webhook: get-notes",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        816,
+        512
+      ],
+      "webhookId": "4164bac3-43ab-46bc-b331-289979ee2ac2"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE IF NOT EXISTS notes (\n  id SERIAL PRIMARY KEY,\n  entity_type VARCHAR(20) NOT NULL,\n  entity_id INTEGER NOT NULL,\n  body TEXT NOT NULL,\n  created_by INTEGER REFERENCES users(id),\n  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n  updated_at TIMESTAMPTZ\n);\nCREATE INDEX IF NOT EXISTS idx_notes_entity ON notes(entity_type, entity_id);",
+        "options": {}
+      },
+      "id": "9daab5cf-8cfb-4074-bb10-5692e81ceeb1",
+      "name": "Postgres: Ensure Notes Table (get)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1040,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT n.id, n.entity_type, n.entity_id, n.body, n.created_by, u.name AS created_by_name, n.created_at, n.updated_at FROM notes n LEFT JOIN users u ON u.id = n.created_by WHERE n.entity_type = $1 AND n.entity_id = $2 ORDER BY n.created_at DESC, n.id DESC;",
+        "options": {
+          "queryReplacement": "={{ [ $('Webhook: get-notes').first().json.query.entity_type, Number($('Webhook: get-notes').first().json.query.entity_id) ] }}"
+        }
+      },
+      "id": "b535899d-e826-426d-92ab-f469edceeb4c",
+      "name": "Postgres: Select Notes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1264,
+        512
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "allIncomingItems"
+      },
+      "id": "374acac6-e56d-40cb-8fcc-15d3ec043112",
+      "name": "Respond: get-notes",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1488,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "OPTIONS",
+        "path": "get-notes",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "9ad2c61f-1724-4348-90e7-cd4329c91692",
+      "name": "Webhook OPTIONS: get-notes",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        816,
+        640
+      ],
+      "webhookId": "c2bacee1-b2f9-4c7a-86f9-2c00c817ac44"
+    },
+    {
+      "parameters": {
+        "respondWith": "noData",
+        "options": {
+          "responseCode": 204,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization, ngrok-skip-browser-warning"
+              }
+            ]
+          }
+        }
+      },
+      "id": "9cd23eb5-62c7-4e55-a447-d1ab1e2cf529",
+      "name": "Respond OPTIONS: get-notes",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1040,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "add-note",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "b178efe2-cf27-49c6-a1da-ba5b365a4c64",
+      "name": "Webhook: add-note",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        816,
+        816
+      ],
+      "webhookId": "3f3c4c5b-614f-47db-9996-87c0249e518c"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE IF NOT EXISTS notes (\n  id SERIAL PRIMARY KEY,\n  entity_type VARCHAR(20) NOT NULL,\n  entity_id INTEGER NOT NULL,\n  body TEXT NOT NULL,\n  created_by INTEGER REFERENCES users(id),\n  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n  updated_at TIMESTAMPTZ\n);\nCREATE INDEX IF NOT EXISTS idx_notes_entity ON notes(entity_type, entity_id);",
+        "options": {}
+      },
+      "id": "0334fdde-36c4-45ee-812b-27ee6612d807",
+      "name": "Postgres: Ensure Notes Table (add)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1040,
+        816
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO notes (entity_type, entity_id, body, created_by) VALUES ($1, $2, $3, $4) RETURNING id, entity_type, entity_id, body, created_by, created_at;",
+        "options": {
+          "queryReplacement": "={{ [ $('Webhook: add-note').first().json.body.entity_type, Number($('Webhook: add-note').first().json.body.entity_id), $('Webhook: add-note').first().json.body.body, $('Webhook: add-note').first().json.body.requester_id || null ] }}"
+        }
+      },
+      "id": "55d4158d-e8e5-405a-b5c9-dbffc9a4d8dc",
+      "name": "Postgres: Insert Note",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1264,
+        816
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"id\": $json.id } }}"
+      },
+      "id": "733b7dfc-df7f-46b1-b64a-b814ff899563",
+      "name": "Respond: add-note",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1488,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "update-note",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "dc52aa1f-b515-42e7-9130-a4bd79bf1365",
+      "name": "Webhook: update-note",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        816,
+        992
+      ],
+      "webhookId": "cd0f617b-dd7c-4bdb-9005-c81d8384d1f5"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE IF NOT EXISTS notes (\n  id SERIAL PRIMARY KEY,\n  entity_type VARCHAR(20) NOT NULL,\n  entity_id INTEGER NOT NULL,\n  body TEXT NOT NULL,\n  created_by INTEGER REFERENCES users(id),\n  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n  updated_at TIMESTAMPTZ\n);\nCREATE INDEX IF NOT EXISTS idx_notes_entity ON notes(entity_type, entity_id);",
+        "options": {}
+      },
+      "id": "e6cabb0a-dd1c-4145-9bc8-de358b425a3f",
+      "name": "Postgres: Ensure Notes Table (update)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1040,
+        992
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE notes SET body = $1, updated_at = NOW() WHERE id = $2 RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $('Webhook: update-note').first().json.body.body, Number($('Webhook: update-note').first().json.body.id) ] }}"
+        }
+      },
+      "id": "24830d46-1410-4ddc-b992-43e792f434d0",
+      "name": "Postgres: Update Note",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1264,
+        992
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true } }}"
+      },
+      "id": "301e7c3f-1de0-48d8-ad6d-9715074dc036",
+      "name": "Respond: update-note",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1488,
+        992
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "delete-note",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "f57525f1-c1a0-406f-b7c2-d26a4a88f2c7",
+      "name": "Webhook: delete-note",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        816,
+        1168
+      ],
+      "webhookId": "8c25ecc2-0d44-4936-b703-e10439227f13"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE IF NOT EXISTS notes (\n  id SERIAL PRIMARY KEY,\n  entity_type VARCHAR(20) NOT NULL,\n  entity_id INTEGER NOT NULL,\n  body TEXT NOT NULL,\n  created_by INTEGER REFERENCES users(id),\n  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n  updated_at TIMESTAMPTZ\n);\nCREATE INDEX IF NOT EXISTS idx_notes_entity ON notes(entity_type, entity_id);",
+        "options": {}
+      },
+      "id": "4d7493d8-4dc3-40b5-8057-02c1f8d6ae77",
+      "name": "Postgres: Ensure Notes Table (delete)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1040,
+        1168
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM notes WHERE id = $1 RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ Number($('Webhook: delete-note').first().json.body.id) ] }}"
+        }
+      },
+      "id": "347411ec-995a-46c1-8bbc-70d2b0a47369",
+      "name": "Postgres: Delete Note",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1264,
+        1168
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true } }}"
+      },
+      "id": "5523761a-6710-401a-85f1-dce36490af99",
+      "name": "Respond: delete-note",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1488,
+        1168
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook: get-notes": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure Notes Table (get)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Ensure Notes Table (get)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Notes": {
+      "main": [
+        [
+          {
+            "node": "Respond: get-notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook OPTIONS: get-notes": {
+      "main": [
+        [
+          {
+            "node": "Respond OPTIONS: get-notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: add-note": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure Notes Table (add)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Ensure Notes Table (add)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Insert Note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Insert Note": {
+      "main": [
+        [
+          {
+            "node": "Respond: add-note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: update-note": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure Notes Table (update)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Ensure Notes Table (update)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Update Note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Update Note": {
+      "main": [
+        [
+          {
+            "node": "Respond: update-note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: delete-note": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure Notes Table (delete)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Ensure Notes Table (delete)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Delete Note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Delete Note": {
+      "main": [
+        [
+          {
+            "node": "Respond: delete-note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "38b4bb07-ae2e-4e42-8364-fa56087f2226",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6a773e6041cc88fd4a5b60f3e46f2119d58608faafd09936499001d589f5c1af"
+  },
+  "id": "kG4WXlMZKd6vlSiO",
+  "tags": []
+}

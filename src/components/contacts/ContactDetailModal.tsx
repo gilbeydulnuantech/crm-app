@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Contact, EmailLog } from '../../types/contact';
 import { useMarkContactEmailRead, useToggleDoNotContact, useUpdateContact } from '../../hooks/useContacts';
+import { useAddNote, useDeleteNote, useNotes, useUpdateNote } from '../../hooks/useNotes';
 import { useAuth } from '../../context/AuthContext';
 import { usePipelines, useStages, useOpportunities } from '../../hooks/useOpportunities';
 import TagsDropdown from './TagsDropdown';
@@ -65,11 +66,19 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
   const [taskFormOpen, setTaskFormOpen] = useState(false);
   const [selectedLog, setSelectedLog] = useState<EmailLog | null>(null);
   const [markReadError, setMarkReadError] = useState<string | null>(null);
+  const [noteDraft, setNoteDraft] = useState('');
+  const [noteError, setNoteError] = useState<string | null>(null);
+  const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
+  const [editDraft, setEditDraft] = useState('');
 
   const { data: pipelines = [] } = usePipelines();
   const defaultPipelineId = pipelines.find((p) => p.is_default)?.id ?? pipelines[0]?.id;
   const { data: stages = [] } = useStages(defaultPipelineId);
   const { data: opportunities = [] } = useOpportunities(defaultPipelineId);
+  const { data: notes = [], isLoading: notesLoading } = useNotes('contact', contact?.id ?? null);
+  const addNote = useAddNote('contact', contact?.id ?? null);
+  const updateNote = useUpdateNote('contact', contact?.id ?? null);
+  const deleteNote = useDeleteNote('contact', contact?.id ?? null);
 
   if (!contact) return null;
 
@@ -364,21 +373,118 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
           <div ref={notesRef} className="overflow-y-auto p-5 space-y-3">
             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Notes</h3>
             <textarea
+              value={noteDraft}
+              onChange={(e) => setNoteDraft(e.target.value)}
               placeholder="Write a note about this contact..."
-              rows={6}
+              rows={4}
               disabled={isReadOnly}
               className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-400"
             />
+            {noteError && (
+              <p className="text-[11px] text-rose-600 bg-rose-50 border border-rose-200 rounded-md px-2 py-1">
+                {noteError}
+              </p>
+            )}
             <button
-              disabled={isReadOnly}
+              disabled={isReadOnly || !noteDraft.trim() || addNote.isPending}
+              onClick={() => {
+                setNoteError(null);
+                addNote.mutate(
+                  { body: noteDraft.trim(), requesterId: user?.id },
+                  {
+                    onSuccess: () => setNoteDraft(''),
+                    onError: (err) => setNoteError(err instanceof Error ? err.message : 'Failed to add note.'),
+                  }
+                );
+              }}
               className="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              + Add Note
+              {addNote.isPending ? 'Adding...' : '+ Add Note'}
             </button>
-            <p className="text-xs text-slate-400 italic pt-2">
-              No notes yet — this needs a backend endpoint (e.g. a `notes` table + `get-notes` /
-              `add-note` webhooks) since the old app didn't have a notes feature.
-            </p>
+
+            <div className="space-y-2 pt-2">
+              {notesLoading ? (
+                <p className="text-xs text-slate-400 italic">Loading notes...</p>
+              ) : notes.length === 0 ? (
+                <p className="text-xs text-slate-400 italic">No notes yet.</p>
+              ) : (
+                notes.map((note) => {
+                  const canEdit = isAdmin || note.created_by === user?.id;
+                  const isEditing = editingNoteId === note.id;
+                  return (
+                    <div key={note.id} className="p-3 rounded-lg border border-slate-100 bg-slate-50 space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-medium text-slate-700">
+                          {note.created_by_name ? toTitleCase(note.created_by_name) : 'Unknown'}
+                        </span>
+                        <span className="text-slate-400 text-[10px]">
+                          {new Date(note.created_at).toLocaleString(undefined, {
+                            dateStyle: 'medium',
+                            timeStyle: 'short',
+                          })}
+                          {note.updated_at ? ' (edited)' : ''}
+                        </span>
+                      </div>
+                      {isEditing ? (
+                        <>
+                          <textarea
+                            value={editDraft}
+                            onChange={(e) => setEditDraft(e.target.value)}
+                            rows={3}
+                            className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          />
+                          <div className="flex justify-end gap-3 pt-0.5">
+                            <button
+                              onClick={() => setEditingNoteId(null)}
+                              className="text-[11px] font-medium text-slate-500 hover:text-slate-700"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={() =>
+                                updateNote.mutate(
+                                  { id: note.id, body: editDraft.trim() },
+                                  { onSuccess: () => setEditingNoteId(null) }
+                                )
+                              }
+                              disabled={!editDraft.trim() || updateNote.isPending}
+                              className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-700 disabled:opacity-50"
+                            >
+                              Save
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-slate-600 text-xs whitespace-pre-wrap">{note.body}</p>
+                          {canEdit && (
+                            <div className="flex justify-end gap-3 pt-0.5">
+                              <button
+                                onClick={() => {
+                                  setEditingNoteId(note.id);
+                                  setEditDraft(note.body);
+                                }}
+                                className="text-[10px] font-medium text-slate-400 hover:text-indigo-600"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (confirm('Delete this note?')) deleteNote.mutate(note.id);
+                                }}
+                                className="text-[10px] font-medium text-slate-400 hover:text-rose-600"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
         </div>
       </div>

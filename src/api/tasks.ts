@@ -26,6 +26,9 @@ export function toggleTaskComplete(id: number, is_completed: boolean) {
       id,
       is_completed,
       completed_at: is_completed ? new Date().toISOString() : null,
+      // Keep the Kanban column in sync — otherwise a task marked complete
+      // from the List view stays parked in its old column on the board.
+      status: is_completed ? 'completed' : 'to_do',
     }),
   });
 }
