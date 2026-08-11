@@ -20,9 +20,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT a.id, a.contact_id, TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS contact_name, a.opportunity_id, o.name AS opportunity_name, co.name AS company_name, a.user_id, u.name AS assigned_user_name, u.color AS assigned_user_color, a.type, a.subject, a.body, a.is_completed, a.due_at, a.completed_at, a.created_at,\n  (SELECT COALESCE(json_agg(json_build_object('id', r.id, 'name', r.name)), '[]'::json)\n   FROM activity_resources ar JOIN resources r ON r.id = ar.resource_id\n   WHERE ar.activity_id = a.id) AS resources\nFROM activities a LEFT JOIN contacts c ON c.id = a.contact_id LEFT JOIN opportunities o ON o.id = a.opportunity_id LEFT JOIN companies co ON co.id = o.account_id LEFT JOIN users u ON u.id = a.user_id WHERE a.due_at IS NOT NULL AND a.due_at >= $1::date AND a.due_at <= ($2::date + interval '1 day') ORDER BY a.due_at ASC;",
+        "query": "SELECT a.id, a.contact_id, TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS contact_name, a.opportunity_id, o.name AS opportunity_name, co.name AS company_name, a.user_id, u.name AS assigned_user_name, u.color AS assigned_user_color, a.type, a.subject, a.body, a.is_completed, a.due_at, a.end_at, a.location, a.is_all_day, a.completed_at, a.created_at,\n  (SELECT COALESCE(json_agg(json_build_object('id', r.id, 'name', r.name)), '[]'::json)\n   FROM activity_resources ar JOIN resources r ON r.id = ar.resource_id\n   WHERE ar.activity_id = a.id) AS resources\nFROM activities a LEFT JOIN contacts c ON c.id = a.contact_id LEFT JOIN opportunities o ON o.id = a.opportunity_id LEFT JOIN companies co ON co.id = COALESCE(o.account_id, c.account_id) LEFT JOIN users u ON u.id = a.user_id WHERE a.due_at IS NOT NULL AND a.due_at >= $1::date AND a.due_at <= ($2::date + interval '1 day') ORDER BY a.due_at ASC;",
         "options": {
-          "queryReplacement": "={{ [$json.query.start, $json.query.end] }}"
+          "queryReplacement": "={{ [$(\"Webhook: get-events\").item.json.query.start, $(\"Webhook: get-events\").item.json.query.end] }}"
         }
       },
       "id": "24e25fa1-2454-46c7-8bc5-09c12588460e",
@@ -91,9 +91,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO activities (contact_id, opportunity_id, user_id, type, subject, body, due_at) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, subject, due_at, created_at;",
+        "query": "INSERT INTO activities (contact_id, opportunity_id, user_id, type, subject, body, due_at, end_at, location, is_all_day) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, subject, due_at, created_at;",
         "options": {
-          "queryReplacement": "={{ [$json.body.contact_id || null, $json.body.opportunity_id || null, $json.body.user_id || $json.body.requester_id || null, $json.body.type || 'meeting', $json.body.subject, $json.body.body || null, $json.body.due_at] }}"
+          "queryReplacement": "={{ [$(\"Webhook: add-event\").item.json.body.contact_id || null, $(\"Webhook: add-event\").item.json.body.opportunity_id || null, $(\"Webhook: add-event\").item.json.body.user_id || $(\"Webhook: add-event\").item.json.body.requester_id || null, $(\"Webhook: add-event\").item.json.body.type || 'meeting', $(\"Webhook: add-event\").item.json.body.subject, $(\"Webhook: add-event\").item.json.body.body || null, $(\"Webhook: add-event\").item.json.body.due_at, $(\"Webhook: add-event\").item.json.body.end_at || null, $(\"Webhook: add-event\").item.json.body.location || null, $(\"Webhook: add-event\").item.json.body.is_all_day === true || $(\"Webhook: add-event\").item.json.body.is_all_day === 'true'] }}"
         }
       },
       "id": "bf04f093-2874-4134-ac24-6669dd81340e",
@@ -163,9 +163,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE activities SET subject = COALESCE($1, subject), body = COALESCE($2, body), type = COALESCE($3, type), contact_id = COALESCE($4, contact_id), opportunity_id = COALESCE($5, opportunity_id), user_id = COALESCE($6, user_id), due_at = COALESCE($7, due_at), is_completed = COALESCE($8, is_completed), completed_at = CASE WHEN $9::text IS NOT NULL THEN $9::timestamptz ELSE completed_at END WHERE id = $10 RETURNING id;",
+        "query": "UPDATE activities SET subject = COALESCE($1, subject), body = COALESCE($2, body), type = COALESCE($3, type), contact_id = COALESCE($4, contact_id), opportunity_id = COALESCE($5, opportunity_id), user_id = COALESCE($6, user_id), due_at = COALESCE($7, due_at), is_completed = COALESCE($8, is_completed), completed_at = CASE WHEN $9::text IS NOT NULL THEN $9::timestamptz ELSE completed_at END, end_at = COALESCE($10, end_at), location = COALESCE($11, location), is_all_day = COALESCE($12, is_all_day) WHERE id = $13 RETURNING id;",
         "options": {
-          "queryReplacement": "={{ [$json.body.subject || null, $json.body.body || null, $json.body.type || null, $json.body.contact_id || null, $json.body.opportunity_id || null, $json.body.user_id || null, $json.body.due_at || null, $json.body.is_completed !== undefined ? $json.body.is_completed : null, $json.body.completed_at || null, $json.body.id] }}"
+          "queryReplacement": "={{ [$(\"Webhook: update-event\").item.json.body.subject || null, $(\"Webhook: update-event\").item.json.body.body || null, $(\"Webhook: update-event\").item.json.body.type || null, $(\"Webhook: update-event\").item.json.body.contact_id || null, $(\"Webhook: update-event\").item.json.body.opportunity_id || null, $(\"Webhook: update-event\").item.json.body.user_id || null, $(\"Webhook: update-event\").item.json.body.due_at || null, $(\"Webhook: update-event\").item.json.body.is_completed !== undefined ? $(\"Webhook: update-event\").item.json.body.is_completed : null, $(\"Webhook: update-event\").item.json.body.completed_at || null, $(\"Webhook: update-event\").item.json.body.end_at || null, $(\"Webhook: update-event\").item.json.body.location || null, $(\"Webhook: update-event\").item.json.body.is_all_day !== undefined ? ($(\"Webhook: update-event\").item.json.body.is_all_day === true || $(\"Webhook: update-event\").item.json.body.is_all_day === 'true') : null, $(\"Webhook: update-event\").item.json.body.id] }}"
         }
       },
       "id": "898a6266-6993-4969-b70d-65ae210ca328",
@@ -482,6 +482,163 @@
         224,
         1248
       ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "ALTER TABLE activities ADD COLUMN IF NOT EXISTS end_at TIMESTAMPTZ;\nALTER TABLE activities ADD COLUMN IF NOT EXISTS location VARCHAR(255);\nALTER TABLE activities ADD COLUMN IF NOT EXISTS is_all_day BOOLEAN DEFAULT false;",
+        "options": {}
+      },
+      "id": "f1a1b001-e1e1-4a5a-9b1a-ensurecols001",
+      "name": "Postgres: Ensure Event Columns (s001)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        112,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "ALTER TABLE activities ADD COLUMN IF NOT EXISTS end_at TIMESTAMPTZ;\nALTER TABLE activities ADD COLUMN IF NOT EXISTS location VARCHAR(255);\nALTER TABLE activities ADD COLUMN IF NOT EXISTS is_all_day BOOLEAN DEFAULT false;",
+        "options": {}
+      },
+      "id": "f1a1b005-e1e1-4a5a-9b1a-ensurecols002",
+      "name": "Postgres: Ensure Event Columns (s002)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        112,
+        224
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// activity_resources rows are cheap to fully rebuild rather than diff \u2014\n// this is a create, so there's nothing to diff against yet.\nconst inserted = $json; // { id, subject, due_at, created_at }\nconst activityId = parseInt(inserted.id, 10);\nconst resourceIds = ($('Webhook: add-event').item.json.body.resource_ids || [])\n  .map((x) => parseInt(x, 10))\n  .filter((x) => Number.isInteger(x));\n\nconst sqlQuery = resourceIds.length > 0\n  ? `INSERT INTO activity_resources (activity_id, resource_id) VALUES ${resourceIds.map((rid) => `(${activityId}, ${rid})`).join(', ')} ON CONFLICT DO NOTHING;`\n  : 'SELECT 1;';\n\nreturn [{ json: { ...inserted, sqlQuery } }];"
+      },
+      "id": "f1a1b002-e1e1-4a5a-9b1a-buildaddlink1",
+      "name": "Build Resource Links (Add)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        336,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sqlQuery }}",
+        "options": {}
+      },
+      "id": "f1a1b003-e1e1-4a5a-9b1a-linkresadd001",
+      "name": "Postgres: Link Resources (Add)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        560,
+        224
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { id: $('Build Resource Links (Add)').first().json.id } }];"
+      },
+      "id": "f1a1b004-e1e1-4a5a-9b1a-formataddres",
+      "name": "Format Add Event Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        784,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "ALTER TABLE activities ADD COLUMN IF NOT EXISTS end_at TIMESTAMPTZ;\nALTER TABLE activities ADD COLUMN IF NOT EXISTS location VARCHAR(255);\nALTER TABLE activities ADD COLUMN IF NOT EXISTS is_all_day BOOLEAN DEFAULT false;",
+        "options": {}
+      },
+      "id": "f1a1b009-e1e1-4a5a-9b1a-ensurecols003",
+      "name": "Postgres: Ensure Event Columns (s003)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        112,
+        448
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Only touch activity_resources if the caller explicitly sent a\n// resource_ids field \u2014 an update that doesn't mention resources shouldn't\n// wipe out the ones already linked.\nconst updated = $json; // { id }\nconst body = $('Webhook: update-event').item.json.body || {};\nconst activityId = parseInt(updated.id, 10);\n\nif (!Number.isInteger(activityId) || !Object.prototype.hasOwnProperty.call(body, 'resource_ids')) {\n  return [{ json: { ...updated, sqlQuery: 'SELECT 1;' } }];\n}\n\nconst resourceIds = (body.resource_ids || [])\n  .map((x) => parseInt(x, 10))\n  .filter((x) => Number.isInteger(x));\n\nconst insertClause = resourceIds.length > 0\n  ? ` INSERT INTO activity_resources (activity_id, resource_id) VALUES ${resourceIds.map((rid) => `(${activityId}, ${rid})`).join(', ')} ON CONFLICT DO NOTHING;`\n  : '';\n\nconst sqlQuery = `DELETE FROM activity_resources WHERE activity_id = ${activityId};${insertClause}`;\n\nreturn [{ json: { ...updated, sqlQuery } }];"
+      },
+      "id": "f1a1b006-e1e1-4a5a-9b1a-buildrelink01",
+      "name": "Build Resource Relink (Update)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        336,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sqlQuery }}",
+        "options": {}
+      },
+      "id": "f1a1b007-e1e1-4a5a-9b1a-relinkres0001",
+      "name": "Postgres: Relink Resources (Update)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        560,
+        448
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { id: $('Build Resource Relink (Update)').first().json.id } }];"
+      },
+      "id": "f1a1b008-e1e1-4a5a-9b1a-formatupdres",
+      "name": "Format Update Event Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        784,
+        448
+      ]
     }
   ],
   "pinData": {},
@@ -490,7 +647,7 @@
       "main": [
         [
           {
-            "node": "Postgres: Select Events",
+            "node": "Postgres: Ensure Event Columns (s001)",
             "type": "main",
             "index": 0
           }
@@ -512,7 +669,7 @@
       "main": [
         [
           {
-            "node": "Postgres: Insert Event",
+            "node": "Postgres: Ensure Event Columns (s002)",
             "type": "main",
             "index": 0
           }
@@ -523,7 +680,7 @@
       "main": [
         [
           {
-            "node": "Respond: add-event",
+            "node": "Build Resource Links (Add)",
             "type": "main",
             "index": 0
           }
@@ -534,7 +691,7 @@
       "main": [
         [
           {
-            "node": "Postgres: Update Event",
+            "node": "Postgres: Ensure Event Columns (s003)",
             "type": "main",
             "index": 0
           }
@@ -545,7 +702,7 @@
       "main": [
         [
           {
-            "node": "Respond: update-event",
+            "node": "Build Resource Relink (Update)",
             "type": "main",
             "index": 0
           }
@@ -612,6 +769,105 @@
         [
           {
             "node": "Respond OPTIONS: delete-event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Ensure Event Columns (s001)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Ensure Event Columns (s002)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Insert Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Resource Links (Add)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Link Resources (Add)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Link Resources (Add)": {
+      "main": [
+        [
+          {
+            "node": "Format Add Event Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Add Event Response": {
+      "main": [
+        [
+          {
+            "node": "Respond: add-event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Ensure Event Columns (s003)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Update Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Resource Relink (Update)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Relink Resources (Update)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Relink Resources (Update)": {
+      "main": [
+        [
+          {
+            "node": "Format Update Event Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Update Event Response": {
+      "main": [
+        [
+          {
+            "node": "Respond: update-event",
             "type": "main",
             "index": 0
           }

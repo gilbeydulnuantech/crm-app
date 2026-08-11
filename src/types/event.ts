@@ -30,16 +30,19 @@ export interface CalendarEvent {
   contact_name?: string; // joined
   opportunity_id?: number | null;
   opportunity_name?: string; // joined
-  company_name?: string; // joined (via opportunity's account_id)
+  company_name?: string; // joined via the linked deal's account_id, falling
+  // back to the linked contact's account_id when there's no deal
   user_id?: number | null;
   assigned_user_name?: string; // joined
   assigned_user_color?: string; // joined from users.color
   type: EventType;
   subject: string;
-  body?: string; // used as "Notes"
+  body?: string; // used as "Notes" — stored in activities.body
   is_completed: boolean;
   due_at: string; // start time
-  end_at?: string | null; // NOT in schema — see gap note in api/events.ts
+  end_at?: string | null;
+  location?: string | null;
+  is_all_day?: boolean;
   completed_at?: string | null;
   created_at?: string;
   // Linked via activity_resources — which shared resources (rooms, vehicles,

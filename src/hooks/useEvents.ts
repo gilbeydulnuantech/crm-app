@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as api from '../api/events';
-import { CalendarEvent } from '../types/event';
 
 export function useEvents(monthStart: string, monthEnd: string) {
   return useQuery({
@@ -17,7 +16,7 @@ function useInvalidateEvents() {
 export function useAddEvent() {
   const invalidate = useInvalidateEvents();
   return useMutation({
-    mutationFn: (payload: Partial<CalendarEvent>) => api.addEvent(payload),
+    mutationFn: (payload: api.EventPayload) => api.addEvent(payload),
     onSuccess: invalidate,
   });
 }
@@ -25,7 +24,7 @@ export function useAddEvent() {
 export function useUpdateEvent() {
   const invalidate = useInvalidateEvents();
   return useMutation({
-    mutationFn: ({ id, payload }: { id: number; payload: Partial<CalendarEvent> }) =>
+    mutationFn: ({ id, payload }: { id: number; payload: api.EventPayload }) =>
       api.updateEvent(id, payload),
     onSuccess: invalidate,
   });

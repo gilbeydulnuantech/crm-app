@@ -39,6 +39,49 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [688, 560]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "add-resource",
+        "responseMode": "responseNode",
+        "options": { "allowedOrigins": "*" }
+      },
+      "id": "e5f6a004-4444-4a5a-9b1a-resources0004",
+      "name": "Webhook: add-resource",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 784],
+      "webhookId": "e5f6a004-4444-4a5a-9b1a-webhookres04"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO resources (name, type, color, is_active) VALUES ($1, $2, $3, true) RETURNING id, name, type, color, is_active;",
+        "options": {
+          "queryReplacement": "={{ [$json.body.name, $json.body.type || 'Equipment', $json.body.color || '#94A3B8'] }}"
+        }
+      },
+      "id": "e5f6a005-5555-4a5a-9b1a-resources0005",
+      "name": "Postgres: Insert Resource",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [464, 784],
+      "credentials": {
+        "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "e5f6a006-6666-4a5a-9b1a-resources0006",
+      "name": "Respond: add-resource",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [688, 784]
     }
   ],
   "connections": {
@@ -47,6 +90,12 @@
     },
     "Postgres: Select Resources": {
       "main": [[{ "node": "Respond: get-resources", "type": "main", "index": 0 }]]
+    },
+    "Webhook: add-resource": {
+      "main": [[{ "node": "Postgres: Insert Resource", "type": "main", "index": 0 }]]
+    },
+    "Postgres: Insert Resource": {
+      "main": [[{ "node": "Respond: add-resource", "type": "main", "index": 0 }]]
     }
   },
   "active": true,

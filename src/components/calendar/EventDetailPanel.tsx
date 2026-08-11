@@ -69,10 +69,21 @@ export default function EventDetailPanel({
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           <Field label="Date" value={new Date(event.due_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })} />
           <Field
-            label="Time"
-            value={new Date(event.due_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+            label={event.is_all_day ? 'Time' : 'Start Time'}
+            value={
+              event.is_all_day
+                ? 'All Day'
+                : new Date(event.due_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+            }
           />
-          <Field label="Assigned To" value={event.assigned_user_name} />
+          {event.end_at && !event.is_all_day && (
+            <Field
+              label="End Time"
+              value={new Date(event.end_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+            />
+          )}
+          {event.location && <Field label="Location" value={event.location} />}
+          <Field label="Assigned To" value={event.assigned_user_name ? toTitleCase(event.assigned_user_name) : undefined} />
 
           {event.company_name && (
             <div>
@@ -107,6 +118,22 @@ export default function EventDetailPanel({
               >
                 {event.opportunity_name}
               </button>
+            </div>
+          )}
+
+          {event.resources && event.resources.length > 0 && (
+            <div>
+              <label className="block text-[11px] font-medium text-slate-500 mb-1">Equipment/Resources</label>
+              <div className="flex flex-wrap gap-1.5">
+                {event.resources.map((r) => (
+                  <span
+                    key={r.id}
+                    className="px-2 py-0.5 text-xs font-medium bg-indigo-50 text-indigo-700 rounded-full"
+                  >
+                    {r.name}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
 
