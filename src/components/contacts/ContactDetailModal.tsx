@@ -10,6 +10,7 @@ import ComposeEmailPopover from './ComposeEmailPopover';
 import DealFormModal from '../pipeline/DealFormModal';
 import TaskFormModal from '../tasks/TaskFormModal';
 import { toTitleCase } from '../../utils/text';
+import { parseEmailLogs } from '../../utils/emailLogs';
 
 const STATUS_COLORS: Record<string, string> = {
   New: 'bg-slate-100 text-slate-800',
@@ -22,17 +23,6 @@ const STATUS_COLORS: Record<string, string> = {
 interface Props {
   contact: Contact | null;
   onClose: () => void;
-}
-
-function parseLogs(raw: Contact['email_logs']): EmailLog[] {
-  if (!raw) return [];
-  if (Array.isArray(raw)) return raw;
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
 }
 
 function ActionButton({
@@ -101,7 +91,7 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
     .filter(Boolean)
     .join(contact.job_title && contact.company_name ? ' at ' : '');
 
-  const logs = parseLogs(contact.email_logs).slice().reverse();
+  const logs = parseEmailLogs(contact.email_logs).slice().reverse();
   const contactDeals = opportunities.filter((o) => o.contact_id === contact.id);
   const stageName = (stageId: number) => stages.find((s) => s.id === stageId)?.name ?? '--';
 
