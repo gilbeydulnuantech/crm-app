@@ -16,7 +16,6 @@ import { EventListView } from '../components/calendar/EventListView';
 import DealMonthView from '../components/calendar/DealMonthView';
 import DealWeekView from '../components/calendar/DealWeekView';
 import DealListView from '../components/calendar/DealListView';
-import TodayAndUpcoming from '../components/calendar/TodayAndUpcoming';
 import EventDetailPanel from '../components/calendar/EventDetailPanel';
 import EventFormModal from '../components/calendar/EventFormModal';
 import DealDetailPanel from '../components/pipeline/DealDetailPanel';
@@ -391,8 +390,6 @@ export default function Calendar() {
             {viewMode === 'agenda' && (
               <EventListView events={visibleEvents} onEventClick={setActiveEvent} emptyLabel="No events this month." />
             )}
-
-            {viewMode === 'month' && <TodayAndUpcoming events={overlayFilteredEvents} onEventClick={setActiveEvent} />}
           </>
         ) : (
           <>
