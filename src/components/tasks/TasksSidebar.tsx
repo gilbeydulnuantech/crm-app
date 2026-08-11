@@ -22,6 +22,8 @@ interface Props {
   priorityFilters: Set<TaskPriority>;
   onTogglePriority: (p: TaskPriority) => void;
   onClearFilters: () => void;
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
 }
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -47,6 +49,12 @@ function Row({ label, checked, onToggle }: { label: string; checked: boolean; on
   );
 }
 
+const RAIL_ICONS: { icon: string; title: string }[] = [
+  { icon: 'fa-users', title: 'Team Members' },
+  { icon: 'fa-check', title: 'Status' },
+  { icon: 'fa-flag', title: 'Priority' },
+];
+
 export default function TasksSidebar({
   users,
   currentUserId,
@@ -58,12 +66,48 @@ export default function TasksSidebar({
   priorityFilters,
   onTogglePriority,
   onClearFilters,
+  collapsed,
+  onToggleCollapsed,
 }: Props) {
   const allUsersChecked = users.length > 0 && users.every((u) => checkedUserIds.has(u.id));
 
+  if (collapsed) {
+    return (
+      <div className="w-7 shrink-0 border-r border-slate-200 flex flex-col items-center pt-4 gap-1">
+        <button
+          onClick={onToggleCollapsed}
+          title="Show filters"
+          className="text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded p-1.5"
+        >
+          <i className="fa-solid fa-chevron-right text-xs" />
+        </button>
+        <div className="w-full border-t border-slate-100 my-1" />
+        {RAIL_ICONS.map((r) => (
+          <button
+            key={r.icon}
+            onClick={onToggleCollapsed}
+            title={r.title}
+            className="text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded p-1.5"
+          >
+            <i className={`fa-solid ${r.icon} text-xs`} />
+          </button>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="w-60 shrink-0 border-r border-slate-200 overflow-y-auto p-4 space-y-4">
-      <h3 className="text-sm font-bold text-slate-800">Task Filters</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-bold text-slate-800">Task Filters</h3>
+        <button
+          onClick={onToggleCollapsed}
+          title="Hide filters"
+          className="text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded p-1 shrink-0"
+        >
+          <i className="fa-solid fa-chevron-left text-xs" />
+        </button>
+      </div>
 
       <Section title="Team Members">
         {users.length > 0 && <Row label="All Members" checked={allUsersChecked} onToggle={onToggleAllUsers} />}

@@ -153,20 +153,20 @@ export default function Tasks() {
 
   return (
     <div className="flex-1 flex min-h-0 overflow-hidden">
-      {sidebarOpen && (
-        <TasksSidebar
-          users={users}
-          currentUserId={user?.id}
-          checkedUserIds={checkedUserIds}
-          onToggleUser={toggleUser}
-          onToggleAllUsers={toggleAllUsers}
-          statusFilters={statusFilters}
-          onToggleStatus={toggleStatus}
-          priorityFilters={priorityFilters}
-          onTogglePriority={togglePriority}
-          onClearFilters={clearFilters}
-        />
-      )}
+      <TasksSidebar
+        users={users}
+        currentUserId={user?.id}
+        checkedUserIds={checkedUserIds}
+        onToggleUser={toggleUser}
+        onToggleAllUsers={toggleAllUsers}
+        statusFilters={statusFilters}
+        onToggleStatus={toggleStatus}
+        priorityFilters={priorityFilters}
+        onTogglePriority={togglePriority}
+        onClearFilters={clearFilters}
+        collapsed={!sidebarOpen}
+        onToggleCollapsed={() => setSidebarOpen((v) => !v)}
+      />
 
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         <div className="px-4 py-4 flex items-center justify-between shrink-0 border-b border-slate-200">
