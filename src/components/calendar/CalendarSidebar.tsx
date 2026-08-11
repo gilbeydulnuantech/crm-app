@@ -14,6 +14,8 @@ interface Props {
   checkedResourceIds: Set<number>;
   onToggleUser: (id: number) => void;
   onToggleResource: (id: number) => void;
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
 }
 
 const DEFAULT_USER_COLOR = '#94A3B8';
@@ -76,12 +78,37 @@ export default function CalendarSidebar({
   checkedResourceIds,
   onToggleUser,
   onToggleResource,
+  collapsed,
+  onToggleCollapsed,
 }: Props) {
   const updateUserColor = useUpdateUserColor();
 
+  if (collapsed) {
+    return (
+      <div className="w-7 shrink-0 border-r border-slate-200 flex flex-col items-center pt-4">
+        <button
+          onClick={onToggleCollapsed}
+          title="Show sidebar"
+          className="text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded p-1.5"
+        >
+          <i className="fa-solid fa-chevron-right text-xs" />
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="w-64 shrink-0 border-r border-slate-200 overflow-y-auto p-4 space-y-4">
-      <h3 className="text-sm font-bold text-slate-800">Shared Calendars &amp; Teams</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-bold text-slate-800">Shared Calendars &amp; Teams</h3>
+        <button
+          onClick={onToggleCollapsed}
+          title="Hide sidebar"
+          className="text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded p-1 shrink-0"
+        >
+          <i className="fa-solid fa-chevron-left text-xs" />
+        </button>
+      </div>
 
       <Section title="Team Members">
         {users.map((u) => (

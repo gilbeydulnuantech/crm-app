@@ -64,6 +64,7 @@ export default function Calendar() {
   const [checkedResourceIds, setCheckedResourceIds] = useState<Set<number>>(new Set());
   const [visibleTypes, setVisibleTypes] = useState<EventType[]>([...EVENT_TYPES]);
   const [statFilter, setStatFilter] = useState<CalendarStatFilter | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const { data: users = [] } = useUsers();
   const { data: resources = [] } = useResources();
@@ -280,6 +281,8 @@ export default function Calendar() {
         checkedResourceIds={checkedResourceIds}
         onToggleUser={toggleUser}
         onToggleResource={toggleResource}
+        collapsed={!sidebarOpen}
+        onToggleCollapsed={() => setSidebarOpen((v) => !v)}
       />
 
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
