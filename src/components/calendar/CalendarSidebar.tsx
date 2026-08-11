@@ -23,6 +23,12 @@ interface Props {
 const DEFAULT_USER_COLOR = '#94A3B8';
 const DEFAULT_RESOURCE_COLOR = '#CBD5E1';
 
+const RAIL_ICONS: { icon: string; title: string }[] = [
+  { icon: 'fa-users', title: 'Team Members' },
+  { icon: 'fa-truck', title: 'Resources' },
+  { icon: 'fa-plug', title: 'External Integrations' },
+];
+
 function Section({ title, children }: { title: string; children: ReactNode }) {
   const [open, setOpen] = useState(true);
   return (
@@ -91,7 +97,7 @@ export default function CalendarSidebar({
 
   if (collapsed) {
     return (
-      <div className="w-7 shrink-0 border-r border-slate-200 flex flex-col items-center pt-4">
+      <div className="w-7 shrink-0 border-r border-slate-200 flex flex-col items-center pt-4 gap-1">
         <button
           onClick={onToggleCollapsed}
           title="Show sidebar"
@@ -99,6 +105,17 @@ export default function CalendarSidebar({
         >
           <i className="fa-solid fa-chevron-right text-xs" />
         </button>
+        <div className="w-full border-t border-slate-100 my-1" />
+        {RAIL_ICONS.map((r) => (
+          <button
+            key={r.icon}
+            onClick={onToggleCollapsed}
+            title={r.title}
+            className="text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded p-1.5"
+          >
+            <i className={`fa-solid ${r.icon} text-xs`} />
+          </button>
+        ))}
       </div>
     );
   }

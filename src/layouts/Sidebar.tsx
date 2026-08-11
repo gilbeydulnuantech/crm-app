@@ -35,7 +35,7 @@ export default function Sidebar({ collapsed, onToggleCollapsed }: Props) {
 
   if (collapsed) {
     return (
-      <aside className="w-7 bg-white border-r border-slate-200 flex flex-col items-center pt-4 shrink-0">
+      <aside className="w-7 bg-white border-r border-slate-200 flex flex-col items-center pt-4 gap-1 shrink-0">
         <button
           onClick={onToggleCollapsed}
           title="Show navigation"
@@ -43,6 +43,29 @@ export default function Sidebar({ collapsed, onToggleCollapsed }: Props) {
         >
           <i className="fa-solid fa-chevron-right text-xs" />
         </button>
+        <div className="w-full border-t border-slate-100 my-1" />
+        {NAV_ITEMS.map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            title={item.label}
+            className={({ isActive }) =>
+              `rounded p-1.5 ${isActive ? 'text-indigo-600 bg-indigo-50' : 'text-slate-400 hover:text-indigo-600 hover:bg-slate-100'}`
+            }
+          >
+            <i className={`${item.icon} text-xs`} />
+          </NavLink>
+        ))}
+        <div className="w-full border-t border-slate-100 my-1" />
+        <NavLink
+          to="/settings"
+          title="Settings"
+          className={({ isActive }) =>
+            `rounded p-1.5 ${isActive ? 'text-indigo-600 bg-indigo-50' : 'text-slate-400 hover:text-indigo-600 hover:bg-slate-100'}`
+          }
+        >
+          <i className="fa-solid fa-gear text-xs" />
+        </NavLink>
       </aside>
     );
   }

@@ -20,7 +20,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT a.id, a.contact_id, TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS contact_name, a.opportunity_id, o.name AS opportunity_name, a.user_id, u.name AS assigned_user_name, a.type, a.subject, a.body, a.is_completed, a.due_at, a.completed_at, a.created_at, a.priority, a.task_type FROM activities a LEFT JOIN contacts c ON c.id = a.contact_id LEFT JOIN opportunities o ON o.id = a.opportunity_id LEFT JOIN users u ON u.id = a.user_id WHERE a.type = 'task' ORDER BY a.due_at ASC NULLS LAST, a.created_at DESC;",
+        "query": "SELECT a.id, a.contact_id, TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS contact_name, co.name AS company_name, a.opportunity_id, o.name AS opportunity_name, a.user_id, u.name AS assigned_user_name, a.type, a.subject, a.body, a.is_completed, a.due_at, a.completed_at, a.created_at, a.priority, a.task_type, a.status FROM activities a LEFT JOIN contacts c ON c.id = a.contact_id LEFT JOIN companies co ON co.id = c.account_id LEFT JOIN opportunities o ON o.id = a.opportunity_id LEFT JOIN users u ON u.id = a.user_id WHERE a.type = 'task' ORDER BY a.due_at ASC NULLS LAST, a.created_at DESC, a.id DESC;",
         "options": {}
       },
       "id": "7627365e-6be1-44d8-923b-0c4000a7ddc2",
@@ -89,9 +89,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO activities (contact_id, opportunity_id, user_id, type, subject, body, due_at, priority, task_type) VALUES ($1, $2, $3, 'task', $4, $5, $6, $7, $8) RETURNING id, subject, is_completed, created_at;",
+        "query": "INSERT INTO activities (contact_id, opportunity_id, user_id, type, subject, body, due_at, priority, task_type, status) VALUES ($1, $2, $3, 'task', $4, $5, $6, $7, $8, $9) RETURNING id, subject, is_completed, created_at;",
         "options": {
-          "queryReplacement": "={{ [ $('Webhook: add-task').first().json.body.contact_id || null, $('Webhook: add-task').first().json.body.opportunity_id || null, $('Webhook: add-task').first().json.body.user_id || $('Webhook: add-task').first().json.body.requester_id || null, $('Webhook: add-task').first().json.body.subject, $('Webhook: add-task').first().json.body.body || null, $('Webhook: add-task').first().json.body.due_at || null, $('Webhook: add-task').first().json.body.priority || 'Medium', $('Webhook: add-task').first().json.body.task_type || null ] }}"
+          "queryReplacement": "={{ [ $('Webhook: add-task').first().json.body.contact_id || null, $('Webhook: add-task').first().json.body.opportunity_id || null, $('Webhook: add-task').first().json.body.user_id || $('Webhook: add-task').first().json.body.requester_id || null, $('Webhook: add-task').first().json.body.subject, $('Webhook: add-task').first().json.body.body || null, $('Webhook: add-task').first().json.body.due_at || null, $('Webhook: add-task').first().json.body.priority || 'Medium', $('Webhook: add-task').first().json.body.task_type || null, $('Webhook: add-task').first().json.body.status || 'to_do' ] }}"
         }
       },
       "id": "170bcc9a-edfa-4636-87c7-efe0f75a8163",
@@ -161,9 +161,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE activities SET subject = COALESCE($1, subject), body = COALESCE($2, body), contact_id = COALESCE($3, contact_id), opportunity_id = COALESCE($4, opportunity_id), user_id = COALESCE($5, user_id), due_at = COALESCE($6, due_at), is_completed = COALESCE($7, is_completed), completed_at = $8, priority = COALESCE($9, priority), task_type = COALESCE($10, task_type) WHERE id = $11 RETURNING id;",
+        "query": "UPDATE activities SET subject = COALESCE($1, subject), body = COALESCE($2, body), contact_id = COALESCE($3, contact_id), opportunity_id = COALESCE($4, opportunity_id), user_id = COALESCE($5, user_id), due_at = COALESCE($6, due_at), is_completed = COALESCE($7, is_completed), completed_at = $8, priority = COALESCE($9, priority), task_type = COALESCE($10, task_type), status = COALESCE($11, status) WHERE id = $12 RETURNING id;",
         "options": {
-          "queryReplacement": "={{ [ $('Webhook: update-task').first().json.body.subject || null, $('Webhook: update-task').first().json.body.body || null, $('Webhook: update-task').first().json.body.contact_id || null, $('Webhook: update-task').first().json.body.opportunity_id || null, $('Webhook: update-task').first().json.body.user_id || null, $('Webhook: update-task').first().json.body.due_at || null, $('Webhook: update-task').first().json.body.is_completed !== undefined ? $('Webhook: update-task').first().json.body.is_completed : null, $('Webhook: update-task').first().json.body.completed_at !== undefined ? $('Webhook: update-task').first().json.body.completed_at : null, $('Webhook: update-task').first().json.body.priority || null, $('Webhook: update-task').first().json.body.task_type || null, $('Webhook: update-task').first().json.body.id ] }}"
+          "queryReplacement": "={{ [ $('Webhook: update-task').first().json.body.subject || null, $('Webhook: update-task').first().json.body.body || null, $('Webhook: update-task').first().json.body.contact_id || null, $('Webhook: update-task').first().json.body.opportunity_id || null, $('Webhook: update-task').first().json.body.user_id || null, $('Webhook: update-task').first().json.body.due_at || null, $('Webhook: update-task').first().json.body.is_completed !== undefined ? $('Webhook: update-task').first().json.body.is_completed : null, $('Webhook: update-task').first().json.body.completed_at !== undefined ? $('Webhook: update-task').first().json.body.completed_at : null, $('Webhook: update-task').first().json.body.priority || null, $('Webhook: update-task').first().json.body.task_type || null, $('Webhook: update-task').first().json.body.status || null, $('Webhook: update-task').first().json.body.id ] }}"
         }
       },
       "id": "757a985d-9a39-490b-8761-e64f841e7336",
@@ -338,7 +338,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "ALTER TABLE activities ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT 'Medium';\nALTER TABLE activities ADD COLUMN IF NOT EXISTS task_type VARCHAR(50);",
+        "query": "ALTER TABLE activities ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT 'Medium';\nALTER TABLE activities ADD COLUMN IF NOT EXISTS task_type VARCHAR(50);\nALTER TABLE activities ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'to_do';",
         "options": {}
       },
       "id": "f8e4ff52-0602-431a-bf1f-81f63068b362",
@@ -359,7 +359,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "ALTER TABLE activities ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT 'Medium';\nALTER TABLE activities ADD COLUMN IF NOT EXISTS task_type VARCHAR(50);",
+        "query": "ALTER TABLE activities ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT 'Medium';\nALTER TABLE activities ADD COLUMN IF NOT EXISTS task_type VARCHAR(50);\nALTER TABLE activities ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'to_do';",
         "options": {}
       },
       "id": "f5a8b78b-9f90-4ec1-9464-f18b6cdc79c4",

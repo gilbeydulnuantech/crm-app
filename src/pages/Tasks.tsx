@@ -1,20 +1,24 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Task, TaskPriority, taskStatus, TasksView } from '../types/task';
+import { Task, TaskPriority, TaskStatus, taskStatus, TasksView } from '../types/task';
 import { useAuth } from '../context/AuthContext';
 import { useUsers } from '../hooks/useContacts';
-import { useDeleteTasks, useTasks, useToggleTaskComplete } from '../hooks/useTasks';
+import { useDeleteTasks, useMoveTaskStatus, useTasks, useToggleTaskComplete } from '../hooks/useTasks';
 import TasksStatsBar from '../components/tasks/TasksStatsBar';
 import TasksTabs from '../components/tasks/TasksTabs';
 import TasksSidebar, { TaskStatusFilter } from '../components/tasks/TasksSidebar';
 import TasksTable from '../components/tasks/TasksTable';
+import TasksKanbanBoard from '../components/tasks/TasksKanbanBoard';
 import TasksBulkActionsMenu from '../components/tasks/TasksBulkActionsMenu';
 import TaskFormModal from '../components/tasks/TaskFormModal';
 import SearchToolbar from '../components/SearchToolbar';
+
+type BoardView = 'list' | 'kanban';
 
 export default function Tasks() {
   const { user } = useAuth();
 
   const [view, setView] = useState<TasksView>('all');
+  const [boardView, setBoardView] = useState<BoardView>('list');
   const [search, setSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [formOpen, setFormOpen] = useState(false);
@@ -32,6 +36,7 @@ export default function Tasks() {
   const { data: users = [] } = useUsers();
   const deleteTasks = useDeleteTasks();
   const toggleComplete = useToggleTaskComplete();
+  const moveTaskStatus = useMoveTaskStatus();
 
   // Default to everyone checked once the team list loads — "All Members"
   // means unrestricted, not "hide everyone until you opt in".
@@ -125,6 +130,29 @@ export default function Tasks() {
     return list;
   }, [allTasks, view, user, search, users, checkedUserIds, statusFilters, priorityFilters]);
 
+  // Kanban groups by status across the whole board, so it bypasses the
+  // All/Mine/Completed tabs and the sidebar's Status section (both of which
+  // are is_completed-based and would otherwise permanently empty 3 of the 4
+  // columns) — but still respects Team Members/Priority/search.
+  const kanbanTasks = useMemo(() => {
+    let list = allTasks;
+    if (users.length > 0 && checkedUserIds.size < users.length) {
+      list = list.filter((t) => t.user_id == null || checkedUserIds.has(t.user_id));
+    }
+    if (priorityFilters.size > 0) {
+      list = list.filter((t) => t.priority && priorityFilters.has(t.priority));
+    }
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      list = list.filter((t) => t.subject.toLowerCase().includes(q));
+    }
+    return list;
+  }, [allTasks, users, checkedUserIds, priorityFilters, search]);
+
+  function handleMoveTaskStatus(taskId: number, status: TaskStatus) {
+    moveTaskStatus.mutate({ id: taskId, status });
+  }
+
   function toggleSelect(id: number) {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -181,41 +209,62 @@ export default function Tasks() {
         </div>
 
         <TasksStatsBar tasks={allTasks} />
-        <TasksTabs view={view} onChange={changeView} />
+        {boardView === 'list' && <TasksTabs view={view} onChange={changeView} />}
 
         <SearchToolbar
           search={search}
           onSearchChange={setSearch}
           placeholder="Search tasks..."
           onFiltersClick={() => setSidebarOpen((v) => !v)}
+          rightExtra={
+            <div className="flex items-center gap-1 border border-slate-200 rounded-md p-0.5 bg-slate-50">
+              {(['kanban', 'list'] as BoardView[]).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setBoardView(v)}
+                  className={`px-2.5 py-1 text-xs font-semibold rounded capitalize ${
+                    boardView === v ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500'
+                  }`}
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
+          }
         />
 
-        <TasksTable
-          tasks={visibleTasks}
-          selectedIds={selectedIds}
-          onToggleSelect={toggleSelect}
-          onToggleSelectAll={toggleSelectAll}
-          onRowClick={openEditModal}
-          isLoading={isLoading}
-        />
-
-        <div className="px-4 py-2.5 border-t border-slate-200 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            {selectedIds.size > 0 && (
-              <span className="text-[11px] text-slate-400 font-medium">
-                {selectedIds.size} selected
-              </span>
-            )}
-            <TasksBulkActionsMenu
-              selectedCount={selectedIds.size}
-              onCompleteSelected={handleCompleteSelected}
-              onDeleteSelected={handleDeleteSelected}
+        {boardView === 'list' ? (
+          <>
+            <TasksTable
+              tasks={visibleTasks}
+              selectedIds={selectedIds}
+              onToggleSelect={toggleSelect}
+              onToggleSelectAll={toggleSelectAll}
+              onRowClick={openEditModal}
+              isLoading={isLoading}
             />
-          </div>
-          <span className="text-xs text-slate-500">
-            Showing {visibleTasks.length} of {allTasks.length} Tasks
-          </span>
-        </div>
+
+            <div className="px-4 py-2.5 border-t border-slate-200 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                {selectedIds.size > 0 && (
+                  <span className="text-[11px] text-slate-400 font-medium">
+                    {selectedIds.size} selected
+                  </span>
+                )}
+                <TasksBulkActionsMenu
+                  selectedCount={selectedIds.size}
+                  onCompleteSelected={handleCompleteSelected}
+                  onDeleteSelected={handleDeleteSelected}
+                />
+              </div>
+              <span className="text-xs text-slate-500">
+                Showing {visibleTasks.length} of {allTasks.length} Tasks
+              </span>
+            </div>
+          </>
+        ) : (
+          <TasksKanbanBoard tasks={kanbanTasks} onMoveStatus={handleMoveTaskStatus} onCardClick={openEditModal} />
+        )}
 
         <TaskFormModal open={formOpen} task={editingTask} onClose={() => setFormOpen(false)} />
       </div>
