@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { usePipelines, useStages, useOpportunities } from '../../hooks/useOpportunities';
 import TagsDropdown from './TagsDropdown';
 import OwnerDropdown from './OwnerDropdown';
-import ContactQuickEditPopover from './ContactQuickEditPopover';
+import AddContactModal from './AddContactModal';
 import ComposeEmailPopover from './ComposeEmailPopover';
 import DealFormModal from '../pipeline/DealFormModal';
 import TaskFormModal from '../tasks/TaskFormModal';
@@ -133,7 +133,7 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                       <button
                         onClick={() => setQuickEditOpen(true)}
                         className="text-slate-300 hover:text-indigo-600"
-                        title="Quick edit"
+                        title="Edit contact"
                       >
                         <i className="fa-solid fa-pen text-xs" />
                       </button>
@@ -489,7 +489,7 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
         </div>
       </div>
 
-      <ContactQuickEditPopover
+      <AddContactModal
         contact={contact}
         open={quickEditOpen}
         onClose={() => setQuickEditOpen(false)}
