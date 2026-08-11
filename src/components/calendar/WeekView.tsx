@@ -1,13 +1,22 @@
 import { useMemo } from 'react';
 import { CalendarEvent, EVENT_TYPE_META } from '../../types/event';
+import { matchedResourceColor } from '../../utils/calendarHighlight';
 
 interface Props {
   weekStart: Date;
   events: CalendarEvent[];
+  checkedResourceIds: Set<number>;
+  resourceColorById: Map<number, string>;
   onEventClick: (event: CalendarEvent) => void;
 }
 
-export default function WeekView({ weekStart, events, onEventClick }: Props) {
+export default function WeekView({
+  weekStart,
+  events,
+  checkedResourceIds,
+  resourceColorById,
+  onEventClick,
+}: Props) {
   const days = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(weekStart);
@@ -41,21 +50,25 @@ export default function WeekView({ weekStart, events, onEventClick }: Props) {
                 {day.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}
               </div>
               <div className="space-y-1">
-                {dayEvents.map((e) => (
-                  <div
-                    key={e.id}
-                    onClick={() => onEventClick(e)}
-                    className={`text-[11px] px-1.5 py-1 rounded cursor-pointer ${EVENT_TYPE_META[e.type]?.color ?? 'bg-slate-100 text-slate-700'}`}
-                  >
-                    <div className="font-medium">
-                      {new Date(e.due_at).toLocaleTimeString(undefined, {
-                        hour: 'numeric',
-                        minute: '2-digit',
-                      })}
+                {dayEvents.map((e) => {
+                  const highlight = matchedResourceColor(e, checkedResourceIds, resourceColorById);
+                  return (
+                    <div
+                      key={e.id}
+                      onClick={() => onEventClick(e)}
+                      className={`text-[11px] px-1.5 py-1 rounded cursor-pointer ${EVENT_TYPE_META[e.type]?.color ?? 'bg-slate-100 text-slate-700'}`}
+                      style={highlight ? { boxShadow: `inset 0 0 0 1.5px ${highlight}` } : undefined}
+                    >
+                      <div className="font-medium">
+                        {new Date(e.due_at).toLocaleTimeString(undefined, {
+                          hour: 'numeric',
+                          minute: '2-digit',
+                        })}
+                      </div>
+                      <div className="truncate">{e.subject}</div>
                     </div>
-                    <div className="truncate">{e.subject}</div>
-                  </div>
-                ))}
+                  );
+                })}
                 {dayEvents.length === 0 && (
                   <div className="text-[10px] text-slate-300 text-center pt-4">No events</div>
                 )}

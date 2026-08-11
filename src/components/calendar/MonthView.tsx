@@ -1,9 +1,12 @@
 import { useMemo } from 'react';
 import { CalendarEvent, EVENT_TYPE_META } from '../../types/event';
+import { matchedResourceColor } from '../../utils/calendarHighlight';
 
 interface Props {
   monthDate: Date;
   events: CalendarEvent[];
+  checkedResourceIds: Set<number>;
+  resourceColorById: Map<number, string>;
   onEventClick: (event: CalendarEvent) => void;
   onDayClick: (date: Date) => void;
 }
@@ -14,7 +17,14 @@ function isSameDay(a: Date, b: Date) {
   return a.toDateString() === b.toDateString();
 }
 
-export default function MonthView({ monthDate, events, onEventClick, onDayClick }: Props) {
+export default function MonthView({
+  monthDate,
+  events,
+  checkedResourceIds,
+  resourceColorById,
+  onEventClick,
+  onDayClick,
+}: Props) {
   const cells = useMemo(() => {
     const year = monthDate.getFullYear();
     const month = monthDate.getMonth();
@@ -75,19 +85,23 @@ export default function MonthView({ monthDate, events, onEventClick, onDayClick 
                     {date.getDate()}
                   </div>
                   <div className="space-y-0.5">
-                    {dayEvents.slice(0, 3).map((e) => (
-                      <div
-                        key={e.id}
-                        onClick={(ev) => {
-                          ev.stopPropagation();
-                          onEventClick(e);
-                        }}
-                        className={`text-[10px] px-1 py-0.5 rounded truncate ${EVENT_TYPE_META[e.type]?.color ?? 'bg-slate-100 text-slate-700'}`}
-                        title={e.subject}
-                      >
-                        {e.subject}
-                      </div>
-                    ))}
+                    {dayEvents.slice(0, 3).map((e) => {
+                      const highlight = matchedResourceColor(e, checkedResourceIds, resourceColorById);
+                      return (
+                        <div
+                          key={e.id}
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            onEventClick(e);
+                          }}
+                          className={`text-[10px] px-1 py-0.5 rounded truncate ${EVENT_TYPE_META[e.type]?.color ?? 'bg-slate-100 text-slate-700'}`}
+                          style={highlight ? { boxShadow: `inset 0 0 0 1.5px ${highlight}` } : undefined}
+                          title={e.subject}
+                        >
+                          {e.subject}
+                        </div>
+                      );
+                    })}
                     {dayEvents.length > 3 && (
                       <div className="text-[10px] text-slate-400 px-1">
                         +{dayEvents.length - 3} more

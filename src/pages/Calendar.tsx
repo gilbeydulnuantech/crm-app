@@ -41,6 +41,8 @@ function toISODate(d: Date) {
   return d.toISOString().slice(0, 10);
 }
 
+const DEFAULT_RESOURCE_COLOR = '#CBD5E1';
+
 export default function Calendar() {
   const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
@@ -69,6 +71,10 @@ export default function Calendar() {
 
   const { data: users = [] } = useUsers();
   const { data: resources = [] } = useResources();
+  const resourceColorById = useMemo(
+    () => new Map(resources.map((r) => [r.id, r.color || DEFAULT_RESOURCE_COLOR])),
+    [resources]
+  );
 
   // Always fetch a full month range regardless of view mode — keeps the
   // query cache simple and lets Week/Day/Agenda reuse the same fetched set.
@@ -405,18 +411,38 @@ export default function Calendar() {
               <MonthView
                 monthDate={cursorDate}
                 events={visibleEvents}
+                checkedResourceIds={checkedResourceIds}
+                resourceColorById={resourceColorById}
                 onEventClick={setQuickViewEvent}
                 onDayClick={(date) => openAddModal(date)}
               />
             )}
             {viewMode === 'week' && (
-              <WeekView weekStart={startOfWeek(cursorDate)} events={weekEvents} onEventClick={setQuickViewEvent} />
+              <WeekView
+                weekStart={startOfWeek(cursorDate)}
+                events={weekEvents}
+                checkedResourceIds={checkedResourceIds}
+                resourceColorById={resourceColorById}
+                onEventClick={setQuickViewEvent}
+              />
             )}
             {viewMode === 'day' && (
-              <EventListView events={dayEvents} onEventClick={setQuickViewEvent} emptyLabel="No events on this day." />
+              <EventListView
+                events={dayEvents}
+                checkedResourceIds={checkedResourceIds}
+                resourceColorById={resourceColorById}
+                onEventClick={setQuickViewEvent}
+                emptyLabel="No events on this day."
+              />
             )}
             {viewMode === 'agenda' && (
-              <EventListView events={visibleEvents} onEventClick={setQuickViewEvent} emptyLabel="No events this month." />
+              <EventListView
+                events={visibleEvents}
+                checkedResourceIds={checkedResourceIds}
+                resourceColorById={resourceColorById}
+                onEventClick={setQuickViewEvent}
+                emptyLabel="No events this month."
+              />
             )}
           </>
         ) : (
