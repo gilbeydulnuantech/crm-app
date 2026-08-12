@@ -537,7 +537,6 @@ export default function Calendar() {
         <DealQuickView
           deal={quickViewDeal}
           stagesById={stagesById}
-          pipelineName={pipelines.find((p) => p.id === quickViewDeal?.pipeline_id)?.name}
           isAdmin={isAdmin}
           currentUserId={user?.id}
           onClose={() => setQuickViewDeal(null)}

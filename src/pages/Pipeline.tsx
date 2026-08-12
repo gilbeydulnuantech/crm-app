@@ -129,7 +129,6 @@ export default function Pipeline() {
 
   const { data: stages = [] } = useStages(pipelineId);
   const stagesById = useMemo(() => new Map(stages.map((s) => [s.id, s])), [stages]);
-  const currentPipelineName = pipelines.find((p) => p.id === pipelineId)?.name;
   const { data: opportunities = [], isLoading } = useOpportunities(pipelineId);
   const { data: users = [] } = useUsers();
   const { data: tags = [] } = useTags();
@@ -289,7 +288,6 @@ export default function Pipeline() {
       <DealQuickView
         deal={quickViewDeal}
         stagesById={stagesById}
-        pipelineName={currentPipelineName}
         isAdmin={isAdmin}
         currentUserId={user?.id}
         onClose={() => setQuickViewDeal(null)}

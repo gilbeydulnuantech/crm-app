@@ -6,7 +6,6 @@ import { toTitleCase } from '../../utils/text';
 interface Props {
   deal: Opportunity | null;
   stagesById: Map<number, Stage>;
-  pipelineName?: string;
   isAdmin: boolean;
   currentUserId?: number;
   onClose: () => void;
@@ -36,7 +35,6 @@ function Field({ label, value }: { label: string; value?: ReactNode }) {
 export default function DealQuickView({
   deal,
   stagesById,
-  pipelineName,
   isAdmin,
   currentUserId,
   onClose,
@@ -96,7 +94,6 @@ export default function DealQuickView({
               label="Owner"
               value={deal.assigned_user_name ? toTitleCase(deal.assigned_user_name) : undefined}
             />
-            <Field label="Pipeline" value={pipelineName} />
           </div>
 
           <Field
