@@ -23,6 +23,12 @@ const STATUS_COLORS: Record<string, string> = {
   'Do Not Contact': 'bg-red-100 text-red-800',
 };
 
+const DEAL_SECTION_COLORS: Record<string, { text: string; border: string }> = {
+  active: { text: 'text-blue-600', border: 'border-blue-200' },
+  won: { text: 'text-emerald-600', border: 'border-emerald-200' },
+  lost: { text: 'text-rose-600', border: 'border-rose-200' },
+};
+
 interface Props {
   contact: Contact | null;
   onClose: () => void;
@@ -109,6 +115,13 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
 
   const logs = parseEmailLogs(contact.email_logs).slice().reverse();
   const contactDeals = allOpportunities.filter((o) => o.contact_id === contact.id);
+  // Grouped into sections (Active, Closed Won, Closed Lost) instead of one
+  // flat list, so closed deals are easy to spot separately from open ones.
+  const dealSections = [
+    { key: 'active', label: 'Active', items: contactDeals.filter((d) => d.status === 'Open') },
+    { key: 'won', label: 'Closed Won', items: contactDeals.filter((d) => d.status === 'Won') },
+    { key: 'lost', label: 'Closed Lost', items: contactDeals.filter((d) => d.status === 'Lost') },
+  ].filter((section) => section.items.length > 0);
   const stageName = (stageId: number) => allStages.find((s) => s.id === stageId)?.name ?? '--';
 
   function handleStatusChange(value: string) {
@@ -285,42 +298,62 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
               {contactDeals.length === 0 ? (
                 <p className="text-xs text-slate-400">No opportunities for this contact yet.</p>
               ) : (
-                <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg">
-                  {contactDeals.map((d) => {
-                    const pipelineName = pipelines.find((p) => p.id === d.pipeline_id)?.name;
+                <div className="space-y-4">
+                  {dealSections.map((section) => {
+                    const color = DEAL_SECTION_COLORS[section.key] ?? { text: 'text-slate-400', border: 'border-slate-200' };
                     return (
-                      <div key={d.id} className="px-3 py-2.5 space-y-1.5">
-                        <p className="text-sm font-medium text-slate-800 truncate">{d.name}</p>
-                        <p className="text-xs text-slate-400 truncate">
-                          {[pipelineName, stageName(d.stage_id)].filter(Boolean).join(' · ')}
-                        </p>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-semibold text-emerald-600">
-                            {d.deal_value != null
-                              ? `$${d.deal_value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
-                              : '--'}
-                          </span>
-                          <span className="text-xs text-slate-500">
-                            {d.assigned_user_name ? `Owner: ${toTitleCase(d.assigned_user_name)}` : 'Unassigned'}
-                          </span>
-                        </div>
-                        {d.created_at && (
-                          <p className="text-[11px] text-slate-400">
-                            Created{' '}
-                            {new Date(d.created_at).toLocaleDateString(undefined, {
-                              month: 'short',
-                              day: '2-digit',
-                              year: 'numeric',
-                            })}
-                          </p>
-                        )}
-                        <button
-                          onClick={() => openPipelineView(d.pipeline_id)}
-                          className="w-full mt-1.5 text-xs font-semibold text-indigo-600 border border-indigo-200 rounded-lg py-1.5 hover:bg-indigo-50"
-                        >
-                          View Opportunity
-                        </button>
+                    <div key={section.key}>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className={`text-[10px] font-bold uppercase tracking-wide shrink-0 ${color.text}`}>
+                          {section.label}
+                        </span>
+                        <div className={`flex-1 border-t ${color.border}`} />
                       </div>
+                      <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg">
+                        {section.items.map((d) => {
+                          const pipelineName = pipelines.find((p) => p.id === d.pipeline_id)?.name;
+                          const isClosed = d.status !== 'Open';
+                          const closedDate = d.closed_at ?? d.created_at;
+                          return (
+                            <div key={d.id} className="px-3 py-2.5 space-y-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="text-sm font-medium text-slate-800 truncate">{d.name}</p>
+                                <span className="text-sm font-semibold text-emerald-600 shrink-0">
+                                  {d.deal_value != null
+                                    ? `$${d.deal_value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+                                    : '--'}
+                                </span>
+                              </div>
+                              <p className="text-xs text-slate-400 truncate">
+                                {[pipelineName, stageName(d.stage_id)].filter(Boolean).join(' · ')}
+                              </p>
+                              {d.status === 'Lost' && d.lost_reason && (
+                                <p className="text-xs text-rose-600">Lost Reason: {d.lost_reason}</p>
+                              )}
+                              <p className="text-xs text-slate-500">
+                                {d.assigned_user_name ? `Owner: ${toTitleCase(d.assigned_user_name)}` : 'Unassigned'}
+                              </p>
+                              {(isClosed ? closedDate : d.created_at) && (
+                                <p className="text-[11px] text-slate-400">
+                                  {isClosed ? 'Closed: ' : 'Created: '}
+                                  {new Date((isClosed ? closedDate : d.created_at)!).toLocaleDateString(undefined, {
+                                    month: 'short',
+                                    day: '2-digit',
+                                    year: 'numeric',
+                                  })}
+                                </p>
+                              )}
+                              <button
+                                onClick={() => openPipelineView(d.pipeline_id)}
+                                className="w-full mt-1.5 text-xs font-semibold text-indigo-600 border border-indigo-200 rounded-lg py-1.5 hover:bg-indigo-50"
+                              >
+                                View Deal
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                     );
                   })}
                 </div>
