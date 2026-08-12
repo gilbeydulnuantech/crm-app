@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   PieChart,
   Pie,
@@ -17,10 +16,6 @@ import {
 } from 'recharts';
 import { useAuth } from '../context/AuthContext';
 import { useDashboard } from '../hooks/useDashboard';
-import AddContactModal from '../components/contacts/AddContactModal';
-import DealFormModal from '../components/pipeline/DealFormModal';
-import TaskFormModal from '../components/tasks/TaskFormModal';
-import { usePipelines } from '../hooks/useOpportunities';
 import { toTitleCase } from '../utils/text';
 
 // Color theme
@@ -109,13 +104,6 @@ export default function Dashboard() {
   const { user, isAdmin } = useAuth();
   const { data, isLoading, isError } = useDashboard();
 
-  const [addContactOpen, setAddContactOpen] = useState(false);
-  const [addDealOpen, setAddDealOpen] = useState(false);
-  const [addTaskOpen, setAddTaskOpen] = useState(false);
-
-  const { data: pipelines = [] } = usePipelines();
-  const defaultPipelineId = pipelines.find((p) => p.is_default)?.id ?? pipelines[0]?.id;
-
   const today = new Date().toLocaleDateString(undefined, {
     year: 'numeric',
     month: 'long',
@@ -136,30 +124,6 @@ export default function Dashboard() {
         <span className="text-sm" style={{ color: `${TEXT}80` }}>
           Today: {today}
         </span>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => setAddContactOpen(true)}
-          className="text-white text-sm font-medium px-3 py-1.5 rounded-lg hover:opacity-90"
-          style={{ backgroundColor: PRIMARY }}
-        >
-          + Add Contact
-        </button>
-        <button
-          onClick={() => setAddDealOpen(true)}
-          className="border text-sm font-medium px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50"
-          style={{ borderColor: '#E2E8F0', color: TEXT }}
-        >
-          + Create Deal
-        </button>
-        <button
-          onClick={() => setAddTaskOpen(true)}
-          className="border text-sm font-medium px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50"
-          style={{ borderColor: '#E2E8F0', color: TEXT }}
-        >
-          + Task
-        </button>
       </div>
 
       {isError && (
@@ -489,17 +453,6 @@ export default function Dashboard() {
           </Card>
         </>
       ) : null}
-
-      <AddContactModal open={addContactOpen} onClose={() => setAddContactOpen(false)} />
-      {defaultPipelineId && (
-        <DealFormModal
-          open={addDealOpen}
-          opportunity={null}
-          pipelineId={defaultPipelineId}
-          onClose={() => setAddDealOpen(false)}
-        />
-      )}
-      <TaskFormModal open={addTaskOpen} task={null} onClose={() => setAddTaskOpen(false)} />
     </div>
   );
 }
