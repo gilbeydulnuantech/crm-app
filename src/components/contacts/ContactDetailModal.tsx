@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Contact, EmailLog, LEAD_STATUS_OPTIONS } from '../../types/contact';
-import { Opportunity, Stage } from '../../types/opportunity';
 import { useMarkContactEmailRead, useToggleDoNotContact, useUpdateContact } from '../../hooks/useContacts';
 import { useAddNote, useDeleteNote, useNotes, useUpdateNote } from '../../hooks/useNotes';
 import { useAuth } from '../../context/AuthContext';
@@ -10,7 +10,6 @@ import OwnerDropdown from './OwnerDropdown';
 import AddContactModal from './AddContactModal';
 import ComposeEmailPopover from './ComposeEmailPopover';
 import DealFormModal from '../pipeline/DealFormModal';
-import DealDetailPanel from '../pipeline/DealDetailPanel';
 import TaskFormModal from '../tasks/TaskFormModal';
 import { toTitleCase } from '../../utils/text';
 import { parseEmailLogs } from '../../utils/emailLogs';
@@ -58,6 +57,7 @@ function ActionButton({
 
 export default function ContactDetailModal({ contact, onClose }: Props) {
   const { user, isAdmin } = useAuth();
+  const navigate = useNavigate();
   const toggleDnc = useToggleDoNotContact();
   const updateContact = useUpdateContact();
   const markEmailRead = useMarkContactEmailRead();
@@ -66,8 +66,6 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
   const [quickEditOpen, setQuickEditOpen] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
   const [dealFormOpen, setDealFormOpen] = useState(false);
-  const [editingDeal, setEditingDeal] = useState<Opportunity | null>(null);
-  const [activeDeal, setActiveDeal] = useState<Opportunity | null>(null);
   const [taskFormOpen, setTaskFormOpen] = useState(false);
   const [selectedLog, setSelectedLog] = useState<EmailLog | null>(null);
   const [markReadError, setMarkReadError] = useState<string | null>(null);
@@ -84,14 +82,6 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
   const pipelineIds = useMemo(() => pipelines.map((p) => p.id), [pipelines]);
   const { data: allOpportunities = [] } = useAllOpportunities(pipelineIds);
   const { data: allStages = [] } = useAllStages(pipelineIds);
-  const stagesByPipelineId = useMemo(() => {
-    const map = new Map<number, Stage[]>();
-    allStages.forEach((s) => {
-      if (!map.has(s.pipeline_id)) map.set(s.pipeline_id, []);
-      map.get(s.pipeline_id)!.push(s);
-    });
-    return map;
-  }, [allStages]);
   const { data: notes = [], isLoading: notesLoading } = useNotes('contact', contact?.id ?? null);
   const addNote = useAddNote('contact', contact?.id ?? null);
   const updateNote = useUpdateNote('contact', contact?.id ?? null);
@@ -127,14 +117,17 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
   }
 
   function openAddDeal() {
-    setEditingDeal(null);
     setDealFormOpen(true);
   }
 
-  function openEditDeal(deal: Opportunity) {
-    setActiveDeal(null);
-    setEditingDeal(deal);
-    setDealFormOpen(true);
+  // Takes over the deal's real pipeline (it may not be the default one) and
+  // deep-links to it — Pipeline.tsx opens that specific deal's detail panel
+  // once its data has loaded, same pattern Contacts.tsx uses for its own
+  // ?contactId= deep link.
+  function openPipelineView(dealId: number, dealPipelineId?: number | null) {
+    onClose();
+    const pid = dealPipelineId ?? defaultPipelineId;
+    navigate(`/pipeline?pipeline=${pid}&deal=${dealId}`);
   }
 
   return (
@@ -322,7 +315,7 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                           </p>
                         )}
                         <button
-                          onClick={() => setActiveDeal(d)}
+                          onClick={() => openPipelineView(d.id, d.pipeline_id)}
                           className="w-full mt-1.5 text-xs font-semibold text-indigo-600 border border-indigo-200 rounded-lg py-1.5 hover:bg-indigo-50"
                         >
                           View Opportunity
@@ -548,21 +541,12 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
       {defaultPipelineId && (
         <DealFormModal
           open={dealFormOpen}
-          opportunity={editingDeal}
-          pipelineId={editingDeal?.pipeline_id ?? defaultPipelineId}
+          opportunity={null}
+          pipelineId={defaultPipelineId}
           defaultContactId={contact.id}
           onClose={() => setDealFormOpen(false)}
         />
       )}
-      <DealDetailPanel
-        opportunity={activeDeal}
-        stages={activeDeal?.pipeline_id ? stagesByPipelineId.get(activeDeal.pipeline_id) ?? [] : []}
-        pipelineId={activeDeal?.pipeline_id ?? defaultPipelineId ?? 0}
-        onClose={() => setActiveDeal(null)}
-        onEdit={openEditDeal}
-        isAdmin={isAdmin}
-        currentUserId={user?.id}
-      />
       <TaskFormModal
         open={taskFormOpen}
         task={null}

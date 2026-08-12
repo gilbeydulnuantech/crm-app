@@ -1,5 +1,5 @@
 import { apiFetch } from './client';
-import { ArchivedContact, Contact, ImportContactRow } from '../types/contact';
+import { ArchivedContact, Contact, DO_NOT_CONTACT_STATUS, ImportContactRow } from '../types/contact';
 import { ContactRelated } from '../types/contactRelated';
 
 export function fetchContacts() {
@@ -113,7 +113,14 @@ export function assignContactOwner(contactId: number, ownerId: number | null) {
 export function toggleDoNotContact(contactId: number, doNotContact: boolean) {
   return apiFetch<{ success: boolean; error?: string }>('/webhook/update-contact', {
     method: 'POST',
-    body: JSON.stringify({ id: contactId, do_not_contact: doNotContact }),
+    body: JSON.stringify({
+      id: contactId,
+      do_not_contact: doNotContact,
+      // Checking DND also flips the status to match — unchecking it doesn't
+      // guess what the status should revert to, so that's left for the
+      // status dropdown itself.
+      ...(doNotContact ? { lead_status: DO_NOT_CONTACT_STATUS } : {}),
+    }),
   });
 }
 
