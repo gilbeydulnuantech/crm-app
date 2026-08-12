@@ -19,7 +19,7 @@ import DealListView from '../components/calendar/DealListView';
 import EventDetailPanel from '../components/calendar/EventDetailPanel';
 import EventQuickView from '../components/calendar/EventQuickView';
 import EventFormModal from '../components/calendar/EventFormModal';
-import DealQuickView from '../components/calendar/DealQuickView';
+import DealQuickView from '../components/pipeline/DealQuickView';
 import DealDetailPanel from '../components/pipeline/DealDetailPanel';
 import DealFormModal from '../components/pipeline/DealFormModal';
 import SearchToolbar from '../components/SearchToolbar';
@@ -537,6 +537,9 @@ export default function Calendar() {
         <DealQuickView
           deal={quickViewDeal}
           stagesById={stagesById}
+          pipelineName={pipelines.find((p) => p.id === quickViewDeal?.pipeline_id)?.name}
+          isAdmin={isAdmin}
+          currentUserId={user?.id}
           onClose={() => setQuickViewDeal(null)}
           onEdit={(deal) => {
             setQuickViewDeal(null);

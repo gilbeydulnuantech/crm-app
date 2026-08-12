@@ -21,6 +21,7 @@ import PipelineFilterPanel, {
 } from '../components/pipeline/PipelineFilterPanel';
 import DealFormModal from '../components/pipeline/DealFormModal';
 import DealDetailPanel from '../components/pipeline/DealDetailPanel';
+import DealQuickView from '../components/pipeline/DealQuickView';
 import SearchToolbar from '../components/SearchToolbar';
 
 function dateRangeForPreset(filters: DealFilters): [Date, Date] | null {
@@ -96,6 +97,7 @@ export default function Pipeline() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingOpportunity, setEditingOpportunity] = useState<Opportunity | null>(null);
   const [activeOpportunity, setActiveOpportunity] = useState<Opportunity | null>(null);
+  const [quickViewDeal, setQuickViewDeal] = useState<Opportunity | null>(null);
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState<DealFilters>(EMPTY_DEAL_FILTERS);
   const [toast, setToast] = useState<string | null>(null);
@@ -126,6 +128,8 @@ export default function Pipeline() {
   }, [toast]);
 
   const { data: stages = [] } = useStages(pipelineId);
+  const stagesById = useMemo(() => new Map(stages.map((s) => [s.id, s])), [stages]);
+  const currentPipelineName = pipelines.find((p) => p.id === pipelineId)?.name;
   const { data: opportunities = [], isLoading } = useOpportunities(pipelineId);
   const { data: users = [] } = useUsers();
   const { data: tags = [] } = useTags();
@@ -260,7 +264,7 @@ export default function Pipeline() {
         <PipelineBoard
           stages={stages}
           opportunities={visibleOpportunities}
-          onCardClick={setActiveOpportunity}
+          onCardClick={setQuickViewDeal}
           onMoveStage={handleMoveStage}
           canEditDeal={canEditDeal}
         />
@@ -281,6 +285,19 @@ export default function Pipeline() {
           onClose={() => setFormOpen(false)}
         />
       )}
+
+      <DealQuickView
+        deal={quickViewDeal}
+        stagesById={stagesById}
+        pipelineName={currentPipelineName}
+        isAdmin={isAdmin}
+        currentUserId={user?.id}
+        onClose={() => setQuickViewDeal(null)}
+        onEdit={(deal) => {
+          setQuickViewDeal(null);
+          setActiveOpportunity(deal);
+        }}
+      />
 
       {pipelineId && (
         <DealDetailPanel
