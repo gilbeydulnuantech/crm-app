@@ -70,7 +70,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT c.id, c.type, c.name,\n  CASE WHEN c.type = 'dm' THEN peer.id END AS peer_id,\n  CASE WHEN c.type = 'dm' THEN peer.name END AS peer_name,\n  CASE WHEN c.type = 'dm' THEN peer.color END AS peer_color,\n  lm.body AS last_message_body,\n  lm.created_at AS last_message_at,\n  lm_sender.name AS last_message_sender_name,\n  COALESCE(unread.cnt, 0) AS unread_count\nFROM conversations c\nJOIN conversation_members me ON me.conversation_id = c.id AND me.user_id = $1\nLEFT JOIN conversation_members peer_cm ON c.type = 'dm' AND peer_cm.conversation_id = c.id AND peer_cm.user_id != $1\nLEFT JOIN users peer ON peer.id = peer_cm.user_id\nLEFT JOIN LATERAL (\n  SELECT body, created_at, sender_id FROM messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1\n) lm ON true\nLEFT JOIN users lm_sender ON lm_sender.id = lm.sender_id\nLEFT JOIN LATERAL (\n  SELECT COUNT(*) AS cnt FROM messages m2\n  WHERE m2.conversation_id = c.id AND m2.sender_id != $1\n    AND (me.last_read_at IS NULL OR m2.created_at > me.last_read_at)\n) unread ON true\nORDER BY COALESCE(lm.created_at, c.created_at) DESC;",
+        "query": "SELECT c.id, c.type, c.name,\n  CASE WHEN c.type = 'dm' THEN peer.id END AS peer_id,\n  CASE WHEN c.type = 'dm' THEN peer.name END AS peer_name,\n  CASE WHEN c.type = 'dm' THEN peer.color END AS peer_color,\n  lm.body AS last_message_body,\n  lm.created_at AS last_message_at,\n  lm_sender.name AS last_message_sender_name,\n  COALESCE(unread.cnt, 0)::int AS unread_count\nFROM conversations c\nJOIN conversation_members me ON me.conversation_id = c.id AND me.user_id = $1\nLEFT JOIN conversation_members peer_cm ON c.type = 'dm' AND peer_cm.conversation_id = c.id AND peer_cm.user_id != $1\nLEFT JOIN users peer ON peer.id = peer_cm.user_id\nLEFT JOIN LATERAL (\n  SELECT body, created_at, sender_id FROM messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1\n) lm ON true\nLEFT JOIN users lm_sender ON lm_sender.id = lm.sender_id\nLEFT JOIN LATERAL (\n  SELECT COUNT(*) AS cnt FROM messages m2\n  WHERE m2.conversation_id = c.id AND m2.sender_id != $1\n    AND (me.last_read_at IS NULL OR m2.created_at > me.last_read_at)\n) unread ON true\nORDER BY COALESCE(lm.created_at, c.created_at) DESC;",
         "options": {
           "queryReplacement": "={{ [ $json.userId ] }}"
         }
@@ -173,7 +173,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO conversation_members (conversation_id, user_id)\nSELECT $1, $2 WHERE EXISTS (SELECT 1 FROM conversations WHERE id = $1 AND type = 'channel')\nON CONFLICT DO NOTHING;",
+        "query": "INSERT INTO conversation_members (conversation_id, user_id, last_read_at)\nSELECT $1, $2, now() WHERE EXISTS (SELECT 1 FROM conversations WHERE id = $1 AND type = 'channel')\nON CONFLICT DO NOTHING;",
         "options": {
           "queryReplacement": "={{ [ $json.conversationId, $json.userId ] }}"
         }
@@ -312,7 +312,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO conversation_members (conversation_id, user_id)\nSELECT $1, $2 WHERE EXISTS (SELECT 1 FROM conversations WHERE id = $1 AND type = 'channel')\nON CONFLICT DO NOTHING;",
+        "query": "INSERT INTO conversation_members (conversation_id, user_id, last_read_at)\nSELECT $1, $2, now() WHERE EXISTS (SELECT 1 FROM conversations WHERE id = $1 AND type = 'channel')\nON CONFLICT DO NOTHING;",
         "options": {
           "queryReplacement": "={{ [ $json.conversationId, $json.userId ] }}"
         }

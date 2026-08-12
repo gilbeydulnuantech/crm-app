@@ -56,9 +56,17 @@ INSERT INTO conversations (type, name)
 SELECT 'channel', name FROM (VALUES ('General'), ('Sales'), ('Operations'), ('Management')) AS v(name)
 WHERE NOT EXISTS (SELECT 1 FROM conversations c WHERE c.type = 'channel' AND c.name = v.name);
 
-INSERT INTO conversation_members (conversation_id, user_id)
-SELECT c.id, u.id
+-- last_read_at = now() (not NULL) so a member starts "caught up" — NULL is
+-- treated as "count every message ever sent" by the unread-count query, so
+-- a NULL default here would make brand-new members inherit each channel's
+-- entire history as unread on day one.
+INSERT INTO conversation_members (conversation_id, user_id, last_read_at)
+SELECT c.id, u.id, now()
 FROM conversations c
 CROSS JOIN users u
 WHERE c.type = 'channel' AND u.active = true
 ON CONFLICT DO NOTHING;
+
+-- Backfill for installs that already ran this file before the last_read_at
+-- fix above — safe to re-run, only touches rows still stuck at NULL.
+UPDATE conversation_members SET last_read_at = now() WHERE last_read_at IS NULL;

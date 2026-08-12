@@ -34,7 +34,11 @@ export default function TopBar() {
         <div className="relative">
           <button
             onClick={() => setBellOpen((v) => !v)}
-            title={unreadCount > 0 ? `${unreadCount} unread email${unreadCount === 1 ? '' : 's'}` : 'Notifications'}
+            title={
+              unreadCount > 0
+                ? `${emailUnreadCount} unread email${emailUnreadCount === 1 ? '' : 's'} · ${chatUnreadCount} unread message${chatUnreadCount === 1 ? '' : 's'}`
+                : 'Notifications'
+            }
             className="text-slate-500 hover:text-slate-700 relative"
           >
             <i className="fa-solid fa-bell" />
@@ -56,6 +60,11 @@ export default function TopBar() {
                   <p className="px-3 py-3 text-xs text-slate-400">Nothing new.</p>
                 ) : (
                   <>
+                    {unreadContacts.length > 0 && (
+                      <div className="px-3 pt-1 pb-0.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
+                        Email ({emailUnreadCount})
+                      </div>
+                    )}
                     {unreadContacts.map(({ contact, unreadCount: count, latestLog }) => (
                       <button
                         key={`email-${contact.id}`}
@@ -80,6 +89,11 @@ export default function TopBar() {
                         </div>
                       </button>
                     ))}
+                    {unreadConversations.length > 0 && (
+                      <div className="px-3 pt-2 pb-0.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wide border-t border-slate-100 mt-1">
+                        Chat ({chatUnreadCount})
+                      </div>
+                    )}
                     {unreadConversations.map((c) => (
                       <button
                         key={`chat-${c.id}`}
