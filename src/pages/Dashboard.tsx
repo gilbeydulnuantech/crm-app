@@ -11,9 +11,6 @@ import {
   CartesianGrid,
   XAxis,
   YAxis,
-  FunnelChart,
-  Funnel,
-  LabelList,
 } from 'recharts';
 import { useAuth } from '../context/AuthContext';
 import { useDashboard } from '../hooks/useDashboard';
@@ -28,7 +25,6 @@ const POSITIVE = '#86B89A';
 const WARNING = '#D9B477';
 
 const PIE_COLORS = [PRIMARY, POSITIVE, WARNING, '#9B8FB0', '#5F80A3', '#B0C3D6'];
-const FUNNEL_COLORS = ['#C7D5E3', '#B0C3D6', '#99B1C9', PRIMARY, '#5F80A3'];
 
 function formatMoney(n: number): string {
   const abs = Math.abs(n);
@@ -214,28 +210,37 @@ export default function Dashboard() {
 
             <Card>
               <h2 className="text-sm font-semibold mb-3" style={{ color: TEXT }}>
-                Sales Pipeline Funnel
+                Deals by Stage
               </h2>
               {data.funnel.every((f) => f.count === 0) ? (
                 <p className="text-sm" style={{ color: `${TEXT}80` }}>
                   No deals yet.
                 </p>
               ) : (
-                <ResponsiveContainer width="100%" height={240}>
-                  <FunnelChart>
+                <ResponsiveContainer width="100%" height={Math.max(240, data.funnel.length * 28)}>
+                  <BarChart
+                    data={data.funnel}
+                    layout="vertical"
+                    margin={{ left: 8, right: 24 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#EEF2F6" horizontal={false} />
+                    <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: TEXT }} axisLine={false} tickLine={false} />
+                    <YAxis
+                      type="category"
+                      dataKey="stage_name"
+                      width={110}
+                      tick={{ fontSize: 11, fill: TEXT }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
                     <Tooltip
                       formatter={(value: number, _name, entry) => [
                         `${value} deals · ${formatMoney((entry?.payload as { value: number } | undefined)?.value ?? 0)}`,
-                        (entry?.payload as { stage_name: string } | undefined)?.stage_name,
+                        'Deals',
                       ]}
                     />
-                    <Funnel dataKey="count" data={data.funnel} isAnimationActive>
-                      <LabelList position="right" dataKey="stage_name" fill={TEXT} stroke="none" fontSize={11} />
-                      {data.funnel.map((_, i) => (
-                        <Cell key={i} fill={FUNNEL_COLORS[i % FUNNEL_COLORS.length]} />
-                      ))}
-                    </Funnel>
-                  </FunnelChart>
+                    <Bar dataKey="count" fill={PRIMARY} radius={[0, 4, 4, 0]} barSize={14} />
+                  </BarChart>
                 </ResponsiveContainer>
               )}
             </Card>
