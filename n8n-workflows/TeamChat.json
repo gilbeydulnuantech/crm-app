@@ -406,7 +406,7 @@
     },
     {
       "parameters": {
-        "respondWith": "allIncomingItems",
+        "respondWith": "firstIncomingItem",
         "options": {}
       },
       "id": "f6d96a9d-2f12-487f-8625-b94b8b56b921",
@@ -698,7 +698,7 @@
     },
     {
       "parameters": {
-        "respondWith": "allIncomingItems",
+        "respondWith": "firstIncomingItem",
         "options": {}
       },
       "id": "55d15b7f-466a-4db5-84aa-f55d4a65f3bf",
