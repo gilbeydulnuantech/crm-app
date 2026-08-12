@@ -10,6 +10,7 @@ import TasksTable from '../components/tasks/TasksTable';
 import TasksKanbanBoard from '../components/tasks/TasksKanbanBoard';
 import TasksBulkActionsMenu from '../components/tasks/TasksBulkActionsMenu';
 import TaskFormModal from '../components/tasks/TaskFormModal';
+import TaskQuickView from '../components/tasks/TaskQuickView';
 import SearchToolbar from '../components/SearchToolbar';
 
 type BoardView = 'list' | 'kanban';
@@ -33,6 +34,7 @@ export default function Tasks() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [formOpen, setFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [quickViewTask, setQuickViewTask] = useState<Task | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Sidebar filters — additional narrowing on top of the All/Mine/Completed
@@ -68,6 +70,7 @@ export default function Tasks() {
   }
 
   function openEditModal(task: Task) {
+    setQuickViewTask(null);
     setEditingTask(task);
     setFormOpen(true);
   }
@@ -251,7 +254,7 @@ export default function Tasks() {
               selectedIds={selectedIds}
               onToggleSelect={toggleSelect}
               onToggleSelectAll={toggleSelectAll}
-              onRowClick={openEditModal}
+              onRowClick={setQuickViewTask}
               isLoading={isLoading}
               isAdmin={isAdmin}
               currentUserId={user?.id}
@@ -279,10 +282,17 @@ export default function Tasks() {
           <TasksKanbanBoard
             tasks={kanbanTasks}
             onMoveStatus={handleMoveTaskStatus}
-            onCardClick={openEditModal}
+            onCardClick={setQuickViewTask}
             canEditTask={canEditTask}
           />
         )}
+
+        <TaskQuickView
+          task={quickViewTask}
+          canEdit={quickViewTask ? canEditTask(quickViewTask) : false}
+          onClose={() => setQuickViewTask(null)}
+          onEdit={openEditModal}
+        />
 
         <TaskFormModal open={formOpen} task={editingTask} onClose={() => setFormOpen(false)} />
       </div>

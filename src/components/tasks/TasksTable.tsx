@@ -169,11 +169,10 @@ export default function TasksTable({
           {table.getRowModel().rows.map((row) => (
             <tr
               key={row.id}
-              onClick={() => canEdit(row.original) && onRowClick(row.original)}
-              title={canEdit(row.original) ? undefined : 'You can only open tasks assigned to you'}
-              className={`border-b border-slate-100 hover:bg-slate-50 ${
-                canEdit(row.original) ? 'cursor-pointer' : 'cursor-not-allowed'
-              } ${selectedIds.has(row.original.id) ? 'bg-indigo-50/40' : ''}`}
+              onClick={() => onRowClick(row.original)}
+              className={`border-b border-slate-100 hover:bg-slate-50 cursor-pointer ${
+                selectedIds.has(row.original.id) ? 'bg-indigo-50/40' : ''
+              }`}
             >
               {row.getVisibleCells().map((cell) => (
                 <td key={cell.id} className="py-2 px-2 align-middle">

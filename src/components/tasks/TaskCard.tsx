@@ -43,13 +43,12 @@ export default function TaskCard({ task, onClick, canEdit }: Props) {
       {...listeners}
       {...attributes}
       onClick={() => {
-        if (!canEdit) return;
         if (transform && (Math.abs(transform.x) > 5 || Math.abs(transform.y) > 5)) return;
         onClick();
       }}
-      title={canEdit ? undefined : 'You can only edit tasks assigned to you'}
+      title={canEdit ? undefined : 'View only — assigned to someone else'}
       className={`${ownerColor ? '' : 'bg-white'} border border-slate-200 rounded-lg p-2.5 shadow-sm hover:shadow-md transition-all ${
-        canEdit ? 'cursor-grab active:cursor-grabbing' : 'cursor-not-allowed'
+        canEdit ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
       } ${isDragging ? 'opacity-40 ring-2 ring-indigo-400 border-transparent scale-105' : ''}`}
     >
       <div className="flex items-center gap-1.5">
