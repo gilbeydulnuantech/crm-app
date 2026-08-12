@@ -1166,6 +1166,7 @@
       "name": "Check Admin & Payload: update-pipeline-stages",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
+      "onError": "continueErrorOutput",
       "position": [
         1416,
         2600
@@ -1202,6 +1203,7 @@
       "name": "Check Stage Removal Safety",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
+      "onError": "continueErrorOutput",
       "position": [
         1816,
         2600
@@ -1397,7 +1399,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Failed to update stages.\" } }}",
+        "responseBody": "={{ { \"success\": false, \"error\": (typeof $json.error === 'string' ? $json.error : $json.error?.message) || $json.message || \"Failed to update stages.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -2079,11 +2081,6 @@
             "node": "Look Up Requester: update-pipeline-stages",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "Respond - Error: update-pipeline-stages",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
@@ -2093,11 +2090,6 @@
         [
           {
             "node": "Check Admin & Payload: update-pipeline-stages",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Respond - Error: update-pipeline-stages",
             "type": "main",
             "index": 0
           }
@@ -2111,7 +2103,9 @@
             "node": "Postgres: Stage Deal Counts",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: update-pipeline-stages",
             "type": "main",
@@ -2127,11 +2121,6 @@
             "node": "Check Stage Removal Safety",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "Respond - Error: update-pipeline-stages",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
@@ -2143,7 +2132,9 @@
             "node": "Postgres: Delete Removed Stages",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: update-pipeline-stages",
             "type": "main",
@@ -2159,11 +2150,6 @@
             "node": "Bridge After Stage Removal",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "Respond - Error: update-pipeline-stages",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
@@ -2173,11 +2159,6 @@
         [
           {
             "node": "Build Stage Update Query",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Respond - Error: update-pipeline-stages",
             "type": "main",
             "index": 0
           }
@@ -2191,11 +2172,6 @@
             "node": "Postgres: Execute Stage Updates",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "Respond - Error: update-pipeline-stages",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
@@ -2205,11 +2181,6 @@
         [
           {
             "node": "Bridge After Stage Updates",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Respond - Error: update-pipeline-stages",
             "type": "main",
             "index": 0
           }
@@ -2223,11 +2194,6 @@
             "node": "Build Stage Insert Query 2",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "Respond - Error: update-pipeline-stages",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
@@ -2237,11 +2203,6 @@
         [
           {
             "node": "Postgres: Execute Stage Inserts 2",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Respond - Error: update-pipeline-stages",
             "type": "main",
             "index": 0
           }
@@ -2255,11 +2216,6 @@
             "node": "Bridge After Stage Inserts",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "Respond - Error: update-pipeline-stages",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
@@ -2269,11 +2225,6 @@
         [
           {
             "node": "Postgres: Select Final Stages",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Respond - Error: update-pipeline-stages",
             "type": "main",
             "index": 0
           }
@@ -2287,11 +2238,6 @@
             "node": "Format Stage Response",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "Respond - Error: update-pipeline-stages",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
@@ -2301,11 +2247,6 @@
         [
           {
             "node": "Respond: update-pipeline-stages",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Respond - Error: update-pipeline-stages",
             "type": "main",
             "index": 0
           }
