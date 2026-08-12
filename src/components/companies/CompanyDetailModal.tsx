@@ -1,8 +1,11 @@
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Company } from '../../types/company';
 import { useContacts } from '../../hooks/useContacts';
-import { usePipelines, useStages, useOpportunities } from '../../hooks/useOpportunities';
+import { usePipelines, useAllOpportunities, useAllStages } from '../../hooks/useOpportunities';
 import { toTitleCase } from '../../utils/text';
 import { DEFAULT_USER_COLOR, hexToRgba } from '../../utils/userColor';
+import DealFormModal from '../pipeline/DealFormModal';
 
 const STATUS_COLORS: Record<string, string> = {
   New: 'bg-slate-100 text-slate-800',
@@ -30,11 +33,17 @@ export default function CompanyDetailModal({
   isAdmin,
   currentUserId,
 }: Props) {
+  const navigate = useNavigate();
+  const [dealFormOpen, setDealFormOpen] = useState(false);
+
   const { data: allContacts = [], isLoading: contactsLoading } = useContacts();
   const { data: pipelines = [] } = usePipelines();
   const defaultPipelineId = pipelines.find((p) => p.is_default)?.id ?? pipelines[0]?.id;
-  const { data: stages = [] } = useStages(defaultPipelineId);
-  const { data: opportunities = [], isLoading: oppsLoading } = useOpportunities(defaultPipelineId);
+  // Fan out across every pipeline (not just the default one) so a deal
+  // living in any pipeline still shows up here — matches ContactDetailModal.
+  const pipelineIds = useMemo(() => pipelines.map((p) => p.id), [pipelines]);
+  const { data: opportunities = [], isLoading: oppsLoading } = useAllOpportunities(pipelineIds);
+  const { data: stages = [] } = useAllStages(pipelineIds);
 
   if (!company) return null;
 
@@ -44,6 +53,18 @@ export default function CompanyDetailModal({
   const companyContacts = allContacts.filter((c) => c.account_id === company.id);
   const companyOpportunities = opportunities.filter((o) => o.account_id === company.id);
   const stageName = (stageId: number) => stages.find((s) => s.id === stageId)?.name ?? '--';
+
+  function openAddDeal() {
+    setDealFormOpen(true);
+  }
+
+  // Takes over the deal's real pipeline (it may not be the default one) and
+  // deep-links to it — mirrors ContactDetailModal's openPipelineView.
+  function openPipelineView(dealId: number, dealPipelineId?: number | null) {
+    onClose();
+    const pid = dealPipelineId ?? defaultPipelineId;
+    navigate(`/pipeline?pipeline=${pid}&deal=${dealId}`);
+  }
 
   return (
     <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
@@ -176,27 +197,59 @@ export default function CompanyDetailModal({
                 <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
                   Opportunities ({companyOpportunities.length})
                 </h3>
+                {canEdit && (
+                  <button
+                    onClick={openAddDeal}
+                    className="text-xs font-semibold text-indigo-600 hover:underline"
+                  >
+                    + New Opportunity
+                  </button>
+                )}
               </div>
 
               {oppsLoading ? (
                 <p className="text-sm text-slate-400">Loading opportunities...</p>
               ) : companyOpportunities.length === 0 ? (
-                <p className="text-xs text-slate-400">No open opportunities for this company.</p>
+                <p className="text-xs text-slate-400">No opportunities for this company yet.</p>
               ) : (
                 <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg">
-                  {companyOpportunities.map((o) => (
-                    <div key={o.id} className="flex items-center justify-between px-3 py-2.5">
-                      <p className="text-sm font-medium text-slate-800 truncate min-w-0">{o.name}</p>
-                      <div className="flex items-center gap-3 shrink-0 ml-3">
-                        <span className="text-xs text-slate-500">
-                          {o.deal_value != null ? `$${o.deal_value.toLocaleString()}` : '--'}
-                        </span>
-                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700">
-                          {stageName(o.stage_id)}
-                        </span>
+                  {companyOpportunities.map((d) => {
+                    const pipelineName = pipelines.find((p) => p.id === d.pipeline_id)?.name;
+                    return (
+                      <div key={d.id} className="px-3 py-2.5 space-y-1.5">
+                        <p className="text-sm font-medium text-slate-800 truncate">{d.name}</p>
+                        <p className="text-xs text-slate-400 truncate">
+                          {[pipelineName, stageName(d.stage_id)].filter(Boolean).join(' · ')}
+                        </p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-semibold text-emerald-600">
+                            {d.deal_value != null
+                              ? `$${d.deal_value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+                              : '--'}
+                          </span>
+                          <span className="text-xs text-slate-500">
+                            {d.assigned_user_name ? `Owner: ${toTitleCase(d.assigned_user_name)}` : 'Unassigned'}
+                          </span>
+                        </div>
+                        {d.created_at && (
+                          <p className="text-[11px] text-slate-400">
+                            Created{' '}
+                            {new Date(d.created_at).toLocaleDateString(undefined, {
+                              month: 'short',
+                              day: '2-digit',
+                              year: 'numeric',
+                            })}
+                          </p>
+                        )}
+                        <button
+                          onClick={() => openPipelineView(d.id, d.pipeline_id)}
+                          className="w-full mt-1.5 text-xs font-semibold text-indigo-600 border border-indigo-200 rounded-lg py-1.5 hover:bg-indigo-50"
+                        >
+                          View Opportunity
+                        </button>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -232,6 +285,17 @@ export default function CompanyDetailModal({
           </div>
         </div>
       </div>
+
+      {defaultPipelineId && (
+        <DealFormModal
+          open={dealFormOpen}
+          opportunity={null}
+          pipelineId={defaultPipelineId}
+          defaultAccountId={company.id}
+          defaultCompanyName={company.name}
+          onClose={() => setDealFormOpen(false)}
+        />
+      )}
     </div>
   );
 }

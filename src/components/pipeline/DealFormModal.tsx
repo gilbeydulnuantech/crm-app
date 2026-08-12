@@ -13,6 +13,8 @@ interface Props {
   pipelineId: number; // initial/default pipeline
   defaultStageId?: number;
   defaultContactId?: number;
+  defaultAccountId?: number;
+  defaultCompanyName?: string;
   onClose: () => void;
 }
 
@@ -36,6 +38,8 @@ export default function DealFormModal({
   pipelineId,
   defaultStageId,
   defaultContactId,
+  defaultAccountId,
+  defaultCompanyName,
   onClose,
 }: Props) {
   const [form, setForm] = useState(EMPTY);
@@ -93,8 +97,12 @@ export default function DealFormModal({
       stage_id: defaultStageId ? String(defaultStageId) : '',
       contact_id: defaultContact ? String(defaultContact.id) : '',
       contact_name: defaultContact ? `${defaultContact.first_name} ${defaultContact.last_name}`.trim() : '',
-      account_id: defaultContact?.account_id ? String(defaultContact.account_id) : '',
-      company_name: defaultContact?.company_name ?? '',
+      account_id: defaultContact?.account_id
+        ? String(defaultContact.account_id)
+        : defaultAccountId
+          ? String(defaultAccountId)
+          : '',
+      company_name: defaultContact?.company_name ?? defaultCompanyName ?? '',
       assigned_user: defaultContact?.owner_id ? String(defaultContact.owner_id) : '',
     });
     setError(null);
@@ -103,7 +111,7 @@ export default function DealFormModal({
     // actually opens for a (possibly) different opportunity/contact, not
     // every time the background contacts list happens to refresh.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opportunity, open, pipelineId, defaultStageId, defaultContactId]);
+  }, [opportunity, open, pipelineId, defaultStageId, defaultContactId, defaultAccountId, defaultCompanyName]);
 
   if (!open) return null;
 
