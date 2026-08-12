@@ -98,8 +98,8 @@ export default function CompanyDetailModal({
                 <i className="fa-solid fa-building" />
               </div>
               <div className="min-w-0">
-                <h2 className="text-base font-bold text-slate-800 truncate">{company.name}</h2>
-                <p className="text-xs text-slate-500 truncate">{company.industry || 'No industry set'}</p>
+                <h2 className="text-base font-bold text-slate-800 truncate">{toTitleCase(company.name)}</h2>
+                <p className="text-xs text-slate-500 truncate">{toTitleCase(company.industry) || 'No industry set'}</p>
               </div>
             </div>
 
@@ -108,7 +108,9 @@ export default function CompanyDetailModal({
               <DetailField label="Website" value={company.website} />
               <DetailField
                 label="Location"
-                value={[company.city, company.state, company.country].filter(Boolean).join(', ')}
+                value={toTitleCase(
+                  [company.city, company.state, company.country].filter(Boolean).join(', ')
+                )}
               />
               <div>
                 <label className="block text-[11px] font-medium text-slate-500 mb-1">Owner</label>
@@ -176,7 +178,9 @@ export default function CompanyDetailModal({
                       >
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-slate-800 truncate">{fullName}</p>
-                          <p className="text-xs text-slate-400 truncate">{c.job_title || c.email || '--'}</p>
+                          <p className="text-xs text-slate-400 truncate">
+                            {toTitleCase(c.job_title) || c.email || '--'}
+                          </p>
                         </div>
                         <span
                           className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0 ml-3 ${
@@ -217,9 +221,9 @@ export default function CompanyDetailModal({
                     const pipelineName = pipelines.find((p) => p.id === d.pipeline_id)?.name;
                     return (
                       <div key={d.id} className="px-3 py-2.5 space-y-1.5">
-                        <p className="text-sm font-medium text-slate-800 truncate">{d.name}</p>
+                        <p className="text-sm font-medium text-slate-800 truncate">{toTitleCase(d.name)}</p>
                         <p className="text-xs text-slate-400 truncate">
-                          {[pipelineName, stageName(d.stage_id)].filter(Boolean).join(' · ')}
+                          {toTitleCase([pipelineName, stageName(d.stage_id)].filter(Boolean).join(' · '))}
                         </p>
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-semibold text-emerald-600">
