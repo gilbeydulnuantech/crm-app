@@ -133,22 +133,6 @@ export default function Pipeline() {
   const { data: users = [] } = useUsers();
   const { data: tags = [] } = useTags();
 
-  // Deep link from the Contact modal's "View Opportunity" button —
-  // ?pipeline=<id>&deal=<id> switches to that pipeline (handled above) and
-  // opens the deal's detail panel once its data has loaded, then clears the
-  // deal param so a refresh/back-nav doesn't keep reopening it. Same
-  // pattern as Contacts.tsx's own ?contactId= deep link.
-  useEffect(() => {
-    const dealIdParam = searchParams.get('deal');
-    if (!dealIdParam) return;
-    const id = Number(dealIdParam);
-    const match = opportunities.find((o) => o.id === id);
-    if (!match) return;
-    setActiveOpportunity(match);
-    const next = new URLSearchParams(searchParams);
-    next.delete('deal');
-    setSearchParams(next, { replace: true });
-  }, [searchParams, opportunities, setSearchParams]);
   const moveStage = useMoveOpportunityStage(pipelineId);
 
   const visibleOpportunities = useMemo(() => {
