@@ -1,7 +1,9 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { Opportunity, Stage } from '../../types/opportunity';
 import { useUpdateOpportunity } from '../../hooks/useOpportunities';
+import { useAddNote } from '../../hooks/useNotes';
 import { toTitleCase } from '../../utils/text';
+import MarkLostModal from './MarkLostModal';
 
 interface Props {
   deal: Opportunity | null;
@@ -44,6 +46,8 @@ export default function DealQuickView({
   // invalidated after Mark Won/Lost — must match the mutation used
   // elsewhere for this same deal (DealDetailPanel, PipelineBoard).
   const updateOpportunity = useUpdateOpportunity(deal?.pipeline_id ?? undefined);
+  const addNote = useAddNote('opportunity', deal?.id ?? null);
+  const [showMarkLost, setShowMarkLost] = useState(false);
 
   if (!deal) return null;
 
@@ -56,8 +60,15 @@ export default function DealQuickView({
     onClose();
   }
 
-  function handleMarkLost() {
-    updateOpportunity.mutate({ id: deal!.id, payload: { status: 'Lost', closed_at: new Date().toISOString() } });
+  function handleConfirmMarkLost(reason: string, note: string) {
+    updateOpportunity.mutate({
+      id: deal!.id,
+      payload: { status: 'Lost', closed_at: new Date().toISOString(), lost_reason: reason },
+    });
+    if (note) {
+      addNote.mutate({ body: note, requesterId: currentUserId });
+    }
+    setShowMarkLost(false);
     onClose();
   }
 
@@ -121,7 +132,7 @@ export default function DealQuickView({
                   Mark Won
                 </button>
                 <button
-                  onClick={handleMarkLost}
+                  onClick={() => setShowMarkLost(true)}
                   className="flex-1 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold py-2 rounded-lg"
                 >
                   Mark Lost
@@ -141,6 +152,14 @@ export default function DealQuickView({
           </p>
         )}
       </div>
+
+      <MarkLostModal
+        open={showMarkLost}
+        dealName={deal.name}
+        onConfirm={handleConfirmMarkLost}
+        onCancel={() => setShowMarkLost(false)}
+        isSubmitting={updateOpportunity.isPending}
+      />
     </div>
   );
 }

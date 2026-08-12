@@ -80,6 +80,14 @@ export default function DealCard({ opportunity, onClick, canEdit }: Props) {
       {/* Deal Name */}
       <div className="flex items-center gap-1.5">
         <div className="text-xs font-bold text-slate-800 truncate flex-1">{opportunity.name}</div>
+        {opportunity.status === 'Lost' && (
+          <span
+            className="shrink-0 bg-rose-100 text-rose-700 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded"
+            title={opportunity.lost_reason ? `Closed Lost — ${opportunity.lost_reason}` : 'Closed Lost'}
+          >
+            Closed Lost
+          </span>
+        )}
         {!canEdit && (
           <i
             className="fa-solid fa-lock text-slate-300 text-[10px] shrink-0"

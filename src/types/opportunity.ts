@@ -28,6 +28,7 @@ export interface Opportunity {
   deal_value?: number | null;
   probability?: number;
   status: 'Open' | 'Won' | 'Lost';
+  lost_reason?: string | null;
   expected_close?: string | null;
   closed_at?: string | null;
   created_at?: string;

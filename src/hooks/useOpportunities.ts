@@ -128,11 +128,28 @@ export function useAddOpportunity(pipelineId?: number) {
 }
 
 export function useUpdateOpportunity(pipelineId?: number) {
-  const invalidate = useInvalidateOpportunities(pipelineId);
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: Partial<Opportunity> }) =>
       api.updateOpportunity(id, payload),
-    onSuccess: invalidate,
+    // Optimistic update so status changes (Mark Won/Lost) reflect immediately
+    // in things like PipelineStatsBar instead of waiting on the mutation
+    // round trip plus a second refetch — same pattern as
+    // useMoveOpportunityStage.
+    onMutate: async ({ id, payload }) => {
+      await qc.cancelQueries({ queryKey: ['opportunities', pipelineId] });
+      const previous = qc.getQueryData<Opportunity[]>(['opportunities', pipelineId]);
+      qc.setQueryData<Opportunity[]>(['opportunities', pipelineId], (old) =>
+        old?.map((o) => (o.id === id ? { ...o, ...payload } : o))
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        qc.setQueryData(['opportunities', pipelineId], context.previous);
+      }
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['opportunities', pipelineId] }),
   });
 }
 
