@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useUsers } from '../hooks/useContacts';
@@ -51,6 +51,14 @@ export default function TeamChat() {
   const startDm = useStartDm();
   const { data: messages = [], isLoading: messagesLoading } = useMessages(activeConversationId);
   const sendMessage = useSendMessage(activeConversationId);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Jumps to the newest message whenever one arrives (polling picks up
+  // someone else's message, or we just sent our own) and when switching
+  // into a different conversation.
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ block: 'end' });
+  }, [activeConversationId, messages]);
 
   const channelConversations = useMemo(
     () => conversations.filter((c) => c.type === 'channel'),
@@ -249,6 +257,7 @@ export default function TeamChat() {
                   );
                 })
               )}
+              <div ref={messagesEndRef} />
             </div>
 
             <div className="p-3 border-t border-slate-200 bg-white shrink-0 flex items-center gap-2">
