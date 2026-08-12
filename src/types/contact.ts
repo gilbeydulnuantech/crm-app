@@ -56,7 +56,7 @@ export interface ArchivedContact extends Contact {
 
 export type ContactsView = 'all' | 'mine' | 'archived';
 
-export const LEAD_STATUS_OPTIONS = ['New', 'Contacted', 'Qualified', 'Unqualified', 'Customer'];
+export const LEAD_STATUS_OPTIONS = ['New', 'Active', 'Customer', 'Inactive', 'Unqualified', 'Do Not Contact'];
 
 // Matches import-contacts.json's "Validate Token & Rows" node — only
 // first_name is required there, everything else is optional and trimmed.

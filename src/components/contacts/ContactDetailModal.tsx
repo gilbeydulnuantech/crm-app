@@ -1,24 +1,27 @@
-import { useRef, useState } from 'react';
-import { Contact, EmailLog } from '../../types/contact';
+import { useMemo, useRef, useState } from 'react';
+import { Contact, EmailLog, LEAD_STATUS_OPTIONS } from '../../types/contact';
+import { Opportunity, Stage } from '../../types/opportunity';
 import { useMarkContactEmailRead, useToggleDoNotContact, useUpdateContact } from '../../hooks/useContacts';
 import { useAddNote, useDeleteNote, useNotes, useUpdateNote } from '../../hooks/useNotes';
 import { useAuth } from '../../context/AuthContext';
-import { usePipelines, useStages, useOpportunities } from '../../hooks/useOpportunities';
+import { useAllOpportunities, useAllStages, usePipelines } from '../../hooks/useOpportunities';
 import TagsDropdown from './TagsDropdown';
 import OwnerDropdown from './OwnerDropdown';
 import AddContactModal from './AddContactModal';
 import ComposeEmailPopover from './ComposeEmailPopover';
 import DealFormModal from '../pipeline/DealFormModal';
+import DealDetailPanel from '../pipeline/DealDetailPanel';
 import TaskFormModal from '../tasks/TaskFormModal';
 import { toTitleCase } from '../../utils/text';
 import { parseEmailLogs } from '../../utils/emailLogs';
 
 const STATUS_COLORS: Record<string, string> = {
   New: 'bg-slate-100 text-slate-800',
-  Contacted: 'bg-blue-100 text-blue-800',
-  Qualified: 'bg-amber-100 text-amber-800',
-  Unqualified: 'bg-rose-100 text-rose-700',
+  Active: 'bg-blue-100 text-blue-800',
   Customer: 'bg-emerald-100 text-emerald-800',
+  Inactive: 'bg-slate-200 text-slate-600',
+  Unqualified: 'bg-rose-100 text-rose-700',
+  'Do Not Contact': 'bg-red-100 text-red-800',
 };
 
 interface Props {
@@ -63,6 +66,8 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
   const [quickEditOpen, setQuickEditOpen] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
   const [dealFormOpen, setDealFormOpen] = useState(false);
+  const [editingDeal, setEditingDeal] = useState<Opportunity | null>(null);
+  const [activeDeal, setActiveDeal] = useState<Opportunity | null>(null);
   const [taskFormOpen, setTaskFormOpen] = useState(false);
   const [selectedLog, setSelectedLog] = useState<EmailLog | null>(null);
   const [markReadError, setMarkReadError] = useState<string | null>(null);
@@ -73,8 +78,20 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
 
   const { data: pipelines = [] } = usePipelines();
   const defaultPipelineId = pipelines.find((p) => p.is_default)?.id ?? pipelines[0]?.id;
-  const { data: stages = [] } = useStages(defaultPipelineId);
-  const { data: opportunities = [] } = useOpportunities(defaultPipelineId);
+  // Fan out across every pipeline (not just the default one) so a deal
+  // living in any pipeline still shows up on the contact — matches the same
+  // pattern Calendar.tsx uses for "all deals regardless of pipeline".
+  const pipelineIds = useMemo(() => pipelines.map((p) => p.id), [pipelines]);
+  const { data: allOpportunities = [] } = useAllOpportunities(pipelineIds);
+  const { data: allStages = [] } = useAllStages(pipelineIds);
+  const stagesByPipelineId = useMemo(() => {
+    const map = new Map<number, Stage[]>();
+    allStages.forEach((s) => {
+      if (!map.has(s.pipeline_id)) map.set(s.pipeline_id, []);
+      map.get(s.pipeline_id)!.push(s);
+    });
+    return map;
+  }, [allStages]);
   const { data: notes = [], isLoading: notesLoading } = useNotes('contact', contact?.id ?? null);
   const addNote = useAddNote('contact', contact?.id ?? null);
   const updateNote = useUpdateNote('contact', contact?.id ?? null);
@@ -101,12 +118,23 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
     .join(contact.job_title && contact.company_name ? ' at ' : '');
 
   const logs = parseEmailLogs(contact.email_logs).slice().reverse();
-  const contactDeals = opportunities.filter((o) => o.contact_id === contact.id);
-  const stageName = (stageId: number) => stages.find((s) => s.id === stageId)?.name ?? '--';
+  const contactDeals = allOpportunities.filter((o) => o.contact_id === contact.id);
+  const stageName = (stageId: number) => allStages.find((s) => s.id === stageId)?.name ?? '--';
 
   function handleStatusChange(value: string) {
     if (isReadOnly) return;
     updateContact.mutate({ id: contact!.id, payload: { lead_status: value } });
+  }
+
+  function openAddDeal() {
+    setEditingDeal(null);
+    setDealFormOpen(true);
+  }
+
+  function openEditDeal(deal: Opportunity) {
+    setActiveDeal(null);
+    setEditingDeal(deal);
+    setDealFormOpen(true);
   }
 
   return (
@@ -159,20 +187,23 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                   </div>
                   <p className="text-xs text-slate-500 truncate">{positionAtCompany || 'No position set'}</p>
                   <p className="text-xs text-slate-500 truncate">{contact.email || '--'}</p>
-                  <select
-                    value={contact.lead_status ?? 'New'}
-                    onChange={(e) => handleStatusChange(e.target.value)}
-                    disabled={isReadOnly}
-                    className={`mt-1.5 px-1.5 py-0.5 text-[10px] font-medium rounded-full border-0 ${
-                      STATUS_COLORS[contact.lead_status ?? 'New'] ?? 'bg-slate-100 text-slate-800'
-                    } ${isReadOnly ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
-                  >
-                    {['New', 'Contacted', 'Qualified', 'Unqualified', 'Customer'].map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex items-center gap-1.5 mt-1.5">
+                    <span className="text-[10px] font-medium text-slate-400">Status:</span>
+                    <select
+                      value={contact.lead_status ?? 'New'}
+                      onChange={(e) => handleStatusChange(e.target.value)}
+                      disabled={isReadOnly}
+                      className={`px-1.5 py-0.5 text-[10px] font-medium rounded-full border-0 ${
+                        STATUS_COLORS[contact.lead_status ?? 'New'] ?? 'bg-slate-100 text-slate-800'
+                      } ${isReadOnly ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
+                    >
+                      {LEAD_STATUS_OPTIONS.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -246,40 +277,59 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
-                  Deals ({contactDeals.length})
+                  Opportunities ({contactDeals.length})
                 </h3>
                 {!isReadOnly && (
                   <button
-                    onClick={() => setDealFormOpen(true)}
+                    onClick={openAddDeal}
                     className="text-xs font-semibold text-indigo-600 hover:underline"
                   >
-                    + Create Deal
+                    + New Opportunity
                   </button>
                 )}
               </div>
 
               {contactDeals.length === 0 ? (
-                <p className="text-xs text-slate-400">No deals for this contact yet.</p>
+                <p className="text-xs text-slate-400">No opportunities for this contact yet.</p>
               ) : (
                 <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg">
-                  {contactDeals.map((d) => (
-                    <div key={d.id} className="px-3 py-2.5">
-                      <p className="text-sm font-medium text-slate-800 truncate">{d.name}</p>
-                      <div className="flex items-center gap-3 mt-1">
-                        <span className="text-xs text-slate-500">
-                          {d.deal_value != null ? `$${d.deal_value.toLocaleString()}` : '--'}
-                        </span>
-                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700">
-                          {stageName(d.stage_id)}
-                        </span>
-                        {d.expected_close && (
-                          <span className="text-xs text-slate-400">
-                            {new Date(d.expected_close).toLocaleDateString()}
+                  {contactDeals.map((d) => {
+                    const pipelineName = pipelines.find((p) => p.id === d.pipeline_id)?.name;
+                    return (
+                      <div key={d.id} className="px-3 py-2.5 space-y-1.5">
+                        <p className="text-sm font-medium text-slate-800 truncate">{d.name}</p>
+                        <p className="text-xs text-slate-400 truncate">
+                          {[pipelineName, stageName(d.stage_id)].filter(Boolean).join(' · ')}
+                        </p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-semibold text-emerald-600">
+                            {d.deal_value != null
+                              ? `$${d.deal_value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+                              : '--'}
                           </span>
+                          <span className="text-xs text-slate-500">
+                            {d.assigned_user_name ? `Owner: ${toTitleCase(d.assigned_user_name)}` : 'Unassigned'}
+                          </span>
+                        </div>
+                        {d.created_at && (
+                          <p className="text-[11px] text-slate-400">
+                            Created{' '}
+                            {new Date(d.created_at).toLocaleDateString(undefined, {
+                              month: 'short',
+                              day: '2-digit',
+                              year: 'numeric',
+                            })}
+                          </p>
                         )}
+                        <button
+                          onClick={() => setActiveDeal(d)}
+                          className="w-full mt-1.5 text-xs font-semibold text-indigo-600 border border-indigo-200 rounded-lg py-1.5 hover:bg-indigo-50"
+                        >
+                          View Opportunity
+                        </button>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -498,12 +548,21 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
       {defaultPipelineId && (
         <DealFormModal
           open={dealFormOpen}
-          opportunity={null}
-          pipelineId={defaultPipelineId}
+          opportunity={editingDeal}
+          pipelineId={editingDeal?.pipeline_id ?? defaultPipelineId}
           defaultContactId={contact.id}
           onClose={() => setDealFormOpen(false)}
         />
       )}
+      <DealDetailPanel
+        opportunity={activeDeal}
+        stages={activeDeal?.pipeline_id ? stagesByPipelineId.get(activeDeal.pipeline_id) ?? [] : []}
+        pipelineId={activeDeal?.pipeline_id ?? defaultPipelineId ?? 0}
+        onClose={() => setActiveDeal(null)}
+        onEdit={openEditDeal}
+        isAdmin={isAdmin}
+        currentUserId={user?.id}
+      />
       <TaskFormModal
         open={taskFormOpen}
         task={null}

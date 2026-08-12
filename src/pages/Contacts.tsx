@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Contact, ContactsView } from '../types/contact';
+import { Contact, ContactsView, LEAD_STATUS_OPTIONS } from '../types/contact';
 import { useAuth } from '../context/AuthContext';
 import {
   useArchivedContacts,
@@ -173,10 +173,7 @@ export default function Contacts() {
   // name against contact.tags never worked since that field isn't in the
   // get-contacts list payload (see n8n-workflows/README.md).
   const tagOptions = tags.map((t) => ({ value: t.name, label: t.name }));
-  const statusOptions = ['New', 'Contacted', 'Qualified', 'Unqualified', 'Customer'].map((s) => ({
-    value: s,
-    label: s,
-  }));
+  const statusOptions = LEAD_STATUS_OPTIONS.map((s) => ({ value: s, label: s }));
 
   const tagFilterName = filters.tag || null;
   const { data: taggedContactIds } = useContactIdsByTag(tagFilterName);

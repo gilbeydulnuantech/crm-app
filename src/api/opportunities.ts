@@ -30,8 +30,40 @@ export function createPipeline(payload: NewPipelinePayload) {
   });
 }
 
+export interface UpdatePipelinePayload {
+  name: string;
+  is_default: boolean;
+}
+
+export function updatePipeline(id: number, payload: UpdatePipelinePayload) {
+  return apiFetch<{ success: boolean; pipeline?: Pipeline; error?: string }>('/webhook/update-pipeline', {
+    method: 'POST',
+    body: JSON.stringify({ id, ...payload }),
+  });
+}
+
+export function deletePipeline(id: number) {
+  return apiFetch<{ success: boolean; error?: string }>('/webhook/delete-pipeline', {
+    method: 'POST',
+    body: JSON.stringify({ id }),
+  });
+}
+
 export function fetchStages(pipelineId: number) {
   return apiFetch<Stage[]>(`/webhook/get-stages?pipeline_id=${pipelineId}`);
+}
+
+export interface StageDraftPayload {
+  id: number | null; // null = new stage to insert
+  name: string;
+  win_probability: number;
+}
+
+export function updatePipelineStages(pipelineId: number, stages: StageDraftPayload[]) {
+  return apiFetch<{ success: boolean; stages?: Stage[]; error?: string }>('/webhook/update-pipeline-stages', {
+    method: 'POST',
+    body: JSON.stringify({ pipeline_id: pipelineId, stages }),
+  });
 }
 
 export function fetchOpportunities(pipelineId: number) {

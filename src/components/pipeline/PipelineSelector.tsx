@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Pipeline } from '../../types/opportunity';
 import { NewPipelineResult } from '../../api/opportunities';
+import { useDeletePipeline } from '../../hooks/useOpportunities';
 import CreatePipelineModal from './CreatePipelineModal';
+import EditPipelineModal from './EditPipelineModal';
 
 interface Props {
   pipelines: Pipeline[];
@@ -14,6 +16,9 @@ interface Props {
 export default function PipelineSelector({ pipelines, pipelineId, isAdmin, onChange, onCreated }: Props) {
   const [open, setOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const deletePipeline = useDeletePipeline();
 
   const current = pipelines.find((p) => p.id === pipelineId);
 
@@ -22,19 +27,53 @@ export default function PipelineSelector({ pipelines, pipelineId, isAdmin, onCha
     setOpen(false);
   }
 
+  function handleDelete() {
+    if (!current) return;
+    setDeleteError(null);
+    if (!confirm(`Delete pipeline "${current.name}"? This also deletes its stages and cannot be undone.`)) {
+      return;
+    }
+    deletePipeline.mutate(current.id, {
+      onError: (err) => setDeleteError(err instanceof Error ? err.message : 'Failed to delete pipeline.'),
+    });
+  }
+
   return (
     <div className="relative">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 text-lg font-bold text-slate-800 hover:text-indigo-600"
-      >
-        <span>Pipeline: {current?.name ?? '--'}</span>
-        <i
-          className={`fa-solid fa-chevron-down text-xs text-slate-400 transition-transform ${
-            open ? 'rotate-180' : ''
-          }`}
-        />
-      </button>
+      <div className="flex items-center gap-1.5">
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="flex items-center gap-1.5 text-lg font-bold text-slate-800 hover:text-indigo-600"
+        >
+          <span>Pipeline: {current?.name ?? '--'}</span>
+          <i
+            className={`fa-solid fa-chevron-down text-xs text-slate-400 transition-transform ${
+              open ? 'rotate-180' : ''
+            }`}
+          />
+        </button>
+        {isAdmin && current && (
+          <>
+            <button
+              onClick={() => setEditOpen(true)}
+              title="Edit pipeline"
+              className="text-slate-300 hover:text-indigo-600"
+            >
+              <i className="fa-solid fa-pen text-xs" />
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={deletePipeline.isPending}
+              title="Delete pipeline"
+              className="text-slate-300 hover:text-rose-600 disabled:opacity-50"
+            >
+              <i className="fa-solid fa-trash text-xs" />
+            </button>
+          </>
+        )}
+      </div>
+
+      {deleteError && <p className="absolute top-full mt-1 text-xs text-rose-600 whitespace-nowrap">{deleteError}</p>}
 
       {open && (
         <>
@@ -79,6 +118,8 @@ export default function PipelineSelector({ pipelines, pipelineId, isAdmin, onCha
           onCreated(pipeline);
         }}
       />
+
+      <EditPipelineModal open={editOpen} pipeline={current ?? null} onClose={() => setEditOpen(false)} />
     </div>
   );
 }

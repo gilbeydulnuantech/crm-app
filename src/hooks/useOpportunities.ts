@@ -38,6 +38,35 @@ export function useCreatePipeline() {
   });
 }
 
+export function useUpdatePipeline() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: api.UpdatePipelinePayload }) =>
+      api.updatePipeline(id, payload),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['pipelines'] }),
+  });
+}
+
+export function useUpdatePipelineStages() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ pipelineId, stages }: { pipelineId: number; stages: api.StageDraftPayload[] }) =>
+      api.updatePipelineStages(pipelineId, stages),
+    onSuccess: (_data, { pipelineId }) => {
+      qc.invalidateQueries({ queryKey: ['stages', pipelineId] });
+      qc.invalidateQueries({ queryKey: ['opportunities', pipelineId] });
+    },
+  });
+}
+
+export function useDeletePipeline() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => api.deletePipeline(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['pipelines'] }),
+  });
+}
+
 export function useStages(pipelineId?: number) {
   return useQuery({
     queryKey: ['stages', pipelineId],
@@ -132,9 +161,22 @@ export function useMoveOpportunityStage(pipelineId?: number) {
 }
 
 export function useDeleteOpportunities(pipelineId?: number) {
-  const invalidate = useInvalidateOpportunities(pipelineId);
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (ids: number[]) => api.deleteOpportunities(ids),
-    onSuccess: invalidate,
+    // Optimistic removal so the card/column updates immediately instead of
+    // waiting on the next poll — same pattern as useMoveOpportunityStage.
+    onMutate: async (ids) => {
+      await qc.cancelQueries({ queryKey: ['opportunities', pipelineId] });
+      const previous = qc.getQueryData<Opportunity[]>(['opportunities', pipelineId]);
+      qc.setQueryData<Opportunity[]>(['opportunities', pipelineId], (old) =>
+        old?.filter((o) => !ids.includes(o.id))
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) qc.setQueryData(['opportunities', pipelineId], context.previous);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['opportunities', pipelineId] }),
   });
 }

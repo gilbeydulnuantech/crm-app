@@ -718,6 +718,698 @@
         1116,
         1750
       ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "update-pipeline",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "ee69d58b-cd92-438d-80ed-ceb77732055b",
+      "name": "Webhook: update-pipeline",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        816,
+        1800
+      ],
+      "webhookId": "e0c80a82-1b21-4cd5-a203-616983ff0961"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "dbea7422-edd2-4e54-9b68-d12941091633",
+      "name": "Parse Token: update-pipeline",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1016,
+        1800
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "bf11373f-6563-49c0-8da7-de639181e732",
+      "name": "Look Up Requester: update-pipeline",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1216,
+        1800
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Only admins can edit pipelines.');\n\nconst body = $('Webhook: update-pipeline').first().json.body || {};\nconst pipelineId = parseInt(body.id, 10);\nif (!Number.isInteger(pipelineId)) throw new Error('\"id\" must be an integer.');\n\nconst name = (body.name || '').toString().trim();\nif (!name) throw new Error('\"name\" is required.');\n\nconst isDefault = body.is_default === true || body.is_default === 'true';\n\nreturn [{ json: { pipelineId, name, isDefault } }];"
+      },
+      "id": "47213502-0d38-4921-9037-dc2b5c70fa64",
+      "name": "Check Admin & Payload: update-pipeline",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1416,
+        1800
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE pipelines SET is_default = false WHERE id != $1 AND $2::boolean = true;",
+        "options": {
+          "queryReplacement": "={{ [ $json.pipelineId, $json.isDefault ] }}"
+        }
+      },
+      "id": "e2cae01e-84f9-4edb-81dc-648b5b4e3d92",
+      "name": "Postgres: Unset Other Pipeline Defaults",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1616,
+        1800
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Unset Other Pipeline Defaults returns 0 rows on the (common) no-op\n// path, which would starve the next node of input \u2014 re-emit the\n// payload from the actual source of truth so the chain always continues.\nreturn [{ json: $('Check Admin & Payload: update-pipeline').first().json }];"
+      },
+      "id": "32c8cc6a-fec8-4a96-9c87-6c450ce80d10",
+      "name": "Bridge After Unset Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1816,
+        1800
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE pipelines SET name = $1, is_default = $2 WHERE id = $3 RETURNING id, name, is_default;",
+        "options": {
+          "queryReplacement": "={{ [ $json.name, $json.isDefault, $json.pipelineId ] }}"
+        }
+      },
+      "id": "377fa20c-faa7-420c-9635-9e6ed86dd721",
+      "name": "Postgres: Update Pipeline",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2016,
+        1800
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) {\n  throw new Error('Pipeline not found.');\n}\nreturn [{ json: { success: true, pipeline: result.json } }];"
+      },
+      "id": "950e7cb9-2c5a-4916-a358-5afdf7704fd8",
+      "name": "Check Result: update-pipeline",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2216,
+        1800
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "59053da5-90cd-4664-85f6-28e3c3835c26",
+      "name": "Respond: update-pipeline",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2416,
+        1800
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Update failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "18997dc3-acb8-4fef-a85f-1eb27b2137c9",
+      "name": "Respond - Error: update-pipeline",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1616,
+        2020
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "delete-pipeline",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "4384d290-56d5-4b33-a98e-be198ee914b7",
+      "name": "Webhook: delete-pipeline",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        816,
+        2200
+      ],
+      "webhookId": "d9400ea3-9235-48b6-9d35-3decff2b2ea9"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "0e910226-6f97-40b0-bca9-50c209124838",
+      "name": "Parse Token: delete-pipeline",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1016,
+        2200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "6711b61a-9fb1-4086-b2cc-e6def93e744e",
+      "name": "Look Up Requester: delete-pipeline",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1216,
+        2200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Only admins can delete pipelines.');\n\nconst body = $('Webhook: delete-pipeline').first().json.body || {};\nconst pipelineId = parseInt(body.id, 10);\nif (!Number.isInteger(pipelineId)) throw new Error('\"id\" must be an integer.');\n\nreturn [{ json: { pipelineId } }];"
+      },
+      "id": "67726021-eb32-4c36-8ae3-8d66fc60df81",
+      "name": "Check Admin & Payload: delete-pipeline",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1416,
+        2200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT (SELECT COUNT(*) FROM pipelines) AS pipeline_count, (SELECT COUNT(*) FROM opportunities WHERE pipeline_id = $1) AS deal_count;",
+        "options": {
+          "queryReplacement": "={{ [ $json.pipelineId ] }}"
+        }
+      },
+      "id": "f29a4db3-fc20-4903-8c5c-e6dbde52e060",
+      "name": "Postgres: Delete Safety Counts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1616,
+        2200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const counts = $json;\nif (Number(counts.pipeline_count) <= 1) {\n  throw new Error('Cannot delete the only pipeline.');\n}\nif (Number(counts.deal_count) > 0) {\n  throw new Error(`Cannot delete a pipeline with ${counts.deal_count} deal(s) still in it. Move or delete them first.`);\n}\nreturn [{ json: { pipelineId: $('Check Admin & Payload: delete-pipeline').first().json.pipelineId } }];"
+      },
+      "id": "ca8dd7a9-b4a3-4e57-a9c6-d45527073a86",
+      "name": "Check Delete Safety",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1816,
+        2200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM stages WHERE pipeline_id = $1 RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.pipelineId ] }}"
+        }
+      },
+      "id": "b3d102fc-03e5-4f68-b4ae-1e37a8bfa9ae",
+      "name": "Postgres: Delete Stages",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2016,
+        2200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Delete Stages can return 0..N rows depending on stage count, which\n// would either starve the next node (0 rows) or run it multiple times\n// (N rows) \u2014 collapse to exactly one item before deleting the pipeline.\nreturn [{ json: { pipelineId: $('Check Delete Safety').first().json.pipelineId } }];"
+      },
+      "id": "cfce03f3-3938-4c74-8928-02d0c925a283",
+      "name": "Bridge After Stage Delete",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2216,
+        2200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM pipelines WHERE id = $1 RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.pipelineId ] }}"
+        }
+      },
+      "id": "51f3b7b4-1f44-4e9a-9197-28a831b78657",
+      "name": "Postgres: Delete Pipeline",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2416,
+        2200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) {\n  throw new Error('Pipeline not found.');\n}\nreturn [{ json: { success: true, id: result.json.id } }];"
+      },
+      "id": "6bf1016f-3243-4b03-ad24-3458cf35be9b",
+      "name": "Check Result: delete-pipeline",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2616,
+        2200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "1d407aa6-91be-4b11-9751-0cb420294342",
+      "name": "Respond: delete-pipeline",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2816,
+        2200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Delete failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "d199a762-51b9-4b61-9520-efe4824d138e",
+      "name": "Respond - Error: delete-pipeline",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1816,
+        2420
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "update-pipeline-stages",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "5db2e835-5f0b-4dec-8e84-c4c697692111",
+      "name": "Webhook: update-pipeline-stages",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        816,
+        2600
+      ],
+      "webhookId": "7253344e-ead8-4e18-be1a-c731b2a3d6a5"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "ebf3a460-2950-4c43-9f47-e464fa7ec2d8",
+      "name": "Parse Token: update-pipeline-stages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1016,
+        2600
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "4e04a0bf-7601-4604-a472-1be9a1f81225",
+      "name": "Look Up Requester: update-pipeline-stages",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1216,
+        2600
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Only admins can manage pipeline stages.');\n\nconst body = $('Webhook: update-pipeline-stages').first().json.body || {};\nconst pipelineId = parseInt(body.pipeline_id, 10);\nif (!Number.isInteger(pipelineId)) throw new Error('\"pipeline_id\" must be an integer.');\n\nconst stagesInput = Array.isArray(body.stages) ? body.stages : [];\nconst stages = stagesInput\n  .map((s, i) => ({\n    id: (s.id === null || s.id === undefined || s.id === '') ? null : parseInt(s.id, 10),\n    name: (s.name || '').toString().trim(),\n    win_probability: Number(s.win_probability) || 0,\n    display_order: i + 1,\n  }))\n  .filter((s) => s.name);\n\nif (stages.length === 0) throw new Error('At least one stage is required.');\n\nconst keepIds = stages.filter((s) => s.id !== null).map((s) => s.id);\n\nreturn [{ json: { pipelineId, stages, keepIds } }];"
+      },
+      "id": "2c0c4803-fdf7-453c-8ab4-ca28e1b9cb1b",
+      "name": "Check Admin & Payload: update-pipeline-stages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1416,
+        2600
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT s.id, s.name, COUNT(o.id) AS deal_count FROM stages s LEFT JOIN opportunities o ON o.stage_id = s.id WHERE s.pipeline_id = $1 GROUP BY s.id, s.name;",
+        "options": {
+          "queryReplacement": "={{ [ $json.pipelineId ] }}"
+        }
+      },
+      "id": "f15bf906-ed50-4313-ac20-634da67278bc",
+      "name": "Postgres: Stage Deal Counts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1616,
+        2600
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// $json here is one row per existing stage (id, name, deal_count) \u2014\n// n8n Code nodes default to 'Run Once for All Items', so $input.all()\n// gives every row in a single execution.\nconst existingRows = $input.all().map((item) => item.json);\nconst ctx = $('Check Admin & Payload: update-pipeline-stages').first().json;\nconst keepIds = new Set(ctx.keepIds);\n\nconst removed = existingRows.filter((r) => !keepIds.has(r.id));\nconst blocked = removed.find((r) => Number(r.deal_count) > 0);\nif (blocked) {\n  throw new Error(`Cannot remove stage \"${blocked.name}\" \u2014 it still has ${blocked.deal_count} deal(s). Move or delete them first.`);\n}\n\nconst removeIds = removed.map((r) => r.id);\nreturn [{ json: { pipelineId: ctx.pipelineId, stages: ctx.stages, removeIds } }];"
+      },
+      "id": "7f6b8dc5-7cb2-49ff-95fc-3d4c81943332",
+      "name": "Check Stage Removal Safety",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1816,
+        2600
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM stages WHERE pipeline_id = $1 AND id = ANY($2::int[]) RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.pipelineId, $json.removeIds ] }}"
+        }
+      },
+      "id": "ea11cfe3-6d62-48ed-874f-1cbd75591529",
+      "name": "Postgres: Delete Removed Stages",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2016,
+        2600
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Delete Removed Stages can return 0..N rows \u2014 collapse to exactly one\n// item so the chain always continues regardless of how many stages\n// were actually removed (0 is the common case).\nreturn [{ json: $('Check Stage Removal Safety').first().json }];"
+      },
+      "id": "8740a7c7-7974-446e-b6bb-79e91812a616",
+      "name": "Bridge After Stage Removal",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2216,
+        2600
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Bulk CASE-based update for every stage the client sent an id for \u2014\n// keeps existing stage rows (and any deals pointing at them) intact,\n// only touching name/win_probability/display_order. A no-op-safe\n// SELECT 1 keeps the chain alive when there's nothing to update.\nconst ctx = $json;\nconst existing = ctx.stages.filter((s) => s.id !== null);\n\nif (existing.length === 0) {\n  return [{ json: { ...ctx, sqlQuery: 'SELECT 1;', queryParams: [] } }];\n}\n\nconst nameCases = [];\nconst probCases = [];\nconst orderCases = [];\nconst ids = [];\nconst queryParams = [];\nlet idx = 1;\nfor (const s of existing) {\n  nameCases.push(`WHEN $${idx} THEN $${idx + 1}`);\n  queryParams.push(s.id, s.name);\n  idx += 2;\n}\nfor (const s of existing) {\n  probCases.push(`WHEN $${idx} THEN $${idx + 1}`);\n  queryParams.push(s.id, s.win_probability);\n  idx += 2;\n}\nfor (const s of existing) {\n  orderCases.push(`WHEN $${idx} THEN $${idx + 1}`);\n  queryParams.push(s.id, s.display_order);\n  idx += 2;\n}\nfor (const s of existing) {\n  ids.push(`$${idx}`);\n  queryParams.push(s.id);\n  idx += 1;\n}\n\nconst sqlQuery = `UPDATE stages SET name = CASE id ${nameCases.join(' ')} ELSE name END, win_probability = CASE id ${probCases.join(' ')} ELSE win_probability END, display_order = CASE id ${orderCases.join(' ')} ELSE display_order END WHERE id IN (${ids.join(', ')});`;\n\nreturn [{ json: { ...ctx, sqlQuery, queryParams } }];"
+      },
+      "id": "4b05bf90-a179-44e5-90b2-23bee8643429",
+      "name": "Build Stage Update Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2416,
+        2600
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sqlQuery }}",
+        "options": {
+          "queryReplacement": "={{ $json.queryParams }}"
+        }
+      },
+      "id": "1028c92e-d04f-44ce-88e5-d1e4caaeea40",
+      "name": "Postgres: Execute Stage Updates",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2616,
+        2600
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: $('Build Stage Update Query').first().json }];"
+      },
+      "id": "1a489517-7f54-4a4f-ac9f-5cd728974174",
+      "name": "Bridge After Stage Updates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2816,
+        2600
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// New stages (no id from the client) get inserted fresh, matching the\n// same pattern pipeline-create-new already uses.\nconst ctx = $json;\nconst fresh = ctx.stages.filter((s) => s.id === null);\n\nif (fresh.length === 0) {\n  return [{ json: { pipelineId: ctx.pipelineId, sqlQuery: 'SELECT 1;', queryParams: [] } }];\n}\n\nconst valuesSql = [];\nconst queryParams = [];\nlet idx = 1;\nfor (const s of fresh) {\n  valuesSql.push(`($${idx}, $${idx + 1}, $${idx + 2}, $${idx + 3})`);\n  queryParams.push(ctx.pipelineId, s.name, s.win_probability, s.display_order);\n  idx += 4;\n}\n\nconst sqlQuery = `INSERT INTO stages (pipeline_id, name, win_probability, display_order) VALUES ${valuesSql.join(', ')};`;\n\nreturn [{ json: { pipelineId: ctx.pipelineId, sqlQuery, queryParams } }];"
+      },
+      "id": "590a097b-86a8-4e32-8700-2a94cf391395",
+      "name": "Build Stage Insert Query 2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3016,
+        2600
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sqlQuery }}",
+        "options": {
+          "queryReplacement": "={{ $json.queryParams }}"
+        }
+      },
+      "id": "590f7555-927f-426e-91e1-c786236c6d69",
+      "name": "Postgres: Execute Stage Inserts 2",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3216,
+        2600
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { pipelineId: $('Build Stage Insert Query 2').first().json.pipelineId } }];"
+      },
+      "id": "e196b9b5-af92-4828-812e-aca477384afa",
+      "name": "Bridge After Stage Inserts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3416,
+        2600
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, pipeline_id, name, win_probability, display_order FROM stages WHERE pipeline_id = $1 ORDER BY display_order ASC;",
+        "options": {
+          "queryReplacement": "={{ [ $json.pipelineId ] }}"
+        }
+      },
+      "id": "134f4f6d-48f6-4999-90e7-bf05b750c429",
+      "name": "Postgres: Select Final Stages",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3616,
+        2600
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: true, stages: $input.all().map((item) => item.json) } }];"
+      },
+      "id": "91eca43a-2357-471e-9fce-a14affccca99",
+      "name": "Format Stage Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3816,
+        2600
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "7acd0e24-c291-4b7e-85b0-b1385fb883ce",
+      "name": "Respond: update-pipeline-stages",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        4016,
+        2600
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Failed to update stages.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "64a770cf-75bd-49d8-8ad1-d286e68d2039",
+      "name": "Respond - Error: update-pipeline-stages",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2416,
+        2840
+      ]
     }
   ],
   "pinData": {},
@@ -1085,6 +1777,535 @@
           },
           {
             "node": "Respond - Error: delete-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: update-pipeline": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: update-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: update-pipeline": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: update-pipeline",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: update-pipeline": {
+      "main": [
+        [
+          {
+            "node": "Check Admin & Payload: update-pipeline",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Admin & Payload: update-pipeline": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Unset Other Pipeline Defaults",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Unset Other Pipeline Defaults": {
+      "main": [
+        [
+          {
+            "node": "Bridge After Unset Defaults",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge After Unset Defaults": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Update Pipeline",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Update Pipeline": {
+      "main": [
+        [
+          {
+            "node": "Check Result: update-pipeline",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Result: update-pipeline": {
+      "main": [
+        [
+          {
+            "node": "Respond: update-pipeline",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: delete-pipeline": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: delete-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: delete-pipeline": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: delete-pipeline",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: delete-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: delete-pipeline": {
+      "main": [
+        [
+          {
+            "node": "Check Admin & Payload: delete-pipeline",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: delete-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Admin & Payload: delete-pipeline": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Delete Safety Counts",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: delete-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Delete Safety Counts": {
+      "main": [
+        [
+          {
+            "node": "Check Delete Safety",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: delete-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Delete Safety": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Delete Stages",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: delete-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Delete Stages": {
+      "main": [
+        [
+          {
+            "node": "Bridge After Stage Delete",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: delete-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge After Stage Delete": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Delete Pipeline",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: delete-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Delete Pipeline": {
+      "main": [
+        [
+          {
+            "node": "Check Result: delete-pipeline",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: delete-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Result: delete-pipeline": {
+      "main": [
+        [
+          {
+            "node": "Respond: delete-pipeline",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: delete-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: update-pipeline-stages": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: update-pipeline-stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: update-pipeline-stages": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: update-pipeline-stages",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-pipeline-stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: update-pipeline-stages": {
+      "main": [
+        [
+          {
+            "node": "Check Admin & Payload: update-pipeline-stages",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-pipeline-stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Admin & Payload: update-pipeline-stages": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Stage Deal Counts",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-pipeline-stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Stage Deal Counts": {
+      "main": [
+        [
+          {
+            "node": "Check Stage Removal Safety",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-pipeline-stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Stage Removal Safety": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Delete Removed Stages",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-pipeline-stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Delete Removed Stages": {
+      "main": [
+        [
+          {
+            "node": "Bridge After Stage Removal",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-pipeline-stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge After Stage Removal": {
+      "main": [
+        [
+          {
+            "node": "Build Stage Update Query",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-pipeline-stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Stage Update Query": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Execute Stage Updates",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-pipeline-stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Execute Stage Updates": {
+      "main": [
+        [
+          {
+            "node": "Bridge After Stage Updates",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-pipeline-stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge After Stage Updates": {
+      "main": [
+        [
+          {
+            "node": "Build Stage Insert Query 2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-pipeline-stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Stage Insert Query 2": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Execute Stage Inserts 2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-pipeline-stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Execute Stage Inserts 2": {
+      "main": [
+        [
+          {
+            "node": "Bridge After Stage Inserts",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-pipeline-stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge After Stage Inserts": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Final Stages",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-pipeline-stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Final Stages": {
+      "main": [
+        [
+          {
+            "node": "Format Stage Response",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-pipeline-stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Stage Response": {
+      "main": [
+        [
+          {
+            "node": "Respond: update-pipeline-stages",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: update-pipeline-stages",
             "type": "main",
             "index": 0
           }
