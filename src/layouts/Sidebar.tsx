@@ -16,6 +16,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/tasks', label: 'Tasks', icon: 'fa-solid fa-check-to-slot' },
   { to: '/calendar', label: 'Calendar', icon: 'fa-solid fa-calendar-days' },
   { to: '/reports', label: 'Reports', icon: 'fa-solid fa-chart-line' },
+  { to: '/team-chat', label: 'Team Chat', icon: 'fa-solid fa-comments' },
 ];
 
 const navLinkClasses = (isActive: boolean) =>

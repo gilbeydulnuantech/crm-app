@@ -1,0 +1,1121 @@
+{
+  "name": "TeamChat",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "get-conversations",
+        "responseMode": "responseNode",
+        "options": {},
+        "httpMethod": "GET"
+      },
+      "id": "bfe31a52-cb2e-442a-8c90-1d3bc6dd7487",
+      "name": "Webhook: get-conversations",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        160
+      ],
+      "webhookId": "abc92ecc-e88a-45d2-bfa0-854198b5f291"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
+      },
+      "id": "82f76b66-281c-42a2-8c2d-9136395bc6c1",
+      "name": "Parse Token: get-conversations",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, color, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "dfa77662-de80-4442-852a-e863d7f37f16",
+      "name": "Look Up Requester: get-conversations",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        640,
+        160
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nreturn [{ json: { userId: requester.id } }];"
+      },
+      "id": "507d05d7-e85b-40c2-8f12-ea28f929bf3a",
+      "name": "Check Requester: get-conversations",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.id, c.type, c.name,\n  CASE WHEN c.type = 'dm' THEN peer.id END AS peer_id,\n  CASE WHEN c.type = 'dm' THEN peer.name END AS peer_name,\n  CASE WHEN c.type = 'dm' THEN peer.color END AS peer_color,\n  lm.body AS last_message_body,\n  lm.created_at AS last_message_at,\n  lm_sender.name AS last_message_sender_name,\n  COALESCE(unread.cnt, 0) AS unread_count\nFROM conversations c\nJOIN conversation_members me ON me.conversation_id = c.id AND me.user_id = $1\nLEFT JOIN conversation_members peer_cm ON c.type = 'dm' AND peer_cm.conversation_id = c.id AND peer_cm.user_id != $1\nLEFT JOIN users peer ON peer.id = peer_cm.user_id\nLEFT JOIN LATERAL (\n  SELECT body, created_at, sender_id FROM messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1\n) lm ON true\nLEFT JOIN users lm_sender ON lm_sender.id = lm.sender_id\nLEFT JOIN LATERAL (\n  SELECT COUNT(*) AS cnt FROM messages m2\n  WHERE m2.conversation_id = c.id AND m2.sender_id != $1\n    AND (me.last_read_at IS NULL OR m2.created_at > me.last_read_at)\n) unread ON true\nORDER BY COALESCE(lm.created_at, c.created_at) DESC;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "d0fa0c5d-77f7-420f-953a-51961c316946",
+      "name": "Postgres: Select Conversations",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1040,
+        160
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "cf06bd5f-652b-4d9e-a572-9fec61d00a64",
+      "name": "Respond: get-conversations",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1240,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "path": "get-messages",
+        "responseMode": "responseNode",
+        "options": {},
+        "httpMethod": "GET"
+      },
+      "id": "7c6e4802-2497-4af8-8458-5c202d7b5bd9",
+      "name": "Webhook: get-messages",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        380
+      ],
+      "webhookId": "8fc6e8f7-ecb7-41b1-9fce-8f6e7409d5b1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
+      },
+      "id": "47cf35ab-888c-427e-b842-322a79f7a58d",
+      "name": "Parse Token: get-messages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, color, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "540691d6-dbe2-4315-be91-cedbba649dfa",
+      "name": "Look Up Requester: get-messages",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        640,
+        380
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nconst conversationId = parseInt($('Webhook: get-messages').first().json.query.conversation_id, 10);\nif (!Number.isInteger(conversationId)) throw new Error('\"conversation_id\" is required.');\nreturn [{ json: { userId: requester.id, conversationId } }];"
+      },
+      "id": "ae0a7f64-bf99-450d-a610-fc1dbff6e680",
+      "name": "Check Requester: get-messages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO conversation_members (conversation_id, user_id)\nSELECT $1, $2 WHERE EXISTS (SELECT 1 FROM conversations WHERE id = $1 AND type = 'channel')\nON CONFLICT DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ [ $json.conversationId, $json.userId ] }}"
+        }
+      },
+      "id": "4c98e397-709e-4613-a244-f58a4a645acf",
+      "name": "Postgres: Ensure Channel Membership (read)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1040,
+        380
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: $('Check Requester: get-messages').first().json }];"
+      },
+      "id": "e6fc3c2d-86ec-4b8e-aaec-419bae5183c3",
+      "name": "Bridge: get-messages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1240,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT m.id, m.conversation_id, m.sender_id, u.name AS sender_name, u.color AS sender_color,\n  m.body, m.attachment_url, m.attachment_name, m.created_at, m.edited_at\nFROM messages m\nJOIN users u ON u.id = m.sender_id\nWHERE m.conversation_id = $1\n  AND EXISTS (\n    SELECT 1 FROM conversations c\n    WHERE c.id = $1 AND (\n      c.type = 'channel'\n      OR EXISTS (SELECT 1 FROM conversation_members cm WHERE cm.conversation_id = c.id AND cm.user_id = $2)\n    )\n  )\nORDER BY m.created_at ASC;",
+        "options": {
+          "queryReplacement": "={{ [ $json.conversationId, $json.userId ] }}"
+        }
+      },
+      "id": "48a863ec-8c93-40e4-878e-5d1247b25778",
+      "name": "Postgres: Select Messages",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1440,
+        380
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "0370a2f5-55b1-4761-a03f-d6b3ef826cb0",
+      "name": "Respond: get-messages",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1640,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "path": "send-message",
+        "responseMode": "responseNode",
+        "options": {},
+        "httpMethod": "POST"
+      },
+      "id": "3d46c75d-5e3c-4feb-8443-4cdd7e1d81f2",
+      "name": "Webhook: send-message",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        600
+      ],
+      "webhookId": "f50144fa-2aee-4abb-be5b-290947f1efaf"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
+      },
+      "id": "82a55ca7-b2e6-4dd9-8bba-9a7035e009c6",
+      "name": "Parse Token: send-message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, color, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "b0480c96-b0b8-473c-81ca-09c617e325ca",
+      "name": "Look Up Requester: send-message",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        640,
+        600
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: send-message').first().json.body || {};\nconst conversationId = parseInt(body.conversation_id, 10);\nconst text = (body.body || '').toString().trim();\nif (!Number.isInteger(conversationId)) throw new Error('\"conversation_id\" is required.');\nif (!text) throw new Error('Message body cannot be empty.');\n\nreturn [{ json: { userId: requester.id, senderName: requester.name, senderColor: requester.color, conversationId, text } }];"
+      },
+      "id": "37de8fa4-e79d-462a-a3fb-c430d53a1a23",
+      "name": "Check Payload: send-message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO conversation_members (conversation_id, user_id)\nSELECT $1, $2 WHERE EXISTS (SELECT 1 FROM conversations WHERE id = $1 AND type = 'channel')\nON CONFLICT DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ [ $json.conversationId, $json.userId ] }}"
+        }
+      },
+      "id": "37bce2df-2b0d-4875-943f-670100e2c872",
+      "name": "Postgres: Ensure Channel Membership (send)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1040,
+        600
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO messages (conversation_id, sender_id, body)\nSELECT $1, $2, $3\nWHERE EXISTS (\n  SELECT 1 FROM conversations c\n  WHERE c.id = $1 AND (\n    c.type = 'channel'\n    OR EXISTS (SELECT 1 FROM conversation_members cm WHERE cm.conversation_id = c.id AND cm.user_id = $2)\n  )\n)\nRETURNING id, conversation_id, sender_id, body, created_at;",
+        "options": {
+          "queryReplacement": "={{ [ $('Check Payload: send-message').first().json.conversationId, $('Check Payload: send-message').first().json.userId, $('Check Payload: send-message').first().json.text ] }}"
+        }
+      },
+      "id": "02f31520-f2aa-4224-a698-d2b8c9791fd9",
+      "name": "Postgres: Insert Message",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1240,
+        600
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) {\n  throw new Error('Not authorized to post in this conversation.');\n}\nconst ctx = $('Check Payload: send-message').first().json;\nreturn [{ json: { ...result.json, sender_name: ctx.senderName, sender_color: ctx.senderColor } }];"
+      },
+      "id": "53318089-ce75-477d-a325-0488dc45bed8",
+      "name": "Check Result: send-message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO conversation_members (conversation_id, user_id, last_read_at)\nVALUES ($1, $2, now())\nON CONFLICT (conversation_id, user_id) DO UPDATE SET last_read_at = now();",
+        "options": {
+          "queryReplacement": "={{ [ $('Check Payload: send-message').first().json.conversationId, $('Check Payload: send-message').first().json.userId ] }}"
+        }
+      },
+      "id": "5e945122-7e15-4d6f-b28c-566912c82f07",
+      "name": "Postgres: Mark Own Read (send)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1640,
+        600
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: $('Check Result: send-message').first().json }];"
+      },
+      "id": "94e75415-a4e3-449f-a262-54c06db7e3e3",
+      "name": "Bridge: send-message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1840,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "f6d96a9d-2f12-487f-8625-b94b8b56b921",
+      "name": "Respond: send-message",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2040,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "path": "mark-conversation-read",
+        "responseMode": "responseNode",
+        "options": {},
+        "httpMethod": "POST"
+      },
+      "id": "4deece83-3794-4a34-a2ce-4ad2961fe985",
+      "name": "Webhook: mark-conversation-read",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        820
+      ],
+      "webhookId": "3b741f27-eef1-47be-8547-3ea0d59a4cfd"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
+      },
+      "id": "416db502-bc2b-48cc-97db-e7bb5740f46d",
+      "name": "Parse Token: mark-conversation-read",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        820
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, color, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "d5491ba2-861b-41ce-aba2-ee1eb8f309aa",
+      "name": "Look Up Requester: mark-conversation-read",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        640,
+        820
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: mark-conversation-read').first().json.body || {};\nconst conversationId = parseInt(body.conversation_id, 10);\nif (!Number.isInteger(conversationId)) throw new Error('\"conversation_id\" is required.');\n\nreturn [{ json: { userId: requester.id, conversationId } }];"
+      },
+      "id": "bdc3e984-d19b-4866-a256-89a6603fb28d",
+      "name": "Check Payload: mark-conversation-read",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        820
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO conversation_members (conversation_id, user_id, last_read_at)\nVALUES ($1, $2, now())\nON CONFLICT (conversation_id, user_id) DO UPDATE SET last_read_at = now()\nRETURNING conversation_id, user_id, last_read_at;",
+        "options": {
+          "queryReplacement": "={{ [ $json.conversationId, $json.userId ] }}"
+        }
+      },
+      "id": "fd949821-1024-431f-9bed-cf639e554de2",
+      "name": "Postgres: Upsert Read",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1040,
+        820
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true } }}",
+        "options": {}
+      },
+      "id": "40395de7-b1a7-4a1b-a16f-1c667bedcc19",
+      "name": "Respond: mark-conversation-read",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1240,
+        820
+      ]
+    },
+    {
+      "parameters": {
+        "path": "start-dm",
+        "responseMode": "responseNode",
+        "options": {},
+        "httpMethod": "POST"
+      },
+      "id": "0ab79e90-1732-4cbf-9701-836980b08734",
+      "name": "Webhook: start-dm",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        1040
+      ],
+      "webhookId": "873d912e-efac-4bdb-9378-c3a1cb0bc255"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
+      },
+      "id": "895379a5-6a09-4410-80c6-f162b221c482",
+      "name": "Parse Token: start-dm",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        1040
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, color, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "b6095bcb-46a6-474b-98db-74eb23682beb",
+      "name": "Look Up Requester: start-dm",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        640,
+        1040
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: start-dm').first().json.body || {};\nconst peerId = parseInt(body.peer_user_id, 10);\nif (!Number.isInteger(peerId)) throw new Error('\"peer_user_id\" is required.');\nif (peerId === requester.id) throw new Error('Cannot start a DM with yourself.');\n\nconst dmKey = [requester.id, peerId].sort((a, b) => a - b).join('-');\nreturn [{ json: { userId: requester.id, peerId, dmKey } }];"
+      },
+      "id": "27562456-47a9-4718-bc66-f1f1166d527e",
+      "name": "Check Payload: start-dm",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        1040
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO conversations (type, dm_key, created_by)\nVALUES ('dm', $1, $2)\nON CONFLICT (dm_key) WHERE type = 'dm' DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ [ $json.dmKey, $json.userId ] }}"
+        }
+      },
+      "id": "57f1d2c9-71a1-495b-bcb6-20c8277387d9",
+      "name": "Postgres: Create DM If Missing",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1040,
+        1040
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: $('Check Payload: start-dm').first().json }];"
+      },
+      "id": "d67d0a8f-8248-42e4-af70-1e340f0376d2",
+      "name": "Bridge: start-dm (1)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1240,
+        1040
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id FROM conversations WHERE type = 'dm' AND dm_key = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.dmKey ] }}"
+        }
+      },
+      "id": "b236eb6e-28b9-413f-b3f4-ec3d70a979cd",
+      "name": "Postgres: Get DM Id",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1440,
+        1040
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const conversationId = $input.first().json.id;\nconst ctx = $('Check Payload: start-dm').first().json;\nreturn [{ json: { conversationId, userId: ctx.userId, peerId: ctx.peerId } }];"
+      },
+      "id": "3929c0f6-7308-4042-8a22-cf39068e93a9",
+      "name": "Merge Context: start-dm",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1640,
+        1040
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO conversation_members (conversation_id, user_id)\nVALUES ($1, $2), ($1, $3)\nON CONFLICT DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ [ $json.conversationId, $json.userId, $json.peerId ] }}"
+        }
+      },
+      "id": "1c298e06-dedc-490e-84d5-4feb1b04136a",
+      "name": "Postgres: Ensure DM Members",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1840,
+        1040
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { id: $('Merge Context: start-dm').first().json.conversationId } }];"
+      },
+      "id": "61c10d0a-17c9-4314-af59-60bf11536b28",
+      "name": "Bridge: start-dm (2)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2040,
+        1040
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "55d15b7f-466a-4db5-84aa-f55d4a65f3bf",
+      "name": "Respond: start-dm",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2240,
+        1040
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook: get-conversations": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: get-conversations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: get-conversations": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: get-conversations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: get-conversations": {
+      "main": [
+        [
+          {
+            "node": "Check Requester: get-conversations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Requester: get-conversations": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Conversations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Conversations": {
+      "main": [
+        [
+          {
+            "node": "Respond: get-conversations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: get-messages": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: get-messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: get-messages": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: get-messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: get-messages": {
+      "main": [
+        [
+          {
+            "node": "Check Requester: get-messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Requester: get-messages": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure Channel Membership (read)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Ensure Channel Membership (read)": {
+      "main": [
+        [
+          {
+            "node": "Bridge: get-messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge: get-messages": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Messages": {
+      "main": [
+        [
+          {
+            "node": "Respond: get-messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: send-message": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: send-message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: send-message": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: send-message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: send-message": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: send-message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload: send-message": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure Channel Membership (send)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Ensure Channel Membership (send)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Insert Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Insert Message": {
+      "main": [
+        [
+          {
+            "node": "Check Result: send-message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Result: send-message": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Mark Own Read (send)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Mark Own Read (send)": {
+      "main": [
+        [
+          {
+            "node": "Bridge: send-message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge: send-message": {
+      "main": [
+        [
+          {
+            "node": "Respond: send-message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: mark-conversation-read": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: mark-conversation-read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: mark-conversation-read": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: mark-conversation-read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: mark-conversation-read": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: mark-conversation-read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload: mark-conversation-read": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Upsert Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Upsert Read": {
+      "main": [
+        [
+          {
+            "node": "Respond: mark-conversation-read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: start-dm": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: start-dm",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: start-dm": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: start-dm",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: start-dm": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: start-dm",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload: start-dm": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Create DM If Missing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Create DM If Missing": {
+      "main": [
+        [
+          {
+            "node": "Bridge: start-dm (1)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge: start-dm (1)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Get DM Id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Get DM Id": {
+      "main": [
+        [
+          {
+            "node": "Merge Context: start-dm",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Context: start-dm": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure DM Members",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Ensure DM Members": {
+      "main": [
+        [
+          {
+            "node": "Bridge: start-dm (2)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge: start-dm (2)": {
+      "main": [
+        [
+          {
+            "node": "Respond: start-dm",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  }
+}

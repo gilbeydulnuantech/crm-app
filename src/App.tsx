@@ -10,6 +10,7 @@ import Pipeline from './pages/Pipeline';
 import Tasks from './pages/Tasks';
 import Calendar from './pages/Calendar';
 import Reports from './pages/Reports';
+import TeamChat from './pages/TeamChat';
 import Settings from './pages/Settings';
 
 function LoginRoute() {
@@ -39,6 +40,7 @@ export default function App() {
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/calendar" element={<Calendar />} />
           <Route path="/reports" element={<Reports />} />
+          <Route path="/team-chat" element={<TeamChat />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Route>

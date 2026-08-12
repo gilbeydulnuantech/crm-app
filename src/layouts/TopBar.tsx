@@ -3,17 +3,27 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toTitleCase } from '../utils/text';
 import { useUnreadEmailContacts } from '../hooks/useContacts';
+import { useConversations } from '../hooks/useChat';
 
 export default function TopBar() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [bellOpen, setBellOpen] = useState(false);
   const unreadContacts = useUnreadEmailContacts();
-  const unreadCount = unreadContacts.reduce((total, c) => total + c.unreadCount, 0);
+  const emailUnreadCount = unreadContacts.reduce((total, c) => total + c.unreadCount, 0);
+  const { data: conversations = [] } = useConversations();
+  const unreadConversations = conversations.filter((c) => c.unread_count > 0);
+  const chatUnreadCount = unreadConversations.reduce((total, c) => total + c.unread_count, 0);
+  const unreadCount = emailUnreadCount + chatUnreadCount;
 
   function openContact(contactId: number) {
     setBellOpen(false);
     navigate(`/contacts?contactId=${contactId}`);
+  }
+
+  function openConversation(conversationId: number) {
+    setBellOpen(false);
+    navigate(`/team-chat?conversation=${conversationId}`);
   }
 
   return (
@@ -42,33 +52,57 @@ export default function TopBar() {
                 <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
                   Notifications
                 </div>
-                {unreadContacts.length === 0 ? (
-                  <p className="px-3 py-3 text-xs text-slate-400">No unread emails.</p>
+                {unreadContacts.length === 0 && unreadConversations.length === 0 ? (
+                  <p className="px-3 py-3 text-xs text-slate-400">Nothing new.</p>
                 ) : (
-                  unreadContacts.map(({ contact, unreadCount: count, latestLog }) => (
-                    <button
-                      key={contact.id}
-                      onClick={() => openContact(contact.id)}
-                      className="w-full flex items-start gap-2.5 px-3 py-2 text-left hover:bg-slate-50"
-                    >
-                      <i className="fa-solid fa-envelope text-indigo-500 text-xs mt-0.5 shrink-0" />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-xs font-semibold text-slate-800 truncate">
-                            {toTitleCase(`${contact.first_name} ${contact.last_name}`.trim()) || 'No Name'}
-                          </span>
-                          {count > 1 && (
-                            <span className="shrink-0 text-[10px] font-bold text-white bg-indigo-500 rounded-full px-1.5 py-0.5">
-                              {count}
+                  <>
+                    {unreadContacts.map(({ contact, unreadCount: count, latestLog }) => (
+                      <button
+                        key={`email-${contact.id}`}
+                        onClick={() => openContact(contact.id)}
+                        className="w-full flex items-start gap-2.5 px-3 py-2 text-left hover:bg-slate-50"
+                      >
+                        <i className="fa-solid fa-envelope text-indigo-500 text-xs mt-0.5 shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-semibold text-slate-800 truncate">
+                              {toTitleCase(`${contact.first_name} ${contact.last_name}`.trim()) || 'No Name'}
                             </span>
+                            {count > 1 && (
+                              <span className="shrink-0 text-[10px] font-bold text-white bg-indigo-500 rounded-full px-1.5 py-0.5">
+                                {count}
+                              </span>
+                            )}
+                          </div>
+                          {latestLog.subject && (
+                            <div className="text-[11px] text-slate-500 truncate">{latestLog.subject}</div>
                           )}
                         </div>
-                        {latestLog.subject && (
-                          <div className="text-[11px] text-slate-500 truncate">{latestLog.subject}</div>
-                        )}
-                      </div>
-                    </button>
-                  ))
+                      </button>
+                    ))}
+                    {unreadConversations.map((c) => (
+                      <button
+                        key={`chat-${c.id}`}
+                        onClick={() => openConversation(c.id)}
+                        className="w-full flex items-start gap-2.5 px-3 py-2 text-left hover:bg-slate-50"
+                      >
+                        <i className="fa-solid fa-comment text-indigo-500 text-xs mt-0.5 shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-semibold text-slate-800 truncate">
+                              {c.type === 'channel' ? `# ${c.name}` : toTitleCase(c.peer_name ?? '')}
+                            </span>
+                            <span className="shrink-0 text-[10px] font-bold text-white bg-indigo-500 rounded-full px-1.5 py-0.5">
+                              {c.unread_count}
+                            </span>
+                          </div>
+                          {c.last_message_body && (
+                            <div className="text-[11px] text-slate-500 truncate">{c.last_message_body}</div>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </>
                 )}
               </div>
             </>
