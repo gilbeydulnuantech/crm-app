@@ -58,7 +58,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Goes in \"Build Archive Query\" — keeps your existing owner/admin permission\n// check intact, and adds the archived_by / archived_at / archive_reason\n// columns (requires the ALTER TABLE migration to have been run already).\nconst requester = $input.first().json;\nconst { contactId, reason } = $('Parse Token').first().json;\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst sqlQuery = `\n  UPDATE contacts\n  SET is_archived = true,\n      archived_by = $1,\n      archived_at = now(),\n      archive_reason = $2\n  WHERE id = $3 AND ($4 = 'admin' OR owner_id = $1)\n  RETURNING id, is_archived;\n`;\nconst queryParams = [requester.id, reason, contactId, requester.role];\n\nreturn [{ json: { sqlQuery, queryParams } }];\n"
+        "jsCode": "// Goes in \"Build Archive Query\" — keeps your existing owner/admin permission\n// check intact, and adds the archived_by / archived_at / archive_reason\n// columns (requires the ALTER TABLE migration to have been run already).\nconst requester = $input.first().json;\nconst { contactId, reason } = $('Parse Token').first().json;\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst sqlQuery = `\n  UPDATE contacts\n  SET is_archived = true,\n      archived_by = $1,\n      archived_at = now(),\n      archive_reason = $2\n  WHERE id = $3 AND ($4 = 'admin' OR owner_id = $1)\n  RETURNING id, is_archived, TRIM(CONCAT(first_name, ' ', last_name)) AS full_name;\n`;\nconst queryParams = [requester.id, reason, contactId, requester.role];\n\nreturn [{ json: { sqlQuery, queryParams } }];\n"
       },
       "id": "45390bc8-44d7-457b-8b59-1d95ce5ad677",
       "name": "Build Archive Query",
@@ -100,6 +100,7 @@
       "name": "Check Result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
+      "onError": "continueErrorOutput",
       "position": [
         1104,
         0
@@ -107,8 +108,31 @@
     },
     {
       "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO activity_log (actor_id, verb, entity_type, entity_id, entity_name) VALUES ($1, 'archived', 'contact', $2, $3);",
+        "options": {
+          "queryReplacement": "={{ [ $('Look Up Requester').first().json.id, $('Check Result').first().json.contact.id, $('Check Result').first().json.contact.full_name ] }}"
+        }
+      },
+      "id": "a6b7c8d9-e0f1-4a2b-3c4d-5e6f7a8b9c0d",
+      "name": "Postgres: Log Activity (archived)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1216,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ $json }}",
+        "responseBody": "={{ $('Check Result').first().json }}",
         "options": {
           "responseCode": 200
         }
@@ -160,11 +184,6 @@
             "node": "Look Up Requester",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
@@ -174,11 +193,6 @@
         [
           {
             "node": "Build Archive Query",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Respond - Error",
             "type": "main",
             "index": 0
           }
@@ -192,11 +206,6 @@
             "node": "Execute Archive",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
@@ -208,11 +217,6 @@
             "node": "Check Result",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
@@ -221,12 +225,25 @@
       "main": [
         [
           {
-            "node": "Respond - Success",
+            "node": "Postgres: Log Activity (archived)",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Log Activity (archived)": {
+      "main": [
+        [
+          {
+            "node": "Respond - Success",
             "type": "main",
             "index": 0
           }

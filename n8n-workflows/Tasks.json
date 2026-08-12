@@ -161,7 +161,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE activities SET subject = COALESCE($1, subject), body = COALESCE($2, body), contact_id = COALESCE($3, contact_id), opportunity_id = COALESCE($4, opportunity_id), user_id = COALESCE($5, user_id), due_at = COALESCE($6, due_at), is_completed = COALESCE($7, is_completed), completed_at = $8, priority = COALESCE($9, priority), task_type = COALESCE($10, task_type), status = COALESCE($11, status) WHERE id = $12 AND type = 'task' AND ($13 = 'admin' OR user_id = $14) RETURNING id;",
+        "query": "UPDATE activities SET subject = COALESCE($1, subject), body = COALESCE($2, body), contact_id = COALESCE($3, contact_id), opportunity_id = COALESCE($4, opportunity_id), user_id = COALESCE($5, user_id), due_at = COALESCE($6, due_at), is_completed = COALESCE($7, is_completed), completed_at = $8, priority = COALESCE($9, priority), task_type = COALESCE($10, task_type), status = COALESCE($11, status) WHERE id = $12 AND type = 'task' AND ($13 = 'admin' OR user_id = $14) RETURNING id, subject;",
         "options": {
           "queryReplacement": "={{ [ $('Webhook: update-task').first().json.body.subject || null, $('Webhook: update-task').first().json.body.body || null, $('Webhook: update-task').first().json.body.contact_id || null, $('Webhook: update-task').first().json.body.opportunity_id || null, $('Webhook: update-task').first().json.body.user_id || null, $('Webhook: update-task').first().json.body.due_at || null, $('Webhook: update-task').first().json.body.is_completed !== undefined ? $('Webhook: update-task').first().json.body.is_completed : null, $('Webhook: update-task').first().json.body.completed_at !== undefined ? $('Webhook: update-task').first().json.body.completed_at : null, $('Webhook: update-task').first().json.body.priority || null, $('Webhook: update-task').first().json.body.task_type || null, $('Webhook: update-task').first().json.body.status || null, $('Webhook: update-task').first().json.body.id, $('Look Up Requester: update-task').first().json.role, $('Look Up Requester: update-task').first().json.id ] }}"
         }
@@ -415,16 +415,40 @@
     },
     {
       "parameters": {
-        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) {\n  throw new Error(\"Task not found or you do not have permission to edit it.\");\n}\nreturn [{ json: { success: true, id: result.json.id } }];"
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) {\n  throw new Error(\"Task not found or you do not have permission to edit it.\");\n}\nreturn [{ json: { success: true, id: result.json.id, subject: result.json.subject } }];"
       },
       "id": "89b42a27-fdfe-4a90-8131-ec239ed06d28",
       "name": "Check Result: update-task",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
+      "onError": "continueErrorOutput",
       "position": [
         1508,
         636
       ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO activity_log (actor_id, verb, entity_type, entity_id, entity_name)\nSELECT $1, 'completed', 'task', $2, $3\nWHERE $4 = true;",
+        "options": {
+          "queryReplacement": "={{ [ $('Look Up Requester: update-task').first().json.id, $('Check Result: update-task').first().json.id, $('Check Result: update-task').first().json.subject, $('Webhook: update-task').first().json.body.is_completed === true ] }}"
+        }
+      },
+      "id": "f5a6b7c8-d9e0-4f1a-2b3c-4d5e6f7a8b9c",
+      "name": "Postgres: Log Task Completed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1700,
+        636
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
     },
     {
       "parameters": {
@@ -561,11 +585,6 @@
             "node": "Check Result: update-task",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "Respond - Error: update-task",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
@@ -632,11 +651,6 @@
             "node": "Look Up Requester: update-task",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "Respond - Error: update-task",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
@@ -648,11 +662,6 @@
             "node": "Postgres: Ensure Task Columns (update)",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "Respond - Error: update-task",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
@@ -661,12 +670,25 @@
       "main": [
         [
           {
-            "node": "Respond: update-task",
+            "node": "Postgres: Log Task Completed",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: update-task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Log Task Completed": {
+      "main": [
+        [
+          {
+            "node": "Respond: update-task",
             "type": "main",
             "index": 0
           }

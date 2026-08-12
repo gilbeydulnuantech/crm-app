@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   PieChart,
   Pie,
@@ -16,6 +17,7 @@ import { useAuth } from '../context/AuthContext';
 import { useDashboard } from '../hooks/useDashboard';
 import { usePipelines } from '../hooks/useOpportunities';
 import { toTitleCase } from '../utils/text';
+import { DashboardActivity } from '../types/dashboard';
 
 // Color theme
 const BG = '#F7F9FB';
@@ -31,6 +33,40 @@ function formatMoney(n: number): string {
   if (abs >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
   if (abs >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
   return `$${n.toLocaleString()}`;
+}
+
+function formatRelativeTime(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+// Templates the activity_log's structured verb/entity/detail fields into the
+// two-line copy shown in the Recent Activity feed.
+function activityLine(a: DashboardActivity): { main: string; detail?: string } {
+  const actor = toTitleCase(a.actor_name);
+  const name = a.entity_name ?? '';
+  switch (a.verb) {
+    case 'moved':
+      return { main: `${actor} moved ${name}`, detail: a.detail ?? undefined };
+    case 'created':
+      return { main: `${actor} created new deal "${name}"` };
+    case 'completed':
+      return { main: `${actor} completed task "${name}"` };
+    case 'archived':
+      return { main: `${actor} archived contact ${name}` };
+    case 'noted':
+      return { main: `${actor} added note to ${name}` };
+    default:
+      return { main: `${actor} updated ${name}` };
+  }
 }
 
 function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
@@ -100,6 +136,7 @@ function Gauge({
 
 export default function Dashboard() {
   const { user, isAdmin } = useAuth();
+  const navigate = useNavigate();
   const { data: pipelines = [] } = usePipelines();
   const [pipelineId, setPipelineId] = useState<number | null>(null);
   const { data, isLoading, isError } = useDashboard(pipelineId);
@@ -316,82 +353,86 @@ export default function Dashboard() {
             {isAdmin && (
               <Card>
                 <h2 className="text-sm font-semibold mb-3" style={{ color: TEXT }}>
-                  Team Performance Leaderboard
+                  Team Performance
                 </h2>
                 {data.team_leaderboard.length === 0 ? (
                   <p className="text-sm" style={{ color: `${TEXT}80` }}>
                     No team activity yet.
                   </p>
                 ) : (
-                  <div className="space-y-2.5">
-                    {data.team_leaderboard.map((row, i) => (
-                      <div key={row.user_id} className="flex items-center gap-3">
-                        <div
-                          className="w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center shrink-0"
-                          style={{ backgroundColor: `${PRIMARY}26`, color: PRIMARY }}
-                        >
-                          {i + 1}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium truncate" style={{ color: TEXT }}>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-xs" style={{ color: `${TEXT}80` }}>
+                        <th className="font-medium pb-2 w-5"></th>
+                        <th className="font-medium pb-2">Rep</th>
+                        <th className="font-medium pb-2 text-right">Won</th>
+                        <th className="font-medium pb-2 text-right">Open</th>
+                        <th className="font-medium pb-2 text-right">Revenue</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {data.team_leaderboard.map((row, i) => (
+                        <tr key={row.user_id}>
+                          <td className="py-1.5 text-xs" style={{ color: `${TEXT}80` }}>
+                            {i + 1}
+                          </td>
+                          <td className="py-1.5 truncate" style={{ color: TEXT }}>
                             {row.name}
-                          </p>
-                          <p className="text-xs" style={{ color: `${TEXT}80` }}>
-                            {row.won_deals} won · {row.open_deals} open
-                          </p>
-                        </div>
-                        <span className="text-sm font-semibold shrink-0" style={{ color: TEXT }}>
-                          {formatMoney(row.revenue)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                          </td>
+                          <td className="py-1.5 text-right" style={{ color: TEXT }}>
+                            {row.won_deals}
+                          </td>
+                          <td className="py-1.5 text-right" style={{ color: TEXT }}>
+                            {row.open_deals}
+                          </td>
+                          <td className="py-1.5 text-right font-semibold" style={{ color: TEXT }}>
+                            {formatMoney(row.revenue)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 )}
               </Card>
             )}
 
             <Card className={isAdmin ? 'col-span-2' : ''}>
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-semibold" style={{ color: TEXT }}>
-                  Stalled Deals
-                </h2>
-                {data.stalled_deals.length > 0 && (
-                  <i className="fa-solid fa-triangle-exclamation" style={{ color: WARNING }} />
-                )}
-              </div>
               {data.stalled_deals.length === 0 ? (
-                <p className="text-sm" style={{ color: `${TEXT}80` }}>
-                  Nothing stalled — every open deal has recent activity.
-                </p>
+                <div className="flex items-start gap-2.5">
+                  <i className="fa-solid fa-circle-check mt-0.5" style={{ color: POSITIVE }} />
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: TEXT }}>
+                      All open deals are progressing normally.
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: `${TEXT}80` }}>
+                      No deals have been inactive for more than 7 days.
+                    </p>
+                  </div>
+                </div>
               ) : (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-xs" style={{ color: `${TEXT}80` }}>
-                      <th className="font-medium pb-2">Deal Name</th>
-                      <th className="font-medium pb-2">Value</th>
-                      <th className="font-medium pb-2">Owner</th>
-                      <th className="font-medium pb-2 text-right">Days Stalled</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50">
+                <>
+                  <div className="flex items-center gap-2 mb-3">
+                    <i className="fa-solid fa-triangle-exclamation" style={{ color: WARNING }} />
+                    <h2 className="text-sm font-semibold" style={{ color: TEXT }}>
+                      {data.stalled_deals.length} deal{data.stalled_deals.length === 1 ? '' : 's'} need attention
+                    </h2>
+                  </div>
+                  <div className="space-y-2">
                     {data.stalled_deals.map((d) => (
-                      <tr key={d.id}>
-                        <td className="py-1.5 truncate max-w-[160px]" style={{ color: TEXT }}>
+                      <div key={d.id} className="flex items-center justify-between gap-3 text-sm">
+                        <span className="truncate flex-1" style={{ color: TEXT }}>
                           {d.name}
-                        </td>
-                        <td className="py-1.5" style={{ color: TEXT }}>
+                        </span>
+                        <span className="shrink-0 font-semibold" style={{ color: TEXT }}>
                           {formatMoney(d.value)}
-                        </td>
-                        <td className="py-1.5" style={{ color: `${TEXT}B3` }}>
-                          {toTitleCase(d.owner_name) || '--'}
-                        </td>
-                        <td className="py-1.5 text-right font-semibold" style={{ color: WARNING }}>
-                          {d.days_stalled}
-                        </td>
-                      </tr>
+                        </span>
+                        <span className="shrink-0 text-xs w-24 text-right" style={{ color: WARNING }}>
+                          {d.days_stalled} days inactive
+                        </span>
+                      </div>
                     ))}
-                  </tbody>
-                </table>
+                  </div>
+                </>
               )}
             </Card>
           </div>
@@ -416,7 +457,7 @@ export default function Dashboard() {
                 <div className="space-y-2">
                   {data.upcoming_tasks.map((t) => (
                     <div key={t.id} className="flex items-center gap-2 text-sm" style={{ color: TEXT }}>
-                      <i className="fa-regular fa-circle-dot w-4" style={{ color: `${TEXT}66` }} />
+                      <i className="fa-regular fa-circle w-4" style={{ color: `${TEXT}66` }} />
                       <span className="flex-1 truncate">{t.subject}</span>
                       {t.due_at && (
                         <span className="text-xs shrink-0" style={{ color: `${TEXT}80` }}>
@@ -427,51 +468,138 @@ export default function Dashboard() {
                   ))}
                 </div>
               )}
+              <button
+                onClick={() => navigate('/tasks')}
+                className="text-xs font-semibold mt-3"
+                style={{ color: PRIMARY }}
+              >
+                View all tasks →
+              </button>
             </Card>
 
             <Card>
               <h2 className="text-sm font-semibold mb-3" style={{ color: TEXT }}>
-                Recent Activity
+                Upcoming Events
               </h2>
-              {data.recent_activities.length === 0 ? (
+              {data.upcoming_events.length === 0 ? (
                 <p className="text-sm" style={{ color: `${TEXT}80` }}>
-                  No recent activity.
+                  Nothing on the calendar soon.
                 </p>
               ) : (
                 <div className="space-y-2">
-                  {data.recent_activities.map((a) => (
-                    <div key={a.id} className="text-sm truncate" style={{ color: TEXT }}>
-                      {a.description}
+                  {data.upcoming_events.map((e) => (
+                    <div key={e.id} className="flex items-center gap-2 text-sm" style={{ color: TEXT }}>
+                      <i className="fa-solid fa-circle w-4 text-[6px]" style={{ color: PRIMARY }} />
+                      <span className="flex-1 truncate">{e.subject}</span>
+                      {e.due_at && (
+                        <span className="text-xs shrink-0" style={{ color: `${TEXT}80` }}>
+                          {new Date(e.due_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>
               )}
+              <button
+                onClick={() => navigate('/calendar')}
+                className="text-xs font-semibold mt-3"
+                style={{ color: PRIMARY }}
+              >
+                View calendar →
+              </button>
             </Card>
           </div>
 
           <Card>
             <h2 className="text-sm font-semibold mb-3" style={{ color: TEXT }}>
-              Recent Contacts
+              Recent Activity
             </h2>
-            {data.recent_contacts.length === 0 ? (
+            {data.recent_activities.length === 0 ? (
               <p className="text-sm" style={{ color: `${TEXT}80` }}>
-                No contacts yet.
+                No recent activity.
               </p>
             ) : (
-              <div className="divide-y divide-slate-50">
-                {data.recent_contacts.map((c) => (
-                  <div key={c.id} className="flex items-center justify-between py-2 text-sm">
-                    <span className="font-medium" style={{ color: TEXT }}>
-                      {c.name}
-                    </span>
-                    <span style={{ color: `${TEXT}B3` }}>{c.lead_status}</span>
-                    <span style={{ color: `${TEXT}B3` }}>{toTitleCase(c.owner_name) || '--'}</span>
-                    <span className="text-xs" style={{ color: `${TEXT}80` }}>
-                      {new Date(c.created_at).toLocaleDateString()}
-                    </span>
-                  </div>
-                ))}
+              <div className="space-y-3">
+                {data.recent_activities.map((a) => {
+                  const { main, detail } = activityLine(a);
+                  return (
+                    <div key={a.id} className="flex items-start justify-between gap-3 text-sm">
+                      <div className="min-w-0">
+                        <p className="truncate" style={{ color: TEXT }}>
+                          {main}
+                        </p>
+                        {detail && (
+                          <p className="text-xs mt-0.5" style={{ color: PRIMARY }}>
+                            {detail}
+                          </p>
+                        )}
+                      </div>
+                      <span className="text-xs shrink-0" style={{ color: `${TEXT}80` }}>
+                        {formatRelativeTime(a.created_at)}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
+            )}
+          </Card>
+
+          <Card>
+            <h2 className="text-sm font-semibold mb-3" style={{ color: TEXT }}>
+              Deals Requiring Attention
+            </h2>
+            {data.stalled_deals.length === 0 ? (
+              <p className="text-sm" style={{ color: `${TEXT}80` }}>
+                Nothing needs attention right now.
+              </p>
+            ) : (
+              <>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs" style={{ color: `${TEXT}80` }}>
+                      <th className="font-medium pb-2">Deal Name</th>
+                      <th className="font-medium pb-2">Stage</th>
+                      <th className="font-medium pb-2 text-right">Value</th>
+                      <th className="font-medium pb-2 text-right">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {data.stalled_deals.map((d) => {
+                      const dueToday =
+                        !!d.expected_close &&
+                        new Date(d.expected_close).toDateString() === new Date().toDateString();
+                      return (
+                        <tr key={d.id}>
+                          <td className="py-1.5 truncate max-w-[200px]" style={{ color: TEXT }}>
+                            {d.name}
+                          </td>
+                          <td className="py-1.5" style={{ color: `${TEXT}B3` }}>
+                            {d.stage_name || '--'}
+                          </td>
+                          <td className="py-1.5 text-right" style={{ color: TEXT }}>
+                            {formatMoney(d.value)}
+                          </td>
+                          <td
+                            className="py-1.5 text-right font-semibold"
+                            style={{ color: dueToday ? PRIMARY : WARNING }}
+                          >
+                            {dueToday ? 'Due today' : `${d.days_stalled} days idle`}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                <div className="text-right mt-2">
+                  <button
+                    onClick={() => navigate('/pipeline')}
+                    className="text-xs font-semibold"
+                    style={{ color: PRIMARY }}
+                  >
+                    View Pipeline →
+                  </button>
+                </div>
+              </>
             )}
           </Card>
         </>

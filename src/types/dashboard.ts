@@ -28,6 +28,8 @@ export interface DashboardStalledDeal {
   name: string;
   value: number;
   owner_name: string | null;
+  stage_name: string | null;
+  expected_close: string | null;
   days_stalled: number;
 }
 
@@ -48,17 +50,15 @@ export interface DashboardUpcomingTask {
   due_at: string | null;
 }
 
+export type ActivityVerb = 'moved' | 'created' | 'completed' | 'archived' | 'noted';
+
 export interface DashboardActivity {
   id: number;
-  description: string;
-  created_at: string;
-}
-
-export interface DashboardRecentContact {
-  id: number;
-  name: string;
-  lead_status: string;
-  owner_name: string | null;
+  actor_name: string;
+  verb: ActivityVerb;
+  entity_type: 'opportunity' | 'contact' | 'task';
+  entity_name: string | null;
+  detail: string | null; // e.g. "Proposal Sent → Contract Signed", only set for 'moved'
   created_at: string;
 }
 
@@ -84,6 +84,6 @@ export interface DashboardData {
   task_completion: DashboardTaskCompletion;
   monthly_revenue: DashboardMonthlyRevenue[];
   upcoming_tasks: DashboardUpcomingTask[];
+  upcoming_events: DashboardUpcomingTask[];
   recent_activities: DashboardActivity[];
-  recent_contacts: DashboardRecentContact[];
 }

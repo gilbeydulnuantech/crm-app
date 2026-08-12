@@ -191,9 +191,32 @@
     },
     {
       "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO activity_log (actor_id, verb, entity_type, entity_id, entity_name)\nSELECT $1, 'noted', $2, $3,\n  CASE\n    WHEN $2 = 'contact' THEN (SELECT TRIM(CONCAT(first_name, ' ', last_name)) FROM contacts WHERE id = $3)\n    WHEN $2 = 'opportunity' THEN (SELECT name FROM opportunities WHERE id = $3)\n    ELSE NULL\n  END;",
+        "options": {
+          "queryReplacement": "={{ [ $('Postgres: Insert Note').first().json.created_by, $('Postgres: Insert Note').first().json.entity_type, $('Postgres: Insert Note').first().json.entity_id ] }}"
+        }
+      },
+      "id": "b7c8d9e0-f1a2-4b3c-8d9e-0f1a2b3c4d5e",
+      "name": "Postgres: Log Activity (noted)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1376,
+        816
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
         "options": {},
         "respondWith": "json",
-        "responseBody": "={{ { \"success\": true, \"id\": $json.id } }}"
+        "responseBody": "={{ { \"success\": true, \"id\": $('Postgres: Insert Note').first().json.id } }}"
       },
       "id": "733b7dfc-df7f-46b1-b64a-b814ff899563",
       "name": "Respond: add-note",
@@ -430,6 +453,17 @@
       ]
     },
     "Postgres: Insert Note": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Log Activity (noted)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Log Activity (noted)": {
       "main": [
         [
           {

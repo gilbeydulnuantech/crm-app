@@ -22,8 +22,8 @@ const EMPTY_DASHBOARD: DashboardData = {
   task_completion: { completed: 0, total: 0, rate: 0 },
   monthly_revenue: [],
   upcoming_tasks: [],
+  upcoming_events: [],
   recent_activities: [],
-  recent_contacts: [],
 };
 
 export function useDashboard(pipelineId?: number | null) {

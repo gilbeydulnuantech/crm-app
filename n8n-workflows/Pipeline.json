@@ -208,8 +208,31 @@
     },
     {
       "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO activity_log (actor_id, verb, entity_type, entity_id, entity_name) VALUES ($1, 'created', 'opportunity', $2, $3) RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $('Webhook: add-opportunity').first().json.body.requester_id || null, $json.id, $json.name ] }}"
+        }
+      },
+      "id": "a3f1c2b0-1a2b-4c3d-9e5f-6a7b8c9d0e1f",
+      "name": "Postgres: Log Activity (created)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1152,
+        1056
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { \"success\": true, \"id\": $json.id } }}",
+        "responseBody": "={{ { \"success\": true, \"id\": $('Postgres: Insert Opportunity').first().json.id } }}",
         "options": {}
       },
       "id": "56c4d4cc-b828-42a1-a8e8-54da28844b84",
@@ -272,9 +295,32 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        1264,
+        1700,
         1232
       ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO activity_log (actor_id, verb, entity_type, entity_id, entity_name, detail)\nSELECT $1, 'moved', 'opportunity', $2, $3, COALESCE(sf.name, '?') || ' → ' || COALESCE(st.name, '?')\nFROM stages sf, stages st\nWHERE sf.id = $4 AND st.id = $5 AND $4 IS DISTINCT FROM $5;",
+        "options": {
+          "queryReplacement": "={{ [ $('Look Up Requester: update-opportunity').first().json.id, $('Webhook: update-opportunity').first().json.body.id, $('Postgres: Capture Before Stage: update-opportunity').first().json.deal_name, $('Postgres: Capture Before Stage: update-opportunity').first().json.before_stage_id, $('Webhook: update-opportunity').first().json.body.stage_id || $('Postgres: Capture Before Stage: update-opportunity').first().json.before_stage_id ] }}"
+        }
+      },
+      "id": "c2d3e4f5-a6b7-4c8d-9e0f-1a2b3c4d5e6f",
+      "name": "Postgres: Log Stage Change: update-opportunity",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1516,
+        1232
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
     },
     {
       "parameters": {
@@ -321,7 +367,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { \"success\": true, \"status\": $json.status } }}",
+        "responseBody": "={{ { \"success\": true, \"status\": $('Check Result: move-opportunity-stage').first().json.status } }}",
         "options": {}
       },
       "id": "975da9e7-ef15-43a6-a450-8aa5bcba1f64",
@@ -329,9 +375,32 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        1264,
+        1700,
         1424
       ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO activity_log (actor_id, verb, entity_type, entity_id, entity_name, detail)\nSELECT $1, 'moved', 'opportunity', $2, $3, COALESCE(sf.name, '?') || ' → ' || COALESCE(st.name, '?')\nFROM stages sf, stages st\nWHERE sf.id = $4 AND st.id = $5 AND $4 IS DISTINCT FROM $5;",
+        "options": {
+          "queryReplacement": "={{ [ $('Look Up Requester: move-opportunity-stage').first().json.id, $('Webhook: move-opportunity-stage').first().json.body.id, $('Postgres: Capture Before Stage: move-opportunity-stage').first().json.deal_name, $('Postgres: Capture Before Stage: move-opportunity-stage').first().json.before_stage_id, $('Webhook: move-opportunity-stage').first().json.body.stage_id ] }}"
+        }
+      },
+      "id": "e4f5a6b7-c8d9-4e0f-1a2b-3c4d5e6f7a8b",
+      "name": "Postgres: Log Stage Change: move-opportunity-stage",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1516,
+        1424
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
     },
     {
       "parameters": {
@@ -572,12 +641,36 @@
     },
     {
       "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT stage_id AS before_stage_id, name AS deal_name FROM opportunities WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Webhook: update-opportunity').first().json.body.id ] }}"
+        }
+      },
+      "id": "b1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d5e",
+      "name": "Postgres: Capture Before Stage: update-opportunity",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1300,
+        1132
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
         "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) {\n  throw new Error(\"Deal not found or you do not have permission to edit it.\");\n}\nreturn [{ json: { success: true, ...result.json } }];"
       },
       "id": "290375c6-2df2-430b-8eb0-a6e180f297b3",
       "name": "Check Result: update-opportunity",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
+      "onError": "continueErrorOutput",
       "position": [
         1516,
         1132
@@ -638,12 +731,36 @@
     },
     {
       "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT stage_id AS before_stage_id, name AS deal_name FROM opportunities WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Webhook: move-opportunity-stage').first().json.body.id ] }}"
+        }
+      },
+      "id": "d3e4f5a6-b7c8-4d9e-0f1a-2b3c4d5e6f7a",
+      "name": "Postgres: Capture Before Stage: move-opportunity-stage",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1300,
+        1324
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
         "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) {\n  throw new Error(\"Deal not found or you do not have permission to move it.\");\n}\nreturn [{ json: { success: true, ...result.json } }];"
       },
       "id": "2648354b-e334-46f2-9691-f1020a08ae92",
       "name": "Check Result: move-opportunity-stage",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
+      "onError": "continueErrorOutput",
       "position": [
         1516,
         1324
@@ -1497,6 +1614,17 @@
       "main": [
         [
           {
+            "node": "Postgres: Log Activity (created)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Log Activity (created)": {
+      "main": [
+        [
+          {
             "node": "Respond: add-opportunity",
             "type": "main",
             "index": 0
@@ -1522,11 +1650,6 @@
             "node": "Check Result: update-opportunity",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "Respond - Error: update-opportunity",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
@@ -1547,11 +1670,6 @@
         [
           {
             "node": "Check Result: move-opportunity-stage",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Respond - Error: move-opportunity-stage",
             "type": "main",
             "index": 0
           }
@@ -1664,11 +1782,6 @@
             "node": "Look Up Requester: update-opportunity",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "Respond - Error: update-opportunity",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
@@ -1677,12 +1790,29 @@
       "main": [
         [
           {
+            "node": "Postgres: Capture Before Stage: update-opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Capture Before Stage: update-opportunity": {
+      "main": [
+        [
+          {
             "node": "Postgres: Update Opportunity",
             "type": "main",
             "index": 0
-          },
+          }
+        ]
+      ]
+    },
+    "Postgres: Log Stage Change: update-opportunity": {
+      "main": [
+        [
           {
-            "node": "Respond - Error: update-opportunity",
+            "node": "Respond: update-opportunity",
             "type": "main",
             "index": 0
           }
@@ -1693,10 +1823,12 @@
       "main": [
         [
           {
-            "node": "Respond: update-opportunity",
+            "node": "Postgres: Log Stage Change: update-opportunity",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: update-opportunity",
             "type": "main",
@@ -1712,11 +1844,6 @@
             "node": "Look Up Requester: move-opportunity-stage",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "Respond - Error: move-opportunity-stage",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
@@ -1725,12 +1852,18 @@
       "main": [
         [
           {
-            "node": "Postgres: Move Stage (auto Won/Lost)",
+            "node": "Postgres: Capture Before Stage: move-opportunity-stage",
             "type": "main",
             "index": 0
-          },
+          }
+        ]
+      ]
+    },
+    "Postgres: Capture Before Stage: move-opportunity-stage": {
+      "main": [
+        [
           {
-            "node": "Respond - Error: move-opportunity-stage",
+            "node": "Postgres: Move Stage (auto Won/Lost)",
             "type": "main",
             "index": 0
           }
@@ -1741,12 +1874,25 @@
       "main": [
         [
           {
-            "node": "Respond: move-opportunity-stage",
+            "node": "Postgres: Log Stage Change: move-opportunity-stage",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: move-opportunity-stage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Log Stage Change: move-opportunity-stage": {
+      "main": [
+        [
+          {
+            "node": "Respond: move-opportunity-stage",
             "type": "main",
             "index": 0
           }
