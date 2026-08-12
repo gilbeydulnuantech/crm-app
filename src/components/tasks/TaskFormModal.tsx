@@ -7,6 +7,7 @@ import { useAllOpportunities, usePipelines } from '../../hooks/useOpportunities'
 import { useAuth } from '../../context/AuthContext';
 import { toTitleCase } from '../../utils/text';
 import ContactPicker from '../pipeline/ContactPicker';
+import { startDm, sendMessage } from '../../api/chat';
 
 interface Props {
   open: boolean;
@@ -51,6 +52,7 @@ export default function TaskFormModal({ open, task, defaultContactId, onClose }:
 
   const [form, setForm] = useState(EMPTY);
   const [error, setError] = useState<string | null>(null);
+  const [sendReminder, setSendReminder] = useState(false);
   const addTask = useAddTask();
   const updateTask = useUpdateTask();
 
@@ -87,6 +89,7 @@ export default function TaskFormModal({ open, task, defaultContactId, onClose }:
       });
     }
     setError(null);
+    setSendReminder(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [task, open, defaultContactId, user]);
 
@@ -127,6 +130,20 @@ export default function TaskFormModal({ open, task, defaultContactId, onClose }:
     }));
   }
 
+  // Fire-and-forget — a DM failure shouldn't block the task from being
+  // created, so this never surfaces into the form's error state.
+  async function sendTaskReminder(assignedUserId: number, subject: string, dueAt: string | null) {
+    try {
+      const dueText = dueAt
+        ? new Date(dueAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+        : 'no due date';
+      const { id: conversationId } = await startDm(assignedUserId);
+      await sendMessage(conversationId, `New task assigned: "${subject}" — due ${dueText}`);
+    } catch (err) {
+      console.error('Failed to send task reminder DM:', err);
+    }
+  }
+
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -154,6 +171,10 @@ export default function TaskFormModal({ open, task, defaultContactId, onClose }:
     } else {
       addTask.mutate(payload, {
         onSuccess: () => {
+          const assignedUserId = form.assigned_user ? Number(form.assigned_user) : null;
+          if (sendReminder && assignedUserId && assignedUserId !== user?.id) {
+            sendTaskReminder(assignedUserId, form.subject, payload.due_at);
+          }
           setForm(EMPTY);
           onClose();
         },
@@ -301,14 +322,20 @@ export default function TaskFormModal({ open, task, defaultContactId, onClose }:
             </div>
           </div>
 
-          <label
-            className="flex items-center gap-2 text-sm text-slate-400 cursor-not-allowed pt-1"
-            title="Will notify the contact's owner — not wired up yet"
-          >
-            <input type="checkbox" disabled className="rounded border-slate-300" />
-            Create reminder
-            <span className="text-[10px] text-slate-400">(for contact owner — coming soon)</span>
-          </label>
+          {!isEdit && (
+            <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer pt-1">
+              <input
+                type="checkbox"
+                checked={sendReminder}
+                onChange={(e) => setSendReminder(e.target.checked)}
+                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              Create reminder
+              <span className="text-[10px] text-slate-400">
+                (sends the assignee a Team Chat DM when this task is created)
+              </span>
+            </label>
+          )}
 
           {error && (
             <div className="p-2.5 text-xs rounded-lg text-center bg-rose-50 text-rose-700 border border-rose-200">
