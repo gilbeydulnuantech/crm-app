@@ -22,7 +22,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT c.id, c.name, c.website, c.industry, c.city, c.state, c.country, c.phone, c.owner_id, u.name AS owner_name, c.created_by, c.is_archived, c.created_at, c.updated_at, COALESCE(cc.contact_count, 0) AS contact_count, COALESCE(oc.opportunity_count, 0) AS opportunity_count FROM companies c LEFT JOIN users u ON u.id = c.owner_id LEFT JOIN (SELECT account_id, COUNT(*) AS contact_count FROM contacts WHERE is_archived = false GROUP BY account_id) cc ON cc.account_id = c.id LEFT JOIN (SELECT account_id, COUNT(*) AS opportunity_count FROM opportunities GROUP BY account_id) oc ON oc.account_id = c.id WHERE c.is_archived = false ORDER BY c.name ASC;",
+        "query": "SELECT c.id, c.name, c.website, c.industry, c.city, c.state, c.country, c.phone, c.owner_id, u.name AS owner_name, u.color AS owner_color, c.created_by, c.is_archived, c.created_at, c.updated_at, COALESCE(cc.contact_count, 0) AS contact_count, COALESCE(oc.opportunity_count, 0) AS opportunity_count FROM companies c LEFT JOIN users u ON u.id = c.owner_id LEFT JOIN (SELECT account_id, COUNT(*) AS contact_count FROM contacts WHERE is_archived = false GROUP BY account_id) cc ON cc.account_id = c.id LEFT JOIN (SELECT account_id, COUNT(*) AS opportunity_count FROM opportunities GROUP BY account_id) oc ON oc.account_id = c.id WHERE c.is_archived = false ORDER BY c.name ASC;",
         "options": {}
       },
       "id": "9e36d93d-0cbf-4269-a3e8-bcd9438ec4a0",
@@ -75,7 +75,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT c.id, c.name, c.website, c.industry, c.city, c.state, c.country, c.phone, c.owner_id, u.name AS owner_name, c.created_by, c.is_archived, c.created_at, c.updated_at FROM companies c LEFT JOIN users u ON u.id = c.owner_id WHERE c.is_archived = true ORDER BY c.updated_at DESC;",
+        "query": "SELECT c.id, c.name, c.website, c.industry, c.city, c.state, c.country, c.phone, c.owner_id, u.name AS owner_name, u.color AS owner_color, c.created_by, c.is_archived, c.created_at, c.updated_at FROM companies c LEFT JOIN users u ON u.id = c.owner_id WHERE c.is_archived = true ORDER BY c.updated_at DESC;",
         "options": {}
       },
       "id": "c42d4407-312c-4003-bc26-2dac65abb722",

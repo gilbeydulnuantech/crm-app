@@ -2,6 +2,7 @@ import { Company } from '../../types/company';
 import { useContacts } from '../../hooks/useContacts';
 import { usePipelines, useStages, useOpportunities } from '../../hooks/useOpportunities';
 import { toTitleCase } from '../../utils/text';
+import { DEFAULT_USER_COLOR, hexToRgba } from '../../utils/userColor';
 
 const STATUS_COLORS: Record<string, string> = {
   New: 'bg-slate-100 text-slate-800',
@@ -88,7 +89,26 @@ export default function CompanyDetailModal({
                 label="Location"
                 value={[company.city, company.state, company.country].filter(Boolean).join(', ')}
               />
-              <DetailField label="Owner" value={company.owner_name} />
+              <div>
+                <label className="block text-[11px] font-medium text-slate-500 mb-1">Owner</label>
+                {company.owner_name ? (
+                  <span
+                    className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium rounded-full"
+                    style={{
+                      backgroundColor: hexToRgba(company.owner_color || DEFAULT_USER_COLOR, 0.14),
+                      color: company.owner_color || DEFAULT_USER_COLOR,
+                    }}
+                  >
+                    <span
+                      className="w-1.5 h-1.5 rounded-full"
+                      style={{ backgroundColor: company.owner_color || DEFAULT_USER_COLOR }}
+                    />
+                    {toTitleCase(company.owner_name)}
+                  </span>
+                ) : (
+                  <p className="text-sm text-slate-700">--</p>
+                )}
+              </div>
               <div>
                 <label className="block text-[11px] font-medium text-slate-500 mb-1">Status</label>
                 <span

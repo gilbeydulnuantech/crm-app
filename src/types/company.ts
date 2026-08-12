@@ -9,6 +9,7 @@ export interface Company {
   phone?: string;
   owner_id?: number | null;
   owner_name?: string; // joined from users in get-companies
+  owner_color?: string; // joined from users.color in get-companies
   created_by?: number | null;
   is_archived: boolean;
   created_at?: string;
