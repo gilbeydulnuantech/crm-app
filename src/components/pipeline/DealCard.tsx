@@ -2,6 +2,7 @@ import { useDraggable } from '@dnd-kit/core';
 import { Opportunity } from '../../types/opportunity';
 import { toTitleCase } from '../../utils/text';
 import { DEFAULT_USER_COLOR, hexToRgba } from '../../utils/userColor';
+import { getTagColorClasses } from '../../utils/tagColors';
 
 interface Props {
   opportunity: Opportunity;
@@ -101,6 +102,20 @@ export default function DealCard({ opportunity, onClick, canEdit }: Props) {
         {toTitleCase(opportunity.contact_name) || 'No Contact'}
         {opportunity.company_name && ` · ${opportunity.company_name}`}
       </div>
+
+      {/* Contact's own tags, so who this contact is stays visible on the card */}
+      {opportunity.contact_tags && opportunity.contact_tags.length > 0 && (
+        <div className="flex flex-wrap gap-1 mt-1">
+          {opportunity.contact_tags.map((t) => (
+            <span
+              key={t.id}
+              className={`px-1.5 py-0.5 text-[9px] font-medium rounded-full ${getTagColorClasses(t.name)}`}
+            >
+              {t.name}
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Expected Close Date */}
       {opportunity.expected_close && (

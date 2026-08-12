@@ -36,6 +36,11 @@ export interface Opportunity {
   // Reuses the generic taggables system (entity_type = 'opportunity') the
   // same way contacts already do — see get-opportunities' SQL.
   tags?: { id: number; name: string }[];
+  // The linked contact's own tags (entity_type = 'contact', keyed off
+  // contact_id) — joined separately from the deal's own `tags` above so
+  // deal cards can surface who this contact is without duplicating the
+  // opportunity taggables.
+  contact_tags?: { id: number; name: string }[];
 }
 
 export type PipelineViewMode = 'board' | 'list';
