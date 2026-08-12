@@ -26,10 +26,10 @@ const EMPTY_DASHBOARD: DashboardData = {
   recent_contacts: [],
 };
 
-export function useDashboard() {
+export function useDashboard(pipelineId?: number | null) {
   return useQuery({
-    queryKey: ['dashboard'],
-    queryFn: fetchDashboard,
+    queryKey: ['dashboard', pipelineId ?? null],
+    queryFn: () => fetchDashboard(pipelineId),
     // Dashboard is a "what's happening right now" view — refresh a bit more
     // eagerly than the app-wide default.
     refetchInterval: 30000,

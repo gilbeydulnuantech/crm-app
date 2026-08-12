@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   PieChart,
   Pie,
@@ -16,6 +17,7 @@ import {
 } from 'recharts';
 import { useAuth } from '../context/AuthContext';
 import { useDashboard } from '../hooks/useDashboard';
+import { usePipelines } from '../hooks/useOpportunities';
 import { toTitleCase } from '../utils/text';
 
 // Color theme
@@ -102,7 +104,9 @@ function Gauge({
 
 export default function Dashboard() {
   const { user, isAdmin } = useAuth();
-  const { data, isLoading, isError } = useDashboard();
+  const { data: pipelines = [] } = usePipelines();
+  const [pipelineId, setPipelineId] = useState<number | null>(null);
+  const { data, isLoading, isError } = useDashboard(pipelineId);
 
   const today = new Date().toLocaleDateString(undefined, {
     year: 'numeric',
@@ -125,6 +129,20 @@ export default function Dashboard() {
           Today: {today}
         </span>
       </div>
+
+      <select
+        value={pipelineId ?? ''}
+        onChange={(e) => setPipelineId(e.target.value ? Number(e.target.value) : null)}
+        className="text-sm font-medium px-3 py-1.5 rounded-lg border bg-white"
+        style={{ borderColor: '#E2E8F0', color: TEXT }}
+      >
+        <option value="">All Pipelines</option>
+        {pipelines.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.name}
+          </option>
+        ))}
+      </select>
 
       {isError && (
         <div className="p-3 text-sm rounded-lg bg-rose-50 text-rose-700 border border-rose-200">
