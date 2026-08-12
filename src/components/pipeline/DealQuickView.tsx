@@ -1,4 +1,5 @@
 import { ReactNode, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Opportunity, Stage } from '../../types/opportunity';
 import { useUpdateOpportunity } from '../../hooks/useOpportunities';
 import { useAddNote } from '../../hooks/useNotes';
@@ -25,11 +26,21 @@ function currency(n?: number | null) {
   return `$${n.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 }
 
-function Field({ label, value }: { label: string; value?: ReactNode }) {
+function Field({ label, value, onClick }: { label: string; value?: ReactNode; onClick?: () => void }) {
   return (
     <div>
       <label className="block text-[11px] font-medium text-slate-500 mb-0.5">{label}</label>
-      <p className="text-sm text-slate-700 truncate">{value || '--'}</p>
+      {value && onClick ? (
+        <button
+          type="button"
+          onClick={onClick}
+          className="text-sm text-indigo-600 hover:text-indigo-700 hover:underline truncate block text-left"
+        >
+          {value}
+        </button>
+      ) : (
+        <p className="text-sm text-slate-700 truncate">{value || '--'}</p>
+      )}
     </div>
   );
 }
@@ -45,6 +56,7 @@ export default function DealQuickView({
   // pipeline_id drives which ['opportunities', id] cache entry gets
   // invalidated after Mark Won/Lost — must match the mutation used
   // elsewhere for this same deal (DealDetailPanel, PipelineBoard).
+  const navigate = useNavigate();
   const updateOpportunity = useUpdateOpportunity(deal?.pipeline_id ?? undefined);
   const addNote = useAddNote('opportunity', deal?.id ?? null);
   const [showMarkLost, setShowMarkLost] = useState(false);
@@ -99,8 +111,30 @@ export default function DealQuickView({
           </div>
 
           <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-            <Field label="Contact" value={toTitleCase(deal.contact_name)} />
-            <Field label="Company" value={deal.company_name} />
+            <Field
+              label="Contact"
+              value={toTitleCase(deal.contact_name)}
+              onClick={
+                deal.contact_id
+                  ? () => {
+                      onClose();
+                      navigate(`/contacts?contactId=${deal.contact_id}`);
+                    }
+                  : undefined
+              }
+            />
+            <Field
+              label="Company"
+              value={deal.company_name}
+              onClick={
+                deal.account_id
+                  ? () => {
+                      onClose();
+                      navigate(`/companies?companyId=${deal.account_id}`);
+                    }
+                  : undefined
+              }
+            />
             <Field
               label="Owner"
               value={deal.assigned_user_name ? toTitleCase(deal.assigned_user_name) : undefined}

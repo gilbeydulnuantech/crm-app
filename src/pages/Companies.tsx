@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Company, CompaniesView } from '../types/company';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -24,6 +25,7 @@ const EMPTY_FILTERS: CompaniesFilterValue = { industry: '', owner: '', tag: '' }
 
 export default function Companies() {
   const { user, isAdmin } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [view, setView] = useState<CompaniesView>('all');
   const [search, setSearch] = useState('');
@@ -52,6 +54,21 @@ export default function Companies() {
     () => allContacts.find((c) => c.id === activeContactId) ?? null,
     [allContacts, activeContactId]
   );
+
+  // Deep link from other pages (e.g. a deal's quick view) — ?companyId=<id>
+  // opens that company's detail modal once the list has loaded, then clears
+  // the param so a refresh/back-nav doesn't keep reopening it. Mirrors
+  // Contacts.tsx's ?contactId= handling.
+  useEffect(() => {
+    const companyIdParam = searchParams.get('companyId');
+    if (!companyIdParam) return;
+    const id = Number(companyIdParam);
+    if (!allCompanies.some((c) => c.id === id)) return;
+    setActiveCompanyId(id);
+    const next = new URLSearchParams(searchParams);
+    next.delete('companyId');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, allCompanies, setSearchParams]);
 
   function changeView(next: CompaniesView) {
     setView(next);
