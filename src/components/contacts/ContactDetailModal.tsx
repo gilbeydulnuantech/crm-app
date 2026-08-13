@@ -134,13 +134,12 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
   }
 
   // Takes over the deal's real pipeline (it may not be the default one) and
-  // switches the board to it — deliberately leaves off `&deal=<id>` so the
-  // deal's side panel doesn't auto-open; it should only open when the user
-  // clicks the card.
-  function openPipelineView(dealPipelineId?: number | null) {
+  // switches the board to it, scrolling the specific card into view and
+  // ringing it for a few seconds (Pipeline.tsx's ?highlight= deep link).
+  function openPipelineView(dealId: number, dealPipelineId?: number | null) {
     onClose();
     const pid = dealPipelineId ?? defaultPipelineId;
-    navigate(`/pipeline?pipeline=${pid}`);
+    navigate(`/pipeline?pipeline=${pid}&highlight=${dealId}`);
   }
 
   return (
@@ -344,7 +343,7 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                                 </p>
                               )}
                               <button
-                                onClick={() => openPipelineView(d.pipeline_id)}
+                                onClick={() => openPipelineView(d.id, d.pipeline_id)}
                                 className="w-full mt-1.5 text-xs font-semibold text-indigo-600 border border-indigo-200 rounded-lg py-1.5 hover:bg-indigo-50"
                               >
                                 View Deal
