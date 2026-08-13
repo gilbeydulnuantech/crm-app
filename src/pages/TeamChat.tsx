@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useUsers } from '../hooks/useContacts';
 import {
@@ -12,6 +12,7 @@ import {
 import { Conversation } from '../types/chat';
 import { toTitleCase } from '../utils/text';
 import { DEFAULT_USER_COLOR } from '../utils/userColor';
+import { renderMessageBody } from '../utils/chatRefs';
 
 interface DmEntry {
   userId: number;
@@ -25,6 +26,7 @@ function formatTime(iso: string) {
 }
 
 export default function TeamChat() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { data: users = [] } = useUsers();
   const { data: conversations = [] } = useConversations();
@@ -251,7 +253,7 @@ export default function TeamChat() {
                             : 'bg-white text-slate-700 border border-slate-200 rounded-bl-sm'
                         }`}
                       >
-                        {m.body}
+                        {renderMessageBody(m.body, navigate, isMine ? 'text-white' : 'text-indigo-600')}
                       </div>
                     </div>
                   );

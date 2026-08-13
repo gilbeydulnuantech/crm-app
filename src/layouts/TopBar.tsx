@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { toTitleCase } from '../utils/text';
 import { useUnreadEmailContacts } from '../hooks/useContacts';
 import { useConversations } from '../hooks/useChat';
+import { stripRefTokens } from '../utils/chatRefs';
 
 export default function TopBar() {
   const { user } = useAuth();
@@ -111,7 +112,9 @@ export default function TopBar() {
                             </span>
                           </div>
                           {c.last_message_body && (
-                            <div className="text-[11px] text-slate-500 truncate">{c.last_message_body}</div>
+                            <div className="text-[11px] text-slate-500 truncate">
+                              {stripRefTokens(c.last_message_body)}
+                            </div>
                           )}
                         </div>
                       </button>

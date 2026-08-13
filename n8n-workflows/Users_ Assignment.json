@@ -313,7 +313,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const payload = $('Validate Admin & Payload').first().json;\nconst requesterId = $('Parse Requester Token').first().json.requesterId;\nconst contact = $('Update Contact Owner').first().json;\nconst ownerId = payload.ownerId;\n// Only notify when the deal is actually handed to someone else \u2014 not on\n// unassign (ownerId null) or an admin assigning themselves.\nconst notify = !!ownerId && ownerId !== requesterId;\nconst dmKey = notify ? [requesterId, ownerId].sort((a, b) => a - b).join('-') : null;\nconst contactName = `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'a contact';\nreturn [{ json: { notify, dmKey, requesterId, ownerId, contactName } }];"
+        "jsCode": "const payload = $('Validate Admin & Payload').first().json;\nconst requesterId = $('Parse Requester Token').first().json.requesterId;\nconst contact = $('Update Contact Owner').first().json;\nconst ownerId = payload.ownerId;\n// Only notify when the deal is actually handed to someone else \u2014 not on\n// unassign (ownerId null) or an admin assigning themselves.\nconst notify = !!ownerId && ownerId !== requesterId;\nconst dmKey = notify ? [requesterId, ownerId].sort((a, b) => a - b).join('-') : null;\nconst contactName = `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'a contact';\nreturn [{ json: { notify, dmKey, requesterId, ownerId, contactId: payload.contactId, contactName } }];"
       },
       "id": "b79cdc74-b54a-433e-b224-5830cb47c6bb",
       "name": "Prepare Owner Notice: assign-contact-owner",
@@ -431,7 +431,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO messages (conversation_id, sender_id, body) VALUES ($1, $2, $3);",
         "options": {
-          "queryReplacement": "={{ [ $('Postgres: Get DM Id (assign-contact-owner)').first().json.id, $('Prepare Owner Notice: assign-contact-owner').first().json.requesterId, 'You\\'ve been assigned as the owner of contact \"' + $('Prepare Owner Notice: assign-contact-owner').first().json.contactName + '\".' ] }}"
+          "queryReplacement": "={{ [ $('Postgres: Get DM Id (assign-contact-owner)').first().json.id, $('Prepare Owner Notice: assign-contact-owner').first().json.requesterId, 'You\\'ve been assigned as the owner of contact \"[[ref:contact:' + $('Prepare Owner Notice: assign-contact-owner').first().json.contactId + ':-:' + $('Prepare Owner Notice: assign-contact-owner').first().json.contactName + ']]\".' ] }}"
         }
       },
       "id": "fece806c-863f-4b12-a038-17f473f66d5a",

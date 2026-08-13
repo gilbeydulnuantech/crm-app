@@ -532,7 +532,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const requesterId = $('Parse Token: update-companies').first().json.requesterId;\nconst before = $('Postgres: Capture Before Owner: update-companies').first().json;\nconst after = $('Postgres: Update Company').first().json;\nconst oldOwnerId = before ? before.owner_id : null;\nconst newOwnerId = after.owner_id;\n// Only notify on an actual reassignment to someone else \u2014 not a\n// no-op resave of the same owner, and not an admin assigning themselves.\nconst notify = !!newOwnerId && newOwnerId !== oldOwnerId && newOwnerId !== requesterId;\nconst dmKey = notify ? [requesterId, newOwnerId].sort((a, b) => a - b).join('-') : null;\nreturn [{ json: { notify, dmKey, requesterId, ownerId: newOwnerId, companyName: after.name || 'a company' } }];"
+        "jsCode": "const requesterId = $('Parse Token: update-companies').first().json.requesterId;\nconst before = $('Postgres: Capture Before Owner: update-companies').first().json;\nconst after = $('Postgres: Update Company').first().json;\nconst oldOwnerId = before ? before.owner_id : null;\nconst newOwnerId = after.owner_id;\n// Only notify on an actual reassignment to someone else \u2014 not a\n// no-op resave of the same owner, and not an admin assigning themselves.\nconst notify = !!newOwnerId && newOwnerId !== oldOwnerId && newOwnerId !== requesterId;\nconst dmKey = notify ? [requesterId, newOwnerId].sort((a, b) => a - b).join('-') : null;\nreturn [{ json: { notify, dmKey, requesterId, ownerId: newOwnerId, companyId: after.id, companyName: after.name || 'a company' } }];"
       },
       "id": "c524fd2e-bcbf-4821-b4cf-5bf995e8690a",
       "name": "Prepare Owner Notice: update-companies",
@@ -650,7 +650,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO messages (conversation_id, sender_id, body) VALUES ($1, $2, $3);",
         "options": {
-          "queryReplacement": "={{ [ $('Postgres: Get DM Id (update-companies)').first().json.id, $('Prepare Owner Notice: update-companies').first().json.requesterId, 'You\\'ve been assigned as the owner of company \"' + $('Prepare Owner Notice: update-companies').first().json.companyName + '\".' ] }}"
+          "queryReplacement": "={{ [ $('Postgres: Get DM Id (update-companies)').first().json.id, $('Prepare Owner Notice: update-companies').first().json.requesterId, 'You\\'ve been assigned as the owner of company \"[[ref:company:' + $('Prepare Owner Notice: update-companies').first().json.companyId + ':-:' + $('Prepare Owner Notice: update-companies').first().json.companyName + ']]\".' ] }}"
         }
       },
       "id": "bd153ba2-c1f3-43f4-8251-164ec9f4d386",
