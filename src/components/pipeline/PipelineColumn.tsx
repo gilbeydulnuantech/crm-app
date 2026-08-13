@@ -4,9 +4,19 @@ import DealCard from './DealCard';
 
 interface Props {
   stage: Stage;
+  stages: Stage[];
   opportunities: Opportunity[];
   onCardClick: (opportunity: Opportunity) => void;
+  onEditDeal: (opportunity: Opportunity) => void;
+  onAddNote: (opportunity: Opportunity) => void;
+  onCreateTask: (opportunity: Opportunity) => void;
+  onMoveStage: (opportunity: Opportunity, stageId: number) => void;
+  onMarkWon: (opportunity: Opportunity) => void;
+  onMarkLost: (opportunity: Opportunity) => void;
+  onArchive: (opportunity: Opportunity) => void;
+  onDelete: (opportunity: Opportunity) => void;
   canEditDeal: (opportunity: Opportunity) => boolean;
+  isAdmin: boolean;
   highlightDealId?: number | null;
 }
 
@@ -21,7 +31,23 @@ const currency = (n: number) =>
 const CLOSED_WON = /won/i;
 const CLOSED_LOST = /lost/i;
 
-export default function PipelineColumn({ stage, opportunities, onCardClick, canEditDeal, highlightDealId }: Props) {
+export default function PipelineColumn({
+  stage,
+  stages,
+  opportunities,
+  onCardClick,
+  onEditDeal,
+  onAddNote,
+  onCreateTask,
+  onMoveStage,
+  onMarkWon,
+  onMarkLost,
+  onArchive,
+  onDelete,
+  canEditDeal,
+  isAdmin,
+  highlightDealId,
+}: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
 
   const isWon = CLOSED_WON.test(stage.name);
@@ -35,7 +61,7 @@ export default function PipelineColumn({ stage, opportunities, onCardClick, canE
     : isLost
       ? 'bg-rose-50 border-rose-100'
       : 'bg-slate-50 border-slate-200';
-      
+
   const headerClasses = isWon
     ? 'border-emerald-100 text-emerald-700'
     : isLost
@@ -64,8 +90,18 @@ export default function PipelineColumn({ stage, opportunities, onCardClick, canE
           <DealCard
             key={o.id}
             opportunity={o}
+            stages={stages}
             onClick={() => onCardClick(o)}
+            onEdit={() => onEditDeal(o)}
+            onAddNote={() => onAddNote(o)}
+            onCreateTask={() => onCreateTask(o)}
+            onMoveStage={(stageId) => onMoveStage(o, stageId)}
+            onMarkWon={() => onMarkWon(o)}
+            onMarkLost={() => onMarkLost(o)}
+            onArchive={() => onArchive(o)}
+            onDelete={() => onDelete(o)}
             canEdit={canEditDeal(o)}
+            isAdmin={isAdmin}
             highlighted={o.id === highlightDealId}
           />
         ))}

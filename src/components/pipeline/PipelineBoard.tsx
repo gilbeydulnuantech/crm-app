@@ -7,7 +7,15 @@ interface Props {
   opportunities: Opportunity[];
   onCardClick: (opportunity: Opportunity) => void;
   onMoveStage: (opportunityId: number, stageId: number) => void;
+  onEditDeal: (opportunity: Opportunity) => void;
+  onAddNote: (opportunity: Opportunity) => void;
+  onCreateTask: (opportunity: Opportunity) => void;
+  onMarkWon: (opportunity: Opportunity) => void;
+  onMarkLost: (opportunity: Opportunity) => void;
+  onArchive: (opportunity: Opportunity) => void;
+  onDelete: (opportunity: Opportunity) => void;
   canEditDeal: (opportunity: Opportunity) => boolean;
+  isAdmin: boolean;
   highlightDealId?: number | null;
 }
 
@@ -16,7 +24,15 @@ export default function PipelineBoard({
   opportunities,
   onCardClick,
   onMoveStage,
+  onEditDeal,
+  onAddNote,
+  onCreateTask,
+  onMarkWon,
+  onMarkLost,
+  onArchive,
+  onDelete,
   canEditDeal,
+  isAdmin,
   highlightDealId,
 }: Props) {
   const sensors = useSensors(
@@ -44,9 +60,19 @@ export default function PipelineBoard({
             <PipelineColumn
               key={stage.id}
               stage={stage}
+              stages={stages}
               opportunities={opportunities.filter((o) => o.stage_id === stage.id)}
               onCardClick={onCardClick}
+              onEditDeal={onEditDeal}
+              onAddNote={onAddNote}
+              onCreateTask={onCreateTask}
+              onMoveStage={(o, stageId) => onMoveStage(o.id, stageId)}
+              onMarkWon={onMarkWon}
+              onMarkLost={onMarkLost}
+              onArchive={onArchive}
+              onDelete={onDelete}
               canEditDeal={canEditDeal}
+              isAdmin={isAdmin}
               highlightDealId={highlightDealId}
             />
           ))}

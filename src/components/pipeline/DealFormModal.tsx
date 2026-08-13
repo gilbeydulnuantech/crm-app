@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Opportunity } from '../../types/opportunity';
+import { DEAL_PRIORITIES, DEAL_SOURCES, DealPriority, Opportunity } from '../../types/opportunity';
 import { useAddOpportunity, useUpdateOpportunity, usePipelines, useStages } from '../../hooks/useOpportunities';
 import { useContacts, useUsers } from '../../hooks/useContacts';
 import { toTitleCase } from '../../utils/text';
@@ -30,7 +30,21 @@ const EMPTY = {
   assigned_user: '',
   expected_close: '',
   probability: '',
+  description: '',
+  source: '',
+  priority: '' as DealPriority | '',
 };
+
+function formatDate(value?: string | null) {
+  if (!value) return null;
+  return new Date(value).toLocaleDateString(undefined, { month: 'short', day: '2-digit', year: 'numeric' });
+}
+
+function SectionHeader({ children }: { children: string }) {
+  return (
+    <h4 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider pt-1">{children}</h4>
+  );
+}
 
 export default function DealFormModal({
   open,
@@ -84,6 +98,9 @@ export default function DealFormModal({
         assigned_user: opportunity.assigned_user ? String(opportunity.assigned_user) : '',
         expected_close: opportunity.expected_close?.slice(0, 10) ?? '',
         probability: opportunity.probability != null ? String(opportunity.probability) : '',
+        description: opportunity.description ?? '',
+        source: opportunity.source ?? '',
+        priority: opportunity.priority ?? '',
       });
       setError(null);
       return;
@@ -115,7 +132,7 @@ export default function DealFormModal({
 
   if (!open) return null;
 
-  function update<K extends keyof typeof EMPTY>(key: K, value: string) {
+  function update<K extends keyof typeof EMPTY>(key: K, value: (typeof EMPTY)[K]) {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
@@ -165,6 +182,9 @@ export default function DealFormModal({
       assigned_user: form.assigned_user ? Number(form.assigned_user) : null,
       expected_close: form.expected_close || null,
       probability: form.probability ? Number(form.probability) : 0,
+      description: form.description || null,
+      source: form.source || null,
+      priority: form.priority || null,
     };
 
     // A deal can be created/moved under a different pipeline than the one
@@ -195,6 +215,9 @@ export default function DealFormModal({
     }
   }
 
+  const inputClass =
+    'w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500';
+
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
@@ -205,21 +228,103 @@ export default function DealFormModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Deal Name</label>
-            <input
-              required
-              value={form.name}
-              onChange={(e) => update('name', e.target.value)}
-              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-3">
+            <SectionHeader>Deal Information</SectionHeader>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Deal Name *</label>
+              <input
+                required
+                value={form.name}
+                onChange={(e) => update('name', e.target.value)}
+                className={inputClass}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Pipeline *</label>
+                <select
+                  required
+                  value={form.pipeline_id}
+                  onChange={(e) => handlePipelineChange(e.target.value)}
+                  className={inputClass}
+                >
+                  <option value="">--</option>
+                  {pipelines.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Stage *</label>
+                <select
+                  required
+                  value={form.stage_id}
+                  onChange={(e) => handleStageChange(e.target.value)}
+                  disabled={!form.pipeline_id}
+                  className={`${inputClass} disabled:bg-slate-50 disabled:text-slate-400`}
+                >
+                  <option value="">--</option>
+                  {sortedStages.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Deal Value *</label>
+                <input
+                  required
+                  type="number"
+                  value={form.deal_value}
+                  onChange={(e) => update('deal_value', e.target.value)}
+                  className={inputClass}
+                  placeholder="$"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Expected Close Date</label>
+                <input
+                  type="date"
+                  value={form.expected_close}
+                  onChange={(e) => update('expected_close', e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Owner *</label>
+              <select
+                required
+                value={form.assigned_user}
+                onChange={(e) => update('assigned_user', e.target.value)}
+                className={inputClass}
+              >
+                <option value="">Unassigned</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {toTitleCase(u.name)}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-3 pt-3 border-t border-slate-100">
+            <SectionHeader>Contact & Company</SectionHeader>
+
             {isContactLocked ? (
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Contact</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Contact *</label>
                 <div className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg bg-slate-50 text-slate-700 truncate">
                   {toTitleCase(form.contact_name) || '--'}
                 </div>
@@ -244,91 +349,46 @@ export default function DealFormModal({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Pipeline</label>
-              <select
-                required
-                value={form.pipeline_id}
-                onChange={(e) => handlePipelineChange(e.target.value)}
-                className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="">--</option>
-                {pipelines.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Stage</label>
-              <select
-                required
-                value={form.stage_id}
-                onChange={(e) => handleStageChange(e.target.value)}
-                disabled={!form.pipeline_id}
-                className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-400"
-              >
-                <option value="">--</option>
-                {sortedStages.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+          <div className="space-y-3 pt-3 border-t border-slate-100">
+            <SectionHeader>Details</SectionHeader>
 
-          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Deal Value</label>
-              <input
-                type="number"
-                value={form.deal_value}
-                onChange={(e) => update('deal_value', e.target.value)}
-                className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="$"
+              <label className="block text-xs font-medium text-slate-600 mb-1">Description</label>
+              <textarea
+                value={form.description}
+                onChange={(e) => update('description', e.target.value)}
+                rows={3}
+                className={`${inputClass} resize-none`}
               />
             </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Owner</label>
-              <select
-                value={form.assigned_user}
-                onChange={(e) => update('assigned_user', e.target.value)}
-                className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="">Unassigned</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {toTitleCase(u.name)}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Expected Close</label>
-              <input
-                type="date"
-                value={form.expected_close}
-                onChange={(e) => update('expected_close', e.target.value)}
-                className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Win Probability (%)</label>
-              <input
-                type="number"
-                min={0}
-                max={100}
-                value={form.probability}
-                onChange={(e) => update('probability', e.target.value)}
-                className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="Auto from stage"
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Source</label>
+                <select value={form.source} onChange={(e) => update('source', e.target.value)} className={inputClass}>
+                  <option value="">--</option>
+                  {DEAL_SOURCES.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Priority</label>
+                <select
+                  value={form.priority}
+                  onChange={(e) => update('priority', e.target.value as DealPriority | '')}
+                  className={inputClass}
+                >
+                  <option value="">--</option>
+                  {DEAL_PRIORITIES.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
 
@@ -338,21 +398,31 @@ export default function DealFormModal({
             </div>
           )}
 
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-lg"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="px-4 py-2 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white rounded-lg"
-            >
-              {isSaving ? 'Saving...' : isEdit ? 'Save Changes' : 'Add Deal'}
-            </button>
+          <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-100">
+            {isEdit && opportunity ? (
+              <div className="text-[11px] text-slate-400 space-y-0.5">
+                {opportunity.created_at && <div>Created: {formatDate(opportunity.created_at)}</div>}
+                {opportunity.updated_at && <div>Last Updated: {formatDate(opportunity.updated_at)}</div>}
+              </div>
+            ) : (
+              <span />
+            )}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSaving}
+                className="px-4 py-2 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white rounded-lg"
+              >
+                {isSaving ? 'Saving...' : isEdit ? 'Save Changes' : 'Add Deal'}
+              </button>
+            </div>
           </div>
         </form>
       </div>

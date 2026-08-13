@@ -13,6 +13,7 @@ interface Props {
   open: boolean;
   task: Task | null; // null = add mode
   defaultContactId?: number;
+  defaultOpportunity?: Opportunity | null;
   onClose: () => void;
 }
 
@@ -42,7 +43,7 @@ function combineDateTime(date: string, time: string): string | null {
   return new Date(`${date}T${time || '09:00'}`).toISOString();
 }
 
-export default function TaskFormModal({ open, task, defaultContactId, onClose }: Props) {
+export default function TaskFormModal({ open, task, defaultContactId, defaultOpportunity, onClose }: Props) {
   const { user } = useAuth();
   const { data: users = [] } = useUsers();
   const { data: contacts = [] } = useContacts();
@@ -77,6 +78,16 @@ export default function TaskFormModal({ open, task, defaultContactId, onClose }:
         task_type: task.task_type ?? '',
         opportunity_id: task.opportunity_id ? String(task.opportunity_id) : '',
       });
+    } else if (defaultOpportunity) {
+      setForm({
+        ...EMPTY,
+        contact_id: defaultOpportunity.contact_id ? String(defaultOpportunity.contact_id) : '',
+        contact_name: defaultOpportunity.contact_name ?? '',
+        company_name: defaultOpportunity.company_name ?? '',
+        opportunity_id: String(defaultOpportunity.id),
+        assigned_user: defaultOpportunity.assigned_user ? String(defaultOpportunity.assigned_user) : user ? String(user.id) : '',
+        date: toDateInput(new Date().toISOString()),
+      });
     } else {
       const defaultContact = defaultContactId ? contacts.find((c) => c.id === defaultContactId) : undefined;
       setForm({
@@ -91,7 +102,7 @@ export default function TaskFormModal({ open, task, defaultContactId, onClose }:
     setError(null);
     setSendReminder(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [task, open, defaultContactId, user]);
+  }, [task, open, defaultContactId, defaultOpportunity, user]);
 
   const contactDeals = useMemo(
     () => (form.contact_id ? allDeals.filter((d) => d.contact_id === Number(form.contact_id)) : []),

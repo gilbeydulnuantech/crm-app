@@ -3,12 +3,15 @@ import { useSearchParams } from 'react-router-dom';
 import { Opportunity, PipelineViewMode } from '../types/opportunity';
 import { NewPipelineResult } from '../api/opportunities';
 import {
+  useDeleteOpportunities,
   useMoveOpportunityStage,
   useOpportunities,
   usePipelines,
   useStages,
+  useUpdateOpportunity,
 } from '../hooks/useOpportunities';
 import { useTags, useUsers } from '../hooks/useContacts';
+import { useAddNote } from '../hooks/useNotes';
 import { useAuth } from '../context/AuthContext';
 import PipelineStatsBar from '../components/pipeline/PipelineStatsBar';
 import PipelineBoard from '../components/pipeline/PipelineBoard';
@@ -22,6 +25,9 @@ import PipelineFilterPanel, {
 import DealFormModal from '../components/pipeline/DealFormModal';
 import DealDetailPanel from '../components/pipeline/DealDetailPanel';
 import DealQuickView from '../components/pipeline/DealQuickView';
+import AddDealNoteModal from '../components/pipeline/AddDealNoteModal';
+import MarkLostModal from '../components/pipeline/MarkLostModal';
+import TaskFormModal from '../components/tasks/TaskFormModal';
 import SearchToolbar from '../components/SearchToolbar';
 
 function dateRangeForPreset(filters: DealFilters): [Date, Date] | null {
@@ -102,6 +108,9 @@ export default function Pipeline() {
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState<DealFilters>(EMPTY_DEAL_FILTERS);
   const [toast, setToast] = useState<string | null>(null);
+  const [noteDeal, setNoteDeal] = useState<Opportunity | null>(null);
+  const [taskDeal, setTaskDeal] = useState<Opportunity | null>(null);
+  const [lostDeal, setLostDeal] = useState<Opportunity | null>(null);
 
   // Keeps ?pipeline= in sync so the current board is bookmarkable/refreshable.
   function setPipelineId(id: number) {
@@ -160,6 +169,9 @@ export default function Pipeline() {
   }, [highlightDealId]);
 
   const moveStage = useMoveOpportunityStage(pipelineId);
+  const updateOpportunity = useUpdateOpportunity(pipelineId);
+  const deleteOpportunities = useDeleteOpportunities(pipelineId);
+  const addLostDealNote = useAddNote('opportunity', lostDeal?.id ?? null);
 
   const visibleOpportunities = useMemo(() => {
     let list = opportunities;
@@ -192,6 +204,34 @@ export default function Pipeline() {
 
   function handleMoveStage(opportunityId: number, stageId: number) {
     moveStage.mutate({ id: opportunityId, stage_id: stageId });
+  }
+
+  function handleMarkWon(opportunity: Opportunity) {
+    updateOpportunity.mutate({
+      id: opportunity.id,
+      payload: { status: 'Won', closed_at: new Date().toISOString() },
+    });
+  }
+
+  function handleConfirmMarkLost(reason: string, note: string) {
+    if (!lostDeal) return;
+    updateOpportunity.mutate({
+      id: lostDeal.id,
+      payload: { status: 'Lost', closed_at: new Date().toISOString(), lost_reason: reason },
+    });
+    if (note) {
+      addLostDealNote.mutate({ body: note, requesterId: user?.id });
+    }
+    setLostDeal(null);
+  }
+
+  function handleArchive(opportunity: Opportunity) {
+    setToast(`Archiving "${opportunity.name}" isn't available yet.`);
+  }
+
+  function handleDelete(opportunity: Opportunity) {
+    if (!confirm(`Delete "${opportunity.name}"? This cannot be undone.`)) return;
+    deleteOpportunities.mutate([opportunity.id]);
   }
 
   // View All, Edit Owned Only: standard users can see every deal but only
@@ -275,7 +315,15 @@ export default function Pipeline() {
           opportunities={visibleOpportunities}
           onCardClick={setQuickViewDeal}
           onMoveStage={handleMoveStage}
+          onEditDeal={openEditModal}
+          onAddNote={setNoteDeal}
+          onCreateTask={setTaskDeal}
+          onMarkWon={handleMarkWon}
+          onMarkLost={setLostDeal}
+          onArchive={handleArchive}
+          onDelete={handleDelete}
           canEditDeal={canEditDeal}
+          isAdmin={isAdmin}
           highlightDealId={highlightDealId}
         />
       ) : (
@@ -327,6 +375,25 @@ export default function Pipeline() {
         tags={tags}
         onChange={setFilters}
         onClose={() => setFilterPanelOpen(false)}
+      />
+
+      {noteDeal && (
+        <AddDealNoteModal opportunityId={noteDeal.id} dealName={noteDeal.name} onClose={() => setNoteDeal(null)} />
+      )}
+
+      <TaskFormModal
+        open={!!taskDeal}
+        task={null}
+        defaultOpportunity={taskDeal}
+        onClose={() => setTaskDeal(null)}
+      />
+
+      <MarkLostModal
+        open={!!lostDeal}
+        dealName={lostDeal?.name}
+        onConfirm={handleConfirmMarkLost}
+        onCancel={() => setLostDeal(null)}
+        isSubmitting={updateOpportunity.isPending}
       />
 
       {toast && (
