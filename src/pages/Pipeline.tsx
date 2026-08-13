@@ -12,6 +12,7 @@ import {
 } from '../hooks/useOpportunities';
 import { useTags, useUsers } from '../hooks/useContacts';
 import { useAddNote } from '../hooks/useNotes';
+import { useAddTask } from '../hooks/useTasks';
 import { useAuth } from '../context/AuthContext';
 import PipelineStatsBar from '../components/pipeline/PipelineStatsBar';
 import PipelineBoard from '../components/pipeline/PipelineBoard';
@@ -24,10 +25,13 @@ import PipelineFilterPanel, {
 } from '../components/pipeline/PipelineFilterPanel';
 import DealFormModal from '../components/pipeline/DealFormModal';
 import DealQuickView from '../components/pipeline/DealQuickView';
+import DealDetailModal from '../components/pipeline/DealDetailModal';
 import AddDealNoteModal from '../components/pipeline/AddDealNoteModal';
-import MarkLostModal from '../components/pipeline/MarkLostModal';
+import MarkLostModal, { MarkLostResult } from '../components/pipeline/MarkLostModal';
 import TaskFormModal from '../components/tasks/TaskFormModal';
 import SearchToolbar from '../components/SearchToolbar';
+
+const CLOSED_LOST_STAGE = /lost/i;
 
 function dateRangeForPreset(filters: DealFilters): [Date, Date] | null {
   const now = new Date();
@@ -102,6 +106,7 @@ export default function Pipeline() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingOpportunity, setEditingOpportunity] = useState<Opportunity | null>(null);
   const [quickViewDeal, setQuickViewDeal] = useState<Opportunity | null>(null);
+  const [detailDeal, setDetailDeal] = useState<Opportunity | null>(null);
   const [highlightDealId, setHighlightDealId] = useState<number | null>(null);
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState<DealFilters>(EMPTY_DEAL_FILTERS);
@@ -170,6 +175,7 @@ export default function Pipeline() {
   const updateOpportunity = useUpdateOpportunity(pipelineId);
   const deleteOpportunities = useDeleteOpportunities(pipelineId);
   const addLostDealNote = useAddNote('opportunity', lostDeal?.id ?? null);
+  const addTask = useAddTask();
 
   const visibleOpportunities = useMemo(() => {
     let list = opportunities;
@@ -210,15 +216,41 @@ export default function Pipeline() {
     });
   }
 
-  function handleConfirmMarkLost(reason: string, note: string) {
+  function handleConfirmMarkLost({ reason, competitor, details, followUp }: MarkLostResult) {
     if (!lostDeal) return;
+
+    // Best-effort — only re-homes the deal onto a "Closed Lost"-ish stage if
+    // its pipeline actually has one; status/probability are authoritative
+    // either way.
+    const lostStage = stages.find((s) => CLOSED_LOST_STAGE.test(s.name));
+
     updateOpportunity.mutate({
       id: lostDeal.id,
-      payload: { status: 'Lost', closed_at: new Date().toISOString(), lost_reason: reason },
+      payload: {
+        status: 'Lost',
+        closed_at: new Date().toISOString(),
+        lost_reason: reason,
+        probability: 0,
+        ...(lostStage ? { stage_id: lostStage.id } : {}),
+      },
     });
-    if (note) {
-      addLostDealNote.mutate({ body: note, requesterId: user?.id });
+
+    const noteBody = [competitor && `Competitor: ${competitor}`, details].filter(Boolean).join('\n');
+    if (noteBody) {
+      addLostDealNote.mutate({ body: noteBody, requesterId: user?.id });
     }
+
+    if (followUp) {
+      addTask.mutate({
+        subject: `Re-engage: ${lostDeal.name}`,
+        contact_id: lostDeal.contact_id,
+        opportunity_id: lostDeal.id,
+        user_id: followUp.assignedUserId,
+        due_at: new Date(`${followUp.date}T09:00`).toISOString(),
+        task_type: 'Follow-up',
+      });
+    }
+
     setLostDeal(null);
   }
 
@@ -311,6 +343,7 @@ export default function Pipeline() {
           stages={stages}
           opportunities={visibleOpportunities}
           onCardClick={setQuickViewDeal}
+          onViewDetails={setDetailDeal}
           onMoveStage={handleMoveStage}
           onEditDeal={openEditModal}
           onAddNote={setNoteDeal}
@@ -343,13 +376,39 @@ export default function Pipeline() {
 
       <DealQuickView
         deal={quickViewDeal}
-        stagesById={stagesById}
+        stages={stages}
         isAdmin={isAdmin}
         currentUserId={user?.id}
         onClose={() => setQuickViewDeal(null)}
         onEdit={(deal) => {
           setQuickViewDeal(null);
           openEditModal(deal);
+        }}
+        onMarkWon={handleMarkWon}
+        onMarkLost={(deal) => {
+          setQuickViewDeal(null);
+          setLostDeal(deal);
+        }}
+        onOpenFullDetails={(deal) => {
+          setQuickViewDeal(null);
+          setDetailDeal(deal);
+        }}
+      />
+
+      <DealDetailModal
+        deal={detailDeal}
+        stagesById={stagesById}
+        isAdmin={isAdmin}
+        currentUserId={user?.id}
+        onClose={() => setDetailDeal(null)}
+        onEdit={(deal) => {
+          setDetailDeal(null);
+          openEditModal(deal);
+        }}
+        onMarkWon={handleMarkWon}
+        onMarkLost={(deal) => {
+          setDetailDeal(null);
+          setLostDeal(deal);
         }}
       />
 
@@ -376,6 +435,7 @@ export default function Pipeline() {
       <MarkLostModal
         open={!!lostDeal}
         dealName={lostDeal?.name}
+        dealValue={lostDeal?.deal_value}
         onConfirm={handleConfirmMarkLost}
         onCancel={() => setLostDeal(null)}
         isSubmitting={updateOpportunity.isPending}

@@ -9,6 +9,7 @@ interface Props {
   opportunity: Opportunity;
   stages: Stage[];
   onClick: () => void;
+  onViewDetails: () => void;
   onEdit: () => void;
   onAddNote: () => void;
   onCreateTask: () => void;
@@ -43,6 +44,7 @@ export default function DealCard({
   opportunity,
   stages,
   onClick,
+  onViewDetails,
   onEdit,
   onAddNote,
   onCreateTask,
@@ -120,7 +122,7 @@ export default function DealCard({
           stages={stages}
           canEdit={canEdit}
           isAdmin={isAdmin}
-          onViewDetails={onClick}
+          onViewDetails={onViewDetails}
           onEdit={onEdit}
           onAddNote={onAddNote}
           onCreateTask={onCreateTask}

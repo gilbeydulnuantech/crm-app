@@ -103,3 +103,29 @@ export function deleteOpportunities(ids: number[]) {
     body: JSON.stringify({ ids }),
   });
 }
+
+// Reuses the same generic tag-entity/untag-entity endpoints contacts use
+// (see api/contacts.ts tagContact/untagContact) — entity_type is just a
+// passthrough param on the backend, and get-opportunities already joins
+// opportunity taggables into `tags`.
+export async function tagOpportunity(opportunityId: number, tagId: number) {
+  const result = await apiFetch<{ success?: boolean; error?: string }>('/webhook/tag-entity', {
+    method: 'POST',
+    body: JSON.stringify({ entity_type: 'opportunity', entity_id: opportunityId, tag_id: tagId }),
+  });
+  if (result?.success === false) {
+    throw new Error(result.error || 'tag-entity returned success: false');
+  }
+  return result;
+}
+
+export async function untagOpportunity(opportunityId: number, tagId: number) {
+  const result = await apiFetch<{ success?: boolean; error?: string }>('/webhook/untag-entity', {
+    method: 'POST',
+    body: JSON.stringify({ entity_type: 'opportunity', entity_id: opportunityId, tag_id: tagId }),
+  });
+  if (result?.success === false) {
+    throw new Error(result.error || 'untag-entity returned success: false');
+  }
+  return result;
+}

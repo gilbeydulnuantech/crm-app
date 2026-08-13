@@ -6,6 +6,7 @@ interface Props {
   stages: Stage[];
   opportunities: Opportunity[];
   onCardClick: (opportunity: Opportunity) => void;
+  onViewDetails: (opportunity: Opportunity) => void;
   onMoveStage: (opportunityId: number, stageId: number) => void;
   onEditDeal: (opportunity: Opportunity) => void;
   onAddNote: (opportunity: Opportunity) => void;
@@ -23,6 +24,7 @@ export default function PipelineBoard({
   stages,
   opportunities,
   onCardClick,
+  onViewDetails,
   onMoveStage,
   onEditDeal,
   onAddNote,
@@ -63,6 +65,7 @@ export default function PipelineBoard({
               stages={stages}
               opportunities={opportunities.filter((o) => o.stage_id === stage.id)}
               onCardClick={onCardClick}
+              onViewDetails={onViewDetails}
               onEditDeal={onEditDeal}
               onAddNote={onAddNote}
               onCreateTask={onCreateTask}

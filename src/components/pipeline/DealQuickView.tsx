@@ -1,149 +1,181 @@
-import { ReactNode, useState } from 'react';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Opportunity, Stage } from '../../types/opportunity';
-import { useUpdateOpportunity, usePipelines } from '../../hooks/useOpportunities';
-import { useAddNote } from '../../hooks/useNotes';
-import { useContacts } from '../../hooks/useContacts';
+import { useUpdateOpportunity } from '../../hooks/useOpportunities';
+import { useTasks } from '../../hooks/useTasks';
+import { useNotes } from '../../hooks/useNotes';
 import { toTitleCase } from '../../utils/text';
-import MarkLostModal from './MarkLostModal';
+import DealTagsInline from './DealTagsInline';
 
 interface Props {
   deal: Opportunity | null;
-  stagesById: Map<number, Stage>;
+  stages: Stage[];
   isAdmin: boolean;
   currentUserId?: number;
   onClose: () => void;
   onEdit: (deal: Opportunity) => void;
+  onMarkWon: (deal: Opportunity) => void;
+  onMarkLost: (deal: Opportunity) => void;
+  onOpenFullDetails: (deal: Opportunity) => void;
 }
 
-const STATUS_DOT: Record<string, string> = {
-  Open: 'bg-blue-500',
-  Won: 'bg-emerald-500',
-  Lost: 'bg-rose-500',
-};
-
-function currency(n?: number | null) {
-  if (n === undefined || n === null) return '--';
-  return `$${n.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+function currency(val?: number | string | null) {
+  if (val === undefined || val === null || val === '') return '--';
+  const n = Number(val);
+  if (isNaN(n)) return '--';
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+  }).format(n);
 }
 
 function formatDate(value?: string | null) {
-  if (!value) return '--';
+  if (!value) return null;
   return new Date(value).toLocaleDateString(undefined, { month: 'short', day: '2-digit', year: 'numeric' });
 }
 
-function InfoRow({ label, value }: { label: string; value?: ReactNode }) {
+function RecordLine({ label, value, onClick }: { label: string; value?: string; onClick?: () => void }) {
   return (
-    <div className="flex items-center justify-between py-1 text-sm">
-      <span className="text-slate-500">{label}</span>
-      <span className="text-slate-800 font-medium truncate max-w-[60%] text-right">{value ?? '--'}</span>
+    <div className="flex items-baseline gap-1.5 text-sm">
+      <span className="text-slate-400 shrink-0">•</span>
+      <span className="text-slate-500 shrink-0">{label}:</span>
+      {value && onClick ? (
+        <button
+          type="button"
+          onClick={onClick}
+          className="font-medium text-indigo-600 hover:text-indigo-700 hover:underline truncate text-left"
+        >
+          {value}
+        </button>
+      ) : (
+        <span className="font-medium text-slate-800 truncate">{value || '--'}</span>
+      )}
     </div>
-  );
-}
-
-function LinkedName({ value, onClick }: { value?: string; onClick?: () => void }) {
-  if (!value) return <p className="text-sm text-slate-400 italic">--</p>;
-  if (!onClick) return <p className="text-sm font-semibold text-slate-800">{value}</p>;
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="text-sm font-semibold text-indigo-600 hover:text-indigo-700 hover:underline text-left"
-    >
-      {value}
-    </button>
   );
 }
 
 export default function DealQuickView({
   deal,
-  stagesById,
+  stages,
   isAdmin,
   currentUserId,
   onClose,
   onEdit,
+  onMarkWon,
+  onMarkLost,
+  onOpenFullDetails,
 }: Props) {
-  // pipeline_id drives which ['opportunities', id] cache entry gets
-  // invalidated after Mark Won/Lost — must match the mutation used
-  // elsewhere for this same deal (PipelineBoard).
   const navigate = useNavigate();
+  // pipeline_id drives which ['opportunities', id] cache entry gets
+  // invalidated after a stage/status change — must match the mutation used
+  // elsewhere for this same deal (PipelineBoard).
   const updateOpportunity = useUpdateOpportunity(deal?.pipeline_id ?? undefined);
-  const addNote = useAddNote('opportunity', deal?.id ?? null);
-  const { data: pipelines = [] } = usePipelines();
-  const { data: contacts = [] } = useContacts();
-  const [showMarkLost, setShowMarkLost] = useState(false);
+  const { data: allTasks = [] } = useTasks();
+  const { data: notes = [] } = useNotes('opportunity', deal?.id ?? null);
+
+  const dealTasks = useMemo(
+    () => (deal ? allTasks.filter((t) => t.opportunity_id === deal.id) : []),
+    [allTasks, deal]
+  );
+
+  const nextActivity = useMemo(() => {
+    const now = Date.now();
+    return dealTasks
+      .filter((t) => !t.is_completed && t.due_at && new Date(t.due_at).getTime() >= now)
+      .sort((a, b) => new Date(a.due_at!).getTime() - new Date(b.due_at!).getTime())[0];
+  }, [dealTasks]);
+
+  const lastTouch = useMemo(() => {
+    const completedTasks = dealTasks
+      .filter((t) => t.is_completed && t.completed_at)
+      .map((t) => ({ date: t.completed_at as string, label: t.subject }));
+    const noteEntries = notes.map((n) => ({ date: n.created_at, label: 'Note added' }));
+    return [...completedTasks, ...noteEntries].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    )[0];
+  }, [dealTasks, notes]);
 
   if (!deal) return null;
 
   // View All, Edit Owned Only — standard users can view every deal but only
   // edit the ones assigned to them; admins can edit anything.
   const canEdit = isAdmin || deal.assigned_user === currentUserId;
-  const stageName = stagesById.get(deal.stage_id)?.name ?? '--';
-  const pipelineName = pipelines.find((p) => p.id === deal.pipeline_id)?.name ?? '--';
-  const contact = deal.contact_id ? contacts.find((c) => c.id === deal.contact_id) : undefined;
+  const sortedStages = stages.slice().sort((a, b) => a.display_order - b.display_order);
+  const expectedClose = formatDate(deal.expected_close);
 
-  function handleMarkWon() {
-    updateOpportunity.mutate({ id: deal!.id, payload: { status: 'Won', closed_at: new Date().toISOString() } });
-    onClose();
-  }
-
-  function handleConfirmMarkLost(reason: string, note: string) {
-    updateOpportunity.mutate({
-      id: deal!.id,
-      payload: { status: 'Lost', closed_at: new Date().toISOString(), lost_reason: reason },
-    });
-    if (note) {
-      addNote.mutate({ body: note, requesterId: currentUserId });
-    }
-    setShowMarkLost(false);
-    onClose();
+  function handleStageChange(stageId: string) {
+    if (!deal) return;
+    updateOpportunity.mutate({ id: deal.id, payload: { stage_id: Number(stageId) } });
   }
 
   return (
-    <div
-      className="fixed inset-0 bg-slate-900/40 z-[95] flex items-center justify-center p-4"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 bg-slate-900/40 z-[95] flex items-center justify-center p-4" onClick={onClose}>
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-sm max-h-[85vh] overflow-y-auto"
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 pt-5">
-          <h3 className="text-base font-bold text-slate-800">Deal Details</h3>
+          <h3 className="text-base font-bold text-slate-800">Deal Quick View</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 shrink-0">
             <i className="fa-solid fa-xmark" />
           </button>
         </div>
 
         <div className="px-5 pb-5">
-          <div className="mt-3">
+          <div className="mt-3 flex items-start justify-between gap-2">
             <p className="text-base font-bold text-slate-800 truncate">{deal.name}</p>
-            {deal.company_name && <p className="text-sm text-slate-500 truncate">{deal.company_name}</p>}
-            <div className="flex items-center gap-1.5 mt-2">
-              <span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_DOT[deal.status] ?? 'bg-slate-400'}`} />
-              <span className="text-sm text-slate-600 truncate">{stageName}</span>
-            </div>
-            <p className="text-lg font-bold text-emerald-600 mt-1">{currency(deal.deal_value)}</p>
+            {canEdit && (
+              <button
+                onClick={() => onEdit(deal)}
+                className="shrink-0 px-3 py-1 text-xs font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg"
+              >
+                Edit Deal
+              </button>
+            )}
+          </div>
+          <div className="flex items-center flex-wrap gap-x-1.5 text-sm text-slate-500 mt-1">
+            <span className="font-semibold text-emerald-600">{currency(deal.deal_value)}</span>
+            <span className="text-slate-300">•</span>
+            <span>{deal.probability != null ? `${deal.probability}% Probability` : '-- Probability'}</span>
+            <span className="text-slate-300">•</span>
+            <span>Expected Close: {expectedClose ?? '--'}</span>
           </div>
 
-          <div className="mt-4 pt-4 border-t border-slate-100">
-            <h4 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
-              Deal Information
+          <div className="mt-3">
+            <label className="block text-xs font-medium text-slate-600 mb-1">Pipeline Stage</label>
+            <select
+              value={deal.stage_id}
+              onChange={(e) => handleStageChange(e.target.value)}
+              disabled={!canEdit}
+              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-400"
+            >
+              {sortedStages.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="mt-4 pt-4 border-t border-slate-100 space-y-1">
+            <h4 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+              Associated Records
             </h4>
-            <InfoRow label="Pipeline" value={pipelineName} />
-            <InfoRow label="Stage" value={stageName} />
-            <InfoRow label="Deal Value" value={currency(deal.deal_value)} />
-            <InfoRow
-              label="Owner"
-              value={deal.assigned_user_name ? toTitleCase(deal.assigned_user_name) : 'Unassigned'}
+            <RecordLine
+              label="Company"
+              value={deal.company_name}
+              onClick={
+                deal.account_id
+                  ? () => {
+                      onClose();
+                      navigate(`/companies?companyId=${deal.account_id}`);
+                    }
+                  : undefined
+              }
             />
-            <InfoRow label="Created" value={formatDate(deal.created_at)} />
-            <InfoRow label="Expected Close" value={formatDate(deal.expected_close)} />
-          </div>
-
-          <div className="mt-4 pt-4 border-t border-slate-100">
-            <h4 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Contact</h4>
-            <LinkedName
+            <RecordLine
+              label="Contact"
               value={toTitleCase(deal.contact_name) || undefined}
               onClick={
                 deal.contact_id
@@ -154,32 +186,28 @@ export default function DealQuickView({
                   : undefined
               }
             />
-            {contact?.job_title && <p className="text-xs text-slate-500 mt-0.5">{contact.job_title}</p>}
-            {contact?.email && <p className="text-xs text-slate-500 mt-0.5">{contact.email}</p>}
-            {contact?.phone && <p className="text-xs text-slate-500 mt-0.5">{contact.phone}</p>}
+            <RecordLine
+              label="Owner"
+              value={deal.assigned_user_name ? toTitleCase(deal.assigned_user_name) : 'Unassigned'}
+            />
           </div>
 
-          {deal.company_name && (
-            <div className="mt-4 pt-4 border-t border-slate-100">
-              <h4 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Company</h4>
-              <LinkedName
-                value={deal.company_name}
-                onClick={
-                  deal.account_id
-                    ? () => {
-                        onClose();
-                        navigate(`/companies?companyId=${deal.account_id}`);
-                      }
-                    : undefined
-                }
-              />
-            </div>
-          )}
-
-          <div className="mt-4 pt-4 border-t border-slate-100">
-            <h4 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Activity</h4>
-            <div className="bg-slate-50 rounded-lg p-3 border border-dashed border-slate-200">
-              <p className="text-xs text-slate-400 italic text-center">No activity recorded yet.</p>
+          <div className="mt-4 pt-4 border-t border-slate-100 space-y-1.5">
+            <h4 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+              Execution & Next Steps
+            </h4>
+            <RecordLine
+              label="Next Activity"
+              value={nextActivity ? `${nextActivity.subject} — ${formatDate(nextActivity.due_at)}` : 'None scheduled'}
+            />
+            <RecordLine
+              label="Last Touch"
+              value={lastTouch ? `${lastTouch.label} — ${formatDate(lastTouch.date)}` : 'No activity yet'}
+            />
+            <div className="flex items-baseline gap-1.5 text-sm">
+              <span className="text-slate-400 shrink-0">•</span>
+              <span className="text-slate-500 shrink-0">Tags:</span>
+              <DealTagsInline deal={deal} disabled={!canEdit} />
             </div>
           </div>
         </div>
@@ -189,40 +217,37 @@ export default function DealQuickView({
             {deal.status === 'Open' && (
               <>
                 <button
-                  onClick={handleMarkWon}
+                  onClick={() => onMarkWon(deal)}
                   className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold py-2 rounded-lg"
                 >
-                  Mark as Won
+                  Mark Closed Won
                 </button>
                 <button
-                  onClick={() => setShowMarkLost(true)}
+                  onClick={() => onMarkLost(deal)}
                   className="flex-1 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold py-2 rounded-lg"
                 >
-                  Mark as Lost
+                  Mark Closed Lost
                 </button>
               </>
             )}
             <button
-              onClick={() => onEdit(deal)}
+              onClick={() => onOpenFullDetails(deal)}
               className="flex-1 border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold py-2 rounded-lg"
             >
-              Edit Deal
+              Open Full Details
             </button>
           </div>
         ) : (
-          <p className="text-xs text-slate-400 text-center px-5 pb-5 pt-1">
-            Assigned to someone else — view only.
-          </p>
+          <div className="px-5 pb-5 pt-1">
+            <button
+              onClick={() => onOpenFullDetails(deal)}
+              className="w-full border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold py-2 rounded-lg"
+            >
+              Open Full Details
+            </button>
+          </div>
         )}
       </div>
-
-      <MarkLostModal
-        open={showMarkLost}
-        dealName={deal.name}
-        onConfirm={handleConfirmMarkLost}
-        onCancel={() => setShowMarkLost(false)}
-        isSubmitting={updateOpportunity.isPending}
-      />
     </div>
   );
 }

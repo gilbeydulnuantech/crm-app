@@ -177,6 +177,24 @@ export function useMoveOpportunityStage(pipelineId?: number) {
   });
 }
 
+export function useTagOpportunity(pipelineId?: number) {
+  const invalidate = useInvalidateOpportunities(pipelineId);
+  return useMutation({
+    mutationFn: ({ opportunityId, tagId }: { opportunityId: number; tagId: number }) =>
+      api.tagOpportunity(opportunityId, tagId),
+    onSuccess: invalidate,
+  });
+}
+
+export function useUntagOpportunity(pipelineId?: number) {
+  const invalidate = useInvalidateOpportunities(pipelineId);
+  return useMutation({
+    mutationFn: ({ opportunityId, tagId }: { opportunityId: number; tagId: number }) =>
+      api.untagOpportunity(opportunityId, tagId),
+    onSuccess: invalidate,
+  });
+}
+
 export function useDeleteOpportunities(pipelineId?: number) {
   const qc = useQueryClient();
   return useMutation({

@@ -7,6 +7,7 @@ interface Props {
   stages: Stage[];
   opportunities: Opportunity[];
   onCardClick: (opportunity: Opportunity) => void;
+  onViewDetails: (opportunity: Opportunity) => void;
   onEditDeal: (opportunity: Opportunity) => void;
   onAddNote: (opportunity: Opportunity) => void;
   onCreateTask: (opportunity: Opportunity) => void;
@@ -36,6 +37,7 @@ export default function PipelineColumn({
   stages,
   opportunities,
   onCardClick,
+  onViewDetails,
   onEditDeal,
   onAddNote,
   onCreateTask,
@@ -92,6 +94,7 @@ export default function PipelineColumn({
             opportunity={o}
             stages={stages}
             onClick={() => onCardClick(o)}
+            onViewDetails={() => onViewDetails(o)}
             onEdit={() => onEditDeal(o)}
             onAddNote={() => onAddNote(o)}
             onCreateTask={() => onCreateTask(o)}

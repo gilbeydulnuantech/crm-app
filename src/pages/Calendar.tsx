@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { CalendarEvent, CalendarViewMode, EVENT_TYPES, EventType } from '../types/event';
 import { Opportunity } from '../types/opportunity';
 import { useEvents } from '../hooks/useEvents';
-import { useAllOpportunities, useAllStages, usePipelines } from '../hooks/useOpportunities';
+import { useAllOpportunities, useAllStages, usePipelines, useUpdateOpportunity } from '../hooks/useOpportunities';
 import { useUsers } from '../hooks/useContacts';
+import { useAddNote } from '../hooks/useNotes';
+import { useAddTask } from '../hooks/useTasks';
 import { useResources } from '../hooks/useResources';
 import { useAuth } from '../context/AuthContext';
 import CalendarSidebar from '../components/calendar/CalendarSidebar';
@@ -20,8 +23,12 @@ import EventDetailPanel from '../components/calendar/EventDetailPanel';
 import EventQuickView from '../components/calendar/EventQuickView';
 import EventFormModal from '../components/calendar/EventFormModal';
 import DealQuickView from '../components/pipeline/DealQuickView';
+import DealDetailModal from '../components/pipeline/DealDetailModal';
 import DealFormModal from '../components/pipeline/DealFormModal';
+import MarkLostModal, { MarkLostResult } from '../components/pipeline/MarkLostModal';
 import SearchToolbar from '../components/SearchToolbar';
+
+const CLOSED_LOST_STAGE = /lost/i;
 
 type CalendarMode = 'events' | 'deals';
 
@@ -61,6 +68,8 @@ export default function Calendar() {
   const [addDefaultDate, setAddDefaultDate] = useState<Date | null>(null);
 
   const [quickViewDeal, setQuickViewDeal] = useState<Opportunity | null>(null);
+  const [detailDeal, setDetailDeal] = useState<Opportunity | null>(null);
+  const [lostDeal, setLostDeal] = useState<Opportunity | null>(null);
   const [dealFormOpen, setDealFormOpen] = useState(false);
   const [editingDeal, setEditingDeal] = useState<Opportunity | null>(null);
 
@@ -95,6 +104,20 @@ export default function Calendar() {
   const { data: allStages = [] } = useAllStages(activePipelineIds);
 
   const stagesById = useMemo(() => new Map(allStages.map((s) => [s.id, s])), [allStages]);
+
+  const qc = useQueryClient();
+  // Calendar deals span every pipeline, so this instance isn't scoped to one
+  // ['opportunities', id] cache entry — invalidate broadly (all pipelines)
+  // after each mutation instead.
+  const updateOpportunity = useUpdateOpportunity(undefined);
+  const addLostDealNote = useAddNote('opportunity', lostDeal?.id ?? null);
+  const addTask = useAddTask();
+
+  useEffect(() => {
+    if (!updateOpportunity.isSuccess) return;
+    qc.invalidateQueries({ queryKey: ['opportunities'] });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [updateOpportunity.isSuccess]);
 
   // Only deals with an expected close date can be placed on the calendar.
   const allDeals = useMemo(() => allDealsRaw.filter((d) => !!d.expected_close), [allDealsRaw]);
@@ -289,6 +312,47 @@ export default function Calendar() {
   function openEditDeal(deal: Opportunity) {
     setEditingDeal(deal);
     setDealFormOpen(true);
+  }
+
+  function handleMarkDealWon(deal: Opportunity) {
+    updateOpportunity.mutate({ id: deal.id, payload: { status: 'Won', closed_at: new Date().toISOString() } });
+  }
+
+  function handleConfirmMarkLost({ reason, competitor, details, followUp }: MarkLostResult) {
+    if (!lostDeal) return;
+
+    const lostStage = allStages.find(
+      (s) => s.pipeline_id === lostDeal.pipeline_id && CLOSED_LOST_STAGE.test(s.name)
+    );
+
+    updateOpportunity.mutate({
+      id: lostDeal.id,
+      payload: {
+        status: 'Lost',
+        closed_at: new Date().toISOString(),
+        lost_reason: reason,
+        probability: 0,
+        ...(lostStage ? { stage_id: lostStage.id } : {}),
+      },
+    });
+
+    const noteBody = [competitor && `Competitor: ${competitor}`, details].filter(Boolean).join('\n');
+    if (noteBody) {
+      addLostDealNote.mutate({ body: noteBody, requesterId: user?.id });
+    }
+
+    if (followUp) {
+      addTask.mutate({
+        subject: `Re-engage: ${lostDeal.name}`,
+        contact_id: lostDeal.contact_id,
+        opportunity_id: lostDeal.id,
+        user_id: followUp.assignedUserId,
+        due_at: new Date(`${followUp.date}T09:00`).toISOString(),
+        task_type: 'Follow-up',
+      });
+    }
+
+    setLostDeal(null);
   }
 
   function goToday() {
@@ -525,7 +589,7 @@ export default function Calendar() {
 
         <DealQuickView
           deal={quickViewDeal}
-          stagesById={stagesById}
+          stages={allStages}
           isAdmin={isAdmin}
           currentUserId={user?.id}
           onClose={() => setQuickViewDeal(null)}
@@ -533,6 +597,41 @@ export default function Calendar() {
             setQuickViewDeal(null);
             openEditDeal(deal);
           }}
+          onMarkWon={handleMarkDealWon}
+          onMarkLost={(deal) => {
+            setQuickViewDeal(null);
+            setLostDeal(deal);
+          }}
+          onOpenFullDetails={(deal) => {
+            setQuickViewDeal(null);
+            setDetailDeal(deal);
+          }}
+        />
+
+        <DealDetailModal
+          deal={detailDeal}
+          stagesById={stagesById}
+          isAdmin={isAdmin}
+          currentUserId={user?.id}
+          onClose={() => setDetailDeal(null)}
+          onEdit={(deal) => {
+            setDetailDeal(null);
+            openEditDeal(deal);
+          }}
+          onMarkWon={handleMarkDealWon}
+          onMarkLost={(deal) => {
+            setDetailDeal(null);
+            setLostDeal(deal);
+          }}
+        />
+
+        <MarkLostModal
+          open={!!lostDeal}
+          dealName={lostDeal?.name}
+          dealValue={lostDeal?.deal_value}
+          onConfirm={handleConfirmMarkLost}
+          onCancel={() => setLostDeal(null)}
+          isSubmitting={updateOpportunity.isPending}
         />
 
         {defaultPipelineId && (
