@@ -1,0 +1,258 @@
+{
+  "name": "Task Reminders",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "db9b95a0-c3c6-484c-8f36-49fffb76c0ff",
+      "name": "Schedule Trigger: every 5 minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "ALTER TABLE activities ADD COLUMN IF NOT EXISTS reminder_sent BOOLEAN DEFAULT false;\nINSERT INTO conversations (type, name)\nSELECT 'channel', 'Task Reminders'\nWHERE NOT EXISTS (SELECT 1 FROM conversations c WHERE c.type = 'channel' AND c.name = 'Task Reminders');\nINSERT INTO conversation_members (conversation_id, user_id, last_read_at)\nSELECT c.id, u.id, now()\nFROM conversations c CROSS JOIN users u\nWHERE c.type = 'channel' AND c.name = 'Task Reminders' AND u.active = true\nON CONFLICT DO NOTHING;",
+        "options": {}
+      },
+      "id": "38bef4ae-b544-4740-96e2-5f75af3239c8",
+      "name": "Postgres: Ensure Reminder Infra",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        460,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT a.id AS task_id, a.subject, a.due_at, a.user_id AS owner_id\nFROM activities a\nWHERE a.type = 'task'\n  AND COALESCE(a.is_completed, false) = false\n  AND COALESCE(a.is_archived, false) = false\n  AND a.due_at IS NOT NULL\n  AND a.reminder_minutes_before IS NOT NULL\n  AND COALESCE(a.reminder_sent, false) = false\n  AND (a.due_at - (a.reminder_minutes_before || ' minutes')::interval) <= now()\n  AND a.due_at > now() - interval '1 day';",
+        "options": {}
+      },
+      "id": "9e347f5d-0f5d-4b92-8a6d-4cc8b0702cee",
+      "name": "Postgres: Find Due Reminders",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        680,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT $2::int AS task_id, $3::text AS subject, $4::timestamptz AS due_at,\n  u.id AS recipient_id, u.name AS recipient_name\nFROM users u WHERE u.id = $1\nUNION\nSELECT $2::int, $3::text, $4::timestamptz, u.id, u.name\nFROM users u JOIN task_watchers tw ON tw.user_id = u.id\nWHERE tw.task_id = $2;",
+        "options": {
+          "queryReplacement": "={{ [ $json.owner_id, $json.task_id, $json.subject, $json.due_at ] }}"
+        }
+      },
+      "id": "5366501f-cdd5-47a9-85a9-f7b5ae32ca91",
+      "name": "Postgres: Get Recipients",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        900,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $json;\nconst dueText = new Date(r.due_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });\nconst body = `\\u23F0 Reminder for ${r.recipient_name}: \"[[ref:task:${r.task_id}:-:${r.subject}]]\" is due ${dueText}.`;\nreturn [{ json: { taskId: r.task_id, ownerId: r.recipient_id, body } }];"
+      },
+      "id": "9412fc76-509e-4b8a-897c-86def7409741",
+      "name": "Prepare Reminder Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id FROM conversations WHERE type = 'channel' AND name = 'Task Reminders' LIMIT 1;",
+        "options": {}
+      },
+      "id": "aa8a51c4-c0dc-4ce6-933a-6917b8790bf0",
+      "name": "Postgres: Get Reminders Channel Id",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1340,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO messages (conversation_id, sender_id, body) VALUES ($1, $2, $3);",
+        "options": {
+          "queryReplacement": "={{ [ $json.id, $('Prepare Reminder Message').item.json.ownerId, $('Prepare Reminder Message').item.json.body ] }}"
+        }
+      },
+      "id": "b27674da-ba56-43eb-adbc-e523886d09ab",
+      "name": "Postgres: Insert Reminder Message",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1560,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE activities SET reminder_sent = true WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Prepare Reminder Message').item.json.taskId ] }}"
+        }
+      },
+      "id": "e71715ba-95e5-46e7-ac88-d1bc8c70b638",
+      "name": "Postgres: Mark Reminder Sent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1780,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger: every 5 minutes": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure Reminder Infra",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Ensure Reminder Infra": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Find Due Reminders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Find Due Reminders": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Get Recipients",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Get Recipients": {
+      "main": [
+        [
+          {
+            "node": "Prepare Reminder Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Reminder Message": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Get Reminders Channel Id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Get Reminders Channel Id": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Insert Reminder Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Insert Reminder Message": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Mark Reminder Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  }
+}
