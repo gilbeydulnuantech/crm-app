@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Task, TaskPriority, TaskStatus, taskStatus, TasksView } from '../types/task';
 import { useAuth } from '../context/AuthContext';
 import { useUsers } from '../hooks/useContacts';
@@ -37,12 +38,14 @@ function matchesStatusFilters(task: Task, statusFilters: Set<TaskStatusFilter>):
 
 export default function Tasks() {
   const { user, isAdmin } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [view, setView] = useState<TasksView>('all');
   const [boardView, setBoardView] = useState<BoardView>('kanban');
   const [search, setSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [addOpen, setAddOpen] = useState(false);
+  const [highlightTaskId, setHighlightTaskId] = useState<number | null>(null);
   // Store just the id and re-derive the live Task object from the query
   // data below — otherwise a subtask/attachment/watcher edit invalidates
   // ['tasks'] and refetches, but these modals would keep rendering the
@@ -77,6 +80,30 @@ export default function Tasks() {
       setUsersInitialized(true);
     }
   }, [users, usersInitialized]);
+
+  // Deep link from Team Chat notifications — ?highlight=<taskId> switches to
+  // the Kanban board and rings that card for a few seconds, once its data
+  // has loaded. Same pattern as Pipeline.tsx's ?highlight= for deal cards.
+  useEffect(() => {
+    const param = searchParams.get('highlight');
+    if (!param) return;
+    const id = Number(param);
+    if (!allTasks.some((t) => t.id === id)) return;
+    setHighlightTaskId(id);
+    setBoardView('kanban');
+    const next = new URLSearchParams(searchParams);
+    next.delete('highlight');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, allTasks, setSearchParams]);
+
+  useEffect(() => {
+    if (highlightTaskId == null) return;
+    document
+      .getElementById(`task-card-${highlightTaskId}`)
+      ?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    const t = setTimeout(() => setHighlightTaskId(null), 3000);
+    return () => clearTimeout(t);
+  }, [highlightTaskId]);
 
   function changeView(next: TasksView) {
     setView(next);
@@ -346,6 +373,7 @@ export default function Tasks() {
             onMoveStatus={handleMoveTaskStatus}
             onCardClick={openQuickView}
             canEditTask={canEditTask}
+            highlightTaskId={highlightTaskId}
           />
         )}
 

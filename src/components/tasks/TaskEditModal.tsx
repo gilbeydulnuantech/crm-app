@@ -18,6 +18,7 @@ import { useAuth } from '../../context/AuthContext';
 import { toTitleCase } from '../../utils/text';
 import ContactPicker from '../pipeline/ContactPicker';
 import CompanyPicker from '../contacts/CompanyPicker';
+import { startDm, sendMessage } from '../../api/chat';
 
 interface Props {
   open: boolean;
@@ -154,16 +155,32 @@ export default function TaskEditModal({ open, task, onClose }: Props) {
       edit_reason: form.edit_reason.trim(),
     };
 
+    const previousOwnerId = task!.user_id ?? null;
+
     updateTask.mutate(
       { id: task!.id, payload },
       {
         onSuccess: () => {
           setWatchers.mutate({ taskId: task!.id, watcherIds: form.watcherIds });
+          if (payload.user_id && payload.user_id !== previousOwnerId && payload.user_id !== user?.id) {
+            notifyNewOwner(payload.user_id);
+          }
           onClose();
         },
         onError: (err) => setError(err instanceof Error ? err.message : 'Failed to update task.'),
       }
     );
+  }
+
+  // Fire-and-forget, matches the Reassign quick action — an assignment
+  // change through the Owner field should notify the same way.
+  async function notifyNewOwner(newOwnerId: number) {
+    try {
+      const { id: conversationId } = await startDm(newOwnerId);
+      await sendMessage(conversationId, `Task reassigned to you: "[[ref:task:${task!.id}:-:${form.subject}]]"`);
+    } catch (err) {
+      console.error('Failed to send reassignment DM:', err);
+    }
   }
 
   const inputClass =

@@ -140,13 +140,13 @@ export default function TaskFormModal({ open, defaultContactId, defaultOpportuni
 
   // Fire-and-forget — a DM failure shouldn't block the task from being
   // created, so this never surfaces into the form's error state.
-  async function sendTaskReminder(assignedUserId: number, subject: string, dueAt: string | null) {
+  async function sendTaskReminder(assignedUserId: number, taskId: number, subject: string, dueAt: string | null) {
     try {
       const dueText = dueAt
         ? new Date(dueAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
         : 'no due date';
       const { id: conversationId } = await startDm(assignedUserId);
-      await sendMessage(conversationId, `New task assigned: "${subject}" — due ${dueText}`);
+      await sendMessage(conversationId, `New task assigned: "[[ref:task:${taskId}:-:${subject}]]" — due ${dueText}`);
     } catch (err) {
       console.error('Failed to send task reminder DM:', err);
     }
@@ -172,8 +172,8 @@ export default function TaskFormModal({ open, defaultContactId, defaultOpportuni
 
   function afterCreate(newTaskId: number | undefined) {
     const assignedUserId = form.assigned_user ? Number(form.assigned_user) : null;
-    if (sendReminder && assignedUserId && assignedUserId !== user?.id) {
-      sendTaskReminder(assignedUserId, form.subject, buildPayload().due_at);
+    if (sendReminder && assignedUserId && assignedUserId !== user?.id && newTaskId) {
+      sendTaskReminder(assignedUserId, newTaskId, form.subject, buildPayload().due_at);
     }
     if (newTaskId && form.watcherIds.length > 0) {
       setWatchers.mutate({ taskId: newTaskId, watcherIds: form.watcherIds });

@@ -7,9 +7,10 @@ interface Props {
   onMoveStatus: (taskId: number, status: TaskStatus) => void;
   onCardClick: (task: Task) => void;
   canEditTask: (task: Task) => boolean;
+  highlightTaskId?: number | null;
 }
 
-export default function TasksKanbanBoard({ tasks, onMoveStatus, onCardClick, canEditTask }: Props) {
+export default function TasksKanbanBoard({ tasks, onMoveStatus, onCardClick, canEditTask, highlightTaskId }: Props) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
   const tasksByStatus = new Map<TaskStatus, Task[]>();
@@ -39,6 +40,7 @@ export default function TasksKanbanBoard({ tasks, onMoveStatus, onCardClick, can
               tasks={tasksByStatus.get(s) ?? []}
               onCardClick={onCardClick}
               canEditTask={canEditTask}
+              highlightTaskId={highlightTaskId}
             />
           ))}
         </div>

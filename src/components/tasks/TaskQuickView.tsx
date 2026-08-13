@@ -94,7 +94,7 @@ export default function TaskQuickView({ task, canEdit, onClose, onEdit, onOpenFu
     if (newUserId !== user?.id) {
       try {
         const { id: conversationId } = await startDm(newUserId);
-        await sendMessage(conversationId, `Task reassigned to you: "${task!.subject}"`);
+        await sendMessage(conversationId, `Task reassigned to you: "[[ref:task:${task!.id}:-:${task!.subject}]]"`);
       } catch (err) {
         console.error('Failed to send reassignment DM:', err);
       }

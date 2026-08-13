@@ -1,18 +1,18 @@
 import { ReactNode } from 'react';
 
-// Owner-assignment notifications (sent by the assign-contact-owner,
-// update-companies, and update-opportunity n8n flows) embed a machine-
-// readable reference inside the otherwise plain-text message body so Team
-// Chat can render it as a clickable link back to the record, e.g.:
+// Owner-assignment and task notifications embed a machine-readable
+// reference inside the otherwise plain-text message body so Team Chat can
+// render it as a clickable link back to the record, e.g.:
 //   You've been assigned as the owner of contact "[[ref:contact:123:-:John Smith]]".
-// Shape: [[ref:<contact|company|deal>:<id>:<extra>:<label>]] — `extra` is
-// "-" for contact/company and the deal's pipeline_id for deal (needed to
-// deep-link into the right pipeline board).
-const REF_TOKEN = /\[\[ref:(contact|company|deal):(-?\d+):(-|-?\d+):([^\]]+)\]\]/g;
+// Shape: [[ref:<contact|company|deal|task>:<id>:<extra>:<label>]] — `extra`
+// is "-" for contact/company/task and the deal's pipeline_id for deal
+// (needed to deep-link into the right pipeline board).
+const REF_TOKEN = /\[\[ref:(contact|company|deal|task):(-?\d+):(-|-?\d+):([^\]]+)\]\]/g;
 
 function hrefFor(type: string, id: string, extra: string) {
   if (type === 'contact') return `/contacts?contactId=${id}`;
   if (type === 'company') return `/companies?companyId=${id}`;
+  if (type === 'task') return `/tasks?highlight=${id}`;
   // Deal: Pipeline.tsx's ?pipeline=/?highlight= deep link switches to the
   // right board and rings the card for a few seconds.
   return `/pipeline?pipeline=${extra}&highlight=${id}`;

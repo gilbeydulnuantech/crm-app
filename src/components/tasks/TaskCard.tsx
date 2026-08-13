@@ -7,6 +7,7 @@ interface Props {
   task: Task;
   onClick: () => void;
   canEdit: boolean;
+  highlighted?: boolean;
 }
 
 const PRIORITY_BORDER: Record<string, string> = {
@@ -15,7 +16,7 @@ const PRIORITY_BORDER: Record<string, string> = {
   Low: '#3B82F6',
 };
 
-export default function TaskCard({ task, onClick, canEdit }: Props) {
+export default function TaskCard({ task, onClick, canEdit, highlighted }: Props) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
     data: { task },
@@ -38,6 +39,7 @@ export default function TaskCard({ task, onClick, canEdit }: Props) {
 
   return (
     <div
+      id={`task-card-${task.id}`}
       ref={setNodeRef}
       style={style}
       {...listeners}
@@ -49,7 +51,9 @@ export default function TaskCard({ task, onClick, canEdit }: Props) {
       title={canEdit ? undefined : 'View only — assigned to someone else'}
       className={`bg-white border border-slate-200 rounded-lg p-2.5 shadow-sm hover:shadow-md transition-all ${
         canEdit ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
-      } ${isDragging ? 'opacity-40 ring-2 ring-indigo-400 border-transparent scale-105' : ''}`}
+      } ${isDragging ? 'opacity-40 ring-2 ring-indigo-400 border-transparent scale-105' : ''} ${
+        highlighted ? 'ring-2 ring-indigo-500 ring-offset-2 shadow-lg' : ''
+      }`}
     >
       <div className="flex items-center gap-1.5">
         {task.priority && (

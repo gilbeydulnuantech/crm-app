@@ -8,9 +8,10 @@ interface Props {
   tasks: Task[];
   onCardClick: (task: Task) => void;
   canEditTask: (task: Task) => boolean;
+  highlightTaskId?: number | null;
 }
 
-export default function TaskColumn({ status, label, tasks, onCardClick, canEditTask }: Props) {
+export default function TaskColumn({ status, label, tasks, onCardClick, canEditTask, highlightTaskId }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
 
   return (
@@ -28,7 +29,13 @@ export default function TaskColumn({ status, label, tasks, onCardClick, canEditT
       </div>
       <div className="flex-1 p-2 space-y-2 overflow-y-auto min-h-[80px]">
         {tasks.map((t) => (
-          <TaskCard key={t.id} task={t} onClick={() => onCardClick(t)} canEdit={canEditTask(t)} />
+          <TaskCard
+            key={t.id}
+            task={t}
+            onClick={() => onCardClick(t)}
+            canEdit={canEditTask(t)}
+            highlighted={t.id === highlightTaskId}
+          />
         ))}
         {tasks.length === 0 && <div className="text-center text-[11px] text-slate-300 py-6">No tasks</div>}
       </div>

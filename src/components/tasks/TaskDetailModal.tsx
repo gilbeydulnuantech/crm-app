@@ -10,6 +10,7 @@ import {
 } from '../../types/task';
 import { toTitleCase } from '../../utils/text';
 import { useNotes, useAddNote } from '../../hooks/useNotes';
+import { startDm, sendMessage } from '../../api/chat';
 import {
   useAddTask,
   useArchiveTasks,
@@ -109,9 +110,17 @@ export default function TaskDetailModal({ task, isAdmin, currentUserId, onClose,
     handleStatusStep('completed');
   }
 
-  function handleReassign(userId: number) {
+  async function handleReassign(userId: number) {
     setReassignOpen(false);
     updateTask.mutate({ id: task!.id, payload: { user_id: userId } });
+    if (userId !== currentUserId) {
+      try {
+        const { id: conversationId } = await startDm(userId);
+        await sendMessage(conversationId, `Task reassigned to you: "[[ref:task:${task!.id}:-:${task!.subject}]]"`);
+      } catch (err) {
+        console.error('Failed to send reassignment DM:', err);
+      }
+    }
   }
 
   function toggleWatcher(id: number) {
