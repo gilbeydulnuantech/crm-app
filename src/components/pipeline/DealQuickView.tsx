@@ -65,7 +65,7 @@ export default function DealQuickView({
 }: Props) {
   // pipeline_id drives which ['opportunities', id] cache entry gets
   // invalidated after Mark Won/Lost — must match the mutation used
-  // elsewhere for this same deal (DealDetailPanel, PipelineBoard).
+  // elsewhere for this same deal (PipelineBoard).
   const navigate = useNavigate();
   const updateOpportunity = useUpdateOpportunity(deal?.pipeline_id ?? undefined);
   const addNote = useAddNote('opportunity', deal?.id ?? null);
@@ -75,7 +75,8 @@ export default function DealQuickView({
 
   if (!deal) return null;
 
-  // View All, Edit Owned Only — same policy as DealDetailPanel.
+  // View All, Edit Owned Only — standard users can view every deal but only
+  // edit the ones assigned to them; admins can edit anything.
   const canEdit = isAdmin || deal.assigned_user === currentUserId;
   const stageName = stagesById.get(deal.stage_id)?.name ?? '--';
   const pipelineName = pipelines.find((p) => p.id === deal.pipeline_id)?.name ?? '--';

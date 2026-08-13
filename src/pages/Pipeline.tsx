@@ -23,7 +23,6 @@ import PipelineFilterPanel, {
   EMPTY_DEAL_FILTERS,
 } from '../components/pipeline/PipelineFilterPanel';
 import DealFormModal from '../components/pipeline/DealFormModal';
-import DealDetailPanel from '../components/pipeline/DealDetailPanel';
 import DealQuickView from '../components/pipeline/DealQuickView';
 import AddDealNoteModal from '../components/pipeline/AddDealNoteModal';
 import MarkLostModal from '../components/pipeline/MarkLostModal';
@@ -102,7 +101,6 @@ export default function Pipeline() {
   const [search, setSearch] = useState('');
   const [formOpen, setFormOpen] = useState(false);
   const [editingOpportunity, setEditingOpportunity] = useState<Opportunity | null>(null);
-  const [activeOpportunity, setActiveOpportunity] = useState<Opportunity | null>(null);
   const [quickViewDeal, setQuickViewDeal] = useState<Opportunity | null>(null);
   const [highlightDealId, setHighlightDealId] = useState<number | null>(null);
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
@@ -197,7 +195,6 @@ export default function Pipeline() {
   }
 
   function openEditModal(opportunity: Opportunity) {
-    setActiveOpportunity(null);
     setEditingOpportunity(opportunity);
     setFormOpen(true);
   }
@@ -330,7 +327,7 @@ export default function Pipeline() {
         <PipelineListView
           opportunities={visibleOpportunities}
           stages={stages}
-          onRowClick={setActiveOpportunity}
+          onRowClick={setQuickViewDeal}
           isLoading={isLoading}
         />
       )}
@@ -352,21 +349,9 @@ export default function Pipeline() {
         onClose={() => setQuickViewDeal(null)}
         onEdit={(deal) => {
           setQuickViewDeal(null);
-          setActiveOpportunity(deal);
+          openEditModal(deal);
         }}
       />
-
-      {pipelineId && (
-        <DealDetailPanel
-          opportunity={activeOpportunity}
-          stages={stages}
-          pipelineId={pipelineId}
-          onClose={() => setActiveOpportunity(null)}
-          onEdit={openEditModal}
-          isAdmin={isAdmin}
-          currentUserId={user?.id}
-        />
-      )}
 
       <PipelineFilterPanel
         open={filterPanelOpen}

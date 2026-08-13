@@ -20,7 +20,6 @@ import EventDetailPanel from '../components/calendar/EventDetailPanel';
 import EventQuickView from '../components/calendar/EventQuickView';
 import EventFormModal from '../components/calendar/EventFormModal';
 import DealQuickView from '../components/pipeline/DealQuickView';
-import DealDetailPanel from '../components/pipeline/DealDetailPanel';
 import DealFormModal from '../components/pipeline/DealFormModal';
 import SearchToolbar from '../components/SearchToolbar';
 
@@ -61,7 +60,6 @@ export default function Calendar() {
   const [quickViewEvent, setQuickViewEvent] = useState<CalendarEvent | null>(null);
   const [addDefaultDate, setAddDefaultDate] = useState<Date | null>(null);
 
-  const [activeDeal, setActiveDeal] = useState<Opportunity | null>(null);
   const [quickViewDeal, setQuickViewDeal] = useState<Opportunity | null>(null);
   const [dealFormOpen, setDealFormOpen] = useState(false);
   const [editingDeal, setEditingDeal] = useState<Opportunity | null>(null);
@@ -97,14 +95,6 @@ export default function Calendar() {
   const { data: allStages = [] } = useAllStages(activePipelineIds);
 
   const stagesById = useMemo(() => new Map(allStages.map((s) => [s.id, s])), [allStages]);
-  const stagesByPipelineId = useMemo(() => {
-    const map = new Map<number, typeof allStages>();
-    allStages.forEach((s) => {
-      if (!map.has(s.pipeline_id)) map.set(s.pipeline_id, []);
-      map.get(s.pipeline_id)!.push(s);
-    });
-    return map;
-  }, [allStages]);
 
   // Only deals with an expected close date can be placed on the calendar.
   const allDeals = useMemo(() => allDealsRaw.filter((d) => !!d.expected_close), [allDealsRaw]);
@@ -297,7 +287,6 @@ export default function Calendar() {
   }
 
   function openEditDeal(deal: Opportunity) {
-    setActiveDeal(null);
     setEditingDeal(deal);
     setDealFormOpen(true);
   }
@@ -542,18 +531,8 @@ export default function Calendar() {
           onClose={() => setQuickViewDeal(null)}
           onEdit={(deal) => {
             setQuickViewDeal(null);
-            setActiveDeal(deal);
+            openEditDeal(deal);
           }}
-        />
-
-        <DealDetailPanel
-          opportunity={activeDeal}
-          stages={activeDeal?.pipeline_id ? stagesByPipelineId.get(activeDeal.pipeline_id) ?? [] : []}
-          pipelineId={activeDeal?.pipeline_id ?? defaultPipelineId ?? 0}
-          onClose={() => setActiveDeal(null)}
-          onEdit={openEditDeal}
-          isAdmin={isAdmin}
-          currentUserId={user?.id}
         />
 
         {defaultPipelineId && (
