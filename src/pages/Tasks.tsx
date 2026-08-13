@@ -29,7 +29,7 @@ export default function Tasks() {
   const { user, isAdmin } = useAuth();
 
   const [view, setView] = useState<TasksView>('all');
-  const [boardView, setBoardView] = useState<BoardView>('list');
+  const [boardView, setBoardView] = useState<BoardView>('kanban');
   const [search, setSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [formOpen, setFormOpen] = useState(false);

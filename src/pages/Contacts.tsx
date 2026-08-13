@@ -129,6 +129,16 @@ export default function Contacts() {
     setSearchParams(next, { replace: true });
   }, [searchParams, allContacts, setSearchParams]);
 
+  // Covers the table with a spinner instead of letting it flash underneath
+  // while a deep-linked contact is still resolving — true until either the
+  // list finishes loading with a match (the effect above then opens the
+  // modal in the same tick this flips false) or the id turns out to be bad.
+  const pendingContactId = searchParams.get('contactId');
+  const contactDeepLinkPending =
+    !!pendingContactId &&
+    activeContactId == null &&
+    (isLoading || allContacts.some((c) => c.id === Number(pendingContactId)));
+
   function changeView(next: ContactsView) {
     setView(next);
     setSelectedIds(new Set());
@@ -296,7 +306,12 @@ export default function Contacts() {
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
+      {contactDeepLinkPending && (
+        <div className="absolute inset-0 z-[90] bg-white flex items-center justify-center">
+          <i className="fa-solid fa-spinner fa-spin text-2xl text-indigo-500" />
+        </div>
+      )}
       <div className="px-4 py-4 flex items-center justify-between shrink-0 border-b border-slate-200">
         <h1 className="text-lg font-bold text-slate-800">Contacts</h1>
         <AddContactDropdown onAddContact={openAddModal} onImportCsv={() => setImportOpen(true)} />

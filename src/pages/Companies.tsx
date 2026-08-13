@@ -70,6 +70,14 @@ export default function Companies() {
     setSearchParams(next, { replace: true });
   }, [searchParams, allCompanies, setSearchParams]);
 
+  // Covers the table with a spinner instead of letting it flash underneath
+  // while a deep-linked company is still resolving — mirrors Contacts.tsx.
+  const pendingCompanyId = searchParams.get('companyId');
+  const companyDeepLinkPending =
+    !!pendingCompanyId &&
+    activeCompanyId == null &&
+    (isLoading || allCompanies.some((c) => c.id === Number(pendingCompanyId)));
+
   function changeView(next: CompaniesView) {
     setView(next);
     setSelectedIds(new Set());
@@ -196,7 +204,12 @@ export default function Companies() {
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
+      {companyDeepLinkPending && (
+        <div className="absolute inset-0 z-[90] bg-white flex items-center justify-center">
+          <i className="fa-solid fa-spinner fa-spin text-2xl text-indigo-500" />
+        </div>
+      )}
       <div className="px-4 py-4 flex items-center justify-between shrink-0 border-b border-slate-200">
         <h1 className="text-lg font-bold text-slate-800">Companies</h1>
         <button
