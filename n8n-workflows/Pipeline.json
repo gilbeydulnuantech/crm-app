@@ -264,7 +264,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE opportunities SET name = COALESCE($1, name), contact_id = COALESCE($2, contact_id), account_id = COALESCE($3, account_id), stage_id = COALESCE($4, stage_id), assigned_user = COALESCE($5, assigned_user), deal_value = COALESCE($6, deal_value), probability = COALESCE($7, probability), status = COALESCE($8, status), lost_reason = COALESCE($9, lost_reason), expected_close = COALESCE($10, expected_close), closed_at = COALESCE($11, closed_at), description = COALESCE($12, description), source = COALESCE($13, source), priority = COALESCE($14, priority), updated_at = now() WHERE id = $15 AND ($16 = 'admin' OR assigned_user = $17) RETURNING id;",
+        "query": "UPDATE opportunities SET name = COALESCE($1, name), contact_id = COALESCE($2, contact_id), account_id = COALESCE($3, account_id), stage_id = COALESCE($4, stage_id), assigned_user = COALESCE($5, assigned_user), deal_value = COALESCE($6, deal_value), probability = COALESCE($7, probability), status = COALESCE($8, status), lost_reason = COALESCE($9, lost_reason), expected_close = COALESCE($10, expected_close), closed_at = COALESCE($11, closed_at), description = COALESCE($12, description), source = COALESCE($13, source), priority = COALESCE($14, priority), updated_at = now() WHERE id = $15 AND ($16 = 'admin' OR assigned_user = $17) RETURNING id, name, assigned_user;",
         "options": {
           "queryReplacement": "={{ [ $('Webhook: update-opportunity').first().json.body.name || null, $('Webhook: update-opportunity').first().json.body.contact_id || null, $('Webhook: update-opportunity').first().json.body.account_id || null, $('Webhook: update-opportunity').first().json.body.stage_id || null, $('Webhook: update-opportunity').first().json.body.assigned_user || null, $('Webhook: update-opportunity').first().json.body.deal_value !== undefined ? $('Webhook: update-opportunity').first().json.body.deal_value : null, $('Webhook: update-opportunity').first().json.body.probability !== undefined ? $('Webhook: update-opportunity').first().json.body.probability : null, $('Webhook: update-opportunity').first().json.body.status || null, $('Webhook: update-opportunity').first().json.body.lost_reason || null, $('Webhook: update-opportunity').first().json.body.expected_close || null, $('Webhook: update-opportunity').first().json.body.closed_at || null, $('Webhook: update-opportunity').first().json.body.description !== undefined ? $('Webhook: update-opportunity').first().json.body.description : null, $('Webhook: update-opportunity').first().json.body.source !== undefined ? $('Webhook: update-opportunity').first().json.body.source : null, $('Webhook: update-opportunity').first().json.body.priority !== undefined ? $('Webhook: update-opportunity').first().json.body.priority : null, $('Webhook: update-opportunity').first().json.body.id, $('Look Up Requester: update-opportunity').first().json.role, $('Look Up Requester: update-opportunity').first().json.id ] }}"
         }
@@ -642,7 +642,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT stage_id AS before_stage_id, name AS deal_name FROM opportunities WHERE id = $1;",
+        "query": "SELECT stage_id AS before_stage_id, name AS deal_name, assigned_user AS before_assigned_user FROM opportunities WHERE id = $1;",
         "options": {
           "queryReplacement": "={{ [ $('Webhook: update-opportunity').first().json.body.id ] }}"
         }
@@ -1529,6 +1529,144 @@
         2416,
         2840
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const requesterId = $('Look Up Requester: update-opportunity').first().json.id;\nconst before = $('Postgres: Capture Before Stage: update-opportunity').first().json;\nconst after = $('Postgres: Update Opportunity').first().json;\nconst oldOwnerId = before ? before.before_assigned_user : null;\nconst newOwnerId = after.assigned_user;\n// Only notify on an actual reassignment to someone else \u2014 not a\n// no-op resave of the same owner, and not an admin assigning themselves.\nconst notify = !!newOwnerId && newOwnerId !== oldOwnerId && newOwnerId !== requesterId;\nconst dmKey = notify ? [requesterId, newOwnerId].sort((a, b) => a - b).join('-') : null;\nreturn [{ json: { notify, dmKey, requesterId, ownerId: newOwnerId, dealName: after.name || 'a deal' } }];"
+      },
+      "id": "98cf94b6-2d43-4fd1-a78a-81d36677f616",
+      "name": "Prepare Owner Notice: update-opportunity",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2064,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "649e9c78-0516-45ec-962c-5dcce7f4664e",
+              "leftValue": "={{ $json.notify }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a6bc4066-2c89-4306-80af-826af390dcd8",
+      "name": "Should Notify Owner?: update-opportunity",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2288,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO conversations (type, dm_key, created_by)\nVALUES ('dm', $1, $2)\nON CONFLICT (dm_key) WHERE type = 'dm' DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ [ $json.dmKey, $json.requesterId ] }}"
+        }
+      },
+      "id": "3114e008-5c30-4769-adaf-fbe43ef14dbd",
+      "name": "Postgres: Ensure DM (update-opportunity)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2512,
+        420
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id FROM conversations WHERE type = 'dm' AND dm_key = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Prepare Owner Notice: update-opportunity').first().json.dmKey ] }}"
+        }
+      },
+      "id": "9ea79de4-336b-4436-8fe4-9400f7f7914d",
+      "name": "Postgres: Get DM Id (update-opportunity)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2736,
+        420
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO conversation_members (conversation_id, user_id)\nVALUES ($1, $2), ($1, $3)\nON CONFLICT DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id, $('Prepare Owner Notice: update-opportunity').first().json.requesterId, $('Prepare Owner Notice: update-opportunity').first().json.ownerId ] }}"
+        }
+      },
+      "id": "c37301fa-c18e-4ba5-b39f-fb11036b5406",
+      "name": "Postgres: Ensure DM Members (update-opportunity)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2960,
+        420
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO messages (conversation_id, sender_id, body) VALUES ($1, $2, $3);",
+        "options": {
+          "queryReplacement": "={{ [ $('Postgres: Get DM Id (update-opportunity)').first().json.id, $('Prepare Owner Notice: update-opportunity').first().json.requesterId, 'You\\'ve been assigned as the owner of deal \"' + $('Prepare Owner Notice: update-opportunity').first().json.dealName + '\".' ] }}"
+        }
+      },
+      "id": "f685a66e-49c7-48b9-bd7d-b5873a318410",
+      "name": "Postgres: Notify Owner (update-opportunity)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        3184,
+        420
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
     }
   ],
   "pinData": {},
@@ -1812,7 +1950,7 @@
       "main": [
         [
           {
-            "node": "Respond: update-opportunity",
+            "node": "Prepare Owner Notice: update-opportunity",
             "type": "main",
             "index": 0
           }
@@ -2393,6 +2531,79 @@
         [
           {
             "node": "Respond: update-pipeline-stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Owner Notice: update-opportunity": {
+      "main": [
+        [
+          {
+            "node": "Should Notify Owner?: update-opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Notify Owner?: update-opportunity": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure DM (update-opportunity)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond: update-opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Ensure DM (update-opportunity)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Get DM Id (update-opportunity)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Get DM Id (update-opportunity)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure DM Members (update-opportunity)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Ensure DM Members (update-opportunity)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Notify Owner (update-opportunity)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Notify Owner (update-opportunity)": {
+      "main": [
+        [
+          {
+            "node": "Respond: update-opportunity",
             "type": "main",
             "index": 0
           }

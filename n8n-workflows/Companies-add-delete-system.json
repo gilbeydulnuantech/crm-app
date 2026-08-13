@@ -186,7 +186,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE companies SET name = $1, website = $2, industry = $3, city = $4, state = $5, country = $6, phone = $7, owner_id = COALESCE($8, owner_id), updated_at = now() WHERE id = $9 AND ($10 = 'admin' OR owner_id = $11) RETURNING id;",
+        "query": "UPDATE companies SET name = $1, website = $2, industry = $3, city = $4, state = $5, country = $6, phone = $7, owner_id = COALESCE($8, owner_id), updated_at = now() WHERE id = $9 AND ($10 = 'admin' OR owner_id = $11) RETURNING id, name, owner_id;",
         "options": {
           "queryReplacement": "={{ [ $('Webhook: update-companies').first().json.body.name, $('Webhook: update-companies').first().json.body.website || null, $('Webhook: update-companies').first().json.body.industry || null, $('Webhook: update-companies').first().json.body.city || null, $('Webhook: update-companies').first().json.body.state || null, $('Webhook: update-companies').first().json.body.country || null, $('Webhook: update-companies').first().json.body.phone || null, $('Webhook: update-companies').first().json.body.owner_id || null, $('Webhook: update-companies').first().json.body.id, $('Look Up Requester: update-companies').first().json.role, $('Look Up Requester: update-companies').first().json.id ] }}"
         }
@@ -506,6 +506,167 @@
         856,
         1512
       ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT owner_id FROM companies WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Webhook: update-companies').first().json.body.id ] }}"
+        }
+      },
+      "id": "582ce668-b621-4882-b4d5-3d093b7d7748",
+      "name": "Postgres: Capture Before Owner: update-companies",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1256,
+        1088
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requesterId = $('Parse Token: update-companies').first().json.requesterId;\nconst before = $('Postgres: Capture Before Owner: update-companies').first().json;\nconst after = $('Postgres: Update Company').first().json;\nconst oldOwnerId = before ? before.owner_id : null;\nconst newOwnerId = after.owner_id;\n// Only notify on an actual reassignment to someone else \u2014 not a\n// no-op resave of the same owner, and not an admin assigning themselves.\nconst notify = !!newOwnerId && newOwnerId !== oldOwnerId && newOwnerId !== requesterId;\nconst dmKey = notify ? [requesterId, newOwnerId].sort((a, b) => a - b).join('-') : null;\nreturn [{ json: { notify, dmKey, requesterId, ownerId: newOwnerId, companyName: after.name || 'a company' } }];"
+      },
+      "id": "c524fd2e-bcbf-4821-b4cf-5bf995e8690a",
+      "name": "Prepare Owner Notice: update-companies",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1704,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "20675f65-e306-488d-9d2f-0d8cd366d24c",
+              "leftValue": "={{ $json.notify }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ca36ce90-9aa0-4525-b471-431ef7bbe24a",
+      "name": "Should Notify Owner?: update-companies",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1928,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO conversations (type, dm_key, created_by)\nVALUES ('dm', $1, $2)\nON CONFLICT (dm_key) WHERE type = 'dm' DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ [ $json.dmKey, $json.requesterId ] }}"
+        }
+      },
+      "id": "8da0646b-5199-44d1-b6b5-11ae0d26f70e",
+      "name": "Postgres: Ensure DM (update-companies)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2152,
+        832
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id FROM conversations WHERE type = 'dm' AND dm_key = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Prepare Owner Notice: update-companies').first().json.dmKey ] }}"
+        }
+      },
+      "id": "855ecb88-0b62-477d-8015-f2986560a838",
+      "name": "Postgres: Get DM Id (update-companies)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2376,
+        832
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO conversation_members (conversation_id, user_id)\nVALUES ($1, $2), ($1, $3)\nON CONFLICT DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id, $('Prepare Owner Notice: update-companies').first().json.requesterId, $('Prepare Owner Notice: update-companies').first().json.ownerId ] }}"
+        }
+      },
+      "id": "2e4e1fb5-36d6-4dd7-92e4-ceec8e53a392",
+      "name": "Postgres: Ensure DM Members (update-companies)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2600,
+        832
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO messages (conversation_id, sender_id, body) VALUES ($1, $2, $3);",
+        "options": {
+          "queryReplacement": "={{ [ $('Postgres: Get DM Id (update-companies)').first().json.id, $('Prepare Owner Notice: update-companies').first().json.requesterId, 'You\\'ve been assigned as the owner of company \"' + $('Prepare Owner Notice: update-companies').first().json.companyName + '\".' ] }}"
+        }
+      },
+      "id": "bd153ba2-c1f3-43f4-8251-164ec9f4d386",
+      "name": "Postgres: Notify Owner (update-companies)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2824,
+        832
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
     }
   ],
   "pinData": {},
@@ -667,7 +828,7 @@
       "main": [
         [
           {
-            "node": "Postgres: Update Company",
+            "node": "Postgres: Capture Before Owner: update-companies",
             "type": "main",
             "index": 0
           },
@@ -683,12 +844,7 @@
       "main": [
         [
           {
-            "node": "Respond: update-companies",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Respond - Error: update-companies",
+            "node": "Prepare Owner Notice: update-companies",
             "type": "main",
             "index": 0
           }
@@ -753,6 +909,90 @@
           },
           {
             "node": "Respond - Error: delete-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Capture Before Owner: update-companies": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Update Company",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Owner Notice: update-companies": {
+      "main": [
+        [
+          {
+            "node": "Should Notify Owner?: update-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Notify Owner?: update-companies": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure DM (update-companies)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond: update-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Ensure DM (update-companies)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Get DM Id (update-companies)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Get DM Id (update-companies)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure DM Members (update-companies)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Ensure DM Members (update-companies)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Notify Owner (update-companies)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Notify Owner (update-companies)": {
+      "main": [
+        [
+          {
+            "node": "Respond: update-companies",
             "type": "main",
             "index": 0
           }

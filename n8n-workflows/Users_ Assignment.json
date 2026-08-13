@@ -128,7 +128,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE contacts\nSET owner_id = $1\nWHERE id = $2\nRETURNING id, owner_id;",
+        "query": "UPDATE contacts\nSET owner_id = $1\nWHERE id = $2\nRETURNING id, owner_id, first_name, last_name;",
         "options": {
           "queryReplacement": "={{ [ $json.ownerId, $json.contactId ] }}"
         }
@@ -310,6 +310,144 @@
         2288,
         1456
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $('Validate Admin & Payload').first().json;\nconst requesterId = $('Parse Requester Token').first().json.requesterId;\nconst contact = $('Update Contact Owner').first().json;\nconst ownerId = payload.ownerId;\n// Only notify when the deal is actually handed to someone else \u2014 not on\n// unassign (ownerId null) or an admin assigning themselves.\nconst notify = !!ownerId && ownerId !== requesterId;\nconst dmKey = notify ? [requesterId, ownerId].sort((a, b) => a - b).join('-') : null;\nconst contactName = `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'a contact';\nreturn [{ json: { notify, dmKey, requesterId, ownerId, contactName } }];"
+      },
+      "id": "b79cdc74-b54a-433e-b224-5830cb47c6bb",
+      "name": "Prepare Owner Notice: assign-contact-owner",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2064,
+        960
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "e916203a-4bfd-47d6-a7f4-e237e30c5a64",
+              "leftValue": "={{ $json.notify }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "13f0cb10-53f1-4293-aaf3-20c7f631c11e",
+      "name": "Should Notify Owner?: assign-contact-owner",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2288,
+        960
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO conversations (type, dm_key, created_by)\nVALUES ('dm', $1, $2)\nON CONFLICT (dm_key) WHERE type = 'dm' DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ [ $json.dmKey, $json.requesterId ] }}"
+        }
+      },
+      "id": "5da2aa39-ce2a-4135-87ca-e984d8d5f9bb",
+      "name": "Postgres: Ensure DM (assign-contact-owner)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2512,
+        880
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id FROM conversations WHERE type = 'dm' AND dm_key = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Prepare Owner Notice: assign-contact-owner').first().json.dmKey ] }}"
+        }
+      },
+      "id": "fad2b43f-80e1-4840-a65a-bea2591add5d",
+      "name": "Postgres: Get DM Id (assign-contact-owner)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2736,
+        880
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO conversation_members (conversation_id, user_id)\nVALUES ($1, $2), ($1, $3)\nON CONFLICT DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id, $('Prepare Owner Notice: assign-contact-owner').first().json.requesterId, $('Prepare Owner Notice: assign-contact-owner').first().json.ownerId ] }}"
+        }
+      },
+      "id": "6733203b-107f-415c-ae85-1bad9918f497",
+      "name": "Postgres: Ensure DM Members (assign-contact-owner)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2960,
+        880
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO messages (conversation_id, sender_id, body) VALUES ($1, $2, $3);",
+        "options": {
+          "queryReplacement": "={{ [ $('Postgres: Get DM Id (assign-contact-owner)').first().json.id, $('Prepare Owner Notice: assign-contact-owner').first().json.requesterId, 'You\\'ve been assigned as the owner of contact \"' + $('Prepare Owner Notice: assign-contact-owner').first().json.contactName + '\".' ] }}"
+        }
+      },
+      "id": "fece806c-863f-4b12-a038-17f473f66d5a",
+      "name": "Postgres: Notify Owner (assign-contact-owner)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        3184,
+        880
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
     }
   ],
   "pinData": {},
@@ -420,12 +558,7 @@
       "main": [
         [
           {
-            "node": "Respond - Assign Success",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Respond - Error",
+            "node": "Prepare Owner Notice: assign-contact-owner",
             "type": "main",
             "index": 0
           }
@@ -522,6 +655,79 @@
           },
           {
             "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Owner Notice: assign-contact-owner": {
+      "main": [
+        [
+          {
+            "node": "Should Notify Owner?: assign-contact-owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Notify Owner?: assign-contact-owner": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure DM (assign-contact-owner)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Assign Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Ensure DM (assign-contact-owner)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Get DM Id (assign-contact-owner)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Get DM Id (assign-contact-owner)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure DM Members (assign-contact-owner)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Ensure DM Members (assign-contact-owner)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Notify Owner (assign-contact-owner)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Notify Owner (assign-contact-owner)": {
+      "main": [
+        [
+          {
+            "node": "Respond - Assign Success",
             "type": "main",
             "index": 0
           }
