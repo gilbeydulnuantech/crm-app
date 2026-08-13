@@ -43,9 +43,14 @@ export default function Tasks() {
   const [search, setSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [addOpen, setAddOpen] = useState(false);
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [quickViewTask, setQuickViewTask] = useState<Task | null>(null);
-  const [detailTask, setDetailTask] = useState<Task | null>(null);
+  // Store just the id and re-derive the live Task object from the query
+  // data below — otherwise a subtask/attachment/watcher edit invalidates
+  // ['tasks'] and refetches, but these modals would keep rendering the
+  // stale snapshot object they were opened with instead of picking up the
+  // change (matches Contacts.tsx's activeContact pattern).
+  const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
+  const [quickViewTaskId, setQuickViewTaskId] = useState<number | null>(null);
+  const [detailTaskId, setDetailTaskId] = useState<number | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Sidebar filters — additional narrowing on top of the All/Mine/Completed
@@ -78,19 +83,33 @@ export default function Tasks() {
     setSelectedIds(new Set());
   }
 
+  const taskById = useMemo(() => {
+    const map = new Map<number, Task>();
+    allTasks.forEach((t) => map.set(t.id, t));
+    archivedTasks.forEach((t) => map.set(t.id, t));
+    return map;
+  }, [allTasks, archivedTasks]);
+  const editingTask = editingTaskId != null ? taskById.get(editingTaskId) ?? null : null;
+  const quickViewTask = quickViewTaskId != null ? taskById.get(quickViewTaskId) ?? null : null;
+  const detailTask = detailTaskId != null ? taskById.get(detailTaskId) ?? null : null;
+
   function openAddModal() {
     setAddOpen(true);
   }
 
   function openEditModal(task: Task) {
-    setQuickViewTask(null);
-    setDetailTask(null);
-    setEditingTask(task);
+    setQuickViewTaskId(null);
+    setDetailTaskId(null);
+    setEditingTaskId(task.id);
   }
 
   function openDetailModal(task: Task) {
-    setQuickViewTask(null);
-    setDetailTask(task);
+    setQuickViewTaskId(null);
+    setDetailTaskId(task.id);
+  }
+
+  function openQuickView(task: Task) {
+    setQuickViewTaskId(task.id);
   }
 
   function toggleUser(id: number) {
@@ -285,7 +304,7 @@ export default function Tasks() {
               selectedIds={selectedIds}
               onToggleSelect={toggleSelect}
               onToggleSelectAll={toggleSelectAll}
-              onRowClick={setQuickViewTask}
+              onRowClick={openQuickView}
               isLoading={view === 'archived' ? isLoadingArchived : isLoading}
               isAdmin={isAdmin}
               currentUserId={user?.id}
@@ -325,7 +344,7 @@ export default function Tasks() {
           <TasksKanbanBoard
             tasks={kanbanTasks}
             onMoveStatus={handleMoveTaskStatus}
-            onCardClick={setQuickViewTask}
+            onCardClick={openQuickView}
             canEditTask={canEditTask}
           />
         )}
@@ -333,7 +352,7 @@ export default function Tasks() {
         <TaskQuickView
           task={quickViewTask}
           canEdit={quickViewTask ? canEditTask(quickViewTask) : false}
-          onClose={() => setQuickViewTask(null)}
+          onClose={() => setQuickViewTaskId(null)}
           onEdit={openEditModal}
           onOpenFullDetails={openDetailModal}
         />
@@ -342,12 +361,12 @@ export default function Tasks() {
           task={detailTask}
           isAdmin={isAdmin}
           currentUserId={user?.id}
-          onClose={() => setDetailTask(null)}
+          onClose={() => setDetailTaskId(null)}
           onEdit={openEditModal}
         />
 
         <TaskFormModal open={addOpen} onClose={() => setAddOpen(false)} />
-        <TaskEditModal open={!!editingTask} task={editingTask} onClose={() => setEditingTask(null)} />
+        <TaskEditModal open={!!editingTask} task={editingTask} onClose={() => setEditingTaskId(null)} />
       </div>
     </div>
   );
