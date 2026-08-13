@@ -8,6 +8,7 @@ interface Props {
   onCardClick: (opportunity: Opportunity) => void;
   onMoveStage: (opportunityId: number, stageId: number) => void;
   canEditDeal: (opportunity: Opportunity) => boolean;
+  highlightDealId?: number | null;
 }
 
 export default function PipelineBoard({
@@ -16,6 +17,7 @@ export default function PipelineBoard({
   onCardClick,
   onMoveStage,
   canEditDeal,
+  highlightDealId,
 }: Props) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
@@ -45,6 +47,7 @@ export default function PipelineBoard({
               opportunities={opportunities.filter((o) => o.stage_id === stage.id)}
               onCardClick={onCardClick}
               canEditDeal={canEditDeal}
+              highlightDealId={highlightDealId}
             />
           ))}
         </div>

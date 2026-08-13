@@ -1,6 +1,8 @@
+import { useNavigate } from 'react-router-dom';
 import { Task, taskStatus } from '../../types/task';
 import { toTitleCase } from '../../utils/text';
 import { useToggleTaskComplete } from '../../hooks/useTasks';
+import { DEFAULT_USER_COLOR, hexToRgba } from '../../utils/userColor';
 
 interface Props {
   task: Task | null;
@@ -31,15 +33,38 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 export default function TaskQuickView({ task, canEdit, onClose, onEdit }: Props) {
+  const navigate = useNavigate();
   const toggleComplete = useToggleTaskComplete();
 
   if (!task) return null;
 
   const status = taskStatus(task);
+  const ownerColor = task.assigned_user_name ? task.assigned_user_color || DEFAULT_USER_COLOR : undefined;
 
   function handleComplete() {
     toggleComplete.mutate({ id: task!.id, is_completed: true });
     onClose();
+  }
+
+  function goToContact() {
+    if (!task!.contact_id) return;
+    onClose();
+    navigate(`/contacts?contactId=${task!.contact_id}`);
+  }
+
+  function goToCompany() {
+    if (!task!.company_id) return;
+    onClose();
+    navigate(`/companies?companyId=${task!.company_id}`);
+  }
+
+  function goToDeal() {
+    if (!task!.opportunity_id) return;
+    onClose();
+    const params = new URLSearchParams();
+    if (task!.opportunity_pipeline_id) params.set('pipeline', String(task!.opportunity_pipeline_id));
+    params.set('highlight', String(task!.opportunity_id));
+    navigate(`/pipeline?${params.toString()}`);
   }
 
   return (
@@ -85,29 +110,61 @@ export default function TaskQuickView({ task, canEdit, onClose, onEdit }: Props)
           </div>
 
           <Field label="Assigned To">
-            <p className="text-sm text-slate-700">
-              {task.assigned_user_name ? toTitleCase(task.assigned_user_name) : 'Unassigned'}
-            </p>
+            {task.assigned_user_name ? (
+              <span
+                className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium rounded-full"
+                style={{
+                  backgroundColor: hexToRgba(ownerColor!, 0.14),
+                  color: ownerColor,
+                }}
+              >
+                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: ownerColor }} />
+                {toTitleCase(task.assigned_user_name)}
+              </span>
+            ) : (
+              <p className="text-sm text-slate-700">Unassigned</p>
+            )}
           </Field>
 
           {task.contact_name && (
             <Field label="Related Contact">
-              <p className="text-sm text-slate-700">{toTitleCase(task.contact_name)}</p>
+              {task.contact_id ? (
+                <button
+                  onClick={goToContact}
+                  className="text-sm text-indigo-600 hover:text-indigo-700 hover:underline text-left block"
+                >
+                  {toTitleCase(task.contact_name)}
+                </button>
+              ) : (
+                <p className="text-sm text-slate-700">{toTitleCase(task.contact_name)}</p>
+              )}
               {task.contact_email && <p className="text-xs text-slate-400">{task.contact_email}</p>}
             </Field>
           )}
 
           {task.company_name && (
             <Field label="Related Company">
-              <p className="text-sm text-slate-700">{task.company_name}</p>
+              {task.company_id ? (
+                <button
+                  onClick={goToCompany}
+                  className="text-sm text-indigo-600 hover:text-indigo-700 hover:underline text-left block"
+                >
+                  {task.company_name}
+                </button>
+              ) : (
+                <p className="text-sm text-slate-700">{task.company_name}</p>
+              )}
             </Field>
           )}
 
           {task.opportunity_name && (
             <Field label="Related Deal">
-              <p className="text-sm text-slate-700">
+              <button
+                onClick={goToDeal}
+                className="text-sm text-indigo-600 hover:text-indigo-700 hover:underline text-left block"
+              >
                 {task.opportunity_name} · {currency(task.opportunity_value)}
-              </p>
+              </button>
             </Field>
           )}
 

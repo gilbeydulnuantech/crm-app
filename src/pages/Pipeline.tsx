@@ -98,6 +98,7 @@ export default function Pipeline() {
   const [editingOpportunity, setEditingOpportunity] = useState<Opportunity | null>(null);
   const [activeOpportunity, setActiveOpportunity] = useState<Opportunity | null>(null);
   const [quickViewDeal, setQuickViewDeal] = useState<Opportunity | null>(null);
+  const [highlightDealId, setHighlightDealId] = useState<number | null>(null);
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState<DealFilters>(EMPTY_DEAL_FILTERS);
   const [toast, setToast] = useState<string | null>(null);
@@ -132,6 +133,31 @@ export default function Pipeline() {
   const { data: opportunities = [], isLoading } = useOpportunities(pipelineId);
   const { data: users = [] } = useUsers();
   const { data: tags = [] } = useTags();
+
+  // Deep link from Task/Contact/Company quick views — ?pipeline=<id> already
+  // switches to the right board (handled above); ?highlight=<dealId> then
+  // scrolls that specific card into view and rings it for a few seconds,
+  // once its data has loaded. Deliberately doesn't open any panel — see the
+  // ?deal= removal history for why auto-opening a panel here was undesired.
+  useEffect(() => {
+    const param = searchParams.get('highlight');
+    if (!param) return;
+    const id = Number(param);
+    if (!opportunities.some((o) => o.id === id)) return;
+    setHighlightDealId(id);
+    const next = new URLSearchParams(searchParams);
+    next.delete('highlight');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, opportunities, setSearchParams]);
+
+  useEffect(() => {
+    if (highlightDealId == null) return;
+    document
+      .getElementById(`deal-card-${highlightDealId}`)
+      ?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    const t = setTimeout(() => setHighlightDealId(null), 3000);
+    return () => clearTimeout(t);
+  }, [highlightDealId]);
 
   const moveStage = useMoveOpportunityStage(pipelineId);
 
@@ -250,6 +276,7 @@ export default function Pipeline() {
           onCardClick={setQuickViewDeal}
           onMoveStage={handleMoveStage}
           canEditDeal={canEditDeal}
+          highlightDealId={highlightDealId}
         />
       ) : (
         <PipelineListView

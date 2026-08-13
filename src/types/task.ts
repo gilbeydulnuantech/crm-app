@@ -22,10 +22,12 @@ export interface Task {
   contact_id?: number | null;
   contact_name?: string; // joined
   contact_email?: string; // joined
+  company_id?: number | null; // joined via the linked contact's account_id
   company_name?: string; // joined via the linked contact's account_id
   opportunity_id?: number | null;
   opportunity_name?: string; // joined
   opportunity_value?: number | null; // joined
+  opportunity_pipeline_id?: number | null; // joined
   user_id?: number | null;
   assigned_user_name?: string; // joined
   assigned_user_color?: string; // joined from users.color

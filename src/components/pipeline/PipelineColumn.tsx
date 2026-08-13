@@ -7,6 +7,7 @@ interface Props {
   opportunities: Opportunity[];
   onCardClick: (opportunity: Opportunity) => void;
   canEditDeal: (opportunity: Opportunity) => boolean;
+  highlightDealId?: number | null;
 }
 
 // FIX 1: Use Intl.NumberFormat for clean, localized currency
@@ -20,7 +21,7 @@ const currency = (n: number) =>
 const CLOSED_WON = /won/i;
 const CLOSED_LOST = /lost/i;
 
-export default function PipelineColumn({ stage, opportunities, onCardClick, canEditDeal }: Props) {
+export default function PipelineColumn({ stage, opportunities, onCardClick, canEditDeal, highlightDealId }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
 
   const isWon = CLOSED_WON.test(stage.name);
@@ -60,7 +61,13 @@ export default function PipelineColumn({ stage, opportunities, onCardClick, canE
       </div>
       <div className="flex-1 p-2 space-y-2 overflow-y-auto min-h-[80px]">
         {opportunities.map((o) => (
-          <DealCard key={o.id} opportunity={o} onClick={() => onCardClick(o)} canEdit={canEditDeal(o)} />
+          <DealCard
+            key={o.id}
+            opportunity={o}
+            onClick={() => onCardClick(o)}
+            canEdit={canEditDeal(o)}
+            highlighted={o.id === highlightDealId}
+          />
         ))}
         {opportunities.length === 0 && (
           <div className="text-center text-[11px] text-slate-300 py-6">Drop deals here</div>

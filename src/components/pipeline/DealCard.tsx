@@ -8,6 +8,7 @@ interface Props {
   opportunity: Opportunity;
   onClick: () => void;
   canEdit: boolean;
+  highlighted?: boolean;
 }
 
 /**
@@ -41,7 +42,7 @@ function initials(name?: string) {
     .toUpperCase();
 }
 
-export default function DealCard({ opportunity, onClick, canEdit }: Props) {
+export default function DealCard({ opportunity, onClick, canEdit, highlighted }: Props) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: opportunity.id,
     data: { opportunity },
@@ -65,6 +66,7 @@ export default function DealCard({ opportunity, onClick, canEdit }: Props) {
 
   return (
     <div
+      id={`deal-card-${opportunity.id}`}
       ref={setNodeRef}
       style={style}
       {...listeners}
@@ -76,7 +78,9 @@ export default function DealCard({ opportunity, onClick, canEdit }: Props) {
       }}
       className={`${ownerColor ? '' : 'bg-white'} border border-slate-200 rounded-lg p-2.5 shadow-sm hover:shadow-md transition-all ${
         canEdit ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
-      } ${isDragging ? 'opacity-40 ring-2 ring-indigo-400 border-transparent scale-105' : ''}`}
+      } ${isDragging ? 'opacity-40 ring-2 ring-indigo-400 border-transparent scale-105' : ''} ${
+        highlighted ? 'ring-2 ring-indigo-500 ring-offset-2 shadow-lg' : ''
+      }`}
     >
       {/* Deal Name */}
       <div className="flex items-center gap-1.5">
