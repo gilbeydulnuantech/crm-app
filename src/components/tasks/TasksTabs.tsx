@@ -9,6 +9,7 @@ const TABS: { key: TasksView; label: string }[] = [
   { key: 'all', label: 'All Tasks' },
   { key: 'mine', label: 'My Tasks' },
   { key: 'completed', label: 'Completed' },
+  { key: 'archived', label: 'Archived' },
 ];
 
 export default function TasksTabs({ view, onChange }: Props) {

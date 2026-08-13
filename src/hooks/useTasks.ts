@@ -1,11 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as api from '../api/tasks';
-import { Task, TaskStatus } from '../types/task';
+import { Task, TaskAttachment, TaskStatus, TaskSubtask } from '../types/task';
 
 export function useTasks() {
   return useQuery({
     queryKey: ['tasks'],
     queryFn: api.fetchTasks,
+  });
+}
+
+export function useArchivedTasks(enabled: boolean) {
+  return useQuery({
+    queryKey: ['tasks', 'archived'],
+    queryFn: api.fetchArchivedTasks,
+    enabled,
   });
 }
 
@@ -117,6 +125,59 @@ export function useDeleteTasks() {
   const invalidate = useInvalidateTasks();
   return useMutation({
     mutationFn: (ids: number[]) => api.deleteTasks(ids),
+    onSuccess: invalidate,
+  });
+}
+
+function useInvalidateArchivedTasks() {
+  const qc = useQueryClient();
+  return () => qc.invalidateQueries({ queryKey: ['tasks'] });
+}
+
+export function useArchiveTasks() {
+  const invalidate = useInvalidateArchivedTasks();
+  return useMutation({
+    mutationFn: (ids: number[]) => api.archiveTasks(ids),
+    onSuccess: invalidate,
+  });
+}
+
+export function useRestoreTasks() {
+  const invalidate = useInvalidateArchivedTasks();
+  return useMutation({
+    mutationFn: (ids: number[]) => api.restoreTasks(ids),
+    onSuccess: invalidate,
+  });
+}
+
+export function useSetTaskSubtasks() {
+  const invalidate = useInvalidateTasks();
+  return useMutation({
+    mutationFn: ({ taskId, subtasks }: { taskId: number; subtasks: Pick<TaskSubtask, 'title' | 'is_completed'>[] }) =>
+      api.setTaskSubtasks(taskId, subtasks),
+    onSuccess: invalidate,
+  });
+}
+
+export function useSetTaskAttachments() {
+  const invalidate = useInvalidateTasks();
+  return useMutation({
+    mutationFn: ({
+      taskId,
+      attachments,
+    }: {
+      taskId: number;
+      attachments: Pick<TaskAttachment, 'name' | 'url'>[];
+    }) => api.setTaskAttachments(taskId, attachments),
+    onSuccess: invalidate,
+  });
+}
+
+export function useSetTaskWatchers() {
+  const invalidate = useInvalidateTasks();
+  return useMutation({
+    mutationFn: ({ taskId, watcherIds }: { taskId: number; watcherIds: number[] }) =>
+      api.setTaskWatchers(taskId, watcherIds),
     onSuccess: invalidate,
   });
 }

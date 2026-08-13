@@ -2,7 +2,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { Task, TaskPriority, TaskStatus, taskStatus, TasksView } from '../types/task';
 import { useAuth } from '../context/AuthContext';
 import { useUsers } from '../hooks/useContacts';
-import { useDeleteTasks, useMoveTaskStatus, useTasks, useToggleTaskComplete } from '../hooks/useTasks';
+import {
+  useArchivedTasks,
+  useArchiveTasks,
+  useDeleteTasks,
+  useMoveTaskStatus,
+  useRestoreTasks,
+  useTasks,
+  useToggleTaskComplete,
+} from '../hooks/useTasks';
 import TasksStatsBar from '../components/tasks/TasksStatsBar';
 import TasksTabs from '../components/tasks/TasksTabs';
 import TasksSidebar, { TaskStatusFilter } from '../components/tasks/TasksSidebar';
@@ -10,7 +18,9 @@ import TasksTable from '../components/tasks/TasksTable';
 import TasksKanbanBoard from '../components/tasks/TasksKanbanBoard';
 import TasksBulkActionsMenu from '../components/tasks/TasksBulkActionsMenu';
 import TaskFormModal from '../components/tasks/TaskFormModal';
+import TaskEditModal from '../components/tasks/TaskEditModal';
 import TaskQuickView from '../components/tasks/TaskQuickView';
+import TaskDetailModal from '../components/tasks/TaskDetailModal';
 import SearchToolbar from '../components/SearchToolbar';
 
 type BoardView = 'list' | 'kanban';
@@ -32,9 +42,10 @@ export default function Tasks() {
   const [boardView, setBoardView] = useState<BoardView>('kanban');
   const [search, setSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [formOpen, setFormOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [quickViewTask, setQuickViewTask] = useState<Task | null>(null);
+  const [detailTask, setDetailTask] = useState<Task | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Sidebar filters — additional narrowing on top of the All/Mine/Completed
@@ -45,8 +56,11 @@ export default function Tasks() {
   const [priorityFilters, setPriorityFilters] = useState<Set<TaskPriority>>(new Set());
 
   const { data: allTasks = [], isLoading } = useTasks();
+  const { data: archivedTasks = [], isLoading: isLoadingArchived } = useArchivedTasks(view === 'archived');
   const { data: users = [] } = useUsers();
   const deleteTasks = useDeleteTasks();
+  const archiveTasks = useArchiveTasks();
+  const restoreTasks = useRestoreTasks();
   const toggleComplete = useToggleTaskComplete();
   const moveTaskStatus = useMoveTaskStatus();
 
@@ -65,14 +79,18 @@ export default function Tasks() {
   }
 
   function openAddModal() {
-    setEditingTask(null);
-    setFormOpen(true);
+    setAddOpen(true);
   }
 
   function openEditModal(task: Task) {
     setQuickViewTask(null);
+    setDetailTask(null);
     setEditingTask(task);
-    setFormOpen(true);
+  }
+
+  function openDetailModal(task: Task) {
+    setQuickViewTask(null);
+    setDetailTask(task);
   }
 
   function toggleUser(id: number) {
@@ -112,16 +130,18 @@ export default function Tasks() {
   }
 
   const visibleTasks = useMemo(() => {
-    let list = allTasks;
+    let list = view === 'archived' ? archivedTasks : allTasks;
     if (view === 'mine') list = list.filter((t) => t.user_id === user?.id);
     if (view === 'completed') list = list.filter((t) => t.is_completed);
-    else list = list.filter((t) => !t.is_completed); // All/Mine default to open tasks
+    else if (view === 'all' || view === 'mine') list = list.filter((t) => !t.is_completed); // All/Mine default to open tasks
 
     if (users.length > 0 && checkedUserIds.size < users.length) {
       list = list.filter((t) => t.user_id == null || checkedUserIds.has(t.user_id));
     }
 
-    list = list.filter((t) => matchesStatusFilters(t, statusFilters));
+    if (view !== 'archived') {
+      list = list.filter((t) => matchesStatusFilters(t, statusFilters));
+    }
 
     if (priorityFilters.size > 0) {
       list = list.filter((t) => t.priority && priorityFilters.has(t.priority));
@@ -132,7 +152,7 @@ export default function Tasks() {
       list = list.filter((t) => t.subject.toLowerCase().includes(q));
     }
     return list;
-  }, [allTasks, view, user, search, users, checkedUserIds, statusFilters, priorityFilters]);
+  }, [allTasks, archivedTasks, view, user, search, users, checkedUserIds, statusFilters, priorityFilters]);
 
   // Kanban groups by status across the whole board, so it bypasses the
   // All/Mine/Completed tabs (is_completed-based, would permanently empty 3
@@ -159,9 +179,10 @@ export default function Tasks() {
   }
 
   // View All, Edit Owned Only: standard users can see every task but only
-  // edit/complete/delete/drag the ones assigned to them. Admins can act on
-  // anything. Backend enforces this too (Tasks.json), this just keeps the
-  // UI from offering actions that would be rejected.
+  // edit/complete/archive/drag the ones assigned to them. Admins can act on
+  // anything; only admins can permanently delete. Backend enforces this too
+  // (Tasks.json), this just keeps the UI from offering actions that would
+  // be rejected.
   function canEditTask(task: Task) {
     return isAdmin || task.user_id === user?.id;
   }
@@ -184,6 +205,16 @@ export default function Tasks() {
     if (selectedIds.size === 0) return;
     Array.from(selectedIds).forEach((id) => toggleComplete.mutate({ id, is_completed: true }));
     setSelectedIds(new Set());
+  }
+
+  function handleArchiveSelected() {
+    if (selectedIds.size === 0) return;
+    archiveTasks.mutate(Array.from(selectedIds), { onSuccess: () => setSelectedIds(new Set()) });
+  }
+
+  function handleRestoreSelected() {
+    if (selectedIds.size === 0) return;
+    restoreTasks.mutate(Array.from(selectedIds), { onSuccess: () => setSelectedIds(new Set()) });
   }
 
   function handleDeleteSelected() {
@@ -255,7 +286,7 @@ export default function Tasks() {
               onToggleSelect={toggleSelect}
               onToggleSelectAll={toggleSelectAll}
               onRowClick={setQuickViewTask}
-              isLoading={isLoading}
+              isLoading={view === 'archived' ? isLoadingArchived : isLoading}
               isAdmin={isAdmin}
               currentUserId={user?.id}
             />
@@ -267,14 +298,26 @@ export default function Tasks() {
                     {selectedIds.size} selected
                   </span>
                 )}
-                <TasksBulkActionsMenu
-                  selectedCount={selectedIds.size}
-                  onCompleteSelected={handleCompleteSelected}
-                  onDeleteSelected={handleDeleteSelected}
-                />
+                {view === 'archived' ? (
+                  <button
+                    disabled={selectedIds.size === 0}
+                    onClick={handleRestoreSelected}
+                    className="text-xs font-semibold text-slate-600 hover:text-indigo-600 py-1.5 px-2.5 border border-slate-200 rounded-md bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Restore Selected
+                  </button>
+                ) : (
+                  <TasksBulkActionsMenu
+                    selectedCount={selectedIds.size}
+                    isAdmin={isAdmin}
+                    onCompleteSelected={handleCompleteSelected}
+                    onArchiveSelected={handleArchiveSelected}
+                    onDeleteSelected={handleDeleteSelected}
+                  />
+                )}
               </div>
               <span className="text-xs text-slate-500">
-                Showing {visibleTasks.length} of {allTasks.length} Tasks
+                Showing {visibleTasks.length} of {(view === 'archived' ? archivedTasks : allTasks).length} Tasks
               </span>
             </div>
           </>
@@ -292,9 +335,19 @@ export default function Tasks() {
           canEdit={quickViewTask ? canEditTask(quickViewTask) : false}
           onClose={() => setQuickViewTask(null)}
           onEdit={openEditModal}
+          onOpenFullDetails={openDetailModal}
         />
 
-        <TaskFormModal open={formOpen} task={editingTask} onClose={() => setFormOpen(false)} />
+        <TaskDetailModal
+          task={detailTask}
+          isAdmin={isAdmin}
+          currentUserId={user?.id}
+          onClose={() => setDetailTask(null)}
+          onEdit={openEditModal}
+        />
+
+        <TaskFormModal open={addOpen} onClose={() => setAddOpen(false)} />
+        <TaskEditModal open={!!editingTask} task={editingTask} onClose={() => setEditingTask(null)} />
       </div>
     </div>
   );

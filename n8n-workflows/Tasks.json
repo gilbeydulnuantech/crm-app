@@ -20,7 +20,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT a.id, a.contact_id, TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS contact_name, c.email AS contact_email, co.id AS company_id, co.name AS company_name, a.opportunity_id, o.name AS opportunity_name, o.deal_value AS opportunity_value, o.pipeline_id AS opportunity_pipeline_id, a.user_id, u.name AS assigned_user_name, u.color AS assigned_user_color, a.type, a.subject, a.body, a.is_completed, a.due_at, a.completed_at, a.created_at, a.priority, a.task_type, a.status FROM activities a LEFT JOIN contacts c ON c.id = a.contact_id LEFT JOIN companies co ON co.id = c.account_id LEFT JOIN opportunities o ON o.id = a.opportunity_id LEFT JOIN users u ON u.id = a.user_id WHERE a.type = 'task' ORDER BY a.due_at ASC NULLS LAST, a.created_at DESC, a.id DESC;",
+        "query": "SELECT a.id, a.contact_id, TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS contact_name, c.email AS contact_email, co.id AS company_id, co.name AS company_name, a.account_id, acc.name AS account_name, a.opportunity_id, o.name AS opportunity_name, o.deal_value AS opportunity_value, o.pipeline_id AS opportunity_pipeline_id, a.user_id, u.name AS assigned_user_name, u.color AS assigned_user_color, a.type, a.subject, a.body, a.is_completed, a.due_at, a.completed_at, a.created_at, a.priority, a.task_type, a.status, a.sla_tier, a.is_private, a.reminder_minutes_before, a.is_archived, a.archived_at, a.edit_reason, a.estimated_minutes, (SELECT COUNT(*) FROM task_subtasks ts WHERE ts.task_id = a.id)::int AS subtask_total, (SELECT COUNT(*) FILTER (WHERE ts.is_completed) FROM task_subtasks ts WHERE ts.task_id = a.id)::int AS subtask_completed, (SELECT COALESCE(json_agg(json_build_object('id', ts.id, 'title', ts.title, 'is_completed', ts.is_completed) ORDER BY ts.display_order, ts.id), '[]'::json)  FROM task_subtasks ts WHERE ts.task_id = a.id) AS subtasks, (SELECT COALESCE(json_agg(json_build_object('id', ta.id, 'name', ta.name, 'url', ta.url) ORDER BY ta.id), '[]'::json)  FROM task_attachments ta WHERE ta.task_id = a.id) AS attachments, (SELECT COALESCE(json_agg(json_build_object('id', wu.id, 'name', wu.name, 'color', wu.color) ORDER BY wu.name), '[]'::json)  FROM task_watchers tw JOIN users wu ON wu.id = tw.user_id WHERE tw.task_id = a.id) AS watchers FROM activities a LEFT JOIN contacts c ON c.id = a.contact_id LEFT JOIN companies co ON co.id = c.account_id LEFT JOIN companies acc ON acc.id = a.account_id LEFT JOIN opportunities o ON o.id = a.opportunity_id LEFT JOIN users u ON u.id = a.user_id WHERE a.type = 'task' AND COALESCE(a.is_archived, false) = false ORDER BY a.due_at ASC NULLS LAST, a.created_at DESC, a.id DESC;",
         "options": {}
       },
       "id": "7627365e-6be1-44d8-923b-0c4000a7ddc2",
@@ -89,9 +89,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO activities (contact_id, opportunity_id, user_id, type, subject, body, due_at, priority, task_type, status) VALUES ($1, $2, $3, 'task', $4, $5, $6, $7, $8, $9) RETURNING id, subject, is_completed, created_at;",
+        "query": "INSERT INTO activities (contact_id, account_id, opportunity_id, user_id, type, subject, body, due_at, priority, task_type, status, sla_tier, is_private, reminder_minutes_before, estimated_minutes) VALUES ($1, $2, $3, $4, 'task', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id, subject, is_completed, created_at;",
         "options": {
-          "queryReplacement": "={{ [ $('Webhook: add-task').first().json.body.contact_id || null, $('Webhook: add-task').first().json.body.opportunity_id || null, $('Webhook: add-task').first().json.body.user_id || $('Webhook: add-task').first().json.body.requester_id || null, $('Webhook: add-task').first().json.body.subject, $('Webhook: add-task').first().json.body.body || null, $('Webhook: add-task').first().json.body.due_at || null, $('Webhook: add-task').first().json.body.priority || 'Medium', $('Webhook: add-task').first().json.body.task_type || null, $('Webhook: add-task').first().json.body.status || 'to_do' ] }}"
+          "queryReplacement": "={{ [ $('Webhook: add-task').first().json.body.contact_id || null, $('Webhook: add-task').first().json.body.account_id || null, $('Webhook: add-task').first().json.body.opportunity_id || null, $('Webhook: add-task').first().json.body.user_id || $('Webhook: add-task').first().json.body.requester_id || null, $('Webhook: add-task').first().json.body.subject, $('Webhook: add-task').first().json.body.body || null, $('Webhook: add-task').first().json.body.due_at || null, $('Webhook: add-task').first().json.body.priority || 'Medium', $('Webhook: add-task').first().json.body.task_type || null, $('Webhook: add-task').first().json.body.status || 'to_do', $('Webhook: add-task').first().json.body.sla_tier || null, $('Webhook: add-task').first().json.body.is_private === true, $('Webhook: add-task').first().json.body.reminder_minutes_before || null, $('Webhook: add-task').first().json.body.estimated_minutes || null ] }}"
         }
       },
       "id": "170bcc9a-edfa-4636-87c7-efe0f75a8163",
@@ -161,9 +161,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE activities SET subject = COALESCE($1, subject), body = COALESCE($2, body), contact_id = COALESCE($3, contact_id), opportunity_id = COALESCE($4, opportunity_id), user_id = COALESCE($5, user_id), due_at = COALESCE($6, due_at), is_completed = COALESCE($7, is_completed), completed_at = $8, priority = COALESCE($9, priority), task_type = COALESCE($10, task_type), status = COALESCE($11, status) WHERE id = $12 AND type = 'task' AND ($13 = 'admin' OR user_id = $14) RETURNING id, subject;",
+        "query": "UPDATE activities SET subject = COALESCE($1, subject), body = COALESCE($2, body), contact_id = COALESCE($3, contact_id), account_id = COALESCE($4, account_id), opportunity_id = COALESCE($5, opportunity_id), user_id = COALESCE($6, user_id), due_at = COALESCE($7, due_at), is_completed = COALESCE($8, is_completed), completed_at = $9, priority = COALESCE($10, priority), task_type = COALESCE($11, task_type), status = COALESCE($12, status), sla_tier = COALESCE($13, sla_tier), is_private = COALESCE($14, is_private), reminder_minutes_before = COALESCE($15, reminder_minutes_before), edit_reason = COALESCE($16, edit_reason), estimated_minutes = COALESCE($17, estimated_minutes) WHERE id = $18 AND type = 'task' AND ($19 = 'admin' OR user_id = $20) RETURNING id, subject;",
         "options": {
-          "queryReplacement": "={{ [ $('Webhook: update-task').first().json.body.subject || null, $('Webhook: update-task').first().json.body.body || null, $('Webhook: update-task').first().json.body.contact_id || null, $('Webhook: update-task').first().json.body.opportunity_id || null, $('Webhook: update-task').first().json.body.user_id || null, $('Webhook: update-task').first().json.body.due_at || null, $('Webhook: update-task').first().json.body.is_completed !== undefined ? $('Webhook: update-task').first().json.body.is_completed : null, $('Webhook: update-task').first().json.body.completed_at !== undefined ? $('Webhook: update-task').first().json.body.completed_at : null, $('Webhook: update-task').first().json.body.priority || null, $('Webhook: update-task').first().json.body.task_type || null, $('Webhook: update-task').first().json.body.status || null, $('Webhook: update-task').first().json.body.id, $('Look Up Requester: update-task').first().json.role, $('Look Up Requester: update-task').first().json.id ] }}"
+          "queryReplacement": "={{ [ $('Webhook: update-task').first().json.body.subject || null, $('Webhook: update-task').first().json.body.body || null, $('Webhook: update-task').first().json.body.contact_id || null, $('Webhook: update-task').first().json.body.account_id || null, $('Webhook: update-task').first().json.body.opportunity_id || null, $('Webhook: update-task').first().json.body.user_id || null, $('Webhook: update-task').first().json.body.due_at || null, $('Webhook: update-task').first().json.body.is_completed !== undefined ? $('Webhook: update-task').first().json.body.is_completed : null, $('Webhook: update-task').first().json.body.completed_at !== undefined ? $('Webhook: update-task').first().json.body.completed_at : null, $('Webhook: update-task').first().json.body.priority || null, $('Webhook: update-task').first().json.body.task_type || null, $('Webhook: update-task').first().json.body.status || null, $('Webhook: update-task').first().json.body.sla_tier || null, $('Webhook: update-task').first().json.body.is_private !== undefined ? $('Webhook: update-task').first().json.body.is_private : null, $('Webhook: update-task').first().json.body.reminder_minutes_before !== undefined ? $('Webhook: update-task').first().json.body.reminder_minutes_before : null, $('Webhook: update-task').first().json.body.edit_reason || null, $('Webhook: update-task').first().json.body.estimated_minutes || null, $('Webhook: update-task').first().json.body.id, $('Look Up Requester: update-task').first().json.role, $('Look Up Requester: update-task').first().json.id ] }}"
         }
       },
       "id": "757a985d-9a39-490b-8761-e64f841e7336",
@@ -338,7 +338,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "ALTER TABLE activities ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT 'Medium';\nALTER TABLE activities ADD COLUMN IF NOT EXISTS task_type VARCHAR(50);\nALTER TABLE activities ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'to_do';",
+        "query": "ALTER TABLE activities ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT 'Medium';\nALTER TABLE activities ADD COLUMN IF NOT EXISTS task_type VARCHAR(50);\nALTER TABLE activities ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'to_do';\nALTER TABLE activities ADD COLUMN IF NOT EXISTS account_id INTEGER;\nALTER TABLE activities ADD COLUMN IF NOT EXISTS sla_tier VARCHAR(50);\nALTER TABLE activities ADD COLUMN IF NOT EXISTS is_private BOOLEAN DEFAULT false;\nALTER TABLE activities ADD COLUMN IF NOT EXISTS reminder_minutes_before INTEGER;\nALTER TABLE activities ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT false;\nALTER TABLE activities ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP;\nALTER TABLE activities ADD COLUMN IF NOT EXISTS edit_reason TEXT;\nCREATE TABLE IF NOT EXISTS task_subtasks (\n  id SERIAL PRIMARY KEY,\n  task_id INTEGER NOT NULL REFERENCES activities(id) ON DELETE CASCADE,\n  title TEXT NOT NULL,\n  is_completed BOOLEAN NOT NULL DEFAULT false,\n  display_order INTEGER NOT NULL DEFAULT 0,\n  created_at TIMESTAMP NOT NULL DEFAULT now()\n);\nCREATE TABLE IF NOT EXISTS task_attachments (\n  id SERIAL PRIMARY KEY,\n  task_id INTEGER NOT NULL REFERENCES activities(id) ON DELETE CASCADE,\n  name TEXT NOT NULL,\n  url TEXT NOT NULL,\n  created_at TIMESTAMP NOT NULL DEFAULT now()\n);\nCREATE TABLE IF NOT EXISTS task_watchers (\n  task_id INTEGER NOT NULL REFERENCES activities(id) ON DELETE CASCADE,\n  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,\n  PRIMARY KEY (task_id, user_id)\n);\nALTER TABLE activities ADD COLUMN IF NOT EXISTS estimated_minutes INTEGER;",
         "options": {}
       },
       "id": "f8e4ff52-0602-431a-bf1f-81f63068b362",
@@ -359,7 +359,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "ALTER TABLE activities ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT 'Medium';\nALTER TABLE activities ADD COLUMN IF NOT EXISTS task_type VARCHAR(50);\nALTER TABLE activities ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'to_do';",
+        "query": "ALTER TABLE activities ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT 'Medium';\nALTER TABLE activities ADD COLUMN IF NOT EXISTS task_type VARCHAR(50);\nALTER TABLE activities ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'to_do';\nALTER TABLE activities ADD COLUMN IF NOT EXISTS account_id INTEGER;\nALTER TABLE activities ADD COLUMN IF NOT EXISTS sla_tier VARCHAR(50);\nALTER TABLE activities ADD COLUMN IF NOT EXISTS is_private BOOLEAN DEFAULT false;\nALTER TABLE activities ADD COLUMN IF NOT EXISTS reminder_minutes_before INTEGER;\nALTER TABLE activities ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT false;\nALTER TABLE activities ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP;\nALTER TABLE activities ADD COLUMN IF NOT EXISTS edit_reason TEXT;\nCREATE TABLE IF NOT EXISTS task_subtasks (\n  id SERIAL PRIMARY KEY,\n  task_id INTEGER NOT NULL REFERENCES activities(id) ON DELETE CASCADE,\n  title TEXT NOT NULL,\n  is_completed BOOLEAN NOT NULL DEFAULT false,\n  display_order INTEGER NOT NULL DEFAULT 0,\n  created_at TIMESTAMP NOT NULL DEFAULT now()\n);\nCREATE TABLE IF NOT EXISTS task_attachments (\n  id SERIAL PRIMARY KEY,\n  task_id INTEGER NOT NULL REFERENCES activities(id) ON DELETE CASCADE,\n  name TEXT NOT NULL,\n  url TEXT NOT NULL,\n  created_at TIMESTAMP NOT NULL DEFAULT now()\n);\nCREATE TABLE IF NOT EXISTS task_watchers (\n  task_id INTEGER NOT NULL REFERENCES activities(id) ON DELETE CASCADE,\n  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,\n  PRIMARY KEY (task_id, user_id)\n);\nALTER TABLE activities ADD COLUMN IF NOT EXISTS estimated_minutes INTEGER;",
         "options": {}
       },
       "id": "f5a8b78b-9f90-4ec1-9464-f18b6cdc79c4",
@@ -519,6 +519,530 @@
         908,
         1094
       ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "ALTER TABLE activities ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT 'Medium';\nALTER TABLE activities ADD COLUMN IF NOT EXISTS task_type VARCHAR(50);\nALTER TABLE activities ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'to_do';\nALTER TABLE activities ADD COLUMN IF NOT EXISTS account_id INTEGER;\nALTER TABLE activities ADD COLUMN IF NOT EXISTS sla_tier VARCHAR(50);\nALTER TABLE activities ADD COLUMN IF NOT EXISTS is_private BOOLEAN DEFAULT false;\nALTER TABLE activities ADD COLUMN IF NOT EXISTS reminder_minutes_before INTEGER;\nALTER TABLE activities ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT false;\nALTER TABLE activities ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP;\nALTER TABLE activities ADD COLUMN IF NOT EXISTS edit_reason TEXT;\nCREATE TABLE IF NOT EXISTS task_subtasks (\n  id SERIAL PRIMARY KEY,\n  task_id INTEGER NOT NULL REFERENCES activities(id) ON DELETE CASCADE,\n  title TEXT NOT NULL,\n  is_completed BOOLEAN NOT NULL DEFAULT false,\n  display_order INTEGER NOT NULL DEFAULT 0,\n  created_at TIMESTAMP NOT NULL DEFAULT now()\n);\nCREATE TABLE IF NOT EXISTS task_attachments (\n  id SERIAL PRIMARY KEY,\n  task_id INTEGER NOT NULL REFERENCES activities(id) ON DELETE CASCADE,\n  name TEXT NOT NULL,\n  url TEXT NOT NULL,\n  created_at TIMESTAMP NOT NULL DEFAULT now()\n);\nCREATE TABLE IF NOT EXISTS task_watchers (\n  task_id INTEGER NOT NULL REFERENCES activities(id) ON DELETE CASCADE,\n  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,\n  PRIMARY KEY (task_id, user_id)\n);\nALTER TABLE activities ADD COLUMN IF NOT EXISTS estimated_minutes INTEGER;",
+        "options": {}
+      },
+      "id": "0500fd25-759f-4c25-818b-cac0f3465b3f",
+      "name": "Postgres: Ensure Task Columns (get)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        440,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "get-archived-tasks",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "1533b5fc-ac1b-415d-bf90-2f69115fe8d1",
+      "name": "Webhook: get-archived-tasks",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        1600
+      ],
+      "webhookId": "b591dfa7-33ab-454b-b7f8-3eb6f02e2850"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT a.id, a.contact_id, TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS contact_name, c.email AS contact_email, co.id AS company_id, co.name AS company_name, a.account_id, acc.name AS account_name, a.opportunity_id, o.name AS opportunity_name, o.deal_value AS opportunity_value, o.pipeline_id AS opportunity_pipeline_id, a.user_id, u.name AS assigned_user_name, u.color AS assigned_user_color, a.type, a.subject, a.body, a.is_completed, a.due_at, a.completed_at, a.created_at, a.priority, a.task_type, a.status, a.sla_tier, a.is_private, a.reminder_minutes_before, a.is_archived, a.archived_at, a.edit_reason, a.estimated_minutes, (SELECT COUNT(*) FROM task_subtasks ts WHERE ts.task_id = a.id)::int AS subtask_total, (SELECT COUNT(*) FILTER (WHERE ts.is_completed) FROM task_subtasks ts WHERE ts.task_id = a.id)::int AS subtask_completed, (SELECT COALESCE(json_agg(json_build_object('id', ts.id, 'title', ts.title, 'is_completed', ts.is_completed) ORDER BY ts.display_order, ts.id), '[]'::json)  FROM task_subtasks ts WHERE ts.task_id = a.id) AS subtasks, (SELECT COALESCE(json_agg(json_build_object('id', ta.id, 'name', ta.name, 'url', ta.url) ORDER BY ta.id), '[]'::json)  FROM task_attachments ta WHERE ta.task_id = a.id) AS attachments, (SELECT COALESCE(json_agg(json_build_object('id', wu.id, 'name', wu.name, 'color', wu.color) ORDER BY wu.name), '[]'::json)  FROM task_watchers tw JOIN users wu ON wu.id = tw.user_id WHERE tw.task_id = a.id) AS watchers FROM activities a LEFT JOIN contacts c ON c.id = a.contact_id LEFT JOIN companies co ON co.id = c.account_id LEFT JOIN companies acc ON acc.id = a.account_id LEFT JOIN opportunities o ON o.id = a.opportunity_id LEFT JOIN users u ON u.id = a.user_id WHERE a.type = 'task' AND COALESCE(a.is_archived, false) = true ORDER BY a.due_at ASC NULLS LAST, a.created_at DESC, a.id DESC;",
+        "options": {}
+      },
+      "id": "e3224b3c-acd4-4a3b-a0b0-79cdbbbbc511",
+      "name": "Postgres: Select Archived Tasks",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        240,
+        1600
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "6d640e99-406c-4446-a074-d02d29ed11b2",
+      "name": "Respond: get-archived-tasks",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        480,
+        1600
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "archive-tasks",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "e2024252-a989-4969-9b8b-dd98df6b1d78",
+      "name": "Webhook: archive-tasks",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        1800
+      ],
+      "webhookId": "ca9a4a8c-3174-4829-82ca-a8a4d64c9317"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "3551229d-96b1-4837-8b4b-82a13a7877c1",
+      "name": "Parse Token: archive-tasks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        1800
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "723fd605-7e1c-4e6b-afb7-fe026831899d",
+      "name": "Look Up Requester: archive-tasks",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        480,
+        1800
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE activities SET is_archived = true, archived_at = now() WHERE id = ANY($1::int[]) AND type = 'task' AND ($2 = 'admin' OR user_id = $3) RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $('Webhook: archive-tasks').first().json.body.ids, $('Look Up Requester: archive-tasks').first().json.role, $('Look Up Requester: archive-tasks').first().json.id ] }}"
+        }
+      },
+      "id": "e89731b8-13dd-4850-adf1-9459aac1da6e",
+      "name": "Postgres: Archive Tasks",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        720,
+        1800
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true } }}",
+        "options": {}
+      },
+      "id": "c86452c7-8264-47b0-a6da-0bb66be75c41",
+      "name": "Respond: archive-tasks",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        960,
+        1800
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "ceae2a6d-f9a4-45f3-b9f0-f48ad79a000a",
+      "name": "Respond - Error: archive-tasks",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        480,
+        1960
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "restore-tasks",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "3d93d766-9f3c-40d2-a2e3-df06058b715b",
+      "name": "Webhook: restore-tasks",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        2100
+      ],
+      "webhookId": "8c12adba-1a0c-4c9f-aa07-bdd6e92bbe25"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "8af4905c-056d-4d95-8003-41f30d0d402e",
+      "name": "Parse Token: restore-tasks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        2100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "97344c27-1191-467b-b1a0-fed0b277504f",
+      "name": "Look Up Requester: restore-tasks",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        480,
+        2100
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE activities SET is_archived = false, archived_at = NULL WHERE id = ANY($1::int[]) AND type = 'task' AND ($2 = 'admin' OR user_id = $3) RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $('Webhook: restore-tasks').first().json.body.ids, $('Look Up Requester: restore-tasks').first().json.role, $('Look Up Requester: restore-tasks').first().json.id ] }}"
+        }
+      },
+      "id": "d98472d2-8211-4569-8323-ba8b980b6a3a",
+      "name": "Postgres: Restore Tasks",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        720,
+        2100
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true } }}",
+        "options": {}
+      },
+      "id": "f7fe3d98-89f2-4158-877c-a5f37f1a9561",
+      "name": "Respond: restore-tasks",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        960,
+        2100
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "d8920bea-025c-40d2-b2ff-cb3fcf61a57f",
+      "name": "Respond - Error: restore-tasks",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        480,
+        2260
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "set-task-subtasks",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "15bbf41c-4d42-47bb-99c4-5163d8d47450",
+      "name": "Webhook: set-task-subtasks",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        2400
+      ],
+      "webhookId": "17d6a2ad-73f3-45a0-a6a4-4c5e6d839aba"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM task_subtasks WHERE task_id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.body.task_id ] }}"
+        }
+      },
+      "id": "705377e1-1ac5-405f-a15c-6c948feae70d",
+      "name": "Postgres: Clear Subtasks",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        240,
+        2400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO task_subtasks (task_id, title, is_completed, display_order) SELECT $1, item->>'title', COALESCE((item->>'is_completed')::boolean, false), ord - 1 FROM jsonb_array_elements($2::jsonb) WITH ORDINALITY AS t(item, ord) RETURNING id, title, is_completed;",
+        "options": {
+          "queryReplacement": "={{ [ $('Webhook: set-task-subtasks').first().json.body.task_id, JSON.stringify($('Webhook: set-task-subtasks').first().json.body.subtasks || []) ] }}"
+        }
+      },
+      "id": "997b49d4-0cb9-45d0-b5cc-2c2b50518364",
+      "name": "Postgres: Insert Subtasks",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        480,
+        2400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, subtasks: $input.all().map(i => i.json) } }}",
+        "options": {}
+      },
+      "id": "a889a932-6293-4c5c-927e-2994f635ff85",
+      "name": "Respond: set-task-subtasks",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        720,
+        2400
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "set-task-attachments",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "2bac7a9d-3762-4a7e-b271-1bbf567cc9ea",
+      "name": "Webhook: set-task-attachments",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        2600
+      ],
+      "webhookId": "eac92b3b-f6bd-4d2b-9576-79d152123f74"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM task_attachments WHERE task_id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.body.task_id ] }}"
+        }
+      },
+      "id": "202279a9-a13f-4132-a1a5-17927eecf433",
+      "name": "Postgres: Clear Attachments",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        240,
+        2600
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO task_attachments (task_id, name, url) SELECT $1, item->>'name', item->>'url' FROM jsonb_array_elements($2::jsonb) AS t(item) RETURNING id, name, url;",
+        "options": {
+          "queryReplacement": "={{ [ $('Webhook: set-task-attachments').first().json.body.task_id, JSON.stringify($('Webhook: set-task-attachments').first().json.body.attachments || []) ] }}"
+        }
+      },
+      "id": "a76aa6ab-2c03-45cf-9220-2cf0a94b80c6",
+      "name": "Postgres: Insert Attachments",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        480,
+        2600
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, attachments: $input.all().map(i => i.json) } }}",
+        "options": {}
+      },
+      "id": "8482470e-a096-4735-975d-e37316d29619",
+      "name": "Respond: set-task-attachments",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        720,
+        2600
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "set-task-watchers",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "afa4b091-29f8-4073-8b81-33c0b7ce8afb",
+      "name": "Webhook: set-task-watchers",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        2800
+      ],
+      "webhookId": "35e9df57-e9f8-48a5-a181-51521d21ff08"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM task_watchers WHERE task_id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.body.task_id ] }}"
+        }
+      },
+      "id": "7ce5d53b-6496-4021-b43f-8362f2cc8f8c",
+      "name": "Postgres: Clear Watchers",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        240,
+        2800
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO task_watchers (task_id, user_id) SELECT $1, unnest($2::int[]) ON CONFLICT DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ [ $('Webhook: set-task-watchers').first().json.body.task_id, $('Webhook: set-task-watchers').first().json.body.watcher_ids || [] ] }}"
+        }
+      },
+      "id": "f99c135e-c2d6-43ee-8001-b7cbe81a89af",
+      "name": "Postgres: Insert Watchers",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        480,
+        2800
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true } }}",
+        "options": {}
+      },
+      "id": "e77134d0-1577-41a5-98a5-5d59e6e099d5",
+      "name": "Respond: set-task-watchers",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        720,
+        2800
+      ]
     }
   ],
   "pinData": {},
@@ -527,7 +1051,7 @@
       "main": [
         [
           {
-            "node": "Postgres: Select Tasks",
+            "node": "Postgres: Ensure Task Columns (get)",
             "type": "main",
             "index": 0
           }
@@ -721,6 +1245,246 @@
           },
           {
             "node": "Respond - Error: delete-tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Ensure Task Columns (get)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: get-archived-tasks": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Archived Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Archived Tasks": {
+      "main": [
+        [
+          {
+            "node": "Respond: get-archived-tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: archive-tasks": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: archive-tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: archive-tasks": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: archive-tasks",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: archive-tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: archive-tasks": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Archive Tasks",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: archive-tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Archive Tasks": {
+      "main": [
+        [
+          {
+            "node": "Respond: archive-tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: restore-tasks": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: restore-tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: restore-tasks": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: restore-tasks",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: restore-tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: restore-tasks": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Restore Tasks",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error: restore-tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Restore Tasks": {
+      "main": [
+        [
+          {
+            "node": "Respond: restore-tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: set-task-subtasks": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Clear Subtasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Clear Subtasks": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Insert Subtasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Insert Subtasks": {
+      "main": [
+        [
+          {
+            "node": "Respond: set-task-subtasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: set-task-attachments": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Clear Attachments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Clear Attachments": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Insert Attachments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Insert Attachments": {
+      "main": [
+        [
+          {
+            "node": "Respond: set-task-attachments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: set-task-watchers": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Clear Watchers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Clear Watchers": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Insert Watchers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Insert Watchers": {
+      "main": [
+        [
+          {
+            "node": "Respond: set-task-watchers",
             "type": "main",
             "index": 0
           }

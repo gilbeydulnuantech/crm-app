@@ -2,13 +2,17 @@ import { useState } from 'react';
 
 interface Props {
   selectedCount: number;
+  isAdmin: boolean;
   onCompleteSelected: () => void;
+  onArchiveSelected: () => void;
   onDeleteSelected: () => void;
 }
 
 export default function TasksBulkActionsMenu({
   selectedCount,
+  isAdmin,
   onCompleteSelected,
+  onArchiveSelected,
   onDeleteSelected,
 }: Props) {
   const [open, setOpen] = useState(false);
@@ -39,14 +43,25 @@ export default function TasksBulkActionsMenu({
             >
               Mark Completed
             </button>
-            <div className="border-t border-slate-100 my-1" />
             <button
               disabled={selectedCount === 0}
-              onClick={() => run(onDeleteSelected)}
-              className="w-full text-left px-3 py-1.5 hover:bg-rose-50 text-rose-600 disabled:opacity-40 disabled:cursor-not-allowed"
+              onClick={() => run(onArchiveSelected)}
+              className="w-full text-left px-3 py-1.5 hover:bg-slate-50 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              Delete Selected
+              Archive Selected
             </button>
+            {isAdmin && (
+              <>
+                <div className="border-t border-slate-100 my-1" />
+                <button
+                  disabled={selectedCount === 0}
+                  onClick={() => run(onDeleteSelected)}
+                  className="w-full text-left px-3 py-1.5 hover:bg-rose-50 text-rose-600 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Delete Selected
+                </button>
+              </>
+            )}
           </div>
         </>
       )}

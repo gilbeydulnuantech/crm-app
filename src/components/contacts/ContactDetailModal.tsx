@@ -581,7 +581,6 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
       )}
       <TaskFormModal
         open={taskFormOpen}
-        task={null}
         defaultContactId={contact.id}
         onClose={() => setTaskFormOpen(false)}
       />

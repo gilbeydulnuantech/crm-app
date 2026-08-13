@@ -427,7 +427,6 @@ export default function Pipeline() {
 
       <TaskFormModal
         open={!!taskDeal}
-        task={null}
         defaultOpportunity={taskDeal}
         onClose={() => setTaskDeal(null)}
       />

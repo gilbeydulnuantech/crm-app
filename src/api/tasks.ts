@@ -1,8 +1,12 @@
 import { apiFetch } from './client';
-import { Task } from '../types/task';
+import { Task, TaskAttachment, TaskSubtask } from '../types/task';
 
 export function fetchTasks() {
   return apiFetch<Task[]>('/webhook/get-tasks');
+}
+
+export function fetchArchivedTasks() {
+  return apiFetch<Task[]>('/webhook/get-archived-tasks');
 }
 
 export function addTask(payload: Partial<Task>) {
@@ -37,5 +41,46 @@ export function deleteTasks(ids: number[]) {
   return apiFetch<{ success: boolean; error?: string }>('/webhook/delete-tasks', {
     method: 'POST',
     body: JSON.stringify({ ids }),
+  });
+}
+
+export function archiveTasks(ids: number[]) {
+  return apiFetch<{ success: boolean; error?: string }>('/webhook/archive-tasks', {
+    method: 'POST',
+    body: JSON.stringify({ ids }),
+  });
+}
+
+export function restoreTasks(ids: number[]) {
+  return apiFetch<{ success: boolean; error?: string }>('/webhook/restore-tasks', {
+    method: 'POST',
+    body: JSON.stringify({ ids }),
+  });
+}
+
+// These three replace the whole list in one call — subtasks/attachments/
+// watchers are small (a handful of rows), so full-replace on every change
+// is simpler and cheap enough vs. individual add/remove endpoints.
+export function setTaskSubtasks(taskId: number, subtasks: Pick<TaskSubtask, 'title' | 'is_completed'>[]) {
+  return apiFetch<{ success: boolean; error?: string; subtasks?: TaskSubtask[] }>('/webhook/set-task-subtasks', {
+    method: 'POST',
+    body: JSON.stringify({ task_id: taskId, subtasks }),
+  });
+}
+
+export function setTaskAttachments(taskId: number, attachments: Pick<TaskAttachment, 'name' | 'url'>[]) {
+  return apiFetch<{ success: boolean; error?: string; attachments?: TaskAttachment[] }>(
+    '/webhook/set-task-attachments',
+    {
+      method: 'POST',
+      body: JSON.stringify({ task_id: taskId, attachments }),
+    }
+  );
+}
+
+export function setTaskWatchers(taskId: number, watcherIds: number[]) {
+  return apiFetch<{ success: boolean; error?: string }>('/webhook/set-task-watchers', {
+    method: 'POST',
+    body: JSON.stringify({ task_id: taskId, watcher_ids: watcherIds }),
   });
 }
