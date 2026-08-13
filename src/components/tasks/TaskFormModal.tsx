@@ -278,6 +278,11 @@ export default function TaskFormModal({ open, defaultContactId, defaultOpportuni
             <h4 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
               Associated To (Object Linkage)
             </h4>
+            <ContactPicker
+              contactId={form.contact_id ? Number(form.contact_id) : null}
+              contactName={form.contact_name}
+              onChange={handleContactChange}
+            />
             <CompanyPicker
               accountId={form.account_id ? Number(form.account_id) : null}
               companyName={form.account_name}
@@ -301,11 +306,6 @@ export default function TaskFormModal({ open, defaultContactId, defaultOpportuni
                 ))}
               </select>
             </div>
-            <ContactPicker
-              contactId={form.contact_id ? Number(form.contact_id) : null}
-              contactName={form.contact_name}
-              onChange={handleContactChange}
-            />
           </div>
 
           <div className="border border-slate-200 rounded-xl p-3 space-y-3">

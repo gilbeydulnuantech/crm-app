@@ -12,7 +12,7 @@ import {
   taskDisplayId,
 } from '../../types/task';
 import { useSetTaskWatchers, useUpdateTask } from '../../hooks/useTasks';
-import { useUsers } from '../../hooks/useContacts';
+import { useContacts, useUsers } from '../../hooks/useContacts';
 import { useAllOpportunities, usePipelines } from '../../hooks/useOpportunities';
 import { useAuth } from '../../context/AuthContext';
 import { toTitleCase } from '../../utils/text';
@@ -60,6 +60,7 @@ function combineDateTime(date: string, time: string): string | null {
 export default function TaskEditModal({ open, task, onClose }: Props) {
   const { user } = useAuth();
   const { data: users = [] } = useUsers();
+  const { data: contacts = [] } = useContacts();
   const { data: pipelines = [] } = usePipelines();
   const pipelineIds = useMemo(() => pipelines.map((p) => p.id), [pipelines]);
   const { data: allDeals = [] } = useAllOpportunities(pipelineIds);
@@ -114,10 +115,13 @@ export default function TaskEditModal({ open, task, onClose }: Props) {
   }
 
   function handleContactChange(id: number | null, name: string) {
+    const matched = id ? contacts.find((c) => c.id === id) : undefined;
     setForm((f) => ({
       ...f,
       contact_id: id ? String(id) : '',
       contact_name: name,
+      account_id: matched?.account_id ? String(matched.account_id) : f.account_id,
+      account_name: matched?.company_name ?? f.account_name,
       opportunity_id: id !== (f.contact_id ? Number(f.contact_id) : null) ? '' : f.opportunity_id,
     }));
   }
@@ -351,6 +355,11 @@ export default function TaskEditModal({ open, task, onClose }: Props) {
 
           <div className="border border-slate-200 rounded-xl p-3 space-y-3">
             <h4 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Associations</h4>
+            <ContactPicker
+              contactId={form.contact_id ? Number(form.contact_id) : null}
+              contactName={form.contact_name}
+              onChange={handleContactChange}
+            />
             <CompanyPicker
               accountId={form.account_id ? Number(form.account_id) : null}
               companyName={form.account_name}
@@ -374,11 +383,6 @@ export default function TaskEditModal({ open, task, onClose }: Props) {
                 ))}
               </select>
             </div>
-            <ContactPicker
-              contactId={form.contact_id ? Number(form.contact_id) : null}
-              contactName={form.contact_name}
-              onChange={handleContactChange}
-            />
           </div>
 
           <div>
