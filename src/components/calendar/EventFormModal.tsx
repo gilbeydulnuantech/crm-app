@@ -148,6 +148,52 @@ export default function EventFormModal({ open, event, defaultDate, onClose }: Pr
     return ids;
   }, [dayEvents, form.date, form.startTime, form.endTime, event]);
 
+  // Same overlap logic as bookedResourceIds, but surfaced as an actual list
+  // of "already busy" time ranges for the chosen team member and contact —
+  // shown as soon as a date is picked so a scheduler can see open slots
+  // before committing to a start time, instead of only finding out about a
+  // double-booking after the fact.
+  function busySlotsFor(matchesEvent: (e: CalendarEvent) => boolean) {
+    return dayEvents
+      .filter((e) => {
+        if (event && e.id === event.id) return false; // skip the event being edited
+        return matchesEvent(e);
+      })
+      .map((e) => ({
+        id: e.id,
+        subject: e.subject,
+        start: new Date(e.due_at),
+        end: e.end_at ? new Date(e.end_at) : new Date(e.due_at),
+      }))
+      .sort((a, b) => a.start.getTime() - b.start.getTime());
+  }
+
+  const userBusySlots = useMemo(
+    () => (form.assigned_user ? busySlotsFor((e) => e.user_id === Number(form.assigned_user)) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [dayEvents, form.assigned_user, event]
+  );
+  const contactBusySlots = useMemo(
+    () => (form.contact_id ? busySlotsFor((e) => e.contact_id === Number(form.contact_id)) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [dayEvents, form.contact_id, event]
+  );
+
+  function formatSlot(s: { start: Date; end: Date }) {
+    const opts: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit' };
+    return `${s.start.toLocaleTimeString(undefined, opts)} – ${s.end.toLocaleTimeString(undefined, opts)}`;
+  }
+
+  const selectedStart = form.date && form.startTime ? new Date(`${form.date}T${form.startTime}`) : null;
+  const selectedEnd =
+    form.date && form.startTime ? new Date(`${form.date}T${form.endTime || form.startTime}`) : null;
+  function overlapsSelection(s: { start: Date; end: Date }) {
+    if (!selectedStart || !selectedEnd) return false;
+    return selectedStart < s.end && s.start < selectedEnd;
+  }
+  const hasConflict =
+    userBusySlots.some(overlapsSelection) || contactBusySlots.some(overlapsSelection);
+
   if (!open) return null;
 
   function update<K extends keyof typeof EMPTY>(key: K, value: (typeof EMPTY)[K]) {
@@ -319,6 +365,58 @@ export default function EventFormModal({ open, event, defaultDate, onClose }: Pr
               ))}
             </select>
           </div>
+
+          {form.date && (userBusySlots.length > 0 || contactBusySlots.length > 0) && (
+            <div
+              className={`rounded-lg border p-2.5 space-y-1.5 ${
+                hasConflict ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200'
+              }`}
+            >
+              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
+                {hasConflict && <i className="fa-solid fa-triangle-exclamation text-amber-600" />}
+                Already Booked on {new Date(`${form.date}T00:00`).toLocaleDateString(undefined, {
+                  month: 'short',
+                  day: 'numeric',
+                })}
+              </p>
+              {userBusySlots.length > 0 && (
+                <div className="text-xs text-slate-600">
+                  <span className="font-medium">
+                    {users.find((u) => String(u.id) === form.assigned_user)?.name
+                      ? toTitleCase(users.find((u) => String(u.id) === form.assigned_user)!.name)
+                      : 'Assigned user'}
+                    :
+                  </span>{' '}
+                  {userBusySlots.map((s) => (
+                    <span
+                      key={s.id}
+                      className={overlapsSelection(s) ? 'text-amber-700 font-semibold' : ''}
+                    >
+                      {formatSlot(s)} ({s.subject}){' '}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {contactBusySlots.length > 0 && (
+                <div className="text-xs text-slate-600">
+                  <span className="font-medium">{toTitleCase(form.contact_name) || 'Contact'}:</span>{' '}
+                  {contactBusySlots.map((s) => (
+                    <span
+                      key={s.id}
+                      className={overlapsSelection(s) ? 'text-amber-700 font-semibold' : ''}
+                    >
+                      {formatSlot(s)} ({s.subject}){' '}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {hasConflict && (
+                <p className="text-[11px] text-amber-700">
+                  The selected time overlaps with an existing event above — pick a different time or confirm this is intentional.
+                </p>
+              )}
+            </div>
+          )}
 
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Location</label>

@@ -796,6 +796,97 @@
         250,
         922
       ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT a.id, a.subject, a.due_at, a.end_at FROM activities a WHERE a.due_at IS NOT NULL AND ( ($1::int IS NOT NULL AND a.user_id = $1) OR ($2::int IS NOT NULL AND a.contact_id = $2) ) AND a.due_at < $4::timestamptz AND COALESCE(a.end_at, a.due_at) > $3::timestamptz LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Webhook: add-event').first().json.body.user_id || $('Webhook: add-event').first().json.body.requester_id || null, $('Webhook: add-event').first().json.body.contact_id || null, $('Webhook: add-event').first().json.body.due_at, $('Webhook: add-event').first().json.body.end_at || $('Webhook: add-event').first().json.body.due_at ] }}"
+        }
+      },
+      "id": "fcd59b22-22f8-4907-bf31-e0de3127d6c8",
+      "name": "Postgres: Check Event Conflict (Add)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1264,
+        100
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const conflict = $input.first().json;\nif (conflict && conflict.id) {\n  const when = new Date(conflict.due_at).toLocaleString();\n  throw new Error(`This time conflicts with an existing event: \"${conflict.subject}\" at ${when}. Choose a different time or remove the conflicting event first.`);\n}\nreturn [{ json: { ok: true } }];"
+      },
+      "id": "17fd3336-5ac2-42a6-bcd3-f208e6791328",
+      "name": "Reject If Conflict (Add)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1488,
+        100
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "bd6d13fe-1ce9-4cdb-986d-d79b0318266e",
+      "name": "Respond - Error: add-event",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1488,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT other.id, other.subject, other.due_at, other.end_at FROM activities self JOIN activities other ON other.id != self.id WHERE self.id = $5 AND ( (COALESCE($1::int, self.user_id) IS NOT NULL AND COALESCE($1::int, self.user_id) = other.user_id) OR (COALESCE($2::int, self.contact_id) IS NOT NULL AND COALESCE($2::int, self.contact_id) = other.contact_id) ) AND other.due_at IS NOT NULL AND other.due_at < COALESCE($4::timestamptz, self.end_at, self.due_at) AND COALESCE(other.end_at, other.due_at) > COALESCE($3::timestamptz, self.due_at) LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Webhook: update-event').first().json.body.user_id || null, $('Webhook: update-event').first().json.body.contact_id || null, $('Webhook: update-event').first().json.body.due_at || null, $('Webhook: update-event').first().json.body.end_at || null, $('Webhook: update-event').first().json.body.id ] }}"
+        }
+      },
+      "id": "7227687f-6cf3-4523-8d27-17a2f905268b",
+      "name": "Postgres: Check Event Conflict (Update)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1712,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const conflict = $input.first().json;\nif (conflict && conflict.id) {\n  const when = new Date(conflict.due_at).toLocaleString();\n  throw new Error(`This time conflicts with an existing event: \"${conflict.subject}\" at ${when}. Choose a different time or remove the conflicting event first.`);\n}\nreturn [{ json: { ok: true } }];"
+      },
+      "id": "b5439a23-1cd3-4c5a-8437-32598a5d5110",
+      "name": "Reject If Conflict (Update)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1936,
+        300
+      ],
+      "onError": "continueErrorOutput"
     }
   ],
   "pinData": {},
@@ -954,7 +1045,7 @@
       "main": [
         [
           {
-            "node": "Postgres: Insert Event",
+            "node": "Postgres: Check Event Conflict (Add)",
             "type": "main",
             "index": 0
           }
@@ -998,7 +1089,7 @@
       "main": [
         [
           {
-            "node": "Postgres: Update Event",
+            "node": "Postgres: Check Event Conflict (Update)",
             "type": "main",
             "index": 0
           }
@@ -1122,6 +1213,64 @@
         [
           {
             "node": "Respond - Error: delete-event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Check Event Conflict (Add)": {
+      "main": [
+        [
+          {
+            "node": "Reject If Conflict (Add)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reject If Conflict (Add)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Insert Event",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: add-event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Check Event Conflict (Update)": {
+      "main": [
+        [
+          {
+            "node": "Reject If Conflict (Update)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reject If Conflict (Update)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Update Event",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: update-event",
             "type": "main",
             "index": 0
           }
