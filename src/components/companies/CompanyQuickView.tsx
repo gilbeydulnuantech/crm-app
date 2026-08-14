@@ -9,12 +9,7 @@ import AddContactModal from '../contacts/AddContactModal';
 import LogCallModal from '../LogCallModal';
 import ComposeEmailPopover from '../contacts/ComposeEmailPopover';
 import { Contact } from '../../types/contact';
-
-const HEALTH_DISPLAY: Record<string, { emoji: string; label: string }> = {
-  'Good Standing': { emoji: '🟢', label: 'Good Standing' },
-  'At Risk': { emoji: '🟡', label: 'At Risk' },
-  New: { emoji: '⚪', label: 'New' },
-};
+import { COMPANY_HEALTH_DISPLAY } from '../../utils/companyHealth';
 
 const TIER_BADGE_COLORS: Record<string, string> = {
   'Tier 1 (Enterprise)': 'bg-indigo-100 text-indigo-700',
@@ -68,7 +63,7 @@ export default function CompanyQuickView({ company, onClose, onOpenFullRecord, o
   const totalArr = companyOpportunities
     .filter((d) => d.status === 'Won')
     .reduce((sum, d) => sum + (d.deal_value ?? 0), 0);
-  const health = company.account_health ? HEALTH_DISPLAY[company.account_health] : undefined;
+  const health = company.account_health ? COMPANY_HEALTH_DISPLAY[company.account_health] : undefined;
   const recentActivity = activity.slice(0, 3);
   const stageName = (stageId: number) => allStages.find((s) => s.id === stageId)?.name ?? '--';
 

@@ -256,6 +256,7 @@ export default function Companies() {
             isLoading={isLoading}
             isAdmin={isAdmin}
             currentUserId={user?.id}
+            onExport={handleExport}
           />
         </>
       )}
@@ -272,6 +273,7 @@ export default function Companies() {
           isLoading={isLoadingArchived}
           isAdmin={isAdmin}
           currentUserId={user?.id}
+          onExport={handleExport}
         />
       )}
 
@@ -287,7 +289,6 @@ export default function Companies() {
             selectedCount={selectedIds.size}
             onArchiveSelected={handleArchiveSelected}
             onDeleteSelected={handleDeleteSelected}
-            onExport={handleExport}
           />
         </div>
         <span className="text-xs text-slate-500">

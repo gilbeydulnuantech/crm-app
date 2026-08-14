@@ -6,7 +6,6 @@ interface Props {
   selectedCount: number;
   onArchiveSelected: () => void;
   onDeleteSelected: () => void;
-  onExport: () => void;
 }
 
 export default function CompaniesBulkActionsMenu({
@@ -14,7 +13,6 @@ export default function CompaniesBulkActionsMenu({
   selectedCount,
   onArchiveSelected,
   onDeleteSelected,
-  onExport,
 }: Props) {
   const [open, setOpen] = useState(false);
 
@@ -52,13 +50,6 @@ export default function CompaniesBulkActionsMenu({
               className="w-full text-left px-3 py-1.5 hover:bg-rose-50 text-rose-600 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Delete Permanently
-            </button>
-            <div className="border-t border-slate-100 my-1" />
-            <button
-              onClick={() => run(onExport)}
-              className="w-full text-left px-3 py-1.5 hover:bg-slate-50 text-slate-700"
-            >
-              Export
             </button>
           </div>
         </>
