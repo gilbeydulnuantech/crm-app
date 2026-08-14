@@ -58,7 +58,7 @@ function Row({
         type="checkbox"
         checked={checked}
         onChange={onToggle}
-        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+        className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
       />
     </label>
   );

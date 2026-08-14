@@ -81,7 +81,7 @@ export default function PipelineFilterPanel({ open, value, users, tags, onChange
             <select
               value={value.owner}
               onChange={(e) => update('owner', e.target.value)}
-              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
             >
               <option value="all">All Owners</option>
               <option value="mine">My Deals</option>
@@ -101,7 +101,7 @@ export default function PipelineFilterPanel({ open, value, users, tags, onChange
             <select
               value={value.datePreset}
               onChange={(e) => update('datePreset', e.target.value as DealFilters['datePreset'])}
-              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
             >
               {DATE_PRESETS.map((p) => (
                 <option key={p.value} value={p.value}>
@@ -115,13 +115,13 @@ export default function PipelineFilterPanel({ open, value, users, tags, onChange
                   type="date"
                   value={value.customStart}
                   onChange={(e) => update('customStart', e.target.value)}
-                  className="px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
                 />
                 <input
                   type="date"
                   value={value.customEnd}
                   onChange={(e) => update('customEnd', e.target.value)}
-                  className="px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
                 />
               </div>
             )}
@@ -137,14 +137,14 @@ export default function PipelineFilterPanel({ open, value, users, tags, onChange
                 placeholder="Min ($)"
                 value={value.minValue}
                 onChange={(e) => update('minValue', e.target.value)}
-                className="px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
               />
               <input
                 type="number"
                 placeholder="Max ($)"
                 value={value.maxValue}
                 onChange={(e) => update('maxValue', e.target.value)}
-                className="px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
               />
             </div>
           </div>
@@ -166,7 +166,7 @@ export default function PipelineFilterPanel({ open, value, users, tags, onChange
                       type="checkbox"
                       checked={value.tagIds.includes(t.id)}
                       onChange={() => toggleTag(t.id)}
-                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
                     />
                     #{t.name}
                   </label>
@@ -186,7 +186,7 @@ export default function PipelineFilterPanel({ open, value, users, tags, onChange
           </button>
           <button
             onClick={onClose}
-            className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold py-2 rounded-lg"
+            className="flex-1 bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] text-white text-sm font-semibold py-2 rounded-lg"
           >
             Apply Filters
           </button>

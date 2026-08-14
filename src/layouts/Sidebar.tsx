@@ -22,8 +22,14 @@ const NAV_ITEMS: NavItem[] = [
 const navLinkClasses = (isActive: boolean) =>
   `flex items-center space-x-3 px-3 py-2 rounded-lg font-medium text-sm transition-colors ${
     isActive
-      ? 'bg-indigo-50 text-indigo-600 font-bold'
+      ? 'bg-[var(--theme-accent-tint)] text-[var(--theme-accent)] font-bold'
       : 'text-slate-600 hover:bg-slate-50'
+  }`;
+const collapsedNavLinkClasses = (isActive: boolean) =>
+  `rounded p-1.5 ${
+    isActive
+      ? 'text-[var(--theme-accent)] bg-[var(--theme-accent-tint)]'
+      : 'text-slate-400 hover:text-[var(--theme-accent)] hover:bg-slate-100'
   }`;
 
 interface Props {
@@ -36,11 +42,14 @@ export default function Sidebar({ collapsed, onToggleCollapsed }: Props) {
 
   if (collapsed) {
     return (
-      <aside className="w-7 bg-white border-r border-slate-200 flex flex-col items-center pt-4 gap-1 shrink-0">
+      <aside
+        className="w-7 border-r border-slate-200 flex flex-col items-center pt-4 gap-1 shrink-0"
+        style={{ backgroundColor: 'var(--theme-header)' }}
+      >
         <button
           onClick={onToggleCollapsed}
           title="Show navigation"
-          className="text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded p-1.5"
+          className="text-slate-400 hover:text-[var(--theme-accent)] hover:bg-slate-100 rounded p-1.5"
         >
           <i className="fa-solid fa-chevron-right text-xs" />
         </button>
@@ -50,9 +59,7 @@ export default function Sidebar({ collapsed, onToggleCollapsed }: Props) {
             key={item.to}
             to={item.to}
             title={item.label}
-            className={({ isActive }) =>
-              `rounded p-1.5 ${isActive ? 'text-indigo-600 bg-indigo-50' : 'text-slate-400 hover:text-indigo-600 hover:bg-slate-100'}`
-            }
+            className={({ isActive }) => collapsedNavLinkClasses(isActive)}
           >
             <i className={`${item.icon} text-xs`} />
           </NavLink>
@@ -61,9 +68,7 @@ export default function Sidebar({ collapsed, onToggleCollapsed }: Props) {
         <NavLink
           to="/settings"
           title="Settings"
-          className={({ isActive }) =>
-            `rounded p-1.5 ${isActive ? 'text-indigo-600 bg-indigo-50' : 'text-slate-400 hover:text-indigo-600 hover:bg-slate-100'}`
-          }
+          className={({ isActive }) => collapsedNavLinkClasses(isActive)}
         >
           <i className="fa-solid fa-gear text-xs" />
         </NavLink>
@@ -72,7 +77,10 @@ export default function Sidebar({ collapsed, onToggleCollapsed }: Props) {
   }
 
   return (
-    <aside className="w-60 bg-white border-r border-slate-200 flex flex-col shrink-0 overflow-hidden">
+    <aside
+      className="w-60 border-r border-slate-200 flex flex-col shrink-0 overflow-hidden"
+      style={{ backgroundColor: 'var(--theme-header)' }}
+    >
       <div className="flex-1 overflow-y-auto">
         <div className="p-3 space-y-1">
           <div className="flex items-center justify-between px-3 mb-2">

@@ -23,6 +23,11 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>;
   signUp: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
+  // Merges a partial update (e.g. freshly-saved theme colors) into the
+  // signed-in user without a round trip — the backend is already the
+  // source of truth by the time this is called (it's fed the mutation's
+  // response), this just keeps context/localStorage in sync with it.
+  updateLocalUser: (patch: Partial<CurrentUser>) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -99,9 +104,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const updateLocalUser = useCallback((patch: Partial<CurrentUser>) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, ...patch };
+      setCurrentUser(next);
+      return next;
+    });
+  }, []);
+
   return (
     <AuthContext.Provider
-      value={{ user, isAdmin: user?.role === 'admin', isLoading, login, signUp, logout }}
+      value={{ user, isAdmin: user?.role === 'admin', isLoading, login, signUp, logout, updateLocalUser }}
     >
       {children}
     </AuthContext.Provider>

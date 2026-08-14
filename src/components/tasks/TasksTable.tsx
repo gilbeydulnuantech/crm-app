@@ -57,7 +57,7 @@ export default function TasksTable({
               type="checkbox"
               checked={allSelected}
               onChange={onToggleSelectAll}
-              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
             />
           ) : null,
         cell: ({ row }) =>
@@ -70,7 +70,7 @@ export default function TasksTable({
                 onToggleSelect(row.original.id);
               }}
               onClick={(e) => e.stopPropagation()}
-              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
             />
           ) : (
             <i className="fa-solid fa-lock text-slate-300 text-xs" title="Not assigned to you" />

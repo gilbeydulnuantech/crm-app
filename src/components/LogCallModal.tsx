@@ -67,7 +67,7 @@ export default function LogCallModal({ open, entityType, entityId, entityLabel, 
           <select
             value={outcome}
             onChange={(e) => setOutcome(e.target.value)}
-            className="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
           >
             {OUTCOMES.map((o) => (
               <option key={o} value={o}>
@@ -85,7 +85,7 @@ export default function LogCallModal({ open, entityType, entityId, entityLabel, 
             value={duration}
             onChange={(e) => setDuration(e.target.value)}
             placeholder="Optional"
-            className="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
           />
         </div>
 
@@ -96,7 +96,7 @@ export default function LogCallModal({ open, entityType, entityId, entityLabel, 
             onChange={(e) => setNotes(e.target.value)}
             rows={3}
             placeholder="What was discussed..."
-            className="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
           />
         </div>
 
@@ -109,7 +109,7 @@ export default function LogCallModal({ open, entityType, entityId, entityLabel, 
         <button
           onClick={handleSubmit}
           disabled={logCall.isPending}
-          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold py-2 rounded-lg transition-colors disabled:opacity-50"
+          className="w-full bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] text-white text-xs font-semibold py-2 rounded-lg transition-colors disabled:opacity-50"
         >
           {logCall.isPending ? 'Saving...' : 'Save Call'}
         </button>

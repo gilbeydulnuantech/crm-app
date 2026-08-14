@@ -31,7 +31,7 @@ export default function ContactsFilterRow({
       <select
         value={value[key]}
         onChange={(e) => onChange({ ...value, [key]: e.target.value })}
-        className="border border-slate-200 rounded-md text-xs py-1 px-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        className="border border-slate-200 rounded-md text-xs py-1 px-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
       >
         <option value="">{anyLabel}</option>
         {options.map((o) => (

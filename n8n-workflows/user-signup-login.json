@@ -105,7 +105,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst email = (body.email || '').trim().toLowerCase();\nconst password = body.password || '';\n\nconst sqlQuery = `\n  SELECT id, name, email, password_hash, role, active\n  FROM users\n  WHERE email = $1\n  LIMIT 1;\n`;\n\nreturn [{\n  json: {\n    rawPassword: password,\n    sqlQuery,\n    queryParams: [email]\n  }\n}];"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst email = (body.email || '').trim().toLowerCase();\nconst password = body.password || '';\n\nconst sqlQuery = `\n  SELECT id, name, email, password_hash, role, active, theme_header_color, theme_main_color, theme_accent_color\n  FROM users\n  WHERE email = $1\n  LIMIT 1;\n`;\n\nreturn [{\n  json: {\n    rawPassword: password,\n    sqlQuery,\n    queryParams: [email]\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -142,7 +142,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const bcrypt = require('bcryptjs');\nconst dbResult = $input.first().json;\nconst rawPassword = $('Format Login Query').first().json.rawPassword;\n\nif (!dbResult.id || !dbResult.active) {\n  return [{\n    json: {\n      success: false,\n      message: 'Invalid credentials or account inactive.'\n    }\n  }];\n}\n\nconst isPasswordValid = bcrypt.compareSync(rawPassword, dbResult.password_hash);\n\nif (!isPasswordValid) {\n  return [{\n    json: {\n      success: false,\n      message: 'Invalid credentials.'\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    success: true,\n    message: 'Login successful.',\n    token: `token_${dbResult.id}_${Date.now()}`,\n    user: {\n      id: dbResult.id,\n      name: dbResult.name,\n      email: dbResult.email,\n      role: dbResult.role\n    }\n  }\n}];"
+        "jsCode": "const bcrypt = require('bcryptjs');\nconst dbResult = $input.first().json;\nconst rawPassword = $('Format Login Query').first().json.rawPassword;\n\nif (!dbResult.id || !dbResult.active) {\n  return [{\n    json: {\n      success: false,\n      message: 'Invalid credentials or account inactive.'\n    }\n  }];\n}\n\nconst isPasswordValid = bcrypt.compareSync(rawPassword, dbResult.password_hash);\n\nif (!isPasswordValid) {\n  return [{\n    json: {\n      success: false,\n      message: 'Invalid credentials.'\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    success: true,\n    message: 'Login successful.',\n    token: `token_${dbResult.id}_${Date.now()}`,\n    user: {\n      id: dbResult.id,\n      name: dbResult.name,\n      email: dbResult.email,\n      role: dbResult.role,\n      theme_header_color: dbResult.theme_header_color,\n      theme_main_color: dbResult.theme_main_color,\n      theme_accent_color: dbResult.theme_accent_color\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -211,7 +211,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const item = $input.first().json;\n\nif (!item.id || !item.active) {\n  return [{ json: { valid: false } }];\n}\n\nreturn [{\n  json: {\n    valid: true,\n    user: { id: item.id, name: item.name, email: item.email, role: item.role }\n  }\n}];"
+        "jsCode": "const item = $input.first().json;\n\nif (!item.id || !item.active) {\n  return [{ json: { valid: false } }];\n}\n\nreturn [{\n  json: {\n    valid: true,\n    user: {\n      id: item.id, name: item.name, email: item.email, role: item.role,\n      theme_header_color: item.theme_header_color, theme_main_color: item.theme_main_color, theme_accent_color: item.theme_accent_color\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -241,7 +241,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst token = (body.token || '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) {\n  return [{ json: { valid: false } }];\n}\n\nconst userId = parseInt(match[1], 10);\nconst issuedAt = parseInt(match[2], 10);\nconst TTL_MS = 24 * 60 * 60 * 1000;\n\nif (Date.now() - issuedAt > TTL_MS) {\n  return [{ json: { valid: false } }];\n}\n\nconst sqlQuery = `SELECT id, name, email, role, active FROM users WHERE id = $1 LIMIT 1;`;\n\nreturn [{ json: { sqlQuery, queryParams: [userId] } }];"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst token = (body.token || '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) {\n  return [{ json: { valid: false } }];\n}\n\nconst userId = parseInt(match[1], 10);\nconst issuedAt = parseInt(match[2], 10);\nconst TTL_MS = 24 * 60 * 60 * 1000;\n\nif (Date.now() - issuedAt > TTL_MS) {\n  return [{ json: { valid: false } }];\n}\n\nconst sqlQuery = `SELECT id, name, email, role, active, theme_header_color, theme_main_color, theme_accent_color FROM users WHERE id = $1 LIMIT 1;`;\n\nreturn [{ json: { sqlQuery, queryParams: [userId] } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,

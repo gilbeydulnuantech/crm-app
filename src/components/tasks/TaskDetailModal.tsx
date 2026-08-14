@@ -317,7 +317,7 @@ export default function TaskDetailModal({ task, isAdmin, currentUserId, onClose,
                       checked={s.is_completed}
                       disabled={!canEdit}
                       onChange={() => toggleSubtask(s.id)}
-                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
                     />
                     <span className={s.is_completed ? 'text-slate-400 line-through' : 'text-slate-700'}>{s.title}</span>
                   </label>
@@ -330,7 +330,7 @@ export default function TaskDetailModal({ task, isAdmin, currentUserId, onClose,
                     onChange={(e) => setNewSubtask(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleAddSubtask()}
                     placeholder="Add subtask..."
-                    className="flex-1 px-2 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    className="flex-1 px-2 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[var(--theme-accent)]"
                   />
                   <button onClick={handleAddSubtask} className="text-xs font-semibold text-indigo-600 hover:underline px-1">
                     + Add
@@ -347,7 +347,7 @@ export default function TaskDetailModal({ task, isAdmin, currentUserId, onClose,
                   onChange={(e) => setComment(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
                   placeholder="Add a comment or update..."
-                  className="flex-1 px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="flex-1 px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[var(--theme-accent)]"
                 />
                 <button onClick={handleAddComment} className="text-xs font-semibold text-indigo-600 hover:underline px-1 shrink-0">
                   Post

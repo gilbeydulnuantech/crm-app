@@ -542,6 +542,129 @@
           "name": "myRag"
         }
       }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "update-user-theme",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "436b2e1f-faa8-4add-9507-9f417859582b",
+      "name": "Webhook - Update User Theme",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        1440
+      ],
+      "webhookId": "d2c64107-3ec2-4ddc-acad-7a08f1ee1f2a",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) {\n  throw new Error('Invalid or missing session token.');\n}\n\nconst requesterId = parseInt(match[1], 10);\n\nreturn [{ json: { requesterId } }];"
+      },
+      "id": "5e13ad06-3494-4899-89ca-1437c4247c46",
+      "name": "Parse Requester Token (Theme)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        1440
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "81f318dc-db96-4ee9-8492-d7771536a6e0",
+      "name": "Look Up Requester Role (Theme)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1408,
+        1440
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Update User Theme').first().json.body || {};\n\nif (!requester.id || !requester.active) {\n  throw new Error('Invalid session.');\n}\n\nconst targetUserId = parseInt(body.user_id, 10);\nif (!Number.isInteger(targetUserId)) {\n  throw new Error('\"user_id\" must be an integer.');\n}\n\n// Admins can re-theme anyone; everyone else can only style their own account.\nif (requester.role !== 'admin' && requester.id !== targetUserId) {\n  throw new Error('You can only change your own theme.');\n}\n\nconst hex = /^#[0-9A-Fa-f]{6}$/;\nconst fields = ['header_color', 'main_color', 'accent_color'];\nconst values = {};\nfor (const field of fields) {\n  const raw = body[field];\n  // Any of the three may be explicitly null to reset that slot back\n  // to the app default \u2014 only a present, non-null value is validated.\n  if (raw === null || raw === undefined) { values[field] = null; continue; }\n  const v = raw.toString().trim();\n  if (!hex.test(v)) {\n    throw new Error(`\"${field}\" must be a hex code like #3B82F6.`);\n  }\n  values[field] = v;\n}\n\nreturn [{ json: { targetUserId, ...values } }];"
+      },
+      "id": "c195e1a3-17a8-4d35-87ac-1a2d5889d80b",
+      "name": "Validate Theme Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        1440
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE users SET theme_header_color = $1, theme_main_color = $2, theme_accent_color = $3 WHERE id = $4 RETURNING id, name, theme_header_color, theme_main_color, theme_accent_color;",
+        "options": {
+          "queryReplacement": "={{ [ $json.header_color, $json.main_color, $json.accent_color, $json.targetUserId ] }}"
+        }
+      },
+      "id": "fa264455-3269-4b9e-959f-caa8f95d5c54",
+      "name": "Update User Theme",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1856,
+        1440
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) {\n  throw new Error('User not found.');\n}\nreturn [{ json: { success: true, user: result.json } }];"
+      },
+      "id": "79ea04b4-9911-41be-87d5-30803fdc591d",
+      "name": "Check Theme Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        1440
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "b2fd8032-5451-44e1-89b3-d3ef35691054",
+      "name": "Respond - Update User Theme Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2304,
+        1440
+      ]
     }
   ],
   "pinData": {},
@@ -895,6 +1018,114 @@
         [
           {
             "node": "Respond - Assign Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Update User Theme": {
+      "main": [
+        [
+          {
+            "node": "Parse Requester Token (Theme)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Requester Token (Theme)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester Role (Theme)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester Role (Theme)": {
+      "main": [
+        [
+          {
+            "node": "Validate Theme Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Theme Payload": {
+      "main": [
+        [
+          {
+            "node": "Update User Theme",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update User Theme": {
+      "main": [
+        [
+          {
+            "node": "Check Theme Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Theme Result": {
+      "main": [
+        [
+          {
+            "node": "Respond - Update User Theme Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
             "type": "main",
             "index": 0
           }

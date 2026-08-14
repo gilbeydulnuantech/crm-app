@@ -88,7 +88,7 @@ export default function EditPipelineModal({ open, pipeline, onClose }: Props) {
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
             />
           </div>
           <div>
@@ -142,7 +142,7 @@ export default function EditPipelineModal({ open, pipeline, onClose }: Props) {
             type="button"
             onClick={handleSubmit}
             disabled={isSaving}
-            className="px-4 py-2 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white rounded-lg"
+            className="px-4 py-2 text-sm font-semibold bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] disabled:opacity-60 text-white rounded-lg"
           >
             {isSaving ? 'Saving...' : 'Save Changes'}
           </button>

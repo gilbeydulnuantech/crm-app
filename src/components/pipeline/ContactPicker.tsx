@@ -64,7 +64,7 @@ export default function ContactPicker({ contactId, contactName, onChange }: Prop
         onChange={(e) => handleInputChange(e.target.value)}
         onFocus={() => setOpen(true)}
         placeholder="Search contacts..."
-        className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
       />
 
       {open && (

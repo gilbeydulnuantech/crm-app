@@ -7,3 +7,17 @@ body,
 #root {
   height: 100%;
 }
+
+/* Per-user theme (Settings → Theme). Defaults match the app's original
+   fixed look (white chrome, indigo-600 accent) so a signed-out view or a
+   user who never set a theme renders identically to before this existed.
+   ThemeProvider overrides these three on <html> once the signed-in user's
+   saved colors are known — everything else here is derived so the picker
+   only ever asks for exactly 3 colors. */
+:root {
+  --theme-header: #ffffff;
+  --theme-main: #ffffff;
+  --theme-accent: #4f46e5;
+  --theme-accent-hover: color-mix(in srgb, var(--theme-accent) 85%, black);
+  --theme-accent-tint: color-mix(in srgb, var(--theme-accent) 12%, white);
+}

@@ -64,7 +64,7 @@ export default function ContactsTable({
             type="checkbox"
             checked={allSelected}
             onChange={onToggleSelectAll}
-            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+            className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
           />
         ),
         cell: ({ row }) => (
@@ -76,7 +76,7 @@ export default function ContactsTable({
               onToggleSelect(row.original.id);
             }}
             onClick={(e) => e.stopPropagation()}
-            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+            className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
           />
         ),
         size: 36,

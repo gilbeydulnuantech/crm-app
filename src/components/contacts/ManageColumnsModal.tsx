@@ -97,7 +97,7 @@ function SortableColumnRow({ col, checked, onToggle }: { col: ColumnDef; checked
           checked={col.locked ? true : checked}
           disabled={col.locked}
           onChange={onToggle}
-          className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
+          className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)] disabled:opacity-50"
         />
         {col.label}
         {col.locked && <span className="text-[10px] text-slate-400 ml-auto">always shown</span>}
@@ -163,7 +163,7 @@ export default function ManageColumnsModal({ open, visible, order, onChange, onR
 
         <button
           onClick={onClose}
-          className="w-full mt-5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold py-2 rounded-lg"
+          className="w-full mt-5 bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] text-white text-sm font-semibold py-2 rounded-lg"
         >
           Done
         </button>

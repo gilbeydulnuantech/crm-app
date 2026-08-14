@@ -206,7 +206,7 @@ export default function TaskFormModal({ open, defaultContactId, defaultOpportuni
   }
 
   const inputClass =
-    'w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500';
+    'w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]';
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
@@ -424,7 +424,7 @@ export default function TaskFormModal({ open, defaultContactId, defaultOpportuni
                 type="checkbox"
                 checked={sendReminder}
                 onChange={(e) => setSendReminder(e.target.checked)}
-                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
               />
               Reminder:
               <select
@@ -445,7 +445,7 @@ export default function TaskFormModal({ open, defaultContactId, defaultOpportuni
                 type="checkbox"
                 checked={form.is_private}
                 onChange={(e) => update('is_private', e.target.checked)}
-                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
               />
               Mark as Private
             </label>
@@ -476,7 +476,7 @@ export default function TaskFormModal({ open, defaultContactId, defaultOpportuni
             <button
               type="submit"
               disabled={isSaving}
-              className="px-4 py-2 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white rounded-lg"
+              className="px-4 py-2 text-sm font-semibold bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] disabled:opacity-60 text-white rounded-lg"
             >
               {isSaving ? 'Saving...' : 'Save Task'}
             </button>

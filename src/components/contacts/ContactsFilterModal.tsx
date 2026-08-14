@@ -55,7 +55,7 @@ export default function ContactsFilterModal({
             <select
               value={value.company}
               onChange={(e) => onChange({ ...value, company: e.target.value })}
-              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
             >
               <option value="">All Companies</option>
               {companies.map((c) => (
@@ -71,7 +71,7 @@ export default function ContactsFilterModal({
             <select
               value={value.stage}
               onChange={(e) => onChange({ ...value, stage: e.target.value })}
-              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
             >
               <option value="">Any Stage</option>
               {stages.map((s) => (
@@ -90,7 +90,7 @@ export default function ContactsFilterModal({
             <select
               value={value.task}
               onChange={(e) => onChange({ ...value, task: e.target.value as AdvancedFilterValue['task'] })}
-              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
             >
               {TASK_OPTIONS.map((t) => (
                 <option key={t.value} value={t.value}>
@@ -110,7 +110,7 @@ export default function ContactsFilterModal({
           </button>
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg"
+            className="px-4 py-2 text-sm font-semibold bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] text-white rounded-lg"
           >
             Apply
           </button>

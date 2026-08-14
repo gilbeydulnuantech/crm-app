@@ -22,6 +22,10 @@ export interface CurrentUser {
   name: string;
   email: string;
   role: 'admin' | 'user';
+  // Per-user theme (Settings → Theme) — null means "use the app default".
+  theme_header_color?: string | null;
+  theme_main_color?: string | null;
+  theme_accent_color?: string | null;
 }
 
 export function getCurrentUser(): CurrentUser | null {

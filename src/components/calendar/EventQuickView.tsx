@@ -63,7 +63,7 @@ export default function EventQuickView({ event, onClose, onEdit, isAdmin, curren
         {canEdit ? (
           <button
             onClick={() => onEdit(event)}
-            className="w-full mt-5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold py-2 rounded-lg"
+            className="w-full mt-5 bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] text-white text-sm font-semibold py-2 rounded-lg"
           >
             Edit
           </button>

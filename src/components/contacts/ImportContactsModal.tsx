@@ -222,7 +222,7 @@ export default function ImportContactsModal({ open, onClose }: Props) {
                 type="button"
                 disabled={validRows.length === 0 || importContacts.isPending}
                 onClick={handleImport}
-                className="px-4 py-2 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white rounded-lg"
+                className="px-4 py-2 text-sm font-semibold bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] disabled:opacity-60 text-white rounded-lg"
               >
                 {importContacts.isPending ? 'Importing...' : `Import ${validRows.length || ''} Contact${validRows.length === 1 ? '' : 's'}`}
               </button>

@@ -158,6 +158,19 @@ export function updateUserColor(userId: number, color: string) {
   });
 }
 
+export interface UserTheme {
+  header_color: string | null;
+  main_color: string | null;
+  accent_color: string | null;
+}
+
+export function updateUserTheme(userId: number, theme: UserTheme) {
+  return apiFetch<{ success: boolean; user?: unknown; error?: string }>('/webhook/update-user-theme', {
+    method: 'POST',
+    body: JSON.stringify({ user_id: userId, ...theme }),
+  });
+}
+
 export function fetchTags() {
   return apiFetch<{ id: number; name: string }[]>('/webhook/get-tags');
 }

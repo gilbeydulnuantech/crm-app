@@ -97,7 +97,7 @@ export default function DealTagsInline({ deal, disabled }: Props) {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search or create..."
-                  className="w-full px-2 py-1 text-xs border border-slate-200 rounded mb-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full px-2 py-1 text-xs border border-slate-200 rounded mb-1.5 focus:outline-none focus:ring-1 focus:ring-[var(--theme-accent)]"
                 />
                 {error && <p className="text-[10px] text-rose-600 mb-1.5 px-1">{error}</p>}
                 <div className="max-h-40 overflow-y-auto space-y-0.5">

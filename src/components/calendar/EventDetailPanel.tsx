@@ -168,7 +168,7 @@ export default function EventDetailPanel({
               <div className="flex gap-2">
                 <button
                   onClick={handleReschedule}
-                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold py-1.5 rounded-lg"
+                  className="flex-1 bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] text-white text-xs font-semibold py-1.5 rounded-lg"
                 >
                   Save New Time
                 </button>

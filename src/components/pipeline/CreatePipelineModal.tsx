@@ -80,7 +80,7 @@ export default function CreatePipelineModal({ open, onClose, onCreated }: Props)
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g., Residential Roofing"
-              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
             />
           </div>
           <div>
@@ -132,7 +132,7 @@ export default function CreatePipelineModal({ open, onClose, onCreated }: Props)
             type="button"
             onClick={handleSubmit}
             disabled={createPipeline.isPending}
-            className="px-4 py-2 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white rounded-lg"
+            className="px-4 py-2 text-sm font-semibold bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] disabled:opacity-60 text-white rounded-lg"
           >
             {createPipeline.isPending ? 'Creating...' : 'Save & Create Pipeline'}
           </button>

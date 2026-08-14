@@ -46,7 +46,7 @@ function RecordLine({ label, value, onClick }: { label: string; value?: string; 
         <button
           type="button"
           onClick={onClick}
-          className="font-medium text-indigo-600 hover:text-indigo-700 hover:underline truncate text-left"
+          className="font-medium text-[var(--theme-accent)] hover:text-[var(--theme-accent-hover)] hover:underline truncate text-left"
         >
           {value}
         </button>
@@ -156,7 +156,7 @@ export default function DealQuickView({
               value={deal.stage_id}
               onChange={(e) => handleStageChange(e.target.value)}
               disabled={!canEdit}
-              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-400"
+              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] disabled:bg-slate-50 disabled:text-slate-400"
             >
               {sortedStages.map((s) => (
                 <option key={s.id} value={s.id}>

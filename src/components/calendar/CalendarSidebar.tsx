@@ -71,7 +71,7 @@ function Row({
         checked={checked}
         disabled={disabled}
         onChange={onToggle}
-        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
+        className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)] disabled:opacity-50"
       />
     </label>
   );

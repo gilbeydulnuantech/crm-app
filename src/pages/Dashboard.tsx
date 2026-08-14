@@ -172,7 +172,10 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50 text-slate-800">
+    <div
+      className="flex-1 overflow-y-auto p-6 space-y-4 text-slate-800"
+      style={{ backgroundColor: 'var(--theme-main)' }}
+    >
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-bold text-slate-800">
@@ -188,7 +191,7 @@ export default function Dashboard() {
       <select
         value={pipelineId ?? ''}
         onChange={(e) => setPipelineId(e.target.value ? Number(e.target.value) : null)}
-        className="text-sm font-medium px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        className="text-sm font-medium px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
       >
         <option value="">All Pipelines</option>
         {pipelines.map((p) => (

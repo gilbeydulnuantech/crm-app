@@ -139,7 +139,7 @@ export default function TeamChat() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search"
-              className="w-full pl-7 pr-2 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full pl-7 pr-2 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
             />
           </div>
         </div>
@@ -158,7 +158,7 @@ export default function TeamChat() {
                     key={entry.userId}
                     onClick={() => selectDm(entry)}
                     className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-sm ${
-                      isActive ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-600 hover:bg-slate-50'
+                      isActive ? 'bg-[var(--theme-accent-tint)] text-[var(--theme-accent)] font-semibold' : 'text-slate-600 hover:bg-slate-50'
                     }`}
                   >
                     <span
@@ -192,7 +192,7 @@ export default function TeamChat() {
                     key={c.id}
                     onClick={() => selectChannel(c)}
                     className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-sm ${
-                      isActive ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-600 hover:bg-slate-50'
+                      isActive ? 'bg-[var(--theme-accent-tint)] text-[var(--theme-accent)] font-semibold' : 'text-slate-600 hover:bg-slate-50'
                     }`}
                   >
                     <span className="text-slate-400 shrink-0">#</span>
@@ -273,12 +273,12 @@ export default function TeamChat() {
                   }
                 }}
                 placeholder="Type a message..."
-                className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
               />
               <button
                 onClick={handleSend}
                 disabled={!draft.trim() || sendMessage.isPending}
-                className="px-4 py-2 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg"
+                className="px-4 py-2 text-sm font-semibold bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] disabled:opacity-50 text-white rounded-lg"
               >
                 Send
               </button>

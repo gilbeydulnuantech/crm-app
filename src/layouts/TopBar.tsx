@@ -28,7 +28,10 @@ export default function TopBar() {
   }
 
   return (
-    <header className="h-12 border-b border-slate-200 bg-white flex items-center justify-between px-4 shrink-0">
+    <header
+      className="h-12 border-b border-slate-200 flex items-center justify-between px-4 shrink-0"
+      style={{ backgroundColor: 'var(--theme-header)' }}
+    >
       <span className="font-bold text-slate-800 text-sm tracking-wide">CRM</span>
 
       <div className="flex items-center gap-4">

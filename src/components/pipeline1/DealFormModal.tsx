@@ -109,7 +109,7 @@ export default function DealFormModal({
               required
               value={form.name}
               onChange={(e) => update('name', e.target.value)}
-              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
             />
           </div>
 
@@ -121,7 +121,7 @@ export default function DealFormModal({
                 type="number"
                 value={form.contact_id}
                 onChange={(e) => update('contact_id', e.target.value)}
-                className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
                 placeholder="e.g. 42"
               />
             </div>
@@ -131,7 +131,7 @@ export default function DealFormModal({
                 type="number"
                 value={form.account_id}
                 onChange={(e) => update('account_id', e.target.value)}
-                className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
                 placeholder="optional"
               />
             </div>
@@ -144,7 +144,7 @@ export default function DealFormModal({
                 required
                 value={form.stage_id}
                 onChange={(e) => update('stage_id', e.target.value)}
-                className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
               >
                 <option value="">--</option>
                 {stages
@@ -163,7 +163,7 @@ export default function DealFormModal({
                 type="number"
                 value={form.deal_value}
                 onChange={(e) => update('deal_value', e.target.value)}
-                className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
                 placeholder="$"
               />
             </div>
@@ -175,7 +175,7 @@ export default function DealFormModal({
               type="date"
               value={form.expected_close}
               onChange={(e) => update('expected_close', e.target.value)}
-              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
             />
           </div>
 
@@ -201,7 +201,7 @@ export default function DealFormModal({
             <button
               type="submit"
               disabled={isSaving}
-              className="px-4 py-2 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white rounded-lg"
+              className="px-4 py-2 text-sm font-semibold bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] disabled:opacity-60 text-white rounded-lg"
             >
               {isSaving ? 'Saving...' : isEdit ? 'Save Changes' : 'Add Deal'}
             </button>

@@ -270,21 +270,21 @@ export default function TaskQuickView({ task, canEdit, onClose, onEdit, onOpenFu
             </Field>
             {(task.account_name || task.company_name) && (
               <Field label="Account">
-                <button onClick={goToAccount} className="text-sm text-indigo-600 hover:text-indigo-700 hover:underline text-left block">
+                <button onClick={goToAccount} className="text-sm text-[var(--theme-accent)] hover:text-[var(--theme-accent-hover)] hover:underline text-left block">
                   {toTitleCase(task.account_name || task.company_name)}
                 </button>
               </Field>
             )}
             {task.opportunity_name && (
               <Field label="Deal">
-                <button onClick={goToDeal} className="text-sm text-indigo-600 hover:text-indigo-700 hover:underline text-left block">
+                <button onClick={goToDeal} className="text-sm text-[var(--theme-accent)] hover:text-[var(--theme-accent-hover)] hover:underline text-left block">
                   {task.opportunity_name} ({currency(task.opportunity_value)})
                 </button>
               </Field>
             )}
             {task.contact_name && (
               <Field label="Contact">
-                <button onClick={goToContact} className="text-sm text-indigo-600 hover:text-indigo-700 hover:underline text-left block">
+                <button onClick={goToContact} className="text-sm text-[var(--theme-accent)] hover:text-[var(--theme-accent-hover)] hover:underline text-left block">
                   {toTitleCase(task.contact_name)}
                   {task.contact_email ? ` (${task.contact_email})` : ''}
                 </button>
@@ -304,7 +304,7 @@ export default function TaskQuickView({ task, canEdit, onClose, onEdit, onOpenFu
                     checked={s.is_completed}
                     disabled={!canEdit}
                     onChange={() => toggleSubtask(s.id)}
-                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                    className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
                   />
                   <span className={s.is_completed ? 'text-slate-400 line-through' : 'text-slate-700'}>{s.title}</span>
                 </label>
@@ -317,7 +317,7 @@ export default function TaskQuickView({ task, canEdit, onClose, onEdit, onOpenFu
                   onChange={(e) => setNewSubtask(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleAddSubtask()}
                   placeholder="Add subtask..."
-                  className="flex-1 px-2 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="flex-1 px-2 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[var(--theme-accent)]"
                 />
                 <button onClick={handleAddSubtask} className="text-xs font-semibold text-indigo-600 hover:underline px-1">
                   + Add
@@ -334,7 +334,7 @@ export default function TaskQuickView({ task, canEdit, onClose, onEdit, onOpenFu
                 onChange={(e) => setComment(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
                 placeholder="Add a comment..."
-                className="flex-1 px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="flex-1 px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[var(--theme-accent)]"
               />
               <button onClick={handleAddComment} className="text-xs font-semibold text-indigo-600 hover:underline px-1 shrink-0">
                 Post
@@ -364,7 +364,7 @@ export default function TaskQuickView({ task, canEdit, onClose, onEdit, onOpenFu
           )}
           <button
             onClick={() => onOpenFullDetails(task)}
-            className="w-full text-indigo-600 hover:text-indigo-700 text-xs font-semibold py-1"
+            className="w-full text-[var(--theme-accent)] hover:text-[var(--theme-accent-hover)] text-xs font-semibold py-1"
           >
             Open Full Page Details
           </button>

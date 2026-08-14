@@ -162,7 +162,7 @@ function ColumnsMenu({
                   type="checkbox"
                   checked={visibility[id] !== false}
                   onChange={() => onToggle(id)}
-                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
                 />
                 {LABELS[id]}
               </label>
@@ -230,7 +230,7 @@ export default function CompaniesTable({
               type="checkbox"
               checked={allSelected}
               onChange={onToggleSelectAll}
-              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
             />
           ) : null,
         cell: ({ row }) =>
@@ -239,7 +239,7 @@ export default function CompaniesTable({
               type="checkbox"
               checked={selectedIds.has(row.original.id)}
               onChange={() => onToggleSelect(row.original.id)}
-              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
             />
           ) : null,
         size: 36,

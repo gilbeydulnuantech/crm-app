@@ -11,7 +11,10 @@ export default function AppLayout() {
       <TopBar />
       <div className="flex-1 flex min-h-0">
         <Sidebar collapsed={!navOpen} onToggleCollapsed={() => setNavOpen((v) => !v)} />
-        <main className="flex-1 flex flex-col min-w-0 bg-white overflow-hidden">
+        <main
+          className="flex-1 flex flex-col min-w-0 overflow-hidden"
+          style={{ backgroundColor: 'var(--theme-main)' }}
+        >
           <Outlet />
         </main>
       </div>

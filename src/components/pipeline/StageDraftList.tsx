@@ -74,7 +74,7 @@ function SortableStageRow({
         value={stage.name}
         onChange={(e) => onChange({ name: e.target.value })}
         placeholder="Stage name"
-        className="flex-1 min-w-0 px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        className="flex-1 min-w-0 px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
       />
       <div className="relative w-20 shrink-0">
         <input
@@ -83,7 +83,7 @@ function SortableStageRow({
           max={100}
           value={stage.winProbability}
           onChange={(e) => onChange({ winProbability: e.target.value })}
-          className="w-full pl-3 pr-6 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full pl-3 pr-6 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
         />
         <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">%</span>
       </div>
@@ -151,7 +151,7 @@ export default function StageDraftList({ stages, onChange }: Props) {
       <button
         type="button"
         onClick={addStage}
-        className="mt-2.5 flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700 px-2 py-1.5 border border-dashed border-slate-300 rounded-lg hover:border-indigo-400"
+        className="mt-2.5 flex items-center gap-1.5 text-xs font-semibold text-[var(--theme-accent)] hover:text-[var(--theme-accent-hover)] px-2 py-1.5 border border-dashed border-slate-300 rounded-lg hover:border-indigo-400"
       >
         <i className="fa-solid fa-plus text-[10px]" />
         Add Stage

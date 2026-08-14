@@ -53,6 +53,13 @@ export function useUpdateUserColor() {
   });
 }
 
+export function useUpdateUserTheme() {
+  return useMutation({
+    mutationFn: ({ userId, theme }: { userId: number; theme: api.UserTheme }) =>
+      api.updateUserTheme(userId, theme),
+  });
+}
+
 export function useTags() {
   return useQuery({
     queryKey: ['tags'],

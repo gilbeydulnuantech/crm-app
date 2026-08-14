@@ -45,7 +45,7 @@ export default function AddDealNoteModal({ opportunityId, dealName, onClose }: P
           onChange={(e) => setBody(e.target.value)}
           placeholder="Write a note about this deal..."
           rows={4}
-          className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
         />
 
         {error && (
@@ -61,7 +61,7 @@ export default function AddDealNoteModal({ opportunityId, dealName, onClose }: P
           <button
             onClick={handleSubmit}
             disabled={!body.trim() || addNote.isPending}
-            className="px-4 py-2 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white rounded-lg"
+            className="px-4 py-2 text-sm font-semibold bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] disabled:opacity-60 text-white rounded-lg"
           >
             {addNote.isPending ? 'Saving...' : 'Add Note'}
           </button>

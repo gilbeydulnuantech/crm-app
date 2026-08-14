@@ -514,7 +514,7 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
               placeholder="Write a note about this contact..."
               rows={4}
               disabled={isReadOnly}
-              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-400"
+              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] disabled:bg-slate-50 disabled:text-slate-400"
             />
             {noteError && (
               <p className="text-[11px] text-rose-600 bg-rose-50 border border-rose-200 rounded-md px-2 py-1">
@@ -567,7 +567,7 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                             value={editDraft}
                             onChange={(e) => setEditDraft(e.target.value)}
                             rows={3}
-                            className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
                           />
                           <div className="flex justify-end gap-3 pt-0.5">
                             <button
@@ -584,7 +584,7 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                                 )
                               }
                               disabled={!editDraft.trim() || updateNote.isPending}
-                              className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-700 disabled:opacity-50"
+                              className="text-[11px] font-semibold text-[var(--theme-accent)] hover:text-[var(--theme-accent-hover)] disabled:opacity-50"
                             >
                               Save
                             </button>

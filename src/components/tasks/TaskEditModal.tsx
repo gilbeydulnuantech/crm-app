@@ -188,7 +188,7 @@ export default function TaskEditModal({ open, task, onClose }: Props) {
   }
 
   const inputClass =
-    'w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500';
+    'w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]';
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
@@ -425,7 +425,7 @@ export default function TaskEditModal({ open, task, onClose }: Props) {
             <button
               type="submit"
               disabled={updateTask.isPending}
-              className="px-4 py-2 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white rounded-lg"
+              className="px-4 py-2 text-sm font-semibold bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] disabled:opacity-60 text-white rounded-lg"
             >
               {updateTask.isPending ? 'Saving...' : 'Save Changes'}
             </button>

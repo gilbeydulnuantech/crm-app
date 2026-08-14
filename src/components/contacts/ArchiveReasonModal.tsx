@@ -38,7 +38,7 @@ export default function ArchiveReasonModal({ open, count, onConfirm, onCancel, i
           onChange={(e) => setReason(e.target.value)}
           placeholder="e.g. Duplicate, no longer at company, unresponsive..."
           rows={3}
-          className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
         />
 
         <div className="flex justify-end gap-2 pt-4">

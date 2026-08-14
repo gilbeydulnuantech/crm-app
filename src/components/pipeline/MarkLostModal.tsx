@@ -112,7 +112,7 @@ export default function MarkLostModal({ open, dealName, dealValue, onConfirm, on
           autoFocus
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-4"
+          className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] mb-4"
         >
           <option value="" disabled>
             Select a primary reason...
@@ -132,7 +132,7 @@ export default function MarkLostModal({ open, dealName, dealValue, onConfirm, on
           value={competitor}
           onChange={(e) => setCompetitor(e.target.value)}
           placeholder="Select or type competitor name..."
-          className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-4"
+          className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] mb-4"
         />
 
         <label className="block text-xs font-medium text-slate-600 mb-1">Loss Details & Feedback</label>
@@ -141,7 +141,7 @@ export default function MarkLostModal({ open, dealName, dealValue, onConfirm, on
           onChange={(e) => setDetails(e.target.value)}
           placeholder="Client cited budget constraints, competitor details, or other context from the debrief..."
           rows={3}
-          className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-4"
+          className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] mb-4"
         />
 
         <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer mb-2">
@@ -149,7 +149,7 @@ export default function MarkLostModal({ open, dealName, dealValue, onConfirm, on
             type="checkbox"
             checked={scheduleFollowUp}
             onChange={(e) => setScheduleFollowUp(e.target.checked)}
-            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+            className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
           />
           Schedule Follow-up / Re-engagement Task
         </label>
@@ -162,7 +162,7 @@ export default function MarkLostModal({ open, dealName, dealValue, onConfirm, on
                 type="date"
                 value={followUpDate}
                 onChange={(e) => setFollowUpDate(e.target.value)}
-                className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
               />
             </div>
             <div>
@@ -170,7 +170,7 @@ export default function MarkLostModal({ open, dealName, dealValue, onConfirm, on
               <select
                 value={followUpAssignee}
                 onChange={(e) => setFollowUpAssignee(e.target.value)}
-                className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
               >
                 <option value="">{user ? toTitleCase(user.name) : 'Me'}</option>
                 {users

@@ -52,7 +52,7 @@ function LinkedName({ value, onClick }: { value?: string; onClick?: () => void }
     <button
       type="button"
       onClick={onClick}
-      className="text-sm font-semibold text-indigo-600 hover:text-indigo-700 hover:underline text-left"
+      className="text-sm font-semibold text-[var(--theme-accent)] hover:text-[var(--theme-accent-hover)] hover:underline text-left"
     >
       {value}
     </button>

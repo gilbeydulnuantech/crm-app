@@ -132,7 +132,7 @@ export default function ActivityTimeline({ emails = [], activity, isLoading, onE
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search activity..."
-          className="w-full pl-7 pr-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full pl-7 pr-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
         />
       </div>
 

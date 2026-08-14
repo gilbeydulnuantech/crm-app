@@ -17,7 +17,7 @@ export default function AddContactDropdown({ onAddContact, onImportCsv }: Props)
     <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-sm transition-all"
+        className="bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] text-white text-sm font-medium px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-sm transition-all"
       >
         <i className="fa-solid fa-plus text-xs" />
         <span>Add Contact</span>

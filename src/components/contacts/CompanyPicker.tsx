@@ -87,7 +87,7 @@ export default function CompanyPicker({ accountId, companyName, onChange }: Prop
         onChange={(e) => handleInputChange(e.target.value)}
         onFocus={() => setOpen(true)}
         placeholder="Search or create a company..."
-        className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
       />
       {accountId === null && query.trim() && (
         <p className="text-[11px] text-amber-600 mt-1">

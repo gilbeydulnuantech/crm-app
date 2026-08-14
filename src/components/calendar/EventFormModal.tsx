@@ -50,7 +50,7 @@ function TypeSelect({ value, onChange }: { value: EventType; onChange: (t: Event
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        className="w-full flex items-center justify-between px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
       >
         <span className="flex items-center gap-2">
           <span className={`w-2 h-2 rounded-full ${meta.dot}`} />
@@ -294,7 +294,7 @@ export default function EventFormModal({ open, event, defaultDate, onClose }: Pr
               value={form.subject}
               onChange={(e) => update('subject', e.target.value)}
               placeholder="Roof Inspection - ABC Roofing"
-              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
             />
           </div>
 
@@ -325,7 +325,7 @@ export default function EventFormModal({ open, event, defaultDate, onClose }: Pr
                 type="date"
                 value={form.date}
                 onChange={(e) => update('date', e.target.value)}
-                className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
               />
               <div>
                 <span className="block text-[11px] text-slate-400 mb-1">Start Time</span>
@@ -334,7 +334,7 @@ export default function EventFormModal({ open, event, defaultDate, onClose }: Pr
                   type="time"
                   value={form.startTime}
                   onChange={(e) => update('startTime', e.target.value)}
-                  className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
                 />
               </div>
               <div>
@@ -343,7 +343,7 @@ export default function EventFormModal({ open, event, defaultDate, onClose }: Pr
                   type="time"
                   value={form.endTime}
                   onChange={(e) => update('endTime', e.target.value)}
-                  className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
                 />
               </div>
             </div>
@@ -354,7 +354,7 @@ export default function EventFormModal({ open, event, defaultDate, onClose }: Pr
             <select
               value={form.assigned_user}
               onChange={(e) => update('assigned_user', e.target.value)}
-              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
             >
               <option value="">Unassigned</option>
               {users.map((u) => (
@@ -422,7 +422,7 @@ export default function EventFormModal({ open, event, defaultDate, onClose }: Pr
               value={form.location}
               onChange={(e) => update('location', e.target.value)}
               placeholder="123 Main Street"
-              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
             />
             <p className="text-[11px] text-slate-400 mt-1">Auto-filled from the contact's address — edit freely.</p>
           </div>
@@ -440,7 +440,7 @@ export default function EventFormModal({ open, event, defaultDate, onClose }: Pr
               onChange={(e) => update('body', e.target.value)}
               rows={3}
               placeholder="Initial roof inspection..."
-              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
             />
           </div>
 
@@ -450,7 +450,7 @@ export default function EventFormModal({ open, event, defaultDate, onClose }: Pr
                 type="checkbox"
                 checked={form.sendConfirmation}
                 onChange={(e) => update('sendConfirmation', e.target.checked)}
-                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
               />
               Send confirmation to contact
             </label>
@@ -478,7 +478,7 @@ export default function EventFormModal({ open, event, defaultDate, onClose }: Pr
             <button
               type="submit"
               disabled={isSaving}
-              className="px-4 py-2 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white rounded-lg"
+              className="px-4 py-2 text-sm font-semibold bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] disabled:opacity-60 text-white rounded-lg"
             >
               {isSaving ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Event'}
             </button>

@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import ThemeProvider from './context/ThemeProvider';
 import RequireAuth from './components/RequireAuth';
 import AppLayout from './layouts/AppLayout';
 import Login from './pages/Login';
@@ -23,30 +24,32 @@ function LoginRoute() {
 export default function App() {
   return (
     <AuthProvider>
-      <Routes>
-        <Route path="/login" element={<LoginRoute />} />
+      <ThemeProvider>
+        <Routes>
+          <Route path="/login" element={<LoginRoute />} />
 
-        <Route
-          element={
-            <RequireAuth>
-              <AppLayout />
-            </RequireAuth>
-          }
-        >
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/contacts" element={<Contacts />} />
-          <Route path="/companies" element={<Companies />} />
-          <Route path="/pipeline" element={<Pipeline />} />
-          <Route path="/tasks" element={<Tasks />} />
-          <Route path="/calendar" element={<Calendar />} />
-          <Route path="/reports" element={<Reports />} />
-          <Route path="/team-chat" element={<TeamChat />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        </Route>
+          <Route
+            element={
+              <RequireAuth>
+                <AppLayout />
+              </RequireAuth>
+            }
+          >
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/contacts" element={<Contacts />} />
+            <Route path="/companies" element={<Companies />} />
+            <Route path="/pipeline" element={<Pipeline />} />
+            <Route path="/tasks" element={<Tasks />} />
+            <Route path="/calendar" element={<Calendar />} />
+            <Route path="/reports" element={<Reports />} />
+            <Route path="/team-chat" element={<TeamChat />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          </Route>
 
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </ThemeProvider>
     </AuthProvider>
   );
 }
