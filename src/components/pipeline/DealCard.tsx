@@ -1,8 +1,10 @@
+import { useMemo } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { Opportunity, Stage } from '../../types/opportunity';
 import { toTitleCase } from '../../utils/text';
 import { DEFAULT_USER_COLOR, hexToRgba } from '../../utils/userColor';
 import { getTagColorClasses } from '../../utils/tagColors';
+import { useTasks } from '../../hooks/useTasks';
 import DealCardMenu from './DealCardMenu';
 
 interface Props {
@@ -79,6 +81,29 @@ export default function DealCard({
   };
 
   const allTags = [...(opportunity.tags ?? []), ...(opportunity.contact_tags ?? [])];
+
+  // Reads from the same ['tasks'] cache every other task view already
+  // populates (activities table, type='task') — no extra network round trip
+  // per card. An open deal with no scheduled activity is easy to lose track
+  // of, so this surfaces that at a glance instead of only inside Deal Quick
+  // View's "Next Activity" line.
+  const { data: allTasks = [] } = useTasks();
+  const dealTasks = useMemo(
+    () => allTasks.filter((t) => t.opportunity_id === opportunity.id && !t.is_completed),
+    [allTasks, opportunity.id]
+  );
+  const activityStatus = useMemo(() => {
+    const now = Date.now();
+    const isFuture = (dueAt?: string | null) => !!dueAt && new Date(dueAt).getTime() >= now;
+    const isPast = (dueAt?: string | null) => !!dueAt && new Date(dueAt).getTime() < now;
+
+    if (dealTasks.some((t) => isPast(t.due_at))) return { icon: '🔴', label: 'Overdue Task' };
+    if (dealTasks.some((t) => t.task_type === 'Meeting' && isFuture(t.due_at))) {
+      return { icon: '🟢', label: 'Upcoming Meeting' };
+    }
+    if (dealTasks.some((t) => isFuture(t.due_at))) return { icon: '🔵', label: 'Upcoming Task' };
+    return { icon: '⚪', label: 'No Activity Scheduled' };
+  }, [dealTasks]);
 
   return (
     <div
@@ -172,11 +197,14 @@ export default function DealCard({
         </div>
       )}
 
-      {/* Footer: Owner and Expected Close Date */}
-      <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-slate-50">
+      {/* Footer: Owner, then Expected Close Date underneath, then a mini
+          activity-status indicator — an open deal with nothing scheduled
+          is easy to let go stale, so this stays visible without opening
+          the card. */}
+      <div className="mt-2.5 pt-2 border-t border-slate-50 space-y-1">
         <span
           style={ownerColor ? { backgroundColor: hexToRgba(ownerColor, 0.18), color: ownerColor } : undefined}
-          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold truncate max-w-[70%] ${
+          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold truncate max-w-full ${
             ownerColor ? '' : 'bg-slate-100 text-slate-500'
           }`}
         >
@@ -184,12 +212,26 @@ export default function DealCard({
           <span className="truncate">{opportunity.assigned_user_name ? toTitleCase(opportunity.assigned_user_name) : 'Unassigned'}</span>
         </span>
 
-        {opportunity.expected_close && (
-          <span className="text-[10px] text-slate-400 flex items-center gap-1 shrink-0">
-            <i className="fa-regular fa-calendar text-[9px]" />
-            {new Date(opportunity.expected_close).toLocaleDateString(undefined, { month: 'short', day: '2-digit' })}
-          </span>
-        )}
+        <div className="flex items-center justify-between gap-2">
+          {opportunity.expected_close ? (
+            <span className="text-[10px] text-slate-400 flex items-center gap-1 shrink-0">
+              <i className="fa-regular fa-calendar text-[9px]" />
+              {new Date(opportunity.expected_close).toLocaleDateString(undefined, { month: 'short', day: '2-digit' })}
+            </span>
+          ) : (
+            <span />
+          )}
+
+          {opportunity.status === 'Open' && (
+            <span
+              className="text-[10px] text-slate-400 flex items-center gap-1 shrink-0"
+              title={activityStatus.label}
+            >
+              <span>{activityStatus.icon}</span>
+              <span className="truncate">{activityStatus.label}</span>
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );

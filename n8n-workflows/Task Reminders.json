@@ -24,7 +24,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "ALTER TABLE activities ADD COLUMN IF NOT EXISTS reminder_sent BOOLEAN DEFAULT false;\nINSERT INTO conversations (type, name)\nSELECT 'channel', 'Task Reminders'\nWHERE NOT EXISTS (SELECT 1 FROM conversations c WHERE c.type = 'channel' AND c.name = 'Task Reminders');\nINSERT INTO conversation_members (conversation_id, user_id, last_read_at)\nSELECT c.id, u.id, now()\nFROM conversations c CROSS JOIN users u\nWHERE c.type = 'channel' AND c.name = 'Task Reminders' AND u.active = true\nON CONFLICT DO NOTHING;",
+        "query": "ALTER TABLE activities ADD COLUMN IF NOT EXISTS reminder_sent BOOLEAN DEFAULT false;\nINSERT INTO conversations (type, name)\nSELECT 'channel', 'Task Reminders'\nWHERE NOT EXISTS (SELECT 1 FROM conversations c WHERE c.type = 'channel' AND c.name = 'Task Reminders');\nINSERT INTO conversation_members (conversation_id, user_id, last_read_at)\nSELECT c.id, u.id, now()\nFROM conversations c CROSS JOIN users u\nWHERE c.type = 'channel' AND c.name = 'Task Reminders' AND u.active = true\nON CONFLICT DO NOTHING;\nALTER TABLE activities ADD COLUMN IF NOT EXISTS deal_reminder_sent BOOLEAN DEFAULT false;",
         "options": {}
       },
       "id": "38bef4ae-b544-4740-96e2-5f75af3239c8",
@@ -165,6 +165,107 @@
           "name": "myRag"
         }
       }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT a.id AS task_id, a.subject, a.due_at, o.id AS opportunity_id, o.name AS opportunity_name, o.pipeline_id, o.assigned_user AS owner_id FROM activities a JOIN opportunities o ON o.id = a.opportunity_id WHERE a.type = 'task' AND COALESCE(a.is_completed, false) = false AND COALESCE(a.is_archived, false) = false AND a.due_at IS NOT NULL AND o.status = 'Open' AND o.assigned_user IS NOT NULL AND COALESCE(a.deal_reminder_sent, false) = false AND a.due_at - interval '36 hours' <= now() AND a.due_at > now();",
+        "options": {}
+      },
+      "id": "3341ed8d-305a-4312-921d-7adbbd90190c",
+      "name": "Postgres: Find Deals Needing 36h Notice",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        680,
+        520
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $json;\nconst dueText = new Date(r.due_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });\nconst body = `\\u{1F6A8} Un-serviced deal alert: \"[[ref:deal:${r.opportunity_id}:${r.pipeline_id ?? '-'}:${r.opportunity_name}]]\" has \"[[ref:task:${r.task_id}:-:${r.subject}]]\" due ${dueText} (within 36 hours) and nothing else scheduled yet.`;\nreturn [{ json: { taskId: r.task_id, ownerId: r.owner_id, body } }];"
+      },
+      "id": "ec40c345-fed2-4cb6-a4eb-90256db9ff9c",
+      "name": "Prepare Deal Alert Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id FROM conversations WHERE type = 'channel' AND name = 'Task Reminders' LIMIT 1;",
+        "options": {}
+      },
+      "id": "85b55da8-c9f5-490d-8bc5-a75134136c42",
+      "name": "Postgres: Get Reminders Channel Id (Deal)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1120,
+        520
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO messages (conversation_id, sender_id, body) VALUES ($1, $2, $3);",
+        "options": {
+          "queryReplacement": "={{ [ $json.id, $('Prepare Deal Alert Message').first().json.ownerId, $('Prepare Deal Alert Message').first().json.body ] }}"
+        }
+      },
+      "id": "7e2ef75f-ce46-4098-ad83-9920843a7d18",
+      "name": "Postgres: Insert Deal Alert Message",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1340,
+        520
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE activities SET deal_reminder_sent = true WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Prepare Deal Alert Message').first().json.taskId ] }}"
+        }
+      },
+      "id": "7a403bc1-d2ec-4956-81ac-582ce7d81345",
+      "name": "Postgres: Mark Deal Reminder Sent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1560,
+        520
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
     }
   ],
   "connections": {
@@ -184,6 +285,11 @@
         [
           {
             "node": "Postgres: Find Due Reminders",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Postgres: Find Deals Needing 36h Notice",
             "type": "main",
             "index": 0
           }
@@ -239,6 +345,50 @@
         [
           {
             "node": "Postgres: Mark Reminder Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Find Deals Needing 36h Notice": {
+      "main": [
+        [
+          {
+            "node": "Prepare Deal Alert Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Deal Alert Message": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Get Reminders Channel Id (Deal)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Get Reminders Channel Id (Deal)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Insert Deal Alert Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Insert Deal Alert Message": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Mark Deal Reminder Sent",
             "type": "main",
             "index": 0
           }
