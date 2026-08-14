@@ -27,6 +27,7 @@ export interface DashboardStalledDeal {
   id: number;
   name: string;
   value: number;
+  pipeline_id: number | null;
   owner_name: string | null;
   stage_name: string | null;
   expected_close: string | null;

@@ -18,15 +18,7 @@ import { useDashboard } from '../hooks/useDashboard';
 import { usePipelines } from '../hooks/useOpportunities';
 import { toTitleCase } from '../utils/text';
 import { DashboardActivity } from '../types/dashboard';
-
-// Color theme
-const BG = '#F7F9FB';
-const TEXT = '#334155';
-const PRIMARY = '#7C9CBF';
-const POSITIVE = '#86B89A';
-const WARNING = '#D9B477';
-
-const PIE_COLORS = [PRIMARY, POSITIVE, WARNING, '#9B8FB0', '#5F80A3', '#B0C3D6'];
+import { CHART_BRAND, CHART_CHROME, CHART_STATUS, chartCategoryColor } from '../utils/chartTheme';
 
 function formatMoney(n: number): string {
   const abs = Math.abs(n);
@@ -69,28 +61,50 @@ function activityLine(a: DashboardActivity): { main: string; detail?: string } {
   }
 }
 
-function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+function Card({
+  children,
+  className = '',
+  id,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  id?: string;
+}) {
   return (
-    <div className={`bg-white rounded-xl border border-slate-100 p-4 shadow-sm ${className}`}>
+    <div id={id} className={`bg-white rounded-xl border border-slate-200 p-4 shadow-sm ${className}`}>
       {children}
     </div>
   );
 }
 
-function StatTile({ label, value, sub }: { label: string; value: string; sub?: string }) {
+function CardTitle({ children }: { children: React.ReactNode }) {
+  return <h2 className="text-sm font-semibold text-slate-800 mb-3">{children}</h2>;
+}
+
+function EmptyState({ children }: { children: React.ReactNode }) {
+  return <p className="text-sm text-slate-400">{children}</p>;
+}
+
+function StatTile({
+  icon,
+  label,
+  value,
+  sub,
+}: {
+  icon: string;
+  label: string;
+  value: string;
+  sub?: string;
+}) {
   return (
-    <Card>
-      <div className="text-xs font-medium" style={{ color: `${TEXT}99` }}>
-        {label}
+    <Card className="relative overflow-hidden">
+      <div className="absolute top-0 left-0 right-0 h-0.5 bg-indigo-500" />
+      <div className="flex items-start justify-between">
+        <span className="text-xs font-medium text-slate-500">{label}</span>
+        <i className={`fa-solid ${icon} text-indigo-400 text-xs`} />
       </div>
-      <div className="text-2xl font-bold mt-1" style={{ color: TEXT }}>
-        {value}
-      </div>
-      {sub && (
-        <div className="text-xs font-medium mt-1" style={{ color: PRIMARY }}>
-          {sub}
-        </div>
-      )}
+      <div className="text-2xl font-bold text-slate-800 mt-1 tabular-nums">{value}</div>
+      {sub && <div className="text-xs font-medium text-indigo-600 mt-1">{sub}</div>}
     </Card>
   );
 }
@@ -100,7 +114,7 @@ function StatTile({ label, value, sub }: { label: string; value: string; sub?: s
 function Gauge({
   value,
   fillColor,
-  trackColor = '#E2E8F0',
+  trackColor = CHART_CHROME.track,
 }: {
   value: number;
   fillColor: string;
@@ -128,11 +142,13 @@ function Gauge({
         pathLength={100}
         strokeDasharray={`${clamped} 100`}
       />
-      <line x1={cx} y1={cy} x2={nx} y2={ny} stroke={TEXT} strokeWidth={3} strokeLinecap="round" />
-      <circle cx={cx} cy={cy} r={6} fill={TEXT} />
+      <line x1={cx} y1={cy} x2={nx} y2={ny} stroke={CHART_CHROME.ink} strokeWidth={3} strokeLinecap="round" />
+      <circle cx={cx} cy={cy} r={6} fill={CHART_CHROME.ink} />
     </svg>
   );
 }
+
+const axisTick = { fontSize: 11, fill: CHART_CHROME.axisText };
 
 export default function Dashboard() {
   const { user, isAdmin } = useAuth();
@@ -147,27 +163,32 @@ export default function Dashboard() {
     day: 'numeric',
   });
 
+  function goToDeal(pipelineIdForDeal: number | null, dealId: number) {
+    if (pipelineIdForDeal) {
+      navigate(`/pipeline?pipeline=${pipelineIdForDeal}&highlight=${dealId}`);
+    } else {
+      navigate('/pipeline');
+    }
+  }
+
   return (
-    <div className="flex-1 overflow-y-auto p-6 space-y-4" style={{ backgroundColor: BG, color: TEXT }}>
+    <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50 text-slate-800">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-bold" style={{ color: TEXT }}>
+          <h1 className="text-lg font-bold text-slate-800">
             {isAdmin ? 'Business Dashboard' : `Welcome back, ${user?.name?.split(' ')[0] ?? 'there'}`}
           </h1>
-          <p className="text-xs mt-0.5" style={{ color: `${TEXT}99` }}>
+          <p className="text-xs text-slate-500 mt-0.5">
             {isAdmin ? 'All-time view · Every contact & deal' : 'Your contacts & deals only'}
           </p>
         </div>
-        <span className="text-sm" style={{ color: `${TEXT}80` }}>
-          Today: {today}
-        </span>
+        <span className="text-sm text-slate-400">Today: {today}</span>
       </div>
 
       <select
         value={pipelineId ?? ''}
         onChange={(e) => setPipelineId(e.target.value ? Number(e.target.value) : null)}
-        className="text-sm font-medium px-3 py-1.5 rounded-lg border bg-white"
-        style={{ borderColor: '#E2E8F0', color: TEXT }}
+        className="text-sm font-medium px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
       >
         <option value="">All Pipelines</option>
         {pipelines.map((p) => (
@@ -184,28 +205,30 @@ export default function Dashboard() {
       )}
 
       {isLoading ? (
-        <div className="text-sm py-10 text-center" style={{ color: `${TEXT}80` }}>
-          Loading dashboard...
-        </div>
+        <div className="text-sm py-10 text-center text-slate-400">Loading dashboard...</div>
       ) : data ? (
         <>
           <div className="grid grid-cols-4 gap-4">
             <StatTile
+              icon="fa-sack-dollar"
               label="Total Revenue"
               value={formatMoney(data.total_revenue)}
               sub={`MTD ${formatMoney(data.revenue_mtd)}`}
             />
             <StatTile
+              icon="fa-chart-line"
               label="Open Pipeline"
               value={formatMoney(data.open_pipeline_value)}
               sub={`Weighted ${formatMoney(data.open_pipeline_weighted)}`}
             />
             <StatTile
+              icon="fa-handshake"
               label="Active Deals"
               value={data.active_deals.toLocaleString()}
               sub={`Avg ${formatMoney(data.avg_deal_value)}`}
             />
             <StatTile
+              icon="fa-user-plus"
               label={isAdmin ? 'New Leads (30d)' : 'Your New Leads (30d)'}
               value={data.new_leads_30d.toLocaleString()}
               sub={`MTD ${data.new_leads_mtd}`}
@@ -214,136 +237,133 @@ export default function Dashboard() {
 
           <div className="grid grid-cols-3 gap-4">
             <Card className="col-span-2">
-              <h2 className="text-sm font-semibold mb-3" style={{ color: TEXT }}>
-                Revenue Breakdown ({new Date().getFullYear()})
-              </h2>
+              <CardTitle>Revenue Breakdown ({new Date().getFullYear()})</CardTitle>
               {data.monthly_revenue.every((m) => m.value === 0) ? (
-                <p className="text-sm" style={{ color: `${TEXT}80` }}>
-                  No closed-won revenue yet this year.
-                </p>
+                <EmptyState>No closed-won revenue yet this year.</EmptyState>
               ) : (
                 <ResponsiveContainer width="100%" height={240}>
                   <BarChart data={data.monthly_revenue}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#EEF2F6" vertical={false} />
-                    <XAxis
-                      dataKey="month"
-                      tick={{ fontSize: 11, fill: TEXT }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
+                    <CartesianGrid strokeDasharray="3 3" stroke={CHART_CHROME.grid} vertical={false} />
+                    <XAxis dataKey="month" tick={axisTick} axisLine={false} tickLine={false} />
                     <YAxis
-                      tick={{ fontSize: 11, fill: TEXT }}
+                      tick={axisTick}
                       axisLine={false}
                       tickLine={false}
                       tickFormatter={(v) => formatMoney(v)}
                       width={56}
                     />
                     <Tooltip formatter={(v: number) => formatMoney(v)} />
-                    <Bar dataKey="value" fill={PRIMARY} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="value" fill={CHART_BRAND} radius={[4, 4, 0, 0]} maxBarSize={40} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
             </Card>
 
             <Card>
-              <h2 className="text-sm font-semibold mb-3" style={{ color: TEXT }}>
-                Deals by Stage
-              </h2>
+              <CardTitle>Deals by Stage</CardTitle>
               {data.funnel.every((f) => f.count === 0) ? (
-                <p className="text-sm" style={{ color: `${TEXT}80` }}>
-                  No deals yet.
-                </p>
+                <EmptyState>No deals yet.</EmptyState>
               ) : (
-                <ResponsiveContainer width="100%" height={Math.max(240, data.funnel.length * 28)}>
-                  <BarChart
-                    data={data.funnel}
-                    layout="vertical"
-                    margin={{ left: 8, right: 24 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#EEF2F6" horizontal={false} />
-                    <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: TEXT }} axisLine={false} tickLine={false} />
-                    <YAxis
-                      type="category"
-                      dataKey="stage_name"
-                      width={110}
-                      tick={{ fontSize: 11, fill: TEXT }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <Tooltip
-                      formatter={(value: number, _name, entry) => [
-                        `${value} deals · ${formatMoney((entry?.payload as { value: number } | undefined)?.value ?? 0)}`,
-                        'Deals',
-                      ]}
-                    />
-                    <Bar dataKey="count" fill={PRIMARY} radius={[0, 4, 4, 0]} barSize={14} />
-                  </BarChart>
-                </ResponsiveContainer>
+                // Contained height + internal scroll instead of letting the
+                // whole page balloon when a pipeline has many rarely-used
+                // stages (e.g. "Canceled / No Show") — every stage still
+                // shows (a 0-count row is real funnel information), it just
+                // doesn't push everything below it down the page anymore.
+                <div className="max-h-[280px] overflow-y-auto">
+                  <ResponsiveContainer width="100%" height={Math.max(240, data.funnel.length * 26)}>
+                    <BarChart data={data.funnel} layout="vertical" margin={{ left: 8, right: 24 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={CHART_CHROME.grid} horizontal={false} />
+                      <XAxis type="number" allowDecimals={false} tick={axisTick} axisLine={false} tickLine={false} />
+                      <YAxis
+                        type="category"
+                        dataKey="stage_name"
+                        width={110}
+                        tick={axisTick}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <Tooltip
+                        formatter={(value: number, _name, entry) => [
+                          `${value} deals · ${formatMoney((entry?.payload as { value: number } | undefined)?.value ?? 0)}`,
+                          'Deals',
+                        ]}
+                      />
+                      <Bar dataKey="count" fill={CHART_BRAND} radius={[0, 4, 4, 0]} barSize={14} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               )}
             </Card>
           </div>
 
           <div className="grid grid-cols-3 gap-4">
             <Card>
-              <h2 className="text-sm font-semibold mb-2" style={{ color: TEXT }}>
-                Lead Source Performance
-              </h2>
+              <CardTitle>Lead Source Performance</CardTitle>
               {data.lead_sources.length === 0 ? (
-                <p className="text-sm" style={{ color: `${TEXT}80` }}>
-                  No lead source data yet.
-                </p>
+                <EmptyState>No lead source data yet.</EmptyState>
               ) : (
-                <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                    <Pie
-                      data={data.lead_sources}
-                      dataKey="count"
-                      nameKey="lead_source"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={36}
-                      outerRadius={68}
-                      paddingAngle={2}
-                    >
-                      {data.lead_sources.map((_, i) => (
-                        <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(v: number, n: string) => [v, n || 'Unknown']} />
-                    <Legend
-                      layout="vertical"
-                      align="right"
-                      verticalAlign="middle"
-                      wrapperStyle={{ fontSize: 11 }}
-                      formatter={(value) => value || 'Unknown'}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
+                <div className="relative">
+                  <ResponsiveContainer width="100%" height={200}>
+                    <PieChart>
+                      <Pie
+                        data={data.lead_sources}
+                        dataKey="count"
+                        nameKey="lead_source"
+                        cx="38%"
+                        cy="50%"
+                        innerRadius={36}
+                        outerRadius={68}
+                        paddingAngle={2}
+                        strokeWidth={2}
+                        stroke="#ffffff"
+                      >
+                        {data.lead_sources.map((_, i) => (
+                          <Cell key={i} fill={chartCategoryColor(i)} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(v: number, n: string) => [v, n || 'Unknown']} />
+                      <Legend
+                        layout="vertical"
+                        align="right"
+                        verticalAlign="middle"
+                        wrapperStyle={{ fontSize: 11 }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  {/* Center total — the donut's hole is otherwise empty
+                      real estate, and "how many leads total" is the first
+                      thing this widget should answer. */}
+                  <div
+                    className="absolute top-1/2 -translate-y-1/2 text-center pointer-events-none"
+                    style={{ left: '38%', transform: 'translate(-50%, -50%)' }}
+                  >
+                    <div className="text-lg font-bold text-slate-800 tabular-nums">
+                      {data.lead_sources.reduce((sum, s) => sum + s.count, 0)}
+                    </div>
+                    <div className="text-[10px] text-slate-400 uppercase tracking-wide">Leads</div>
+                  </div>
+                </div>
               )}
             </Card>
 
             <Card className="flex flex-col items-center">
-              <h2 className="text-sm font-semibold mb-2 self-start" style={{ color: TEXT }}>
-                Win/Loss Rate
-              </h2>
-              <Gauge value={data.win_loss.win_rate} fillColor={POSITIVE} trackColor={WARNING} />
-              <p className="text-sm font-semibold -mt-1" style={{ color: TEXT }}>
-                {data.win_loss.win_rate}% Win
-              </p>
-              <p className="text-xs" style={{ color: `${TEXT}80` }}>
+              <div className="self-start">
+                <CardTitle>Win/Loss Rate</CardTitle>
+              </div>
+              <Gauge value={data.win_loss.win_rate} fillColor={CHART_STATUS.good} trackColor="#fecdd3" />
+              <p className="text-sm font-semibold -mt-1 text-slate-800">{data.win_loss.win_rate}% Win</p>
+              <p className="text-xs text-slate-500">
                 {data.win_loss.won_count} Won · {data.win_loss.lost_count} Lost
               </p>
             </Card>
 
             <Card className="flex flex-col items-center">
-              <h2 className="text-sm font-semibold mb-2 self-start" style={{ color: TEXT }}>
-                Task Completion (30d)
-              </h2>
-              <Gauge value={data.task_completion.rate} fillColor={PRIMARY} />
-              <p className="text-sm font-semibold -mt-1" style={{ color: TEXT }}>
-                {data.task_completion.rate}%
-              </p>
-              <p className="text-xs" style={{ color: `${TEXT}80` }}>
+              <div className="self-start">
+                <CardTitle>Task Completion (30d)</CardTitle>
+              </div>
+              <Gauge value={data.task_completion.rate} fillColor={CHART_BRAND} />
+              <p className="text-sm font-semibold -mt-1 text-slate-800">{data.task_completion.rate}%</p>
+              <p className="text-xs text-slate-500">
                 {data.task_completion.completed} / {data.task_completion.total} tasks
               </p>
             </Card>
@@ -352,17 +372,13 @@ export default function Dashboard() {
           <div className={`grid gap-4 ${isAdmin ? 'grid-cols-3' : 'grid-cols-1'}`}>
             {isAdmin && (
               <Card>
-                <h2 className="text-sm font-semibold mb-3" style={{ color: TEXT }}>
-                  Team Performance
-                </h2>
+                <CardTitle>Team Performance</CardTitle>
                 {data.team_leaderboard.length === 0 ? (
-                  <p className="text-sm" style={{ color: `${TEXT}80` }}>
-                    No team activity yet.
-                  </p>
+                  <EmptyState>No team activity yet.</EmptyState>
                 ) : (
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="text-left text-xs" style={{ color: `${TEXT}80` }}>
+                      <tr className="text-left text-xs text-slate-400">
                         <th className="font-medium pb-2 w-5"></th>
                         <th className="font-medium pb-2">Rep</th>
                         <th className="font-medium pb-2 text-right">Won</th>
@@ -373,19 +389,11 @@ export default function Dashboard() {
                     <tbody className="divide-y divide-slate-50">
                       {data.team_leaderboard.map((row, i) => (
                         <tr key={row.user_id}>
-                          <td className="py-1.5 text-xs" style={{ color: `${TEXT}80` }}>
-                            {i + 1}
-                          </td>
-                          <td className="py-1.5 truncate" style={{ color: TEXT }}>
-                            {row.name}
-                          </td>
-                          <td className="py-1.5 text-right" style={{ color: TEXT }}>
-                            {row.won_deals}
-                          </td>
-                          <td className="py-1.5 text-right" style={{ color: TEXT }}>
-                            {row.open_deals}
-                          </td>
-                          <td className="py-1.5 text-right font-semibold" style={{ color: TEXT }}>
+                          <td className="py-1.5 text-xs text-slate-400">{i + 1}</td>
+                          <td className="py-1.5 truncate text-slate-800">{row.name}</td>
+                          <td className="py-1.5 text-right text-slate-800 tabular-nums">{row.won_deals}</td>
+                          <td className="py-1.5 text-right text-slate-800 tabular-nums">{row.open_deals}</td>
+                          <td className="py-1.5 text-right font-semibold text-slate-800 tabular-nums">
                             {formatMoney(row.revenue)}
                           </td>
                         </tr>
@@ -396,103 +404,93 @@ export default function Dashboard() {
               </Card>
             )}
 
+            {/* Pipeline health — a single status line, not a duplicate list.
+                Full stalled-deal detail lives once, in the "Deals Requiring
+                Attention" table below. */}
             <Card className={isAdmin ? 'col-span-2' : ''}>
-              {data.stalled_deals.length === 0 ? (
-                <div className="flex items-start gap-2.5">
-                  <i className="fa-solid fa-circle-check mt-0.5" style={{ color: POSITIVE }} />
-                  <div>
-                    <p className="text-sm font-semibold" style={{ color: TEXT }}>
-                      All open deals are progressing normally.
-                    </p>
-                    <p className="text-xs mt-0.5" style={{ color: `${TEXT}80` }}>
-                      No deals have been inactive for more than 7 days.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className="flex items-center gap-2 mb-3">
-                    <i className="fa-solid fa-triangle-exclamation" style={{ color: WARNING }} />
-                    <h2 className="text-sm font-semibold" style={{ color: TEXT }}>
-                      {data.stalled_deals.length} deal{data.stalled_deals.length === 1 ? '' : 's'} need attention
-                    </h2>
-                  </div>
-                  <div className="space-y-2">
-                    {data.stalled_deals.map((d) => (
-                      <div key={d.id} className="flex items-center justify-between gap-3 text-sm">
-                        <span className="truncate flex-1" style={{ color: TEXT }}>
-                          {d.name}
-                        </span>
-                        <span className="shrink-0 font-semibold" style={{ color: TEXT }}>
-                          {formatMoney(d.value)}
-                        </span>
-                        <span className="shrink-0 text-xs w-24 text-right" style={{ color: WARNING }}>
-                          {d.days_stalled} days inactive
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
+              <div className="flex items-center gap-2.5">
+                {data.stalled_deals.length === 0 ? (
+                  <>
+                    <i className="fa-solid fa-circle-check mt-0.5" style={{ color: CHART_STATUS.good }} />
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800">All open deals are progressing normally.</p>
+                      <p className="text-xs text-slate-500 mt-0.5">No deals have been inactive for more than 7 days.</p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <i
+                      className="fa-solid fa-triangle-exclamation mt-0.5"
+                      style={{ color: CHART_STATUS.warning }}
+                    />
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-slate-800">
+                        {data.stalled_deals.length} deal{data.stalled_deals.length === 1 ? '' : 's'} need attention
+                      </p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Inactive for more than 7 days — see the full list below.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => document.getElementById('deals-requiring-attention')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                      className="text-xs font-semibold text-indigo-600 hover:underline shrink-0"
+                    >
+                      Jump to list →
+                    </button>
+                  </>
+                )}
+              </div>
             </Card>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <Card>
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-semibold" style={{ color: TEXT }}>
-                  Upcoming Tasks
-                </h2>
+                <h2 className="text-sm font-semibold text-slate-800">Upcoming Tasks</h2>
                 {data.tasks_overdue > 0 && (
-                  <span className="text-xs font-medium" style={{ color: WARNING }}>
+                  <span className="text-xs font-medium" style={{ color: CHART_STATUS.warning }}>
                     {data.tasks_overdue} Late
                   </span>
                 )}
               </div>
               {data.upcoming_tasks.length === 0 ? (
-                <p className="text-sm" style={{ color: `${TEXT}80` }}>
-                  Nothing due soon.
-                </p>
+                <EmptyState>Nothing due soon.</EmptyState>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-1">
                   {data.upcoming_tasks.map((t) => (
-                    <div key={t.id} className="flex items-center gap-2 text-sm" style={{ color: TEXT }}>
-                      <i className="fa-regular fa-circle w-4" style={{ color: `${TEXT}66` }} />
+                    <button
+                      key={t.id}
+                      onClick={() => navigate(`/tasks?highlight=${t.id}`)}
+                      className="w-full flex items-center gap-2 text-sm text-slate-800 py-1 -mx-1 px-1 rounded hover:bg-slate-50 text-left"
+                    >
+                      <i className="fa-regular fa-circle w-4 text-slate-300" />
                       <span className="flex-1 truncate">{t.subject}</span>
                       {t.due_at && (
-                        <span className="text-xs shrink-0" style={{ color: `${TEXT}80` }}>
+                        <span className="text-xs shrink-0 text-slate-400">
                           {new Date(t.due_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                         </span>
                       )}
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}
-              <button
-                onClick={() => navigate('/tasks')}
-                className="text-xs font-semibold mt-3"
-                style={{ color: PRIMARY }}
-              >
+              <button onClick={() => navigate('/tasks')} className="text-xs font-semibold mt-3 text-indigo-600 hover:underline">
                 View all tasks →
               </button>
             </Card>
 
             <Card>
-              <h2 className="text-sm font-semibold mb-3" style={{ color: TEXT }}>
-                Upcoming Events
-              </h2>
+              <h2 className="text-sm font-semibold text-slate-800 mb-3">Upcoming Events</h2>
               {data.upcoming_events.length === 0 ? (
-                <p className="text-sm" style={{ color: `${TEXT}80` }}>
-                  Nothing on the calendar soon.
-                </p>
+                <EmptyState>Nothing on the calendar soon.</EmptyState>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-1">
                   {data.upcoming_events.map((e) => (
-                    <div key={e.id} className="flex items-center gap-2 text-sm" style={{ color: TEXT }}>
-                      <i className="fa-solid fa-circle w-4 text-[6px]" style={{ color: PRIMARY }} />
+                    <div key={e.id} className="flex items-center gap-2 text-sm text-slate-800 py-1">
+                      <i className="fa-solid fa-circle w-4 text-[6px] text-indigo-400" />
                       <span className="flex-1 truncate">{e.subject}</span>
                       {e.due_at && (
-                        <span className="text-xs shrink-0" style={{ color: `${TEXT}80` }}>
+                        <span className="text-xs shrink-0 text-slate-400">
                           {new Date(e.due_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                         </span>
                       )}
@@ -500,24 +498,16 @@ export default function Dashboard() {
                   ))}
                 </div>
               )}
-              <button
-                onClick={() => navigate('/calendar')}
-                className="text-xs font-semibold mt-3"
-                style={{ color: PRIMARY }}
-              >
+              <button onClick={() => navigate('/calendar')} className="text-xs font-semibold mt-3 text-indigo-600 hover:underline">
                 View calendar →
               </button>
             </Card>
           </div>
 
           <Card>
-            <h2 className="text-sm font-semibold mb-3" style={{ color: TEXT }}>
-              Recent Activity
-            </h2>
+            <CardTitle>Recent Activity</CardTitle>
             {data.recent_activities.length === 0 ? (
-              <p className="text-sm" style={{ color: `${TEXT}80` }}>
-                No recent activity.
-              </p>
+              <EmptyState>No recent activity.</EmptyState>
             ) : (
               <div className="space-y-3">
                 {data.recent_activities.map((a) => {
@@ -525,18 +515,10 @@ export default function Dashboard() {
                   return (
                     <div key={a.id} className="flex items-start justify-between gap-3 text-sm">
                       <div className="min-w-0">
-                        <p className="truncate" style={{ color: TEXT }}>
-                          {main}
-                        </p>
-                        {detail && (
-                          <p className="text-xs mt-0.5" style={{ color: PRIMARY }}>
-                            {detail}
-                          </p>
-                        )}
+                        <p className="truncate text-slate-800">{main}</p>
+                        {detail && <p className="text-xs mt-0.5 text-indigo-600">{detail}</p>}
                       </div>
-                      <span className="text-xs shrink-0" style={{ color: `${TEXT}80` }}>
-                        {formatRelativeTime(a.created_at)}
-                      </span>
+                      <span className="text-xs shrink-0 text-slate-400">{formatRelativeTime(a.created_at)}</span>
                     </div>
                   );
                 })}
@@ -544,19 +526,15 @@ export default function Dashboard() {
             )}
           </Card>
 
-          <Card>
-            <h2 className="text-sm font-semibold mb-3" style={{ color: TEXT }}>
-              Deals Requiring Attention
-            </h2>
+          <Card id="deals-requiring-attention">
+            <CardTitle>Deals Requiring Attention</CardTitle>
             {data.stalled_deals.length === 0 ? (
-              <p className="text-sm" style={{ color: `${TEXT}80` }}>
-                Nothing needs attention right now.
-              </p>
+              <EmptyState>Nothing needs attention right now.</EmptyState>
             ) : (
               <>
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-left text-xs" style={{ color: `${TEXT}80` }}>
+                    <tr className="text-left text-xs text-slate-400">
                       <th className="font-medium pb-2">Deal Name</th>
                       <th className="font-medium pb-2">Stage</th>
                       <th className="font-medium pb-2 text-right">Value</th>
@@ -566,22 +544,19 @@ export default function Dashboard() {
                   <tbody className="divide-y divide-slate-50">
                     {data.stalled_deals.map((d) => {
                       const dueToday =
-                        !!d.expected_close &&
-                        new Date(d.expected_close).toDateString() === new Date().toDateString();
+                        !!d.expected_close && new Date(d.expected_close).toDateString() === new Date().toDateString();
                       return (
-                        <tr key={d.id}>
-                          <td className="py-1.5 truncate max-w-[200px]" style={{ color: TEXT }}>
-                            {d.name}
-                          </td>
-                          <td className="py-1.5" style={{ color: `${TEXT}B3` }}>
-                            {d.stage_name || '--'}
-                          </td>
-                          <td className="py-1.5 text-right" style={{ color: TEXT }}>
-                            {formatMoney(d.value)}
-                          </td>
+                        <tr
+                          key={d.id}
+                          onClick={() => goToDeal(d.pipeline_id, d.id)}
+                          className="cursor-pointer hover:bg-slate-50"
+                        >
+                          <td className="py-1.5 truncate max-w-[200px] text-slate-800">{d.name}</td>
+                          <td className="py-1.5 text-slate-500">{d.stage_name || '--'}</td>
+                          <td className="py-1.5 text-right text-slate-800 tabular-nums">{formatMoney(d.value)}</td>
                           <td
-                            className="py-1.5 text-right font-semibold"
-                            style={{ color: dueToday ? PRIMARY : WARNING }}
+                            className="py-1.5 text-right font-semibold tabular-nums"
+                            style={{ color: dueToday ? CHART_BRAND : CHART_STATUS.warning }}
                           >
                             {dueToday ? 'Due today' : `${d.days_stalled} days idle`}
                           </td>
@@ -591,11 +566,7 @@ export default function Dashboard() {
                   </tbody>
                 </table>
                 <div className="text-right mt-2">
-                  <button
-                    onClick={() => navigate('/pipeline')}
-                    className="text-xs font-semibold"
-                    style={{ color: PRIMARY }}
-                  >
+                  <button onClick={() => navigate('/pipeline')} className="text-xs font-semibold text-indigo-600 hover:underline">
                     View Pipeline →
                   </button>
                 </div>
