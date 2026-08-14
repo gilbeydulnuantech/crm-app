@@ -57,12 +57,12 @@ export default function CompanyQuickView({ company, onClose, onOpenFullRecord, o
   const companyContacts = allContacts.filter((c) => c.account_id === company.id);
   const companyOpportunities = allOpportunities.filter((o) => o.account_id === company.id);
   const openDeals = companyOpportunities.filter((d) => d.status === 'Open');
-  const openPipelineValue = openDeals.reduce((sum, d) => sum + (d.deal_value ?? 0), 0);
+  const openPipelineValue = openDeals.reduce((sum, d) => sum + Number(d.deal_value ?? 0), 0);
   // No dedicated ARR/contract-value field exists yet — Closed Won deal value
   // is the closest proxy available from the data already in this app.
   const totalArr = companyOpportunities
     .filter((d) => d.status === 'Won')
-    .reduce((sum, d) => sum + (d.deal_value ?? 0), 0);
+    .reduce((sum, d) => sum + Number(d.deal_value ?? 0), 0);
   const health = company.account_health ? COMPANY_HEALTH_DISPLAY[company.account_health] : undefined;
   const recentActivity = activity.slice(0, 3);
   const stageName = (stageId: number) => allStages.find((s) => s.id === stageId)?.name ?? '--';
@@ -170,7 +170,7 @@ export default function CompanyQuickView({ company, onClose, onOpenFullRecord, o
                 <p key={d.id} className="text-sm text-slate-700 truncate">
                   {toTitleCase(d.name)} —{' '}
                   <span className="font-medium text-emerald-600">
-                    {d.deal_value != null ? `$${d.deal_value.toLocaleString()}` : '--'}
+                    {d.deal_value != null ? `$${Number(d.deal_value).toLocaleString()}` : '--'}
                   </span>{' '}
                   <span className="text-slate-400">(Stage: {stageName(d.stage_id)})</span>
                 </p>

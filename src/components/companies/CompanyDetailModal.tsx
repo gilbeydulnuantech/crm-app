@@ -1,12 +1,18 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Company } from '../../types/company';
+import { Contact } from '../../types/contact';
 import { useContacts } from '../../hooks/useContacts';
 import { usePipelines, useAllOpportunities, useAllStages } from '../../hooks/useOpportunities';
 import { useEntityActivity } from '../../hooks/useActivity';
+import { useAddNote, useDeleteNote, useNotes, useUpdateNote } from '../../hooks/useNotes';
+import { useUpdateCompany } from '../../hooks/useCompanies';
 import { toTitleCase } from '../../utils/text';
 import { DEFAULT_USER_COLOR, hexToRgba } from '../../utils/userColor';
 import DealFormModal from '../pipeline/DealFormModal';
+import AddContactModal from '../contacts/AddContactModal';
+import LogCallModal from '../LogCallModal';
+import ComposeEmailPopover from '../contacts/ComposeEmailPopover';
 import ActivityTimeline from '../ActivityTimeline';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -45,6 +51,13 @@ export default function CompanyDetailModal({
 }: Props) {
   const navigate = useNavigate();
   const [dealFormOpen, setDealFormOpen] = useState(false);
+  const [addContactOpen, setAddContactOpen] = useState(false);
+  const [logCallOpen, setLogCallOpen] = useState(false);
+  const [emailContact, setEmailContact] = useState<Contact | null>(null);
+  const [noteDraft, setNoteDraft] = useState('');
+  const [noteError, setNoteError] = useState<string | null>(null);
+  const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
+  const [editDraft, setEditDraft] = useState('');
 
   const { data: allContacts = [], isLoading: contactsLoading } = useContacts();
   const { data: pipelines = [] } = usePipelines();
@@ -55,6 +68,11 @@ export default function CompanyDetailModal({
   const { data: opportunities = [], isLoading: oppsLoading } = useAllOpportunities(pipelineIds);
   const { data: stages = [] } = useAllStages(pipelineIds);
   const { data: activity = [], isLoading: activityLoading } = useEntityActivity('company', company?.id ?? null);
+  const { data: notes = [], isLoading: notesLoading } = useNotes('company', company?.id ?? null);
+  const addNote = useAddNote('company', company?.id ?? null);
+  const updateNote = useUpdateNote('company', company?.id ?? null);
+  const deleteNote = useDeleteNote('company', company?.id ?? null);
+  const updateCompany = useUpdateCompany();
 
   if (!company) return null;
 
@@ -86,14 +104,16 @@ export default function CompanyDetailModal({
     navigate(`/pipeline?pipeline=${pid}&highlight=${dealId}`);
   }
 
+  function handleClaimOwnership() {
+    if (!currentUserId) return;
+    updateCompany.mutate({ id: company!.id, payload: { owner_id: currentUserId } });
+  }
+
   return (
     <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl h-[85vh] flex flex-col overflow-hidden">
-        {/* Header — "Company Details" label aligned with close, matching ContactDetailModal */}
-        <div className="flex items-center justify-between px-6 py-3 border-b border-slate-200 shrink-0">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
-            Company Details
-          </span>
+        {/* Header — just the close button; company identity/actions now live at the top of the left column */}
+        <div className="flex justify-end px-4 py-2 shrink-0">
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
             <i className="fa-solid fa-xmark text-lg" />
           </button>
@@ -101,94 +121,112 @@ export default function CompanyDetailModal({
 
         {/* 3-column body */}
         <div className="flex-1 grid grid-cols-3 min-h-0">
-          {/* Column 1: Details + Contacts + Opportunities */}
+          {/* Column 1: Identity + Firmographics + Contacts + Opportunities */}
           <div className="border-r border-slate-200 overflow-y-auto p-5 space-y-5">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-base shrink-0">
-                <i className="fa-solid fa-building" />
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-base font-bold text-slate-800 truncate">{toTitleCase(company.name)}</h2>
-                  {canEdit && (
-                    <button
-                      onClick={() => onEdit(company)}
-                      className="text-slate-300 hover:text-indigo-600"
-                      title="Edit company"
-                    >
-                      <i className="fa-solid fa-pen text-xs" />
-                    </button>
-                  )}
-                  {onViewHierarchy && (
-                    <button
-                      onClick={() => onViewHierarchy(company)}
-                      className="text-slate-300 hover:text-indigo-600"
-                      title="View account hierarchy"
-                    >
-                      <i className="fa-solid fa-sitemap text-xs" />
-                    </button>
-                  )}
-                </div>
-                <p className="text-xs text-slate-500 truncate">{toTitleCase(company.industry) || 'No industry set'}</p>
-                {company.parent_company_name && (
-                  <p className="text-xs text-slate-400 truncate">Parent: {toTitleCase(company.parent_company_name)}</p>
+            <div className="border border-slate-200 rounded-xl p-4 space-y-1.5">
+              <h2 className="text-base font-bold text-slate-800 truncate flex items-center gap-1.5">
+                {toTitleCase(company.name)}
+                {company.tier && <span className="text-xs text-slate-400 font-medium">({company.tier})</span>}
+                {canEdit && (
+                  <button
+                    onClick={() => onEdit(company)}
+                    className="text-slate-300 hover:text-indigo-600"
+                    title="Edit company"
+                  >
+                    <i className="fa-solid fa-pen text-xs" />
+                  </button>
                 )}
-              </div>
-            </div>
+                {onViewHierarchy && (
+                  <button
+                    onClick={() => onViewHierarchy(company)}
+                    className="text-slate-300 hover:text-indigo-600"
+                    title="View account hierarchy"
+                  >
+                    <i className="fa-solid fa-sitemap text-xs" />
+                  </button>
+                )}
+              </h2>
+              <p className="text-xs text-slate-500 flex items-center gap-1.5 flex-wrap">
+                {company.parent_company_name && <span>Parent: {toTitleCase(company.parent_company_name)}</span>}
+                {company.parent_company_name && company.industry && <span className="text-slate-300">|</span>}
+                {company.industry && <span>Industry: {toTitleCase(company.industry)}</span>}
+                <span className="text-slate-300">|</span>
+                <span className="flex items-center gap-1.5">
+                  Owner:
+                  {company.owner_name ? (
+                    <span
+                      className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium rounded-full"
+                      style={{
+                        backgroundColor: hexToRgba(company.owner_color || DEFAULT_USER_COLOR, 0.14),
+                        color: company.owner_color || DEFAULT_USER_COLOR,
+                      }}
+                    >
+                      <span
+                        className="w-1.5 h-1.5 rounded-full"
+                        style={{ backgroundColor: company.owner_color || DEFAULT_USER_COLOR }}
+                      />
+                      {toTitleCase(company.owner_name)}
+                    </span>
+                  ) : (
+                    'Unassigned'
+                  )}
+                </span>
+                {!company.owner_id && currentUserId && (
+                  <button
+                    onClick={handleClaimOwnership}
+                    className="ml-1 px-2 py-0.5 text-[10px] font-semibold text-indigo-600 border border-indigo-200 rounded-full hover:bg-indigo-50"
+                  >
+                    Claim Ownership
+                  </button>
+                )}
+              </p>
 
-            <div className="space-y-4">
-              <DetailField label="Phone" value={company.phone} />
-              <DetailField label="Website" value={company.website} />
-              <DetailField
-                label="Location"
-                value={toTitleCase(
-                  [company.city, company.state, company.country].filter(Boolean).join(', ')
-                )}
-              />
-              <div>
-                <label className="block text-[11px] font-medium text-slate-500 mb-1">Owner</label>
-                {company.owner_name ? (
+              <div className="pt-2 border-t border-slate-100">
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Firmographics</h3>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                  <DetailField label="Website" value={company.website} />
+                  <DetailField label="Phone" value={company.phone} />
+                  <DetailField label="Revenue" value={company.annual_revenue ?? undefined} />
+                  <DetailField label="Employees" value={company.employee_count ?? undefined} />
+                  <DetailField
+                    label="Location"
+                    value={toTitleCase(
+                      [company.street_address, company.city, company.state, company.zip_code, company.country]
+                        .filter(Boolean)
+                        .join(', ')
+                    )}
+                  />
+                  <DetailField label="Region" value={company.territory ?? undefined} />
+                </div>
+                <div className="mt-3">
+                  <label className="block text-[11px] font-medium text-slate-500 mb-1">Status</label>
                   <span
-                    className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium rounded-full"
-                    style={{
-                      backgroundColor: hexToRgba(company.owner_color || DEFAULT_USER_COLOR, 0.14),
-                      color: company.owner_color || DEFAULT_USER_COLOR,
-                    }}
+                    className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium rounded-full ${
+                      company.is_archived ? 'bg-slate-100 text-slate-500' : 'bg-emerald-100 text-emerald-800'
+                    }`}
                   >
                     <span
-                      className="w-1.5 h-1.5 rounded-full"
-                      style={{ backgroundColor: company.owner_color || DEFAULT_USER_COLOR }}
+                      className={`w-1.5 h-1.5 rounded-full ${company.is_archived ? 'bg-slate-400' : 'bg-emerald-500'}`}
                     />
-                    {toTitleCase(company.owner_name)}
+                    {company.is_archived ? 'Archived' : 'Active'}
                   </span>
-                ) : (
-                  <p className="text-sm text-slate-700">--</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-[11px] font-medium text-slate-500 mb-1">Status</label>
-                <span
-                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium rounded-full ${
-                    company.is_archived
-                      ? 'bg-slate-100 text-slate-500'
-                      : 'bg-emerald-100 text-emerald-800'
-                  }`}
-                >
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full ${
-                      company.is_archived ? 'bg-slate-400' : 'bg-emerald-500'
-                    }`}
-                  />
-                  {company.is_archived ? 'Archived' : 'Active'}
-                </span>
+                </div>
               </div>
             </div>
 
             <div className="pt-2 border-t border-slate-100">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
-                  Contacts ({companyContacts.length})
+                  Associated Contacts ({companyContacts.length})
                 </h3>
+                {canEdit && (
+                  <button
+                    onClick={() => setAddContactOpen(true)}
+                    className="text-xs font-semibold text-indigo-600 hover:underline"
+                  >
+                    + Add
+                  </button>
+                )}
               </div>
 
               {contactsLoading ? (
@@ -207,21 +245,55 @@ export default function CompanyDetailModal({
                       <button
                         key={c.id}
                         onClick={() => onContactClick?.(c.id)}
-                        className="w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-slate-50"
+                        className="w-full text-left px-3 py-2.5 space-y-1 hover:bg-slate-50"
                       >
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-slate-800 truncate">{fullName}</p>
-                          <p className="text-xs text-slate-400 truncate">
-                            {toTitleCase(c.job_title) || c.email || '--'}
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-medium text-slate-800 truncate hover:text-indigo-600">
+                            {fullName}
+                            {(c.company_role || c.job_title) && (
+                              <span className="text-slate-400 font-normal">
+                                {' '}
+                                ({toTitleCase(c.company_role || c.job_title || '')})
+                              </span>
+                            )}
                           </p>
+                          <span
+                            className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0 ${
+                              STATUS_COLORS[status] ?? 'bg-slate-100 text-slate-800'
+                            }`}
+                          >
+                            {status}
+                          </span>
                         </div>
-                        <span
-                          className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0 ml-3 ${
-                            STATUS_COLORS[status] ?? 'bg-slate-100 text-slate-800'
-                          }`}
-                        >
-                          {status}
-                        </span>
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs text-slate-400 truncate">{c.email || '--'}</p>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <span
+                              role="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setLogCallOpen(true);
+                              }}
+                              title="Log a call"
+                              className="w-6 h-6 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-indigo-600"
+                            >
+                              <i className="fa-solid fa-phone text-[10px]" />
+                            </span>
+                            <span
+                              role="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (c.email) setEmailContact(c);
+                              }}
+                              title="Email"
+                              className={`w-6 h-6 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-indigo-600 ${
+                                !c.email ? 'opacity-30 pointer-events-none' : ''
+                              }`}
+                            >
+                              <i className="fa-solid fa-envelope text-[10px]" />
+                            </span>
+                          </div>
+                        </div>
                       </button>
                     );
                   })}
@@ -239,7 +311,7 @@ export default function CompanyDetailModal({
                     onClick={openAddDeal}
                     className="text-xs font-semibold text-indigo-600 hover:underline"
                   >
-                    + New Opportunity
+                    + New Deal
                   </button>
                 )}
               </div>
@@ -262,37 +334,29 @@ export default function CompanyDetailModal({
                       </div>
                       <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg">
                         {section.items.map((d) => {
-                          const pipelineName = pipelines.find((p) => p.id === d.pipeline_id)?.name;
                           const isClosed = d.status !== 'Open';
-                          const closedDate = d.closed_at ?? d.created_at;
+                          const closeDate = isClosed ? d.closed_at ?? d.created_at : d.expected_close;
                           return (
                             <div key={d.id} className="px-3 py-2.5 space-y-1">
                               <div className="flex items-center justify-between gap-2">
                                 <p className="text-sm font-medium text-slate-800 truncate">{toTitleCase(d.name)}</p>
                                 <span className="text-sm font-semibold text-emerald-600 shrink-0">
                                   {d.deal_value != null
-                                    ? `$${d.deal_value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+                                    ? `$${Number(d.deal_value).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
                                     : '--'}
                                 </span>
                               </div>
                               <p className="text-xs text-slate-400 truncate">
-                                {toTitleCase([pipelineName, stageName(d.stage_id)].filter(Boolean).join(' · '))}
-                              </p>
-                              {d.status === 'Lost' && d.lost_reason && (
-                                <p className="text-xs text-rose-600">Lost Reason: {d.lost_reason}</p>
-                              )}
-                              <p className="text-xs text-slate-500">
-                                {d.assigned_user_name ? `Owner: ${toTitleCase(d.assigned_user_name)}` : 'Unassigned'}
-                              </p>
-                              {(isClosed ? closedDate : d.created_at) && (
-                                <p className="text-[11px] text-slate-400">
-                                  {isClosed ? 'Closed: ' : 'Created: '}
-                                  {new Date((isClosed ? closedDate : d.created_at)!).toLocaleDateString(undefined, {
+                                Stage: {stageName(d.stage_id)}
+                                {closeDate &&
+                                  ` | ${isClosed ? 'Closed' : 'Close'}: ${new Date(closeDate).toLocaleDateString(undefined, {
                                     month: 'short',
                                     day: '2-digit',
                                     year: 'numeric',
-                                  })}
-                                </p>
+                                  })}`}
+                              </p>
+                              {d.status === 'Lost' && d.lost_reason && (
+                                <p className="text-xs text-rose-600">Lost Reason: {d.lost_reason}</p>
                               )}
                               <button
                                 onClick={() => openPipelineView(d.id, d.pipeline_id)}
@@ -312,38 +376,140 @@ export default function CompanyDetailModal({
             </div>
           </div>
 
-          {/* Column 2: Activity Log */}
+          {/* Column 2: Activity Timeline */}
           <div className="border-r border-slate-200 overflow-y-auto p-5 space-y-3">
-            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
-              Activity Log
-            </h3>
-            {/* ASSUMPTION: no company-update workflow writes system_audit rows
-                yet (only contacts-update.json / Users_ Assignment.json do) —
-                Calls/Meetings/System Audit tabs stay empty until that's
-                wired up the same way. Companies have no email_logs column,
-                so the Emails tab is always empty here too. */}
+            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Activity Timeline</h3>
             <ActivityTimeline activity={activity} isLoading={activityLoading} onEmailClick={() => {}} />
           </div>
 
-          {/* Column 3: Notes */}
-          <div className="overflow-y-auto p-5 space-y-3">
-            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Notes</h3>
-            <textarea
-              placeholder="Write a note about this company..."
-              rows={6}
-              disabled
-              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-400"
-            />
-            <button
-              disabled
-              className="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              + Add Note
-            </button>
-            <p className="text-xs text-slate-400 italic pt-2">
-              No notes yet — this needs a backend endpoint (e.g. a `notes` table + `get-notes` /
-              `add-note` webhooks) since the old app didn't have a notes feature.
-            </p>
+          {/* Column 3: Notes & Account Team */}
+          <div className="overflow-y-auto p-5 space-y-5">
+            <div>
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Notes</h3>
+              <textarea
+                value={noteDraft}
+                onChange={(e) => setNoteDraft(e.target.value)}
+                placeholder="Write a note about this company..."
+                rows={4}
+                disabled={!canEdit}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-400"
+              />
+              {noteError && (
+                <p className="text-[11px] text-rose-600 bg-rose-50 border border-rose-200 rounded-md px-2 py-1 mt-1.5">
+                  {noteError}
+                </p>
+              )}
+              <button
+                disabled={!canEdit || !noteDraft.trim() || addNote.isPending}
+                onClick={() => {
+                  setNoteError(null);
+                  addNote.mutate(
+                    { body: noteDraft.trim(), requesterId: currentUserId },
+                    {
+                      onSuccess: () => setNoteDraft(''),
+                      onError: (err) => setNoteError(err instanceof Error ? err.message : 'Failed to add note.'),
+                    }
+                  );
+                }}
+                className="w-full mt-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {addNote.isPending ? 'Adding...' : '+ Add Note'}
+              </button>
+
+              <div className="space-y-2 pt-2">
+                {notesLoading ? (
+                  <p className="text-xs text-slate-400 italic">Loading notes...</p>
+                ) : notes.length === 0 ? (
+                  <p className="text-xs text-slate-400 italic">No notes yet.</p>
+                ) : (
+                  notes.map((note) => {
+                    const canEditNote = isAdmin || note.created_by === currentUserId;
+                    const isEditing = editingNoteId === note.id;
+                    return (
+                      <div key={note.id} className="p-3 rounded-lg border border-slate-100 bg-slate-50 space-y-1.5">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-medium text-slate-700">
+                            {note.created_by_name ? toTitleCase(note.created_by_name) : 'Unknown'}
+                          </span>
+                          <span className="text-slate-400 text-[10px]">
+                            {new Date(note.created_at).toLocaleDateString(undefined, { month: 'short', day: '2-digit' })}
+                            {note.updated_at ? ' (edited)' : ''}
+                          </span>
+                        </div>
+                        {isEditing ? (
+                          <>
+                            <textarea
+                              value={editDraft}
+                              onChange={(e) => setEditDraft(e.target.value)}
+                              rows={3}
+                              className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                            <div className="flex justify-end gap-3 pt-0.5">
+                              <button
+                                onClick={() => setEditingNoteId(null)}
+                                className="text-[11px] font-medium text-slate-500 hover:text-slate-700"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                onClick={() =>
+                                  updateNote.mutate(
+                                    { id: note.id, body: editDraft.trim() },
+                                    { onSuccess: () => setEditingNoteId(null) }
+                                  )
+                                }
+                                disabled={!editDraft.trim() || updateNote.isPending}
+                                className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-700 disabled:opacity-50"
+                              >
+                                Save
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-slate-600 text-xs whitespace-pre-wrap">{note.body}</p>
+                            {canEditNote && (
+                              <div className="flex justify-end gap-3 pt-0.5">
+                                <button
+                                  onClick={() => {
+                                    setEditingNoteId(note.id);
+                                    setEditDraft(note.body);
+                                  }}
+                                  className="text-[10px] font-medium text-slate-400 hover:text-indigo-600"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (confirm('Delete this note?')) deleteNote.mutate(note.id);
+                                  }}
+                                  className="text-[10px] font-medium text-slate-400 hover:text-rose-600"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-slate-100">
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Account Team</h3>
+              <div className="border border-slate-200 rounded-xl p-3 space-y-1.5">
+                <TeamMemberRow
+                  label="Owner"
+                  name={company.owner_name}
+                  color={company.owner_color}
+                />
+                <TeamMemberRow label="SE" name={company.se_user_name} />
+                <TeamMemberRow label="CS Rep" name={company.csm_user_name} />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -358,6 +524,22 @@ export default function CompanyDetailModal({
           onClose={() => setDealFormOpen(false)}
         />
       )}
+      <AddContactModal
+        open={addContactOpen}
+        defaultAccountId={company.id}
+        defaultCompanyName={company.name}
+        onClose={() => setAddContactOpen(false)}
+      />
+      <LogCallModal
+        open={logCallOpen}
+        entityType="company"
+        entityId={company.id}
+        entityLabel={company.name}
+        onClose={() => setLogCallOpen(false)}
+      />
+      {emailContact && (
+        <ComposeEmailPopover contact={emailContact} open onClose={() => setEmailContact(null)} />
+      )}
     </div>
   );
 }
@@ -366,7 +548,29 @@ function DetailField({ label, value }: { label: string; value?: string }) {
   return (
     <div>
       <label className="block text-[11px] font-medium text-slate-500 mb-1">{label}</label>
-      <p className="text-sm text-slate-700">{value || '--'}</p>
+      <p className="text-sm text-slate-700 break-words">{value || '--'}</p>
+    </div>
+  );
+}
+
+function TeamMemberRow({ label, name, color }: { label: string; name?: string; color?: string }) {
+  return (
+    <div className="flex items-center justify-between text-xs">
+      <span className="text-slate-500">{label}:</span>
+      {name ? (
+        <span
+          className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded-full"
+          style={{
+            backgroundColor: hexToRgba(color || DEFAULT_USER_COLOR, 0.14),
+            color: color || DEFAULT_USER_COLOR,
+          }}
+        >
+          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color || DEFAULT_USER_COLOR }} />
+          {toTitleCase(name)}
+        </span>
+      ) : (
+        <span className="text-slate-400 text-[11px]">Unassigned</span>
+      )}
     </div>
   );
 }

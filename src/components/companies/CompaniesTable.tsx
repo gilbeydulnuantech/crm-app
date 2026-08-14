@@ -204,8 +204,8 @@ export default function CompaniesTable({
     for (const d of allOpportunities) {
       if (!d.account_id) continue;
       const entry = map.get(d.account_id) ?? { pipeline: 0, arr: 0 };
-      if (d.status === 'Open') entry.pipeline += d.deal_value ?? 0;
-      if (d.status === 'Won') entry.arr += d.deal_value ?? 0;
+      if (d.status === 'Open') entry.pipeline += Number(d.deal_value ?? 0);
+      if (d.status === 'Won') entry.arr += Number(d.deal_value ?? 0);
       map.set(d.account_id, entry);
     }
     return map;

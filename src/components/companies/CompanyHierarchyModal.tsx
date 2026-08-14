@@ -42,8 +42,8 @@ export default function CompanyHierarchyModal({ company, onClose, onSelectCompan
     const map = new Map<number, { pipeline: number; arr: number }>();
     for (const c of allCompanies) {
       const deals = allOpportunities.filter((o) => o.account_id === c.id);
-      const pipeline = deals.filter((d) => d.status === 'Open').reduce((s, d) => s + (d.deal_value ?? 0), 0);
-      const arr = deals.filter((d) => d.status === 'Won').reduce((s, d) => s + (d.deal_value ?? 0), 0);
+      const pipeline = deals.filter((d) => d.status === 'Open').reduce((s, d) => s + Number(d.deal_value ?? 0), 0);
+      const arr = deals.filter((d) => d.status === 'Won').reduce((s, d) => s + Number(d.deal_value ?? 0), 0);
       map.set(c.id, { pipeline, arr });
     }
     return map;
@@ -67,11 +67,18 @@ export default function CompanyHierarchyModal({ company, onClose, onSelectCompan
 
   const tree = useMemo(() => {
     if (!root) return null;
-    function build(c: Company): TreeNode {
-      const children = allCompanies.filter((child) => child.parent_company_id === c.id).map(build);
+    // Guards against a cyclic parent_company_id chain (e.g. A's parent is B
+    // and B's parent is A) — without this, a company reachable via more than
+    // one path down the tree would recurse forever instead of just being
+    // skipped the second time.
+    function build(c: Company, ancestors: Set<number>): TreeNode {
+      const nextAncestors = new Set(ancestors).add(c.id);
+      const children = allCompanies
+        .filter((child) => child.parent_company_id === c.id && !nextAncestors.has(child.id))
+        .map((child) => build(child, nextAncestors));
       return { company: c, children };
     }
-    return build(root);
+    return build(root, new Set());
   }, [root, allCompanies]);
 
   if (!company || !root || !tree) return null;
