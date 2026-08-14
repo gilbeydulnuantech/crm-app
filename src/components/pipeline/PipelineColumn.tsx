@@ -57,6 +57,13 @@ export default function PipelineColumn({
 
   // FIX 2: Wrap o.deal_value in Number() to prevent string concatenation (the "0800" bug)
   const total = opportunities.reduce((sum, o) => sum + Number(o.deal_value ?? 0), 0);
+  // Weighted Value: each deal's value scaled by its own probability — a
+  // column full of 10%-probability deals shouldn't read the same as one
+  // full of 90%-probability deals just because the raw totals match.
+  const weightedTotal = opportunities.reduce(
+    (sum, o) => sum + Number(o.deal_value ?? 0) * (Number(o.probability ?? 0) / 100),
+    0
+  );
 
   const colClasses = isWon
     ? 'bg-emerald-50 border-emerald-100'
@@ -85,7 +92,13 @@ export default function PipelineColumn({
           </span>
         </div>
         {/* This will now display correctly as $800.00 instead of $0800.00 */}
-        <div className="text-[10px] text-slate-400 mt-0.5">{currency(total)}</div>
+        <div className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1.5">
+          <span>{currency(total)}</span>
+          <span className="text-slate-300">·</span>
+          <span title="Weighted Value: each deal's value × its probability">
+            Weighted: {currency(weightedTotal)}
+          </span>
+        </div>
       </div>
       <div className="flex-1 p-2 space-y-2 overflow-y-auto min-h-[80px]">
         {opportunities.map((o) => (
