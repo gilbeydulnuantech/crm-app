@@ -794,7 +794,8 @@
       "position": [
         916,
         1500
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -817,7 +818,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -866,7 +868,8 @@
       "position": [
         1016,
         1800
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -889,7 +892,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -902,7 +906,8 @@
       "position": [
         1416,
         1800
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -925,7 +930,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -938,7 +944,8 @@
       "position": [
         1816,
         1800
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -961,7 +968,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -974,7 +982,8 @@
       "position": [
         2216,
         1800
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -1040,7 +1049,8 @@
       "position": [
         1016,
         2200
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -1063,7 +1073,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -1076,7 +1087,8 @@
       "position": [
         1416,
         2200
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -1099,7 +1111,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -1112,7 +1125,8 @@
       "position": [
         1816,
         2200
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -1135,7 +1149,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -1148,7 +1163,8 @@
       "position": [
         2216,
         2200
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -1171,7 +1187,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -1184,7 +1201,8 @@
       "position": [
         2616,
         2200
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -2044,7 +2062,9 @@
             "node": "Look Up Requester: delete-opportunities",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: delete-opportunities",
             "type": "main",
@@ -2060,7 +2080,9 @@
             "node": "Postgres: Delete Opportunities",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: delete-opportunities",
             "type": "main",
@@ -2087,7 +2109,9 @@
             "node": "Look Up Requester: update-pipeline",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: update-pipeline",
             "type": "main",
@@ -2103,7 +2127,9 @@
             "node": "Check Admin & Payload: update-pipeline",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: update-pipeline",
             "type": "main",
@@ -2119,7 +2145,9 @@
             "node": "Postgres: Unset Other Pipeline Defaults",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: update-pipeline",
             "type": "main",
@@ -2135,7 +2163,9 @@
             "node": "Bridge After Unset Defaults",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: update-pipeline",
             "type": "main",
@@ -2151,7 +2181,9 @@
             "node": "Postgres: Update Pipeline",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: update-pipeline",
             "type": "main",
@@ -2167,7 +2199,9 @@
             "node": "Check Result: update-pipeline",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: update-pipeline",
             "type": "main",
@@ -2183,7 +2217,9 @@
             "node": "Respond: update-pipeline",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: update-pipeline",
             "type": "main",
@@ -2210,7 +2246,9 @@
             "node": "Look Up Requester: delete-pipeline",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: delete-pipeline",
             "type": "main",
@@ -2226,7 +2264,9 @@
             "node": "Check Admin & Payload: delete-pipeline",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: delete-pipeline",
             "type": "main",
@@ -2242,7 +2282,9 @@
             "node": "Postgres: Delete Safety Counts",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: delete-pipeline",
             "type": "main",
@@ -2258,7 +2300,9 @@
             "node": "Check Delete Safety",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: delete-pipeline",
             "type": "main",
@@ -2274,7 +2318,9 @@
             "node": "Postgres: Delete Stages",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: delete-pipeline",
             "type": "main",
@@ -2290,7 +2336,9 @@
             "node": "Bridge After Stage Delete",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: delete-pipeline",
             "type": "main",
@@ -2306,7 +2354,9 @@
             "node": "Postgres: Delete Pipeline",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: delete-pipeline",
             "type": "main",
@@ -2322,7 +2372,9 @@
             "node": "Check Result: delete-pipeline",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: delete-pipeline",
             "type": "main",
@@ -2338,7 +2390,9 @@
             "node": "Respond: delete-pipeline",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: delete-pipeline",
             "type": "main",

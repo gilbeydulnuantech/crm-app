@@ -181,7 +181,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -651,7 +652,8 @@
       "position": [
         100,
         298
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -674,7 +676,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -687,7 +690,8 @@
       "position": [
         700,
         298
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -733,7 +737,8 @@
       "position": [
         100,
         522
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -756,7 +761,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -856,7 +862,9 @@
             "node": "Check Result: update-event",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: update-event",
             "type": "main",
@@ -1037,7 +1045,9 @@
             "node": "Look Up Requester: update-event",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: update-event",
             "type": "main",
@@ -1053,7 +1063,9 @@
             "node": "Postgres: Ensure Event Columns (s003)",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: update-event",
             "type": "main",
@@ -1069,7 +1081,9 @@
             "node": "Build Resource Relink (Update)",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: update-event",
             "type": "main",
@@ -1085,7 +1099,9 @@
             "node": "Look Up Requester: delete-event",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: delete-event",
             "type": "main",
@@ -1101,7 +1117,9 @@
             "node": "Postgres: Delete Event",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: delete-event",
             "type": "main",

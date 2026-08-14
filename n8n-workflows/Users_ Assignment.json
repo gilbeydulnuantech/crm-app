@@ -38,7 +38,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -87,7 +88,8 @@
       "position": [
         1184,
         1088
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -110,7 +112,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -123,7 +126,8 @@
       "position": [
         1632,
         1088
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -146,7 +150,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -169,7 +174,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -196,7 +202,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const requesterName = $('Look Up Requester Role').first().json.name || 'Someone';\nconst requesterId = $('Parse Requester Token').first().json.requesterId;\nconst payload = $('Validate Admin & Payload').first().json;\nconst contact = $('Update Contact Owner').first().json;\nconst oldOwnerName = $('Look Up Old Owner').first().json.old_owner_name || 'Unassigned';\nconst newOwnerName = $input.first().json.new_owner_name || 'Unassigned';\nconst contactName = `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'Unknown Contact';\n\nif (oldOwnerName === newOwnerName) {\n  // A no-op query that always returns exactly one row — a downstream\n  // Postgres node that yields zero output items would silently stop the\n  // rest of this chain (owner notification DM etc.), so \"SELECT 1;\" is\n  // used instead of an insert with a WHERE-false-style skip.\n  return [{ json: { sqlQuery: 'SELECT 1;', queryParams: [] } }];\n}\n\nconst summary = `${requesterName} transferred ownership of \"${contactName}\" from ${oldOwnerName} to ${newOwnerName}`;\nconst detail = JSON.stringify({ from: oldOwnerName, to: newOwnerName });\n\nconst sqlQuery = 'INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8) RETURNING id;';\nconst queryParams = ['contact', payload.contactId, 'system_audit', 'ownership_change', summary, detail, requesterId, requesterName];\n\nreturn [{ json: { sqlQuery, queryParams } }];"
+        "jsCode": "const requesterName = $('Look Up Requester Role').first().json.name || 'Someone';\nconst requesterId = $('Parse Requester Token').first().json.requesterId;\nconst payload = $('Validate Admin & Payload').first().json;\nconst contact = $('Update Contact Owner').first().json;\nconst oldOwnerName = $('Look Up Old Owner').first().json.old_owner_name || 'Unassigned';\nconst newOwnerName = $input.first().json.new_owner_name || 'Unassigned';\nconst contactName = `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'Unknown Contact';\n\nif (oldOwnerName === newOwnerName) {\n  // A no-op query that always returns exactly one row \u2014 a downstream\n  // Postgres node that yields zero output items would silently stop the\n  // rest of this chain (owner notification DM etc.), so \"SELECT 1;\" is\n  // used instead of an insert with a WHERE-false-style skip.\n  return [{ json: { sqlQuery: 'SELECT 1;', queryParams: [] } }];\n}\n\nconst summary = `${requesterName} transferred ownership of \"${contactName}\" from ${oldOwnerName} to ${newOwnerName}`;\nconst detail = JSON.stringify({ from: oldOwnerName, to: newOwnerName });\n\nconst sqlQuery = 'INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8) RETURNING id;';\nconst queryParams = ['contact', payload.contactId, 'system_audit', 'ownership_change', summary, detail, requesterId, requesterName];\n\nreturn [{ json: { sqlQuery, queryParams } }];"
       },
       "id": "a1b2c3d4-0032-4a5a-9b1a-usg000000032",
       "name": "Build Ownership Audit",
@@ -291,7 +297,8 @@
       "position": [
         960,
         1456
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -304,7 +311,8 @@
       "position": [
         1184,
         1456
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -327,7 +335,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -340,7 +349,8 @@
       "position": [
         1632,
         1456
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -363,7 +373,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -376,7 +387,8 @@
       "position": [
         2064,
         1456
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -552,7 +564,9 @@
             "node": "Respond - Get Users",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",
@@ -579,7 +593,9 @@
             "node": "Look Up Requester Role",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",
@@ -595,7 +611,9 @@
             "node": "Validate Admin & Payload",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",
@@ -611,7 +629,9 @@
             "node": "Look Up Old Owner",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",
@@ -627,7 +647,9 @@
             "node": "Update Contact Owner",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",
@@ -643,7 +665,9 @@
             "node": "Check Result",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",
@@ -703,7 +727,9 @@
             "node": "Parse Requester Token (Color)",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",
@@ -719,7 +745,9 @@
             "node": "Look Up Requester Role (Color)",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",
@@ -735,7 +763,9 @@
             "node": "Validate Color Payload",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",
@@ -751,7 +781,9 @@
             "node": "Update User Color",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",
@@ -767,7 +799,9 @@
             "node": "Check Color Result",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",
@@ -783,7 +817,9 @@
             "node": "Respond - Update User Color Success",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",

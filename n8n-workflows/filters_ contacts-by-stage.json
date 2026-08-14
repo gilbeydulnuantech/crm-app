@@ -30,7 +30,8 @@
       "position": [
         240,
         0
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -53,7 +54,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -66,7 +68,8 @@
       "position": [
         672,
         0
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -89,7 +92,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -144,7 +148,9 @@
             "node": "Look Up Requester",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",
@@ -160,7 +166,9 @@
             "node": "Build Query",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",
@@ -176,7 +184,9 @@
             "node": "Execute Query",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",
@@ -192,7 +202,9 @@
             "node": "Respond to Webhook: contacts stage",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",

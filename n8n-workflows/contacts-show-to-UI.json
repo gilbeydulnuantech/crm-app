@@ -30,7 +30,8 @@
       "position": [
         912,
         -160
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -53,11 +54,12 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
-        "jsCode": "const user = $input.first().json;\n\nif (!user.id || !user.active) {\n  throw new Error('Invalid session.');\n}\n\n// Reuses this same get-contacts webhook for both the active list and the\n// Archived tab:\n//   GET /webhook/get-contacts?archived=false   (All Contacts / My Contacts)\n//   GET /webhook/get-contacts?archived=true    (Archived tab)\nconst webhookQuery = $('Webhook').first().json.query || {};\nconst showArchived = String(webhookQuery.archived || '').toLowerCase() === 'true';\n\n// archived_by_name is only meaningful (and only joined) for the archived\n// view — harmless left join either way, just always null when not archived.\n// tags is embedded via json_agg so the Contacts table can render them\n// without an extra get-entity-tags round trip per row (taggables/tags\n// schema matches contacts-Tags System.json).\nconst sqlQuery = `\n  SELECT c.*, co.name AS company_name, u.name AS owner_name,\n         ab.name AS archived_by_name,\n         (SELECT COALESCE(json_agg(json_build_object('id', t.id, 'name', t.name)), '[]'::json)\n          FROM taggables tg JOIN tags t ON t.id = tg.tag_id\n          WHERE tg.entity_type = 'contact' AND tg.entity_id = c.id) AS tags\n  FROM contacts c\n  LEFT JOIN companies co ON co.id = c.account_id\n  LEFT JOIN users u ON u.id = c.owner_id\n  LEFT JOIN users ab ON ab.id = c.archived_by\n  WHERE c.is_archived = $1\n  ORDER BY c.id;\n`;\n\nreturn [{ json: { sqlQuery, queryParams: [showArchived] } }];\n"
+        "jsCode": "const user = $input.first().json;\n\nif (!user.id || !user.active) {\n  throw new Error('Invalid session.');\n}\n\n// Reuses this same get-contacts webhook for both the active list and the\n// Archived tab:\n//   GET /webhook/get-contacts?archived=false   (All Contacts / My Contacts)\n//   GET /webhook/get-contacts?archived=true    (Archived tab)\nconst webhookQuery = $('Webhook').first().json.query || {};\nconst showArchived = String(webhookQuery.archived || '').toLowerCase() === 'true';\n\n// archived_by_name is only meaningful (and only joined) for the archived\n// view \u2014 harmless left join either way, just always null when not archived.\n// tags is embedded via json_agg so the Contacts table can render them\n// without an extra get-entity-tags round trip per row (taggables/tags\n// schema matches contacts-Tags System.json).\nconst sqlQuery = `\n  SELECT c.*, co.name AS company_name, u.name AS owner_name,\n         ab.name AS archived_by_name,\n         (SELECT COALESCE(json_agg(json_build_object('id', t.id, 'name', t.name)), '[]'::json)\n          FROM taggables tg JOIN tags t ON t.id = tg.tag_id\n          WHERE tg.entity_type = 'contact' AND tg.entity_id = c.id) AS tags\n  FROM contacts c\n  LEFT JOIN companies co ON co.id = c.account_id\n  LEFT JOIN users u ON u.id = c.owner_id\n  LEFT JOIN users ab ON ab.id = c.archived_by\n  WHERE c.is_archived = $1\n  ORDER BY c.id;\n`;\n\nreturn [{ json: { sqlQuery, queryParams: [showArchived] } }];\n"
       },
       "id": "e3cb2a82-3624-4966-9604-4a8995388eec",
       "name": "Build Query",
@@ -66,7 +68,8 @@
       "position": [
         1360,
         -160
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -89,7 +92,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -143,7 +147,9 @@
             "node": "Look Up Requester",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",
@@ -159,7 +165,9 @@
             "node": "Build Query",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",
@@ -175,7 +183,9 @@
             "node": "Execute Query",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",
@@ -191,7 +201,9 @@
             "node": "Respond - Success",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",

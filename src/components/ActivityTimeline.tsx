@@ -54,7 +54,7 @@ function emailToItem(log: EmailLog, i: number, onClick: (log: EmailLog) => void)
   };
 }
 
-function activityToItem(entry: ActivityLogEntry): TimelineItem {
+function activityToItem(entry: ActivityLogEntry, onClick?: (entry: ActivityLogEntry) => void): TimelineItem {
   const category = entry.category === 'call' ? 'call' : entry.category === 'meeting' ? 'meeting' : 'system_audit';
   const icon =
     (entry.subtype && SUBTYPE_ICONS[entry.subtype]) ||
@@ -70,6 +70,10 @@ function activityToItem(entry: ActivityLogEntry): TimelineItem {
     title: entry.summary,
     subtitle: entry.actor_name ? `By ${entry.actor_name}` : undefined,
     timestamp: entry.created_at,
+    // Meeting/audit summaries get cut off by the card's single-line
+    // `truncate` — only these two categories carry a `detail` payload worth
+    // opening a popup for (call summaries are already short and complete).
+    onClick: (category === 'meeting' || category === 'system_audit') && onClick ? () => onClick(entry) : undefined,
   };
 }
 
@@ -78,20 +82,21 @@ interface Props {
   activity: ActivityLogEntry[];
   isLoading?: boolean;
   onEmailClick: (log: EmailLog) => void;
+  onActivityClick?: (entry: ActivityLogEntry) => void;
 }
 
-export default function ActivityTimeline({ emails = [], activity, isLoading, onEmailClick }: Props) {
+export default function ActivityTimeline({ emails = [], activity, isLoading, onEmailClick, onActivityClick }: Props) {
   const [tab, setTab] = useState<ActivityTab>('All');
   const [search, setSearch] = useState('');
 
   const items = useMemo(() => {
     const emailItems = emails.map((log, i) => emailToItem(log, i, onEmailClick));
-    const activityItems = activity.map(activityToItem);
+    const activityItems = activity.map((entry) => activityToItem(entry, onActivityClick));
     return [...emailItems, ...activityItems].sort(
       (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [emails, activity]);
+  }, [emails, activity, onActivityClick]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();

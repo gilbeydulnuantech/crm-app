@@ -31,7 +31,8 @@
       "position": [
         224,
         0
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -54,7 +55,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -67,7 +69,8 @@
       "position": [
         672,
         0
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -90,7 +93,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -147,7 +151,9 @@
             "node": "Look Up Requester",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",
@@ -163,7 +169,9 @@
             "node": "Build Insert Query",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",
@@ -179,7 +187,9 @@
             "node": "Insert Contact",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",
@@ -195,7 +205,9 @@
             "node": "Respond - Success",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",

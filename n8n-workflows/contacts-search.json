@@ -31,7 +31,8 @@
       "position": [
         576,
         896
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -54,7 +55,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -100,7 +102,8 @@
       "position": [
         1232,
         816
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -124,7 +127,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -206,7 +210,9 @@
             "node": "Look Up Requester",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",
@@ -222,7 +228,9 @@
             "node": "Query Too Short?",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",
@@ -256,7 +264,9 @@
             "node": "Execute Search",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",
@@ -272,7 +282,9 @@
             "node": "Organize Results",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",

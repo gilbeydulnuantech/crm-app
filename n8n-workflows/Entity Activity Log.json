@@ -13,13 +13,16 @@
       "name": "Webhook: get-entity-activity",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [816, 512],
+      "position": [
+        816,
+        512
+      ],
       "webhookId": "a1b2c3d4-0001-4a5a-9b1a-webhook000001"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name, created_at FROM entity_activity_log WHERE entity_type = $1 AND entity_id = $2 ORDER BY created_at DESC, id DESC;",
+        "query": "SELECT id, entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name, created_at FROM entity_activity_log WHERE entity_type = $1 AND entity_id = $2 UNION ALL SELECT -a.id AS id, 'contact'::varchar(20) AS entity_type, a.contact_id AS entity_id, 'meeting'::varchar(20) AS category, (CASE WHEN a.location ~* 'zoom|meet\\.google|teams\\.microsoft|http' THEN 'video_call' ELSE 'physical' END)::varchar(30) AS subtype, COALESCE(a.subject, 'Meeting')::text AS summary, jsonb_build_object('location', a.location, 'due_at', a.due_at, 'end_at', a.end_at, 'is_all_day', a.is_all_day) AS detail, a.user_id AS actor_id, u.name::text AS actor_name, a.created_at FROM activities a LEFT JOIN users u ON u.id = a.user_id WHERE $1 = 'contact' AND a.contact_id = $2 AND a.type = 'meeting' ORDER BY created_at DESC, id DESC;",
         "options": {
           "queryReplacement": "={{ [ $('Webhook: get-entity-activity').first().json.query.entity_type, Number($('Webhook: get-entity-activity').first().json.query.entity_id) ] }}"
         }
@@ -28,7 +31,10 @@
       "name": "Postgres: Select Entity Activity",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [1040, 512],
+      "position": [
+        1040,
+        512
+      ],
       "credentials": {
         "postgres": {
           "id": "OJlr1rmibAS2w3rj",
@@ -45,7 +51,10 @@
       "name": "Respond: get-entity-activity",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1264, 512]
+      "position": [
+        1264,
+        512
+      ]
     },
     {
       "parameters": {
@@ -58,7 +67,10 @@
       "name": "Webhook OPTIONS: get-entity-activity",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [816, 640],
+      "position": [
+        816,
+        640
+      ],
       "webhookId": "a1b2c3d4-0004-4a5a-9b1a-webhook000004"
     },
     {
@@ -88,7 +100,10 @@
       "name": "Respond OPTIONS: get-entity-activity",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1040, 640]
+      "position": [
+        1040,
+        640
+      ]
     },
     {
       "parameters": {
@@ -103,18 +118,25 @@
       "name": "Webhook: add-entity-activity",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [816, 816],
+      "position": [
+        816,
+        816
+      ],
       "webhookId": "a1b2c3d4-0006-4a5a-9b1a-webhook000006"
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst requesterId = parseInt(match[1], 10);\nconst body = $input.first().json.body || {};\n\nconst entityType = (body.entity_type || '').toString().trim();\nconst entityId = parseInt(body.entity_id, 10);\nconst category = (body.category || '').toString().trim();\nconst subtype = body.subtype ? body.subtype.toString().trim() : null;\nconst summary = (body.summary || '').toString().trim();\n\nif (!['contact', 'company'].includes(entityType)) {\n  throw new Error('\"entity_type\" must be \"contact\" or \"company\".');\n}\nif (!Number.isInteger(entityId)) {\n  throw new Error('\"entity_id\" must be an integer.');\n}\n// Only 'call' is accepted from this public endpoint today (manual call\n// logging from the Call button) — 'meeting'/'system_audit' rows are written\n// internally by other workflows (contacts-update, Users: Assignment) so a\n// client can't fabricate an audit trail entry.\nif (category !== 'call') {\n  throw new Error('\"category\" must be \"call\".');\n}\nif (!summary) {\n  throw new Error('\"summary\" is required.');\n}\n\nconst detail = body.detail && typeof body.detail === 'object' ? JSON.stringify(body.detail) : null;\n\nreturn [{\n  json: { requesterId, entityType, entityId, category, subtype: subtype || 'manual', summary, detail }\n}];"
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst requesterId = parseInt(match[1], 10);\nconst body = $input.first().json.body || {};\n\nconst entityType = (body.entity_type || '').toString().trim();\nconst entityId = parseInt(body.entity_id, 10);\nconst category = (body.category || '').toString().trim();\nconst subtype = body.subtype ? body.subtype.toString().trim() : null;\nconst summary = (body.summary || '').toString().trim();\n\nif (!['contact', 'company'].includes(entityType)) {\n  throw new Error('\"entity_type\" must be \"contact\" or \"company\".');\n}\nif (!Number.isInteger(entityId)) {\n  throw new Error('\"entity_id\" must be an integer.');\n}\n// Only 'call' is accepted from this public endpoint today (manual call\n// logging from the Call button) \u2014 'meeting'/'system_audit' rows are written\n// internally by other workflows (contacts-update, Users: Assignment) so a\n// client can't fabricate an audit trail entry.\nif (category !== 'call') {\n  throw new Error('\"category\" must be \"call\".');\n}\nif (!summary) {\n  throw new Error('\"summary\" is required.');\n}\n\nconst detail = body.detail && typeof body.detail === 'object' ? JSON.stringify(body.detail) : null;\n\nreturn [{\n  json: { requesterId, entityType, entityId, category, subtype: subtype || 'manual', summary, detail }\n}];"
       },
       "id": "a1b2c3d4-0007-4a5a-9b1a-eal000000007",
       "name": "Parse Token & Payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1040, 816]
+      "position": [
+        1040,
+        816
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -128,13 +150,17 @@
       "name": "Look Up Requester",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [1264, 816],
+      "position": [
+        1264,
+        816
+      ],
       "credentials": {
         "postgres": {
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -144,7 +170,11 @@
       "name": "Build Insert Payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1488, 816]
+      "position": [
+        1488,
+        816
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -158,13 +188,17 @@
       "name": "Postgres: Insert Entity Activity",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [1712, 816],
+      "position": [
+        1712,
+        816
+      ],
       "credentials": {
         "postgres": {
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -178,7 +212,10 @@
       "name": "Respond: add-entity-activity",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
-      "position": [1936, 816]
+      "position": [
+        1936,
+        816
+      ]
     },
     {
       "parameters": {
@@ -192,7 +229,10 @@
       "name": "Respond - Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
-      "position": [1264, 992]
+      "position": [
+        1264,
+        992
+      ]
     }
   ],
   "pinData": {},
@@ -248,7 +288,9 @@
             "node": "Look Up Requester",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",
@@ -264,7 +306,9 @@
             "node": "Build Insert Payload",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",
@@ -280,7 +324,9 @@
             "node": "Postgres: Insert Entity Activity",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",
@@ -296,7 +342,9 @@
             "node": "Respond: add-entity-activity",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",

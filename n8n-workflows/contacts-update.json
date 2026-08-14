@@ -31,7 +31,8 @@
       "position": [
         1024,
         -144
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -54,7 +55,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -77,7 +79,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -90,7 +93,8 @@
       "position": [
         1472,
         -144
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -113,7 +117,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -126,11 +131,12 @@
       "position": [
         1904,
         -144
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
-        "jsCode": "const requesterName = $('Look Up Requester').first().json.name || 'Someone';\nconst requesterId = $('Look Up Requester').first().json.id;\nconst oldContact = $('Build Update Query').first().json.oldContact || {};\nconst newContact = $input.first().json.contact;\nconst contactId = $('Parse Token & Payload').first().json.contactId;\n\n// Only fields with a human-readable value are audited — account_id is\n// excluded because the raw contacts row only has the numeric id, not the\n// joined company name, and showing \"Company changed from 4 to 9\" would\n// confuse reps more than it'd help (see ContactDetailModal read-only field\n// feedback: avoid anything that reads like a raw id/input to a rep).\nconst FIELD_LABELS = {\n  first_name: 'First Name', last_name: 'Last Name', job_title: 'Job Title',\n  email: 'Email', secondary_email: 'Secondary Email', phone: 'Phone Number',\n  secondary_phone: 'Secondary Phone', linkedin_url: 'LinkedIn Profile',\n  lead_status: 'Status', lead_source: 'Lead Source', city: 'City', state: 'State',\n  zip_code: 'Zip Code', country: 'Country', do_not_contact: 'Do Not Contact',\n  dnc_email: 'DNC: Email', dnc_call: 'DNC: Call', dnc_sms: 'DNC: SMS',\n};\n\nfunction fmt(v) {\n  if (v === null || v === undefined || v === '') return 'empty';\n  if (typeof v === 'boolean') return v ? 'Yes' : 'No';\n  return String(v);\n}\n\nconst rows = [];\nfor (const [field, label] of Object.entries(FIELD_LABELS)) {\n  if (!(field in oldContact)) continue;\n  const oldVal = oldContact[field];\n  const newVal = newContact[field];\n  const oldNorm = oldVal === null ? '' : oldVal;\n  const newNorm = newVal === null ? '' : newVal;\n  if (String(oldNorm) === String(newNorm)) continue;\n  rows.push({\n    summary: `${requesterName} updated ${label} from ${fmt(oldVal)} to ${fmt(newVal)}`,\n    detail: JSON.stringify({ field, old: oldVal, new: newVal }),\n  });\n}\n\nif (rows.length === 0) {\n  // A no-op query that always returns exactly one row — a Postgres node\n  // downstream of this one that yields zero output items would silently\n  // stop the whole execution chain (n8n doesn't run a node with zero input\n  // items), so \"SELECT 1;\" is used instead of a WHERE-false query.\n  return [{ json: { sqlQuery: 'SELECT 1;', queryParams: [] } }];\n}\n\nconst valuesSql = [];\nconst queryParams = [];\nlet idx = 1;\nfor (const row of rows) {\n  valuesSql.push(`($${idx}, $${idx + 1}, $${idx + 2}, $${idx + 3}, $${idx + 4}, $${idx + 5}::jsonb, $${idx + 6}, $${idx + 7})`);\n  queryParams.push('contact', contactId, 'system_audit', 'field_change', row.summary, row.detail, requesterId, requesterName);\n  idx += 8;\n}\n\nconst sqlQuery = `INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name) VALUES ${valuesSql.join(', ')} RETURNING id;`;\n\nreturn [{ json: { sqlQuery, queryParams } }];"
+        "jsCode": "const requesterName = $('Look Up Requester').first().json.name || 'Someone';\nconst requesterId = $('Look Up Requester').first().json.id;\nconst oldContact = $('Build Update Query').first().json.oldContact || {};\nconst newContact = $input.first().json.contact;\nconst contactId = $('Parse Token & Payload').first().json.contactId;\n\n// Only fields with a human-readable value are audited \u2014 account_id is\n// excluded because the raw contacts row only has the numeric id, not the\n// joined company name, and showing \"Company changed from 4 to 9\" would\n// confuse reps more than it'd help (see ContactDetailModal read-only field\n// feedback: avoid anything that reads like a raw id/input to a rep).\nconst FIELD_LABELS = {\n  first_name: 'First Name', last_name: 'Last Name', job_title: 'Job Title',\n  email: 'Email', secondary_email: 'Secondary Email', phone: 'Phone Number',\n  secondary_phone: 'Secondary Phone', linkedin_url: 'LinkedIn Profile',\n  lead_status: 'Status', lead_source: 'Lead Source', city: 'City', state: 'State',\n  zip_code: 'Zip Code', country: 'Country', do_not_contact: 'Do Not Contact',\n  dnc_email: 'DNC: Email', dnc_call: 'DNC: Call', dnc_sms: 'DNC: SMS',\n};\n\nfunction fmt(v) {\n  if (v === null || v === undefined || v === '') return 'empty';\n  if (typeof v === 'boolean') return v ? 'Yes' : 'No';\n  return String(v);\n}\n\nconst rows = [];\nfor (const [field, label] of Object.entries(FIELD_LABELS)) {\n  if (!(field in oldContact)) continue;\n  const oldVal = oldContact[field];\n  const newVal = newContact[field];\n  const oldNorm = oldVal === null ? '' : oldVal;\n  const newNorm = newVal === null ? '' : newVal;\n  if (String(oldNorm) === String(newNorm)) continue;\n  rows.push({\n    summary: `${requesterName} updated ${label} from ${fmt(oldVal)} to ${fmt(newVal)}`,\n    detail: JSON.stringify({ field, old: oldVal, new: newVal }),\n  });\n}\n\nif (rows.length === 0) {\n  // A no-op query that always returns exactly one row \u2014 a Postgres node\n  // downstream of this one that yields zero output items would silently\n  // stop the whole execution chain (n8n doesn't run a node with zero input\n  // items), so \"SELECT 1;\" is used instead of a WHERE-false query.\n  return [{ json: { sqlQuery: 'SELECT 1;', queryParams: [] } }];\n}\n\nconst valuesSql = [];\nconst queryParams = [];\nlet idx = 1;\nfor (const row of rows) {\n  valuesSql.push(`($${idx}, $${idx + 1}, $${idx + 2}, $${idx + 3}, $${idx + 4}, $${idx + 5}::jsonb, $${idx + 6}, $${idx + 7})`);\n  queryParams.push('contact', contactId, 'system_audit', 'field_change', row.summary, row.detail, requesterId, requesterName);\n  idx += 8;\n}\n\nconst sqlQuery = `INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name) VALUES ${valuesSql.join(', ')} RETURNING id;`;\n\nreturn [{ json: { sqlQuery, queryParams } }];"
       },
       "id": "a1b2c3d4-0021-4a5a-9b1a-cud000000021",
       "name": "Diff & Build Audit Rows",
@@ -139,7 +145,8 @@
       "position": [
         1904,
         48
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -162,7 +169,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -219,7 +227,9 @@
             "node": "Look Up Requester",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",
@@ -235,7 +245,9 @@
             "node": "Look Up Existing Contact",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",
@@ -251,7 +263,9 @@
             "node": "Build Update Query",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",
@@ -267,7 +281,9 @@
             "node": "Execute Update",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",
@@ -283,7 +299,9 @@
             "node": "Check Result",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",
@@ -299,7 +317,9 @@
             "node": "Diff & Build Audit Rows",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",
@@ -315,7 +335,9 @@
             "node": "Insert Audit Rows",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",
@@ -331,7 +353,9 @@
             "node": "Respond - Success",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error",
             "type": "main",

@@ -204,7 +204,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -346,7 +347,8 @@
       "position": [
         656,
         912
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -369,7 +371,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -412,7 +415,8 @@
       "position": [
         656,
         1104
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -435,7 +439,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -465,7 +470,8 @@
       "position": [
         656,
         1312
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -488,7 +494,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -755,7 +762,9 @@
             "node": "Check Result: update-companies",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: update-companies",
             "type": "main",
@@ -815,7 +824,9 @@
             "node": "Look Up Requester: update-companies",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: update-companies",
             "type": "main",
@@ -831,7 +842,9 @@
             "node": "Postgres: Capture Before Owner: update-companies",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: update-companies",
             "type": "main",
@@ -858,7 +871,9 @@
             "node": "Look Up Requester: archive-companies",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: archive-companies",
             "type": "main",
@@ -874,7 +889,9 @@
             "node": "Postgres: Archive Companies",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: archive-companies",
             "type": "main",
@@ -890,7 +907,9 @@
             "node": "Look Up Requester: delete-companies",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: delete-companies",
             "type": "main",
@@ -906,7 +925,9 @@
             "node": "Postgres: Delete Companies",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Respond - Error: delete-companies",
             "type": "main",
