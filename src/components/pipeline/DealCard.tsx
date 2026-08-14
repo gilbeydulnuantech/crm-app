@@ -103,6 +103,14 @@ export default function DealCard({
         <div className="text-xs font-bold text-slate-800 truncate flex-1">
           {opportunity.name} <span className="font-semibold text-emerald-600">- {currency(opportunity.deal_value)}</span>
         </div>
+        {opportunity.status === 'Won' && (
+          <span
+            className="shrink-0 bg-emerald-100 text-emerald-700 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded"
+            title="Closed Won"
+          >
+            Closed Won
+          </span>
+        )}
         {opportunity.status === 'Lost' && (
           <span
             className="shrink-0 bg-rose-100 text-rose-700 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded"
@@ -140,10 +148,12 @@ export default function DealCard({
         {opportunity.company_name && ` - ${opportunity.company_name}`}
       </div>
 
-      {/* Tags (deal's own tags, plus the contact's own tags for context) */}
+      {/* Tags (deal's own tags, plus the contact's own tags for context) —
+          only the first 2 show, the rest collapse into a "+N" badge so a
+          heavily-tagged deal doesn't blow out the card's height. */}
       {allTags.length > 0 && (
         <div className="flex flex-wrap gap-1 mt-1.5">
-          {allTags.map((t) => (
+          {allTags.slice(0, 2).map((t) => (
             <span
               key={t.id}
               className={`px-1.5 py-0.5 text-[9px] font-medium rounded-full ${getTagColorClasses(t.name)}`}
@@ -151,6 +161,14 @@ export default function DealCard({
               {t.name}
             </span>
           ))}
+          {allTags.length > 2 && (
+            <span
+              className="px-1.5 py-0.5 text-[9px] font-medium rounded-full bg-slate-100 text-slate-500"
+              title={allTags.slice(2).map((t) => t.name).join(', ')}
+            >
+              +{allTags.length - 2}
+            </span>
+          )}
         </div>
       )}
 
