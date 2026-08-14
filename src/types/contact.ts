@@ -5,6 +5,7 @@ export interface Contact {
   job_title?: string;
   account_id?: number | null;
   company_name?: string;
+  company_role?: string; // set via a company's "Initial Contact Link" (CompanyFormModal)
   email?: string;
   secondary_email?: string;
   phone?: string;

@@ -1,11 +1,13 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Opportunity, Stage } from '../../types/opportunity';
 import { useUpdateOpportunity } from '../../hooks/useOpportunities';
 import { useTasks } from '../../hooks/useTasks';
 import { useNotes } from '../../hooks/useNotes';
+import { useCompanies } from '../../hooks/useCompanies';
 import { toTitleCase } from '../../utils/text';
 import DealTagsInline from './DealTagsInline';
+import CompanyQuickView from '../companies/CompanyQuickView';
 
 interface Props {
   deal: Opportunity | null;
@@ -73,6 +75,12 @@ export default function DealQuickView({
   const updateOpportunity = useUpdateOpportunity(deal?.pipeline_id ?? undefined);
   const { data: allTasks = [] } = useTasks();
   const { data: notes = [] } = useNotes('opportunity', deal?.id ?? null);
+  const { data: companies = [] } = useCompanies();
+  const [quickViewCompanyId, setQuickViewCompanyId] = useState<number | null>(null);
+  const quickViewCompany = useMemo(
+    () => companies.find((c) => c.id === quickViewCompanyId) ?? null,
+    [companies, quickViewCompanyId]
+  );
 
   const dealTasks = useMemo(
     () => (deal ? allTasks.filter((t) => t.opportunity_id === deal.id) : []),
@@ -167,10 +175,7 @@ export default function DealQuickView({
               value={deal.company_name}
               onClick={
                 deal.account_id
-                  ? () => {
-                      onClose();
-                      navigate(`/companies?companyId=${deal.account_id}`);
-                    }
+                  ? () => setQuickViewCompanyId(deal.account_id!)
                   : undefined
               }
             />
@@ -248,6 +253,22 @@ export default function DealQuickView({
           </div>
         )}
       </div>
+
+      <CompanyQuickView
+        company={quickViewCompany}
+        onClose={() => setQuickViewCompanyId(null)}
+        onEdit={(company) => {
+          setQuickViewCompanyId(null);
+          onClose();
+          navigate(`/companies?companyId=${company.id}`);
+        }}
+        onOpenFullRecord={(company) => {
+          setQuickViewCompanyId(null);
+          onClose();
+          navigate(`/companies?companyId=${company.id}`);
+        }}
+        canEdit={isAdmin || quickViewCompany?.owner_id === currentUserId}
+      />
     </div>
   );
 }

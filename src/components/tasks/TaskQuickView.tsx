@@ -6,8 +6,10 @@ import { useAuth } from '../../context/AuthContext';
 import { useAddNote, useNotes } from '../../hooks/useNotes';
 import { useSetTaskSubtasks, useUpdateTask } from '../../hooks/useTasks';
 import { useUsers } from '../../hooks/useContacts';
+import { useCompanies } from '../../hooks/useCompanies';
 import { DEFAULT_USER_COLOR, hexToRgba } from '../../utils/userColor';
 import { startDm, sendMessage } from '../../api/chat';
+import CompanyQuickView from '../companies/CompanyQuickView';
 
 interface Props {
   task: Task | null;
@@ -33,12 +35,18 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 export default function TaskQuickView({ task, canEdit, onClose, onEdit, onOpenFullDetails }: Props) {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { data: users = [] } = useUsers();
   const updateTask = useUpdateTask();
   const setSubtasks = useSetTaskSubtasks();
   const { data: notes = [] } = useNotes('task', task?.id ?? null);
   const addNote = useAddNote('task', task?.id ?? null);
+  const { data: companies = [] } = useCompanies();
+  const [quickViewCompanyId, setQuickViewCompanyId] = useState<number | null>(null);
+  const quickViewCompany = useMemo(
+    () => companies.find((c) => c.id === quickViewCompanyId) ?? null,
+    [companies, quickViewCompanyId]
+  );
 
   const [newSubtask, setNewSubtask] = useState('');
   const [comment, setComment] = useState('');
@@ -121,8 +129,7 @@ export default function TaskQuickView({ task, canEdit, onClose, onEdit, onOpenFu
   function goToAccount() {
     const accountId = task!.account_id ?? task!.company_id;
     if (!accountId) return;
-    onClose();
-    navigate(`/companies?companyId=${accountId}`);
+    setQuickViewCompanyId(accountId);
   }
 
   function goToDeal() {
@@ -363,6 +370,22 @@ export default function TaskQuickView({ task, canEdit, onClose, onEdit, onOpenFu
           </button>
         </div>
       </div>
+
+      <CompanyQuickView
+        company={quickViewCompany}
+        onClose={() => setQuickViewCompanyId(null)}
+        onEdit={(company) => {
+          setQuickViewCompanyId(null);
+          onClose();
+          navigate(`/companies?companyId=${company.id}`);
+        }}
+        onOpenFullRecord={(company) => {
+          setQuickViewCompanyId(null);
+          onClose();
+          navigate(`/companies?companyId=${company.id}`);
+        }}
+        canEdit={isAdmin || quickViewCompany?.owner_id === user?.id}
+      />
     </>
   );
 }

@@ -25,8 +25,13 @@ function useInvalidateCompanies() {
 export function useAddCompany() {
   const invalidate = useInvalidateCompanies();
   return useMutation({
-    mutationFn: (payload: Partial<Company> & { requester_id?: number | null }) =>
-      api.addCompany(payload),
+    mutationFn: (
+      payload: Partial<Company> & {
+        requester_id?: number | null;
+        contact_id?: number | null;
+        contact_role?: string | null;
+      }
+    ) => api.addCompany(payload),
     onSuccess: invalidate,
   });
 }
@@ -34,7 +39,7 @@ export function useAddCompany() {
 export function useUpdateCompany() {
   const invalidate = useInvalidateCompanies();
   return useMutation({
-    mutationFn: ({ id, payload }: { id: number; payload: Partial<Company> }) =>
+    mutationFn: ({ id, payload }: { id: number; payload: Partial<Company> & { edit_reason?: string } }) =>
       api.updateCompany(id, payload),
     onSuccess: invalidate,
   });

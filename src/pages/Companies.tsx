@@ -18,6 +18,7 @@ import CompaniesTable from '../components/companies/CompaniesTable';
 import CompaniesBulkActionsMenu from '../components/companies/CompaniesBulkActionsMenu';
 import CompanyFormModal from '../components/companies/CompanyFormModal';
 import CompanyDetailModal from '../components/companies/CompanyDetailModal';
+import CompanyHierarchyModal from '../components/companies/CompanyHierarchyModal';
 import ContactDetailModal from '../components/contacts/ContactDetailModal';
 import SearchToolbar from '../components/SearchToolbar';
 
@@ -34,6 +35,7 @@ export default function Companies() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const [activeCompanyId, setActiveCompanyId] = useState<number | null>(null);
+  const [hierarchyCompanyId, setHierarchyCompanyId] = useState<number | null>(null);
   const [activeContactId, setActiveContactId] = useState<number | null>(null);
 
   const { data: allCompanies = [], isLoading } = useCompanies();
@@ -49,6 +51,10 @@ export default function Companies() {
   const activeCompany = useMemo(
     () => allCompanies.find((c) => c.id === activeCompanyId) ?? null,
     [allCompanies, activeCompanyId]
+  );
+  const hierarchyCompany = useMemo(
+    () => allCompanies.find((c) => c.id === hierarchyCompanyId) ?? null,
+    [allCompanies, hierarchyCompanyId]
   );
   const activeContact = useMemo(
     () => allContacts.find((c) => c.id === activeContactId) ?? null,
@@ -308,8 +314,17 @@ export default function Companies() {
           setActiveCompanyId(null);
           setActiveContactId(contactId);
         }}
+        onViewHierarchy={(company) => setHierarchyCompanyId(company.id)}
       />
       <ContactDetailModal contact={activeContact} onClose={() => setActiveContactId(null)} />
+      <CompanyHierarchyModal
+        company={hierarchyCompany}
+        onClose={() => setHierarchyCompanyId(null)}
+        onSelectCompany={(company: Company) => {
+          setHierarchyCompanyId(null);
+          setActiveCompanyId(company.id);
+        }}
+      />
     </div>
   );
 }

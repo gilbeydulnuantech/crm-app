@@ -22,7 +22,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT c.id, c.name, c.website, c.industry, c.city, c.state, c.country, c.phone, c.owner_id, u.name AS owner_name, u.color AS owner_color, c.created_by, c.is_archived, c.created_at, c.updated_at, COALESCE(cc.contact_count, 0) AS contact_count, COALESCE(oc.opportunity_count, 0) AS opportunity_count FROM companies c LEFT JOIN users u ON u.id = c.owner_id LEFT JOIN (SELECT account_id, COUNT(*) AS contact_count FROM contacts WHERE is_archived = false GROUP BY account_id) cc ON cc.account_id = c.id LEFT JOIN (SELECT account_id, COUNT(*) AS opportunity_count FROM opportunities GROUP BY account_id) oc ON oc.account_id = c.id WHERE c.is_archived = false ORDER BY c.name ASC;",
+        "query": "SELECT c.id, c.name, c.website, c.industry, c.city, c.state, c.country, c.street_address, c.zip_code, c.phone, c.owner_id, u.name AS owner_name, u.color AS owner_color, c.parent_company_id, pc.name AS parent_company_name, c.tier, c.account_status, c.account_health, c.annual_revenue, c.employee_count, c.territory, c.se_user_id, se.name AS se_user_name, c.csm_user_id, csm.name AS csm_user_name, c.created_by, c.is_archived, c.created_at, c.updated_at, COALESCE(cc.contact_count, 0) AS contact_count, COALESCE(oc.opportunity_count, 0) AS opportunity_count FROM companies c LEFT JOIN users u ON u.id = c.owner_id LEFT JOIN companies pc ON pc.id = c.parent_company_id LEFT JOIN users se ON se.id = c.se_user_id LEFT JOIN users csm ON csm.id = c.csm_user_id LEFT JOIN (SELECT account_id, COUNT(*) AS contact_count FROM contacts WHERE is_archived = false GROUP BY account_id) cc ON cc.account_id = c.id LEFT JOIN (SELECT account_id, COUNT(*) AS opportunity_count FROM opportunities GROUP BY account_id) oc ON oc.account_id = c.id WHERE c.is_archived = false ORDER BY c.name ASC;",
         "options": {}
       },
       "id": "9e36d93d-0cbf-4269-a3e8-bcd9438ec4a0",
@@ -75,7 +75,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT c.id, c.name, c.website, c.industry, c.city, c.state, c.country, c.phone, c.owner_id, u.name AS owner_name, u.color AS owner_color, c.created_by, c.is_archived, c.created_at, c.updated_at FROM companies c LEFT JOIN users u ON u.id = c.owner_id WHERE c.is_archived = true ORDER BY c.updated_at DESC;",
+        "query": "SELECT c.id, c.name, c.website, c.industry, c.city, c.state, c.country, c.street_address, c.zip_code, c.phone, c.owner_id, u.name AS owner_name, u.color AS owner_color, c.parent_company_id, pc.name AS parent_company_name, c.tier, c.account_status, c.account_health, c.annual_revenue, c.employee_count, c.territory, c.se_user_id, se.name AS se_user_name, c.csm_user_id, csm.name AS csm_user_name, c.created_by, c.is_archived, c.created_at, c.updated_at FROM companies c LEFT JOIN users u ON u.id = c.owner_id LEFT JOIN companies pc ON pc.id = c.parent_company_id LEFT JOIN users se ON se.id = c.se_user_id LEFT JOIN users csm ON csm.id = c.csm_user_id WHERE c.is_archived = true ORDER BY c.updated_at DESC;",
         "options": {}
       },
       "id": "c42d4407-312c-4003-bc26-2dac65abb722",
@@ -129,9 +129,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO companies (name, website, industry, city, state, country, phone, owner_id, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, name, is_archived, created_at;",
+        "query": "INSERT INTO companies (name, website, industry, city, state, country, phone, street_address, zip_code, owner_id, created_by, parent_company_id, tier, annual_revenue, employee_count, territory) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING id, name, is_archived, created_at;",
         "options": {
-          "queryReplacement": "={{ [$json.body.name, $json.body.website || null, $json.body.industry || null, $json.body.city || null, $json.body.state || null, $json.body.country || null, $json.body.phone || null, $json.body.owner_id || null, $json.body.requester_id || $json.body.owner_id || null] }}"
+          "queryReplacement": "={{ [ $json.body.name, $json.body.website || null, $json.body.industry || null, $json.body.city || null, $json.body.state || null, $json.body.country || null, $json.body.phone || null, $json.body.street_address || null, $json.body.zip_code || null, $json.body.owner_id || null, $json.body.requester_id || $json.body.owner_id || null, $json.body.parent_company_id || null, $json.body.tier || null, $json.body.annual_revenue || null, $json.body.employee_count || null, $json.body.territory || null ] }}"
         }
       },
       "id": "b3f2a463-5075-4b4f-95b4-67cf39d13dcf",
@@ -186,9 +186,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE companies SET name = $1, website = $2, industry = $3, city = $4, state = $5, country = $6, phone = $7, owner_id = COALESCE($8, owner_id), updated_at = now() WHERE id = $9 AND ($10 = 'admin' OR owner_id = $11) RETURNING id, name, owner_id;",
+        "query": "UPDATE companies SET name = $1, website = $2, industry = $3, city = $4, state = $5, country = $6, phone = $7, street_address = $8, zip_code = $9, owner_id = COALESCE($10, owner_id), parent_company_id = $11, tier = $12, annual_revenue = $13, employee_count = $14, territory = $15, account_status = $16, account_health = $17, se_user_id = $18, csm_user_id = $19, updated_at = now() WHERE id = $20 AND ($21 = 'admin' OR owner_id = $22) RETURNING id, name, owner_id;",
         "options": {
-          "queryReplacement": "={{ [ $('Webhook: update-companies').first().json.body.name, $('Webhook: update-companies').first().json.body.website || null, $('Webhook: update-companies').first().json.body.industry || null, $('Webhook: update-companies').first().json.body.city || null, $('Webhook: update-companies').first().json.body.state || null, $('Webhook: update-companies').first().json.body.country || null, $('Webhook: update-companies').first().json.body.phone || null, $('Webhook: update-companies').first().json.body.owner_id || null, $('Webhook: update-companies').first().json.body.id, $('Look Up Requester: update-companies').first().json.role, $('Look Up Requester: update-companies').first().json.id ] }}"
+          "queryReplacement": "={{ [ $('Webhook: update-companies').first().json.body.name, $('Webhook: update-companies').first().json.body.website || null, $('Webhook: update-companies').first().json.body.industry || null, $('Webhook: update-companies').first().json.body.city || null, $('Webhook: update-companies').first().json.body.state || null, $('Webhook: update-companies').first().json.body.country || null, $('Webhook: update-companies').first().json.body.phone || null, $('Webhook: update-companies').first().json.body.street_address || null, $('Webhook: update-companies').first().json.body.zip_code || null, $('Webhook: update-companies').first().json.body.owner_id || null, $('Webhook: update-companies').first().json.body.parent_company_id || null, $('Webhook: update-companies').first().json.body.tier || null, $('Webhook: update-companies').first().json.body.annual_revenue || null, $('Webhook: update-companies').first().json.body.employee_count || null, $('Webhook: update-companies').first().json.body.territory || null, $('Webhook: update-companies').first().json.body.account_status || null, $('Webhook: update-companies').first().json.body.account_health || null, $('Webhook: update-companies').first().json.body.se_user_id || null, $('Webhook: update-companies').first().json.body.csm_user_id || null, $('Webhook: update-companies').first().json.body.id, $('Look Up Requester: update-companies').first().json.role, $('Look Up Requester: update-companies').first().json.id ] }}"
         }
       },
       "id": "6585be97-f7e3-4c28-8d8a-67477064cd79",
@@ -353,7 +353,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
         "options": {
           "queryReplacement": "={{ [ $json.requesterId ] }}"
         }
@@ -674,6 +674,65 @@
           "name": "myRag"
         }
       }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name) VALUES ('company', $1, 'system_audit', 'field_change', $2, $3::jsonb, $4, $5);",
+        "options": {
+          "queryReplacement": "={{ [ $('Postgres: Update Company').first().json.id, `${$('Look Up Requester: update-companies').first().json.name || 'Someone'} updated ${$('Postgres: Update Company').first().json.name || 'this company'}: ${$('Webhook: update-companies').first().json.body.edit_reason || 'No reason provided'}`, JSON.stringify({ reason: $('Webhook: update-companies').first().json.body.edit_reason || null }), $('Look Up Requester: update-companies').first().json.id, $('Look Up Requester: update-companies').first().json.name || 'Unknown' ] }}"
+        }
+      },
+      "id": "c49aeaef-30a2-4a09-9735-0a031ee31161",
+      "name": "Postgres: Insert Company Audit: update-companies",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1712,
+        1120
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const insert = $input.first().json;\nconst body = $('Webhook: add-companies').first().json.body || {};\nconst contactId = parseInt(body.contact_id, 10);\nif (!Number.isInteger(contactId)) return [];\nreturn [{ json: { companyId: insert.id, contactId, role: body.contact_role || null } }];"
+      },
+      "id": "4e8a6214-e079-47ac-a868-17bfc52e6a1f",
+      "name": "Prepare Contact Link: add-companies",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1264,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts SET account_id = $1, company_role = $2 WHERE id = $3;",
+        "options": {
+          "queryReplacement": "={{ [ $json.companyId, $json.role, $json.contactId ] }}"
+        }
+      },
+      "id": "34c455c4-ac91-4d83-bef9-6307787070d3",
+      "name": "Postgres: Link Initial Contact: add-companies",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1488,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
     }
   ],
   "pinData": {},
@@ -738,6 +797,11 @@
         [
           {
             "node": "Respond: add-companies",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare Contact Link: add-companies",
             "type": "main",
             "index": 0
           }
@@ -858,6 +922,11 @@
         [
           {
             "node": "Prepare Owner Notice: update-companies",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Postgres: Insert Company Audit: update-companies",
             "type": "main",
             "index": 0
           }
@@ -1014,6 +1083,17 @@
         [
           {
             "node": "Respond: update-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Contact Link: add-companies": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Link Initial Contact: add-companies",
             "type": "main",
             "index": 0
           }

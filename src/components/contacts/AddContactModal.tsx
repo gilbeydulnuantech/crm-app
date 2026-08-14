@@ -6,6 +6,8 @@ import CompanyPicker from './CompanyPicker';
 interface Props {
   open: boolean;
   contact?: Contact | null; // present = edit mode
+  defaultAccountId?: number | null; // prefill company link, e.g. from Company Quick View's "+ Add Contact"
+  defaultCompanyName?: string;
   onClose: () => void;
 }
 
@@ -32,7 +34,13 @@ const EMPTY = {
 const inputClass =
   'w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500';
 
-export default function AddContactModal({ open, contact, onClose }: Props) {
+export default function AddContactModal({
+  open,
+  contact,
+  defaultAccountId,
+  defaultCompanyName,
+  onClose,
+}: Props) {
   const [form, setForm] = useState(EMPTY);
   const [error, setError] = useState<string | null>(null);
   const addContact = useAddContact();
@@ -63,10 +71,14 @@ export default function AddContactModal({ open, contact, onClose }: Props) {
         do_not_contact: contact.do_not_contact ?? false,
       });
     } else {
-      setForm(EMPTY);
+      setForm({
+        ...EMPTY,
+        account_id: defaultAccountId ?? null,
+        company_name: defaultCompanyName ?? '',
+      });
     }
     setError(null);
-  }, [contact, open]);
+  }, [contact, open, defaultAccountId, defaultCompanyName]);
 
   if (!open) return null;
 

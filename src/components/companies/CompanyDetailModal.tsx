@@ -29,6 +29,7 @@ interface Props {
   onClose: () => void;
   onEdit: (company: Company) => void;
   onContactClick?: (contactId: number) => void;
+  onViewHierarchy?: (company: Company) => void;
   isAdmin: boolean;
   currentUserId?: number;
 }
@@ -38,6 +39,7 @@ export default function CompanyDetailModal({
   onClose,
   onEdit,
   onContactClick,
+  onViewHierarchy,
   isAdmin,
   currentUserId,
 }: Props) {
@@ -117,8 +119,20 @@ export default function CompanyDetailModal({
                       <i className="fa-solid fa-pen text-xs" />
                     </button>
                   )}
+                  {onViewHierarchy && (
+                    <button
+                      onClick={() => onViewHierarchy(company)}
+                      className="text-slate-300 hover:text-indigo-600"
+                      title="View account hierarchy"
+                    >
+                      <i className="fa-solid fa-sitemap text-xs" />
+                    </button>
+                  )}
                 </div>
                 <p className="text-xs text-slate-500 truncate">{toTitleCase(company.industry) || 'No industry set'}</p>
+                {company.parent_company_name && (
+                  <p className="text-xs text-slate-400 truncate">Parent: {toTitleCase(company.parent_company_name)}</p>
+                )}
               </div>
             </div>
 

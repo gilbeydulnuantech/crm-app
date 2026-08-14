@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Contact, DNC_CHANNELS, EmailLog, LEAD_STATUS_OPTIONS } from '../../types/contact';
 import { ActivityLogEntry } from '../../types/activity';
 import { useMarkContactEmailRead, useToggleContactDncChannel, useUpdateContact } from '../../hooks/useContacts';
+import { useCompanies } from '../../hooks/useCompanies';
+import CompanyQuickView from '../companies/CompanyQuickView';
 import { useAddNote, useDeleteNote, useNotes, useUpdateNote } from '../../hooks/useNotes';
 import { useEntityActivity } from '../../hooks/useActivity';
 import { useAuth } from '../../context/AuthContext';
@@ -82,12 +84,18 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
   const [logCallOpen, setLogCallOpen] = useState(false);
   const [selectedLog, setSelectedLog] = useState<EmailLog | null>(null);
   const [selectedActivity, setSelectedActivity] = useState<ActivityLogEntry | null>(null);
+  const [quickViewCompanyId, setQuickViewCompanyId] = useState<number | null>(null);
   const [markReadError, setMarkReadError] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState('');
   const [noteError, setNoteError] = useState<string | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
   const [editDraft, setEditDraft] = useState('');
 
+  const { data: companies = [] } = useCompanies();
+  const quickViewCompany = useMemo(
+    () => companies.find((c) => c.id === quickViewCompanyId) ?? null,
+    [companies, quickViewCompanyId]
+  );
   const { data: pipelines = [] } = usePipelines();
   const defaultPipelineId = pipelines.find((p) => p.is_default)?.id ?? pipelines[0]?.id;
   // Fan out across every pipeline (not just the default one) so a deal
@@ -178,9 +186,11 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
   }
 
   function openCompanyView() {
-    if (!contact.account_id) return;
-    onClose();
-    navigate(`/companies?companyId=${contact.account_id}`);
+    if (!contact!.account_id) return;
+    // Opens the Quick View in place instead of navigating to /companies —
+    // "review account health... without losing their context" is the whole
+    // point of the Quick View popover (see CompanyQuickView.tsx).
+    setQuickViewCompanyId(contact!.account_id);
   }
 
   return (
@@ -644,6 +654,21 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
       />
       <EmailLogModal log={selectedLog} onClose={() => setSelectedLog(null)} />
       <ActivityLogModal entry={selectedActivity} onClose={() => setSelectedActivity(null)} />
+      <CompanyQuickView
+        company={quickViewCompany}
+        onClose={() => setQuickViewCompanyId(null)}
+        onEdit={(company) => {
+          setQuickViewCompanyId(null);
+          onClose();
+          navigate(`/companies?companyId=${company.id}`);
+        }}
+        onOpenFullRecord={(company) => {
+          setQuickViewCompanyId(null);
+          onClose();
+          navigate(`/companies?companyId=${company.id}`);
+        }}
+        canEdit={isAdmin || quickViewCompany?.owner_id === user?.id}
+      />
     </div>
   );
 }
