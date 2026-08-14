@@ -1,8 +1,9 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Contact, EmailLog, LEAD_STATUS_OPTIONS } from '../../types/contact';
-import { useMarkContactEmailRead, useToggleDoNotContact, useUpdateContact } from '../../hooks/useContacts';
+import { Contact, DNC_CHANNELS, EmailLog, LEAD_STATUS_OPTIONS } from '../../types/contact';
+import { useMarkContactEmailRead, useToggleContactDncChannel, useUpdateContact } from '../../hooks/useContacts';
 import { useAddNote, useDeleteNote, useNotes, useUpdateNote } from '../../hooks/useNotes';
+import { useEntityActivity } from '../../hooks/useActivity';
 import { useAuth } from '../../context/AuthContext';
 import { useAllOpportunities, useAllStages, usePipelines } from '../../hooks/useOpportunities';
 import TagsDropdown from './TagsDropdown';
@@ -11,6 +12,8 @@ import AddContactModal from './AddContactModal';
 import ComposeEmailPopover from './ComposeEmailPopover';
 import DealFormModal from '../pipeline/DealFormModal';
 import TaskFormModal from '../tasks/TaskFormModal';
+import ActivityTimeline from '../ActivityTimeline';
+import LogCallModal from '../LogCallModal';
 import { toTitleCase } from '../../utils/text';
 import { parseEmailLogs } from '../../utils/emailLogs';
 
@@ -64,15 +67,18 @@ function ActionButton({
 export default function ContactDetailModal({ contact, onClose }: Props) {
   const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
-  const toggleDnc = useToggleDoNotContact();
+  const toggleDncChannel = useToggleContactDncChannel();
   const updateContact = useUpdateContact();
   const markEmailRead = useMarkContactEmailRead();
   const notesRef = useRef<HTMLDivElement>(null);
+  const dndRef = useRef<HTMLDivElement>(null);
 
   const [quickEditOpen, setQuickEditOpen] = useState(false);
+  const [dndOpen, setDndOpen] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
   const [dealFormOpen, setDealFormOpen] = useState(false);
   const [taskFormOpen, setTaskFormOpen] = useState(false);
+  const [logCallOpen, setLogCallOpen] = useState(false);
   const [selectedLog, setSelectedLog] = useState<EmailLog | null>(null);
   const [markReadError, setMarkReadError] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState('');
@@ -92,6 +98,18 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
   const addNote = useAddNote('contact', contact?.id ?? null);
   const updateNote = useUpdateNote('contact', contact?.id ?? null);
   const deleteNote = useDeleteNote('contact', contact?.id ?? null);
+  const { data: activity = [], isLoading: activityLoading } = useEntityActivity('contact', contact?.id ?? null);
+
+  useEffect(() => {
+    if (!dndOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (dndRef.current && !dndRef.current.contains(e.target as Node)) {
+        setDndOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [dndOpen]);
 
   if (!contact) return null;
 
@@ -109,9 +127,10 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
           .slice(0, 2)
       : '--';
 
-  const positionAtCompany = [toTitleCase(contact.job_title), toTitleCase(contact.company_name)]
-    .filter(Boolean)
-    .join(contact.job_title && contact.company_name ? ' at ' : '');
+  // Admins can jump to any company; standard users only from contacts they
+  // own — mirrors isReadOnly, the same edit-permission rule used elsewhere
+  // in this modal.
+  const canClickCompany = !isReadOnly && !!contact.account_id;
 
   const logs = parseEmailLogs(contact.email_logs).slice().reverse();
   const contactDeals = allOpportunities.filter((o) => o.contact_id === contact.id);
@@ -140,6 +159,12 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
     onClose();
     const pid = dealPipelineId ?? defaultPipelineId;
     navigate(`/pipeline?pipeline=${pid}&highlight=${dealId}`);
+  }
+
+  function openCompanyView() {
+    if (!contact.account_id) return;
+    onClose();
+    navigate(`/companies?companyId=${contact.account_id}`);
   }
 
   return (
@@ -171,43 +196,91 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                         <i className="fa-solid fa-pen text-xs" />
                       </button>
                     )}
-                    <label
-                      className={`flex items-center gap-1 text-[11px] font-medium ml-auto ${
-                        isReadOnly ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 cursor-pointer'
-                      }`}
-                      title="Do not Disturb"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={!!contact.do_not_contact}
+                    <div className="relative ml-auto" ref={dndRef}>
+                      <button
+                        type="button"
+                        onClick={() => !isReadOnly && setDndOpen((v) => !v)}
                         disabled={isReadOnly}
-                        onChange={(e) =>
-                          !isReadOnly &&
-                          toggleDnc.mutate({ contactId: contact.id, value: e.target.checked })
-                        }
-                        className="rounded border-slate-300 text-rose-600 focus:ring-rose-500 disabled:opacity-50"
-                      />
-                      DND
-                    </label>
+                        title="Do Not Contact preferences"
+                        className={`flex items-center gap-1 text-[11px] font-medium ${
+                          isReadOnly ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:text-slate-700 cursor-pointer'
+                        }`}
+                      >
+                        {(contact.dnc_email || contact.dnc_call || contact.dnc_sms) && (
+                          <i className="fa-solid fa-ban text-rose-500 text-[10px]" />
+                        )}
+                        DND
+                        <i className="fa-solid fa-chevron-down text-[9px]" />
+                      </button>
+                      {dndOpen && (
+                        <div className="absolute right-0 top-full mt-1.5 w-36 bg-white border border-slate-200 rounded-lg shadow-lg py-1.5 z-10">
+                          {DNC_CHANNELS.map(({ channel, label, field }) => (
+                            <label
+                              key={channel}
+                              className="flex items-center gap-2 px-3 py-1 text-xs text-slate-600 cursor-pointer hover:bg-slate-50"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={!!contact[field]}
+                                onChange={(e) =>
+                                  toggleDncChannel.mutate({
+                                    contactId: contact.id,
+                                    channel,
+                                    value: e.target.checked,
+                                  })
+                                }
+                                className="rounded border-slate-300 text-rose-600 focus:ring-rose-500"
+                              />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-xs text-slate-500 truncate">{positionAtCompany || 'No position set'}</p>
+                  <p className="text-xs text-slate-500 truncate">
+                    {toTitleCase(contact.job_title)}
+                    {contact.job_title && contact.company_name && ' at '}
+                    {contact.company_name &&
+                      (canClickCompany ? (
+                        <button
+                          type="button"
+                          onClick={openCompanyView}
+                          className="inline text-indigo-600 hover:underline"
+                        >
+                          {toTitleCase(contact.company_name)}
+                        </button>
+                      ) : (
+                        toTitleCase(contact.company_name)
+                      ))}
+                    {!contact.job_title && !contact.company_name && 'No position set'}
+                  </p>
                   <p className="text-xs text-slate-500 truncate">{contact.email || '--'}</p>
                   <div className="flex items-center gap-1.5 mt-1.5">
                     <span className="text-[10px] font-medium text-slate-400">Status:</span>
-                    <select
-                      value={contact.lead_status ?? 'New'}
-                      onChange={(e) => handleStatusChange(e.target.value)}
-                      disabled={isReadOnly}
-                      className={`px-1.5 py-0.5 text-[10px] font-medium rounded-full border-0 ${
-                        STATUS_COLORS[contact.lead_status ?? 'New'] ?? 'bg-slate-100 text-slate-800'
-                      } ${isReadOnly ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
-                    >
-                      {LEAD_STATUS_OPTIONS.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
+                    {isReadOnly ? (
+                      <span
+                        className={`px-1.5 py-0.5 text-[10px] font-medium rounded-full ${
+                          STATUS_COLORS[contact.lead_status ?? 'New'] ?? 'bg-slate-100 text-slate-800'
+                        }`}
+                      >
+                        {contact.lead_status ?? 'New'}
+                      </span>
+                    ) : (
+                      <select
+                        value={contact.lead_status ?? 'New'}
+                        onChange={(e) => handleStatusChange(e.target.value)}
+                        className={`px-1.5 py-0.5 text-[10px] font-medium rounded-full border-0 cursor-pointer ${
+                          STATUS_COLORS[contact.lead_status ?? 'New'] ?? 'bg-slate-100 text-slate-800'
+                        }`}
+                      >
+                        {LEAD_STATUS_OPTIONS.map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                 </div>
               </div>
@@ -231,10 +304,22 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                   icon="fa-envelope"
                   label="Email"
                   onClick={!isReadOnly ? () => setComposeOpen(true) : undefined}
-                  disabled={!!contact.do_not_contact}
-                  title={contact.do_not_contact ? 'Marked Do Not Contact' : undefined}
+                  disabled={!!contact.dnc_email}
+                  title={contact.dnc_email ? 'Marked Do Not Contact: Email' : undefined}
                 />
-                <ActionButton icon="fa-phone" label="Call" />
+                <ActionButton
+                  icon="fa-phone"
+                  label="Call"
+                  onClick={() => setLogCallOpen(true)}
+                  disabled={!!contact.dnc_call}
+                  title={contact.dnc_call ? 'Marked Do Not Contact: Call' : 'Log a call'}
+                />
+                <ActionButton
+                  icon="fa-comment-sms"
+                  label="SMS"
+                  disabled={!!contact.dnc_sms}
+                  title={contact.dnc_sms ? 'Marked Do Not Contact: SMS' : undefined}
+                />
                 <ActionButton
                   icon="fa-note-sticky"
                   label="Notes"
@@ -372,76 +457,25 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
               </p>
             )}
 
-            {logs.length === 0 ? (
-              <p className="text-xs text-slate-400 italic">No activity recorded yet.</p>
-            ) : (
-              logs.map((log, i) => {
-                const isReceived = log.type === 'received';
-                const isUnread = isReceived && log.is_read !== true;
-                const canMarkRead = isUnread && !!log.id;
-                const logKey = String(log.id ?? i);
-                return (
-                  <div
-                    key={logKey}
-                    onClick={() => {
-                      if (canMarkRead) {
-                        setMarkReadError(null);
-                        markEmailRead.mutate(
-                          { contactId: contact.id, logId: log.id! },
-                          {
-                            onError: (err) =>
-                              setMarkReadError(
-                                err instanceof Error ? err.message : 'Failed to mark as read.'
-                              ),
-                          }
-                        );
-                      }
-                      setSelectedLog(log);
-                    }}
-                    className={`p-3 rounded-lg border space-y-1 cursor-pointer ${
-                      isReceived
-                        ? isUnread
-                          ? 'bg-sky-50 border-sky-200'
-                          : 'bg-green-50 border-green-200'
-                        : 'bg-slate-50 border-slate-100'
-                    }`}
-                    title="Click to view"
-                  >
-                    <div className="flex items-center justify-between text-xs font-medium">
-                      <span className="flex items-center gap-1.5 text-slate-700 min-w-0">
-                        <i
-                          className={
-                            isReceived
-                              ? 'fa-solid fa-reply text-blue-500'
-                              : 'fa-solid fa-paper-plane text-slate-400'
-                          }
-                        />
-                        <span className="truncate">
-                          {isReceived ? 'Reply:' : 'Sent:'} {log.subject || 'No Subject'}
-                        </span>
-                      </span>
-                      <span className="text-slate-400 text-[10px] shrink-0">
-                        {log.sent_at ? new Date(log.sent_at).toLocaleDateString() : ''}
-                      </span>
-                    </div>
-                    {(log.to || log.from) && (
-                      <p className="text-slate-400 text-[10px]">
-                        {isReceived ? `From: ${log.from ?? '--'}` : `To: ${log.to ?? '--'}`}
-                      </p>
-                    )}
-                    <p className="text-slate-600 text-xs whitespace-pre-wrap line-clamp-2">
-                      {log.message}
-                    </p>
-                    {log.attachments && log.attachments.length > 0 && (
-                      <p className="flex items-center gap-1 text-[10px] text-slate-400 pt-0.5">
-                        <i className="fa-solid fa-paperclip text-[9px]" />
-                        {log.attachments.length} attachment{log.attachments.length > 1 ? 's' : ''}
-                      </p>
-                    )}
-                  </div>
-                );
-              })
-            )}
+            <ActivityTimeline
+              emails={logs}
+              activity={activity}
+              isLoading={activityLoading}
+              onEmailClick={(log) => {
+                const isUnread = log.type === 'received' && log.is_read !== true;
+                if (isUnread && log.id) {
+                  setMarkReadError(null);
+                  markEmailRead.mutate(
+                    { contactId: contact.id, logId: log.id },
+                    {
+                      onError: (err) =>
+                        setMarkReadError(err instanceof Error ? err.message : 'Failed to mark as read.'),
+                    }
+                  );
+                }
+                setSelectedLog(log);
+              }}
+            />
           </div>
 
           {/* Column 3: Notes */}
@@ -583,6 +617,13 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
         open={taskFormOpen}
         defaultContactId={contact.id}
         onClose={() => setTaskFormOpen(false)}
+      />
+      <LogCallModal
+        open={logCallOpen}
+        entityType="contact"
+        entityId={contact.id}
+        entityLabel={fullName}
+        onClose={() => setLogCallOpen(false)}
       />
       <EmailLogModal log={selectedLog} onClose={() => setSelectedLog(null)} />
     </div>

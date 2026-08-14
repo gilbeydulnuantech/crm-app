@@ -92,7 +92,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
         "options": {
           "queryReplacement": "={{ [ $json.requesterId ] }}"
         }
@@ -128,9 +128,32 @@
     {
       "parameters": {
         "operation": "executeQuery",
+        "query": "SELECT (SELECT u.name FROM contacts c JOIN users u ON u.id = c.owner_id WHERE c.id = $1) AS old_owner_name;",
+        "options": {
+          "queryReplacement": "={{ [ $('Validate Admin & Payload').first().json.contactId ] }}"
+        }
+      },
+      "id": "a1b2c3d4-0030-4a5a-9b1a-usg000000030",
+      "name": "Look Up Old Owner",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1632,
+        1264
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
         "query": "UPDATE contacts\nSET owner_id = $1\nWHERE id = $2\nRETURNING id, owner_id, first_name, last_name;",
         "options": {
-          "queryReplacement": "={{ [ $json.ownerId, $json.contactId ] }}"
+          "queryReplacement": "={{ [ $('Validate Admin & Payload').first().json.ownerId, $('Validate Admin & Payload').first().json.contactId ] }}"
         }
       },
       "id": "f6d22997-26b6-43f2-8083-df31ed86d870",
@@ -140,6 +163,65 @@
       "position": [
         1840,
         1088
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT (SELECT name FROM users WHERE id = $1) AS new_owner_name;",
+        "options": {
+          "queryReplacement": "={{ [ $('Validate Admin & Payload').first().json.ownerId ] }}"
+        }
+      },
+      "id": "a1b2c3d4-0031-4a5a-9b1a-usg000000031",
+      "name": "Look Up New Owner Name",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2064,
+        1264
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requesterName = $('Look Up Requester Role').first().json.name || 'Someone';\nconst requesterId = $('Parse Requester Token').first().json.requesterId;\nconst payload = $('Validate Admin & Payload').first().json;\nconst contact = $('Update Contact Owner').first().json;\nconst oldOwnerName = $('Look Up Old Owner').first().json.old_owner_name || 'Unassigned';\nconst newOwnerName = $input.first().json.new_owner_name || 'Unassigned';\nconst contactName = `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'Unknown Contact';\n\nif (oldOwnerName === newOwnerName) {\n  // A no-op query that always returns exactly one row — a downstream\n  // Postgres node that yields zero output items would silently stop the\n  // rest of this chain (owner notification DM etc.), so \"SELECT 1;\" is\n  // used instead of an insert with a WHERE-false-style skip.\n  return [{ json: { sqlQuery: 'SELECT 1;', queryParams: [] } }];\n}\n\nconst summary = `${requesterName} transferred ownership of \"${contactName}\" from ${oldOwnerName} to ${newOwnerName}`;\nconst detail = JSON.stringify({ from: oldOwnerName, to: newOwnerName });\n\nconst sqlQuery = 'INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8) RETURNING id;';\nconst queryParams = ['contact', payload.contactId, 'system_audit', 'ownership_change', summary, detail, requesterId, requesterName];\n\nreturn [{ json: { sqlQuery, queryParams } }];"
+      },
+      "id": "a1b2c3d4-0032-4a5a-9b1a-usg000000032",
+      "name": "Build Ownership Audit",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2288,
+        1264
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sqlQuery }}",
+        "options": {
+          "queryReplacement": "={{ $json.queryParams }}"
+        }
+      },
+      "id": "a1b2c3d4-0033-4a5a-9b1a-usg000000033",
+      "name": "Insert Ownership Audit",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2512,
+        1264
       ],
       "credentials": {
         "postgres": {
@@ -526,6 +608,22 @@
       "main": [
         [
           {
+            "node": "Look Up Old Owner",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Old Owner": {
+      "main": [
+        [
+          {
             "node": "Update Contact Owner",
             "type": "main",
             "index": 0
@@ -555,6 +653,39 @@
       ]
     },
     "Check Result": {
+      "main": [
+        [
+          {
+            "node": "Look Up New Owner Name",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up New Owner Name": {
+      "main": [
+        [
+          {
+            "node": "Build Ownership Audit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Ownership Audit": {
+      "main": [
+        [
+          {
+            "node": "Insert Ownership Audit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Ownership Audit": {
       "main": [
         [
           {

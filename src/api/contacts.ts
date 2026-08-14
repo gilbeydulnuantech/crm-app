@@ -1,5 +1,5 @@
 import { apiFetch } from './client';
-import { ArchivedContact, Contact, DO_NOT_CONTACT_STATUS, ImportContactRow } from '../types/contact';
+import { ArchivedContact, Contact, DncChannel, DO_NOT_CONTACT_STATUS, ImportContactRow } from '../types/contact';
 import { ContactRelated } from '../types/contactRelated';
 
 export function fetchContacts() {
@@ -120,6 +120,16 @@ export function toggleDoNotContact(contactId: number, doNotContact: boolean) {
       // guess what the status should revert to, so that's left for the
       // status dropdown itself.
       ...(doNotContact ? { lead_status: DO_NOT_CONTACT_STATUS } : {}),
+    }),
+  });
+}
+
+export function toggleContactDncChannel(contactId: number, channel: DncChannel, value: boolean) {
+  return apiFetch<{ success: boolean; error?: string }>('/webhook/update-contact', {
+    method: 'POST',
+    body: JSON.stringify({
+      id: contactId,
+      [`dnc_${channel}`]: value,
     }),
   });
 }

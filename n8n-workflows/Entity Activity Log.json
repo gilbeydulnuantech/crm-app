@@ -1,0 +1,325 @@
+{
+  "name": "Entity Activity Log",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "get-entity-activity",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "a1b2c3d4-0001-4a5a-9b1a-eal000000001",
+      "name": "Webhook: get-entity-activity",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [816, 512],
+      "webhookId": "a1b2c3d4-0001-4a5a-9b1a-webhook000001"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name, created_at FROM entity_activity_log WHERE entity_type = $1 AND entity_id = $2 ORDER BY created_at DESC, id DESC;",
+        "options": {
+          "queryReplacement": "={{ [ $('Webhook: get-entity-activity').first().json.query.entity_type, Number($('Webhook: get-entity-activity').first().json.query.entity_id) ] }}"
+        }
+      },
+      "id": "a1b2c3d4-0002-4a5a-9b1a-eal000000002",
+      "name": "Postgres: Select Entity Activity",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [1040, 512],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "allIncomingItems"
+      },
+      "id": "a1b2c3d4-0003-4a5a-9b1a-eal000000003",
+      "name": "Respond: get-entity-activity",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1264, 512]
+    },
+    {
+      "parameters": {
+        "httpMethod": "OPTIONS",
+        "path": "get-entity-activity",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0004-4a5a-9b1a-eal000000004",
+      "name": "Webhook OPTIONS: get-entity-activity",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [816, 640],
+      "webhookId": "a1b2c3d4-0004-4a5a-9b1a-webhook000004"
+    },
+    {
+      "parameters": {
+        "respondWith": "noData",
+        "options": {
+          "responseCode": 204,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization, ngrok-skip-browser-warning"
+              }
+            ]
+          }
+        }
+      },
+      "id": "a1b2c3d4-0005-4a5a-9b1a-eal000000005",
+      "name": "Respond OPTIONS: get-entity-activity",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1040, 640]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "add-entity-activity",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "a1b2c3d4-0006-4a5a-9b1a-eal000000006",
+      "name": "Webhook: add-entity-activity",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [816, 816],
+      "webhookId": "a1b2c3d4-0006-4a5a-9b1a-webhook000006"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst requesterId = parseInt(match[1], 10);\nconst body = $input.first().json.body || {};\n\nconst entityType = (body.entity_type || '').toString().trim();\nconst entityId = parseInt(body.entity_id, 10);\nconst category = (body.category || '').toString().trim();\nconst subtype = body.subtype ? body.subtype.toString().trim() : null;\nconst summary = (body.summary || '').toString().trim();\n\nif (!['contact', 'company'].includes(entityType)) {\n  throw new Error('\"entity_type\" must be \"contact\" or \"company\".');\n}\nif (!Number.isInteger(entityId)) {\n  throw new Error('\"entity_id\" must be an integer.');\n}\n// Only 'call' is accepted from this public endpoint today (manual call\n// logging from the Call button) — 'meeting'/'system_audit' rows are written\n// internally by other workflows (contacts-update, Users: Assignment) so a\n// client can't fabricate an audit trail entry.\nif (category !== 'call') {\n  throw new Error('\"category\" must be \"call\".');\n}\nif (!summary) {\n  throw new Error('\"summary\" is required.');\n}\n\nconst detail = body.detail && typeof body.detail === 'object' ? JSON.stringify(body.detail) : null;\n\nreturn [{\n  json: { requesterId, entityType, entityId, category, subtype: subtype || 'manual', summary, detail }\n}];"
+      },
+      "id": "a1b2c3d4-0007-4a5a-9b1a-eal000000007",
+      "name": "Parse Token & Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1040, 816]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "a1b2c3d4-0008-4a5a-9b1a-eal000000008",
+      "name": "Look Up Requester",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [1264, 816],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst p = $('Parse Token & Payload').first().json;\nreturn [{\n  json: {\n    entityType: p.entityType,\n    entityId: p.entityId,\n    category: p.category,\n    subtype: p.subtype,\n    summary: p.summary,\n    detail: p.detail,\n    actorId: requester.id,\n    actorName: requester.name || 'Unknown',\n  }\n}];"
+      },
+      "id": "a1b2c3d4-0009-4a5a-9b1a-eal000000009",
+      "name": "Build Insert Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1488, 816]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8) RETURNING id, created_at;",
+        "options": {
+          "queryReplacement": "={{ [ $json.entityType, $json.entityId, $json.category, $json.subtype, $json.summary, $json.detail, $json.actorId, $json.actorName ] }}"
+        }
+      },
+      "id": "a1b2c3d4-0010-4a5a-9b1a-eal000000010",
+      "name": "Postgres: Insert Entity Activity",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [1712, 816],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, id: $json.id } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "a1b2c3d4-0011-4a5a-9b1a-eal000000011",
+      "name": "Respond: add-entity-activity",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1936, 816]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "a1b2c3d4-0012-4a5a-9b1a-eal000000012",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1264, 992]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook: get-entity-activity": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Entity Activity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Entity Activity": {
+      "main": [
+        [
+          {
+            "node": "Respond: get-entity-activity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook OPTIONS: get-entity-activity": {
+      "main": [
+        [
+          {
+            "node": "Respond OPTIONS: get-entity-activity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: add-entity-activity": {
+      "main": [
+        [
+          {
+            "node": "Parse Token & Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token & Payload": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester": {
+      "main": [
+        [
+          {
+            "node": "Build Insert Payload",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Insert Payload": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Insert Entity Activity",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Insert Entity Activity": {
+      "main": [
+        [
+          {
+            "node": "Respond: add-entity-activity",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "a1b2c3d4-0000-4a5a-9b1a-versionid0001",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6a773e6041cc88fd4a5b60f3e46f2119d58608faafd09936499001d589f5c1af"
+  },
+  "id": "eAcTLg0001NewFlow",
+  "tags": []
+}

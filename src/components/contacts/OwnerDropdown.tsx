@@ -23,6 +23,17 @@ export default function OwnerDropdown({ contact, disabled }: Props) {
     setOpen(false);
   }
 
+  if (disabled) {
+    return (
+      <div>
+        <label className="block text-[11px] font-medium text-slate-500 mb-1 text-right">Owner</label>
+        <p className="text-xs text-slate-700 text-right">
+          {contact.owner_name ? toTitleCase(contact.owner_name) : 'Unassigned'}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div>
       <label className="block text-[11px] font-medium text-slate-500 mb-1 text-right">Owner</label>

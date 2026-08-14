@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as api from '../api/contacts';
-import { Contact, ImportContactRow } from '../types/contact';
+import { Contact, DncChannel, ImportContactRow } from '../types/contact';
 import { getContactsWithUnreadEmail } from '../utils/emailLogs';
 
 export function useContacts() {
@@ -163,6 +163,15 @@ export function useToggleDoNotContact() {
   return useMutation({
     mutationFn: ({ contactId, value }: { contactId: number; value: boolean }) =>
       api.toggleDoNotContact(contactId, value),
+    onSuccess: invalidate,
+  });
+}
+
+export function useToggleContactDncChannel() {
+  const invalidate = useInvalidateContacts();
+  return useMutation({
+    mutationFn: ({ contactId, channel, value }: { contactId: number; channel: DncChannel; value: boolean }) =>
+      api.toggleContactDncChannel(contactId, channel, value),
     onSuccess: invalidate,
   });
 }

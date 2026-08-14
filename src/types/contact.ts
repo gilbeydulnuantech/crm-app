@@ -17,6 +17,9 @@ export interface Contact {
   lead_status?: string;
   lead_source?: string;
   do_not_contact?: boolean;
+  dnc_email?: boolean;
+  dnc_call?: boolean;
+  dnc_sms?: boolean;
   owner_id?: number | null;
   owner_name?: string;
   created_at?: string;
@@ -58,6 +61,13 @@ export type ContactsView = 'all' | 'mine' | 'archived';
 
 export const DO_NOT_CONTACT_STATUS = 'Do Not Contact';
 export const LEAD_STATUS_OPTIONS = ['New', 'Active', 'Customer', 'Inactive', 'Unqualified', DO_NOT_CONTACT_STATUS];
+
+export type DncChannel = 'email' | 'call' | 'sms';
+export const DNC_CHANNELS: { channel: DncChannel; label: string; field: 'dnc_email' | 'dnc_call' | 'dnc_sms' }[] = [
+  { channel: 'email', label: 'Email', field: 'dnc_email' },
+  { channel: 'call', label: 'Call', field: 'dnc_call' },
+  { channel: 'sms', label: 'SMS', field: 'dnc_sms' },
+];
 
 // Matches import-contacts.json's "Validate Token & Rows" node — only
 // first_name is required there, everything else is optional and trimmed.

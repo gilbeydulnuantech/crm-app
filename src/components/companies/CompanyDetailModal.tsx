@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { Company } from '../../types/company';
 import { useContacts } from '../../hooks/useContacts';
 import { usePipelines, useAllOpportunities, useAllStages } from '../../hooks/useOpportunities';
+import { useEntityActivity } from '../../hooks/useActivity';
 import { toTitleCase } from '../../utils/text';
 import { DEFAULT_USER_COLOR, hexToRgba } from '../../utils/userColor';
 import DealFormModal from '../pipeline/DealFormModal';
+import ActivityTimeline from '../ActivityTimeline';
 
 const STATUS_COLORS: Record<string, string> = {
   New: 'bg-slate-100 text-slate-800',
@@ -50,6 +52,7 @@ export default function CompanyDetailModal({
   const pipelineIds = useMemo(() => pipelines.map((p) => p.id), [pipelines]);
   const { data: opportunities = [], isLoading: oppsLoading } = useAllOpportunities(pipelineIds);
   const { data: stages = [] } = useAllStages(pipelineIds);
+  const { data: activity = [], isLoading: activityLoading } = useEntityActivity('company', company?.id ?? null);
 
   if (!company) return null;
 
@@ -84,24 +87,14 @@ export default function CompanyDetailModal({
   return (
     <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl h-[85vh] flex flex-col overflow-hidden">
-        {/* Header — "Company Details" label aligned with edit/close, matching ContactDetailModal */}
+        {/* Header — "Company Details" label aligned with close, matching ContactDetailModal */}
         <div className="flex items-center justify-between px-6 py-3 border-b border-slate-200 shrink-0">
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
             Company Details
           </span>
-          <div className="flex items-center gap-4">
-            {canEdit && (
-              <button
-                onClick={() => onEdit(company)}
-                className="text-xs font-semibold text-indigo-600 hover:underline"
-              >
-                Edit
-              </button>
-            )}
-            <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
-              <i className="fa-solid fa-xmark text-lg" />
-            </button>
-          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+            <i className="fa-solid fa-xmark text-lg" />
+          </button>
         </div>
 
         {/* 3-column body */}
@@ -113,7 +106,18 @@ export default function CompanyDetailModal({
                 <i className="fa-solid fa-building" />
               </div>
               <div className="min-w-0">
-                <h2 className="text-base font-bold text-slate-800 truncate">{toTitleCase(company.name)}</h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base font-bold text-slate-800 truncate">{toTitleCase(company.name)}</h2>
+                  {canEdit && (
+                    <button
+                      onClick={() => onEdit(company)}
+                      className="text-slate-300 hover:text-indigo-600"
+                      title="Edit company"
+                    >
+                      <i className="fa-solid fa-pen text-xs" />
+                    </button>
+                  )}
+                </div>
                 <p className="text-xs text-slate-500 truncate">{toTitleCase(company.industry) || 'No industry set'}</p>
               </div>
             </div>
@@ -299,7 +303,12 @@ export default function CompanyDetailModal({
             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
               Activity Log
             </h3>
-            <p className="text-xs text-slate-400 italic">No activity recorded yet.</p>
+            {/* ASSUMPTION: no company-update workflow writes system_audit rows
+                yet (only contacts-update.json / Users_ Assignment.json do) —
+                Calls/Meetings/System Audit tabs stay empty until that's
+                wired up the same way. Companies have no email_logs column,
+                so the Emails tab is always empty here too. */}
+            <ActivityTimeline activity={activity} isLoading={activityLoading} onEmailClick={() => {}} />
           </div>
 
           {/* Column 3: Notes */}
