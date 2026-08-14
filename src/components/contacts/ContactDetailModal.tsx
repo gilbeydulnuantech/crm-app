@@ -100,6 +100,20 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
   const deleteNote = useDeleteNote('contact', contact?.id ?? null);
   const { data: activity = [], isLoading: activityLoading } = useEntityActivity('contact', contact?.id ?? null);
 
+  // The 15s global refetchInterval (src/main.tsx) can flip `activityLoading`
+  // back to true mid-session even though data was already shown once, which
+  // reads as the Activity Log flashing back to "Loading..." every poll —
+  // same class of bug as Calendar.tsx's eventsEverLoaded/dealsEverLoaded
+  // gate. Once loaded for the current contact, don't show the loading state
+  // again until a different contact is opened.
+  const [activityEverLoaded, setActivityEverLoaded] = useState(false);
+  useEffect(() => {
+    setActivityEverLoaded(false);
+  }, [contact?.id]);
+  useEffect(() => {
+    if (!activityLoading) setActivityEverLoaded(true);
+  }, [activityLoading]);
+
   useEffect(() => {
     if (!dndOpen) return;
     function handleClickOutside(e: MouseEvent) {
@@ -460,7 +474,7 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
             <ActivityTimeline
               emails={logs}
               activity={activity}
-              isLoading={activityLoading}
+              isLoading={activityLoading && !activityEverLoaded}
               onEmailClick={(log) => {
                 const isUnread = log.type === 'received' && log.is_read !== true;
                 if (isUnread && log.id) {
