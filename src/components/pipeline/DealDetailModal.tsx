@@ -6,6 +6,8 @@ import { useContacts } from '../../hooks/useContacts';
 import { useNotes } from '../../hooks/useNotes';
 import { useTasks } from '../../hooks/useTasks';
 import { toTitleCase } from '../../utils/text';
+import { getTagColorClasses } from '../../utils/tagColors';
+import DealTagsInline from './DealTagsInline';
 
 interface Props {
   deal: Opportunity | null;
@@ -153,6 +155,22 @@ export default function DealDetailModal({
             {contact?.job_title && <p className="text-xs text-slate-500 mt-0.5">{contact.job_title}</p>}
             {contact?.email && <p className="text-xs text-slate-500 mt-0.5">{contact.email}</p>}
             {contact?.phone && <p className="text-xs text-slate-500 mt-0.5">{contact.phone}</p>}
+
+            <div className="flex flex-wrap items-center gap-1.5 mt-2">
+              <DealTagsInline deal={deal} disabled={!canEdit} />
+              {/* Read-only — the linked contact's own tags, shown for
+                  context alongside the deal's editable tags (same combined
+                  set DealCard/DealQuickView show elsewhere). */}
+              {(deal.contact_tags ?? []).map((t) => (
+                <span
+                  key={`contact-${t.id}`}
+                  title="From the linked contact"
+                  className={`px-1.5 py-0.5 text-[10px] font-medium rounded-full opacity-70 ${getTagColorClasses(t.name)}`}
+                >
+                  {t.name}
+                </span>
+              ))}
+            </div>
           </div>
 
           {deal.company_name && (

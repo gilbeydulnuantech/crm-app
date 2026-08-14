@@ -1,5 +1,6 @@
 import { Opportunity, Stage } from '../../types/opportunity';
 import { useDeleteOpportunities, useUpdateOpportunity } from '../../hooks/useOpportunities';
+import { getTagColorClasses } from '../../utils/tagColors';
 
 interface Props {
   opportunity: Opportunity | null;
@@ -79,7 +80,27 @@ export default function DealDetailPanel({
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           <Field label="Company" value={opportunity.company_name} />
-          <Field label="Contact" value={opportunity.contact_name} />
+          <div>
+            <Field label="Contact" value={opportunity.contact_name} />
+            {/* Deal's own tags + the linked contact's tags, combined —
+                read-only here (this panel has no inline tag editor
+                elsewhere either), just for at-a-glance context. */}
+            {(() => {
+              const allTags = [...(opportunity.tags ?? []), ...(opportunity.contact_tags ?? [])];
+              return allTags.length > 0 ? (
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                  {allTags.map((t) => (
+                    <span
+                      key={t.id}
+                      className={`px-1.5 py-0.5 text-[10px] font-medium rounded-full ${getTagColorClasses(t.name)}`}
+                    >
+                      {t.name}
+                    </span>
+                  ))}
+                </div>
+              ) : null;
+            })()}
+          </div>
           <Field label="Value" value={currency(opportunity.deal_value)} />
           <Field label="Assigned To" value={opportunity.assigned_user_name} />
           <Field

@@ -212,7 +212,21 @@ export default function DealQuickView({
             <div className="flex items-baseline gap-1.5 text-sm">
               <span className="text-slate-400 shrink-0">•</span>
               <span className="text-slate-500 shrink-0">Tags:</span>
-              <DealTagsInline deal={deal} disabled={!canEdit} />
+              <div className="flex flex-wrap items-center gap-1.5">
+                <DealTagsInline deal={deal} disabled={!canEdit} />
+                {/* Read-only — the linked contact's own tags, shown for
+                    context alongside the deal's editable tags (same
+                    combined set DealCard shows on the board). */}
+                {(deal.contact_tags ?? []).map((t) => (
+                  <span
+                    key={`contact-${t.id}`}
+                    title="From the linked contact"
+                    className="px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 text-slate-500"
+                  >
+                    {t.name}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
         </div>
