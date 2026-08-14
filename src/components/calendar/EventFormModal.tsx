@@ -180,8 +180,8 @@ export default function EventFormModal({ open, event, defaultDate, onClose }: Pr
   );
 
   function formatSlot(s: { start: Date; end: Date }) {
-    const opts: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit' };
-    return `${s.start.toLocaleTimeString(undefined, opts)} – ${s.end.toLocaleTimeString(undefined, opts)}`;
+    const opts: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit', hour12: false };
+    return `${s.start.toLocaleTimeString(undefined, opts)} - ${s.end.toLocaleTimeString(undefined, opts)}`;
   }
 
   const selectedStart = form.date && form.startTime ? new Date(`${form.date}T${form.startTime}`) : null;
@@ -369,50 +369,48 @@ export default function EventFormModal({ open, event, defaultDate, onClose }: Pr
           {form.date && (userBusySlots.length > 0 || contactBusySlots.length > 0) && (
             <div
               className={`rounded-lg border p-2.5 space-y-1.5 ${
-                hasConflict ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200'
+                hasConflict ? 'bg-rose-50 border-rose-200' : 'bg-amber-50 border-amber-200'
               }`}
             >
-              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
-                {hasConflict && <i className="fa-solid fa-triangle-exclamation text-amber-600" />}
+              <p
+                className={`text-[11px] font-semibold uppercase tracking-wide flex items-center gap-1.5 ${
+                  hasConflict ? 'text-rose-700' : 'text-amber-700'
+                }`}
+              >
+                <i className="fa-solid fa-triangle-exclamation" />
                 Already Booked on {new Date(`${form.date}T00:00`).toLocaleDateString(undefined, {
                   month: 'short',
                   day: 'numeric',
                 })}
               </p>
               {userBusySlots.length > 0 && (
-                <div className="text-xs text-slate-600">
-                  <span className="font-medium">
+                <div className={`text-xs ${hasConflict ? 'text-rose-700' : 'text-amber-800'}`}>
+                  <p className="font-medium">
                     {users.find((u) => String(u.id) === form.assigned_user)?.name
                       ? toTitleCase(users.find((u) => String(u.id) === form.assigned_user)!.name)
                       : 'Assigned user'}
                     :
-                  </span>{' '}
+                  </p>
                   {userBusySlots.map((s) => (
-                    <span
-                      key={s.id}
-                      className={overlapsSelection(s) ? 'text-amber-700 font-semibold' : ''}
-                    >
-                      {formatSlot(s)} ({s.subject}){' '}
-                    </span>
+                    <p key={s.id} className={overlapsSelection(s) ? 'font-semibold' : ''}>
+                      {formatSlot(s)}
+                    </p>
                   ))}
                 </div>
               )}
               {contactBusySlots.length > 0 && (
-                <div className="text-xs text-slate-600">
-                  <span className="font-medium">{toTitleCase(form.contact_name) || 'Contact'}:</span>{' '}
+                <div className={`text-xs ${hasConflict ? 'text-rose-700' : 'text-amber-800'}`}>
+                  <p className="font-medium">{toTitleCase(form.contact_name) || 'Contact'}:</p>
                   {contactBusySlots.map((s) => (
-                    <span
-                      key={s.id}
-                      className={overlapsSelection(s) ? 'text-amber-700 font-semibold' : ''}
-                    >
-                      {formatSlot(s)} ({s.subject}){' '}
-                    </span>
+                    <p key={s.id} className={overlapsSelection(s) ? 'font-semibold' : ''}>
+                      {formatSlot(s)}
+                    </p>
                   ))}
                 </div>
               )}
               {hasConflict && (
-                <p className="text-[11px] text-amber-700">
-                  The selected time overlaps with an existing event above — pick a different time or confirm this is intentional.
+                <p className="text-[11px] text-rose-700 font-medium">
+                  The selected time overlaps with an existing event above — pick a different time. Saving will be rejected until this is resolved.
                 </p>
               )}
             </div>
