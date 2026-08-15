@@ -10,7 +10,7 @@ import { useAddNote } from '../hooks/useNotes';
 import { useAddTask } from '../hooks/useTasks';
 import { useResources } from '../hooks/useResources';
 import { useAuth } from '../context/AuthContext';
-import CalendarSidebar from '../components/calendar/CalendarSidebar';
+import CalendarTabs from '../components/calendar/CalendarTabs';
 import CalendarStatsBar, { CalendarStatFilter, STAT_FILTER_LABELS } from '../components/calendar/CalendarStatsBar';
 import CalendarLegend from '../components/calendar/CalendarLegend';
 import MonthView from '../components/calendar/MonthView';
@@ -58,7 +58,7 @@ export default function Calendar() {
   const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
   const [mode, setMode] = useState<CalendarMode>('events');
-  const [viewMode, setViewMode] = useState<CalendarViewMode>('month');
+  const [viewMode, setViewMode] = useState<CalendarViewMode>('week');
   const [cursorDate, setCursorDate] = useState(new Date());
   const [search, setSearch] = useState('');
   const [formOpen, setFormOpen] = useState(false);
@@ -80,7 +80,6 @@ export default function Calendar() {
   const [checkedResourceIds, setCheckedResourceIds] = useState<Set<number>>(new Set());
   const [visibleTypes, setVisibleTypes] = useState<EventType[]>([...EVENT_TYPES]);
   const [statFilter, setStatFilter] = useState<CalendarStatFilter | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const { data: users = [] } = useUsers();
   const { data: resources = [] } = useResources();
@@ -158,6 +157,17 @@ export default function Calendar() {
     setCheckedUserIds((prev) =>
       users.length > 0 && users.every((u) => prev.has(u.id)) ? new Set() : new Set(users.map((u) => u.id))
     );
+  }
+
+  // Idempotent, unlike toggleAllUsers — clicking the "All Events" tab
+  // again should keep showing everyone, not clear back to nothing the way
+  // the "All Team Members" checkbox's toggle behavior does.
+  function selectAllUsers() {
+    setCheckedUserIds(new Set(users.map((u) => u.id)));
+  }
+
+  function selectOnlyMe() {
+    setCheckedUserIds(new Set(user ? [user.id] : []));
   }
 
   function toggleAllResources() {
@@ -378,26 +388,26 @@ export default function Calendar() {
   const defaultPipelineId = pipelines.find((p) => p.is_default)?.id ?? pipelines[0]?.id;
 
   return (
-    <div className="flex-1 flex min-h-0 overflow-hidden">
-      <CalendarSidebar
-        users={users}
-        resources={resources}
-        currentUserId={user?.id}
-        isAdmin={isAdmin}
-        checkedUserIds={checkedUserIds}
-        checkedResourceIds={checkedResourceIds}
-        onToggleUser={toggleUser}
-        onToggleResource={toggleResource}
-        onToggleAllUsers={toggleAllUsers}
-        onToggleAllResources={toggleAllResources}
-        collapsed={!sidebarOpen}
-        onToggleCollapsed={() => setSidebarOpen((v) => !v)}
-      />
-
-      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        {/* Header */}
-        <div className="px-4 py-4 flex items-center justify-between shrink-0 border-b border-slate-200">
-          <h1 className="text-lg font-bold text-slate-800">Calendar</h1>
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+      {/* Header: title + month/year + stats, then nav + add button */}
+      <div className="px-4 py-3 flex items-center gap-4 shrink-0 border-b border-slate-200">
+        <div className="flex items-center gap-3 min-w-0">
+          <h1 className="text-lg font-bold text-slate-800 shrink-0">Calendar</h1>
+          <span className="text-slate-300 shrink-0">|</span>
+          <h2 className="text-sm font-semibold text-slate-700 shrink-0">
+            {cursorDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+          </h2>
+          {mode === 'events' && (
+            <CalendarStatsBar
+              events={overlayFilteredEvents}
+              weekStart={startOfWeek(cursorDate)}
+              activeFilter={statFilter}
+              onSelect={selectStatFilter}
+            />
+          )}
+        </div>
+        <div className="flex-1" />
+        <div className="flex flex-col items-end gap-1.5 shrink-0">
           <button
             onClick={() => (mode === 'events' ? openAddModal() : openAddDeal())}
             className="bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] text-white text-sm font-medium px-3 py-1.5 rounded-lg flex items-center space-x-2 shadow-sm transition-all"
@@ -405,24 +415,7 @@ export default function Calendar() {
             <i className="fa-solid fa-plus text-xs" />
             <span>{mode === 'events' ? 'New Event' : 'New Deal'}</span>
           </button>
-        </div>
-
-        {/* Month label + stats + nav */}
-        <div className="px-4 py-3 flex items-center justify-between shrink-0 border-b border-slate-200 gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <h2 className="text-sm font-semibold text-slate-700 shrink-0">
-              {cursorDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
-            </h2>
-            {mode === 'events' && (
-              <CalendarStatsBar
-                events={overlayFilteredEvents}
-                weekStart={startOfWeek(cursorDate)}
-                activeFilter={statFilter}
-                onSelect={selectStatFilter}
-              />
-            )}
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2">
             <button onClick={goPrev} className="text-xs font-medium text-slate-600 hover:bg-slate-100 px-2 py-1 rounded">
               &#9664; Previous
             </button>
@@ -434,216 +427,232 @@ export default function Calendar() {
             </button>
           </div>
         </div>
-
-        {/* Events/Deals toggle + view toggle + search */}
-        <SearchToolbar
-          search={search}
-          onSearchChange={setSearch}
-          placeholder={mode === 'events' ? 'Search events...' : 'Search deals...'}
-          rightExtra={
-            <div className="flex items-center gap-2">
-              {statFilter && (
-                <span className="flex items-center gap-1.5 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-full px-2.5 py-1">
-                  Filter: {STAT_FILTER_LABELS[statFilter]}
-                  <button onClick={() => setStatFilter(null)} className="hover:text-indigo-900">
-                    <i className="fa-solid fa-xmark text-[10px]" />
-                  </button>
-                </span>
-              )}
-
-              <div className="flex items-center gap-1 border border-slate-200 rounded-md p-0.5 bg-slate-50">
-                {(['events', 'deals'] as CalendarMode[]).map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => setMode(m)}
-                    className={`px-2.5 py-1 text-xs font-semibold rounded ${
-                      mode === m ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500'
-                    }`}
-                  >
-                    {MODE_LABELS[m]}
-                  </button>
-                ))}
-              </div>
-              <div className="flex items-center gap-1 border border-slate-200 rounded-md p-0.5 bg-slate-50">
-                {(['month', 'week', 'day', 'agenda'] as CalendarViewMode[]).map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => setViewMode(m)}
-                    className={`px-2.5 py-1 text-xs font-semibold rounded capitalize ${
-                      viewMode === m ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500'
-                    }`}
-                  >
-                    {m}
-                  </button>
-                ))}
-              </div>
-            </div>
-          }
-        />
-
-        {mode === 'events' && <CalendarLegend visibleTypes={visibleTypes} onToggle={toggleType} />}
-
-        {isLoading ? (
-          <div className="flex-1 flex items-center justify-center text-sm text-slate-400">
-            {mode === 'events' ? 'Loading events...' : 'Loading deals...'}
-          </div>
-        ) : mode === 'events' ? (
-          <>
-            {viewMode === 'month' && (
-              <MonthView
-                monthDate={cursorDate}
-                events={visibleEvents}
-                checkedResourceIds={checkedResourceIds}
-                resourceColorById={resourceColorById}
-                onEventClick={setQuickViewEvent}
-                onDayClick={(date) => openAddModal(date)}
-              />
-            )}
-            {viewMode === 'week' && (
-              <WeekView
-                weekStart={startOfWeek(cursorDate)}
-                events={weekEvents}
-                checkedResourceIds={checkedResourceIds}
-                resourceColorById={resourceColorById}
-                onEventClick={setQuickViewEvent}
-              />
-            )}
-            {viewMode === 'day' && (
-              <EventListView
-                events={dayEvents}
-                checkedResourceIds={checkedResourceIds}
-                resourceColorById={resourceColorById}
-                onEventClick={setQuickViewEvent}
-                emptyLabel="No events on this day."
-              />
-            )}
-            {viewMode === 'agenda' && (
-              <EventListView
-                events={visibleEvents}
-                checkedResourceIds={checkedResourceIds}
-                resourceColorById={resourceColorById}
-                onEventClick={setQuickViewEvent}
-                emptyLabel="No events this month."
-              />
-            )}
-          </>
-        ) : (
-          <>
-            {viewMode === 'month' && (
-              <DealMonthView monthDate={cursorDate} deals={visibleDeals} onDealClick={setQuickViewDeal} />
-            )}
-            {viewMode === 'week' && (
-              <DealWeekView
-                weekStart={startOfWeek(cursorDate)}
-                deals={weekDeals}
-                stagesById={stagesById}
-                onDealClick={setQuickViewDeal}
-              />
-            )}
-            {viewMode === 'day' && (
-              <DealListView
-                deals={dayDeals}
-                stagesById={stagesById}
-                onDealClick={setQuickViewDeal}
-                emptyLabel="No deals closing this day."
-              />
-            )}
-            {viewMode === 'agenda' && (
-              <DealListView
-                deals={visibleDeals}
-                stagesById={stagesById}
-                onDealClick={setQuickViewDeal}
-                emptyLabel="No deals closing this month."
-              />
-            )}
-          </>
-        )}
-
-        <EventFormModal
-          open={formOpen}
-          event={editingEvent}
-          defaultDate={addDefaultDate}
-          onClose={() => setFormOpen(false)}
-        />
-
-        <EventQuickView
-          event={quickViewEvent}
-          onClose={() => setQuickViewEvent(null)}
-          onEdit={(event) => {
-            setQuickViewEvent(null);
-            setActiveEvent(event);
-          }}
-          isAdmin={isAdmin}
-          currentUserId={user?.id}
-        />
-
-        <EventDetailPanel
-          event={activeEvent}
-          onClose={() => setActiveEvent(null)}
-          onEdit={openEditModal}
-          onOpenContact={() => navigate('/contacts')}
-          onOpenOpportunity={() => navigate('/pipeline')}
-          isAdmin={isAdmin}
-          currentUserId={user?.id}
-        />
-
-        <DealQuickView
-          deal={quickViewDeal}
-          stages={allStages}
-          isAdmin={isAdmin}
-          currentUserId={user?.id}
-          onClose={() => setQuickViewDeal(null)}
-          onEdit={(deal) => {
-            setQuickViewDeal(null);
-            openEditDeal(deal);
-          }}
-          onMarkWon={handleMarkDealWon}
-          onMarkLost={(deal) => {
-            setQuickViewDeal(null);
-            setLostDeal(deal);
-          }}
-          onOpenFullDetails={(deal) => {
-            setQuickViewDeal(null);
-            setDetailDeal(deal);
-          }}
-        />
-
-        <DealDetailModal
-          deal={detailDeal}
-          stages={allStages}
-          stagesById={stagesById}
-          isAdmin={isAdmin}
-          currentUserId={user?.id}
-          onClose={() => setDetailDeal(null)}
-          onEdit={(deal) => {
-            setDetailDeal(null);
-            openEditDeal(deal);
-          }}
-          onMarkWon={handleMarkDealWon}
-          onMarkLost={(deal) => {
-            setDetailDeal(null);
-            setLostDeal(deal);
-          }}
-        />
-
-        <MarkLostModal
-          open={!!lostDeal}
-          dealName={lostDeal?.name}
-          dealValue={lostDeal?.deal_value}
-          onConfirm={handleConfirmMarkLost}
-          onCancel={() => setLostDeal(null)}
-          isSubmitting={updateOpportunity.isPending}
-        />
-
-        {defaultPipelineId && (
-          <DealFormModal
-            open={dealFormOpen}
-            opportunity={editingDeal}
-            pipelineId={editingDeal?.pipeline_id ?? defaultPipelineId}
-            onClose={() => setDealFormOpen(false)}
-          />
-        )}
       </div>
+
+      <CalendarTabs
+        users={users}
+        resources={resources}
+        currentUserId={user?.id}
+        isAdmin={isAdmin}
+        checkedUserIds={checkedUserIds}
+        checkedResourceIds={checkedResourceIds}
+        onToggleUser={toggleUser}
+        onToggleResource={toggleResource}
+        onToggleAllUsers={toggleAllUsers}
+        onToggleAllResources={toggleAllResources}
+        onSelectAllUsers={selectAllUsers}
+        onSelectOnlyMe={selectOnlyMe}
+      />
+
+      {/* Events/Deals toggle + view toggle + search */}
+      <SearchToolbar
+        search={search}
+        onSearchChange={setSearch}
+        placeholder={mode === 'events' ? 'Search events...' : 'Search deals...'}
+        rightExtra={
+          statFilter && (
+            <span className="flex items-center gap-1.5 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-full px-2.5 py-1">
+              Filter: {STAT_FILTER_LABELS[statFilter]}
+              <button onClick={() => setStatFilter(null)} className="hover:text-indigo-900">
+                <i className="fa-solid fa-xmark text-[10px]" />
+              </button>
+            </span>
+          )
+        }
+        endExtra={
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 border border-slate-200 rounded-md p-0.5 bg-slate-50">
+              {(['events', 'deals'] as CalendarMode[]).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setMode(m)}
+                  className={`px-2.5 py-1 text-xs font-semibold rounded ${
+                    mode === m ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500'
+                  }`}
+                >
+                  {MODE_LABELS[m]}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-1 border border-slate-200 rounded-md p-0.5 bg-slate-50">
+              {(['month', 'week', 'day', 'agenda'] as CalendarViewMode[]).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setViewMode(m)}
+                  className={`px-2.5 py-1 text-xs font-semibold rounded capitalize ${
+                    viewMode === m ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500'
+                  }`}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+          </div>
+        }
+      />
+
+      {mode === 'events' && <CalendarLegend visibleTypes={visibleTypes} onToggle={toggleType} />}
+
+      {isLoading ? (
+        <div className="flex-1 flex items-center justify-center text-sm text-slate-400">
+          {mode === 'events' ? 'Loading events...' : 'Loading deals...'}
+        </div>
+      ) : mode === 'events' ? (
+        <>
+          {viewMode === 'month' && (
+            <MonthView
+              monthDate={cursorDate}
+              events={visibleEvents}
+              checkedResourceIds={checkedResourceIds}
+              resourceColorById={resourceColorById}
+              onEventClick={setQuickViewEvent}
+              onDayClick={(date) => openAddModal(date)}
+            />
+          )}
+          {viewMode === 'week' && (
+            <WeekView
+              weekStart={startOfWeek(cursorDate)}
+              events={weekEvents}
+              checkedResourceIds={checkedResourceIds}
+              resourceColorById={resourceColorById}
+              onEventClick={setQuickViewEvent}
+            />
+          )}
+          {viewMode === 'day' && (
+            <EventListView
+              events={dayEvents}
+              checkedResourceIds={checkedResourceIds}
+              resourceColorById={resourceColorById}
+              onEventClick={setQuickViewEvent}
+              emptyLabel="No events on this day."
+            />
+          )}
+          {viewMode === 'agenda' && (
+            <EventListView
+              events={visibleEvents}
+              checkedResourceIds={checkedResourceIds}
+              resourceColorById={resourceColorById}
+              onEventClick={setQuickViewEvent}
+              emptyLabel="No events this month."
+            />
+          )}
+        </>
+      ) : (
+        <>
+          {viewMode === 'month' && (
+            <DealMonthView monthDate={cursorDate} deals={visibleDeals} onDealClick={setQuickViewDeal} />
+          )}
+          {viewMode === 'week' && (
+            <DealWeekView
+              weekStart={startOfWeek(cursorDate)}
+              deals={weekDeals}
+              stagesById={stagesById}
+              onDealClick={setQuickViewDeal}
+            />
+          )}
+          {viewMode === 'day' && (
+            <DealListView
+              deals={dayDeals}
+              stagesById={stagesById}
+              onDealClick={setQuickViewDeal}
+              emptyLabel="No deals closing this day."
+            />
+          )}
+          {viewMode === 'agenda' && (
+            <DealListView
+              deals={visibleDeals}
+              stagesById={stagesById}
+              onDealClick={setQuickViewDeal}
+              emptyLabel="No deals closing this month."
+            />
+          )}
+        </>
+      )}
+
+      <EventFormModal
+        open={formOpen}
+        event={editingEvent}
+        defaultDate={addDefaultDate}
+        onClose={() => setFormOpen(false)}
+      />
+
+      <EventQuickView
+        event={quickViewEvent}
+        onClose={() => setQuickViewEvent(null)}
+        onEdit={(event) => {
+          setQuickViewEvent(null);
+          setActiveEvent(event);
+        }}
+        isAdmin={isAdmin}
+        currentUserId={user?.id}
+      />
+
+      <EventDetailPanel
+        event={activeEvent}
+        onClose={() => setActiveEvent(null)}
+        onEdit={openEditModal}
+        onOpenContact={() => navigate('/contacts')}
+        onOpenOpportunity={() => navigate('/pipeline')}
+        isAdmin={isAdmin}
+        currentUserId={user?.id}
+      />
+
+      <DealQuickView
+        deal={quickViewDeal}
+        stages={allStages}
+        isAdmin={isAdmin}
+        currentUserId={user?.id}
+        onClose={() => setQuickViewDeal(null)}
+        onEdit={(deal) => {
+          setQuickViewDeal(null);
+          openEditDeal(deal);
+        }}
+        onMarkWon={handleMarkDealWon}
+        onMarkLost={(deal) => {
+          setQuickViewDeal(null);
+          setLostDeal(deal);
+        }}
+        onOpenFullDetails={(deal) => {
+          setQuickViewDeal(null);
+          setDetailDeal(deal);
+        }}
+      />
+
+      <DealDetailModal
+        deal={detailDeal}
+        stages={allStages}
+        stagesById={stagesById}
+        isAdmin={isAdmin}
+        currentUserId={user?.id}
+        onClose={() => setDetailDeal(null)}
+        onEdit={(deal) => {
+          setDetailDeal(null);
+          openEditDeal(deal);
+        }}
+        onMarkWon={handleMarkDealWon}
+        onMarkLost={(deal) => {
+          setDetailDeal(null);
+          setLostDeal(deal);
+        }}
+      />
+
+      <MarkLostModal
+        open={!!lostDeal}
+        dealName={lostDeal?.name}
+        dealValue={lostDeal?.deal_value}
+        onConfirm={handleConfirmMarkLost}
+        onCancel={() => setLostDeal(null)}
+        isSubmitting={updateOpportunity.isPending}
+      />
+
+      {defaultPipelineId && (
+        <DealFormModal
+          open={dealFormOpen}
+          opportunity={editingDeal}
+          pipelineId={editingDeal?.pipeline_id ?? defaultPipelineId}
+          onClose={() => setDealFormOpen(false)}
+        />
+      )}
     </div>
   );
 }

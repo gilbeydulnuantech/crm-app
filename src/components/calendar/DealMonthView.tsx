@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Opportunity } from '../../types/opportunity';
 import { toTitleCase } from '../../utils/text';
+import { DEFAULT_USER_COLOR, hexToRgba } from '../../utils/userColor';
 
 interface Props {
   monthDate: Date;
@@ -73,20 +74,30 @@ export default function DealMonthView({ monthDate, deals, onDealClick }: Props) 
                     {date.getDate()}
                   </div>
                   <div className="space-y-0.5">
-                    {dayDeals.slice(0, 3).map((d) => (
-                      <div
-                        key={d.id}
-                        onClick={(ev) => {
-                          ev.stopPropagation();
-                          onDealClick(d);
-                        }}
-                        className="text-[10px] px-1 py-0.5 rounded truncate bg-indigo-100 text-indigo-800 cursor-pointer"
-                        title={d.name}
-                      >
-                        {d.name}
-                        {d.contact_name && ` · ${toTitleCase(d.contact_name)}`}
-                      </div>
-                    ))}
+                    {dayDeals.slice(0, 3).map((d) => {
+                      const ownerColor = d.assigned_user ? d.assigned_user_color || DEFAULT_USER_COLOR : undefined;
+                      return (
+                        <div
+                          key={d.id}
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            onDealClick(d);
+                          }}
+                          className={`text-[10px] px-1 py-0.5 rounded truncate cursor-pointer border-l-2 ${
+                            ownerColor ? '' : 'bg-indigo-100 text-indigo-800'
+                          }`}
+                          style={
+                            ownerColor
+                              ? { backgroundColor: hexToRgba(ownerColor, 0.18), color: ownerColor, borderLeftColor: ownerColor }
+                              : { borderLeftColor: 'transparent' }
+                          }
+                          title={d.name}
+                        >
+                          {d.name}
+                          {d.contact_name && ` · ${toTitleCase(d.contact_name)}`}
+                        </div>
+                      );
+                    })}
                     {dayDeals.length > 3 && (
                       <div className="text-[10px] text-slate-400 px-1">+{dayDeals.length - 3} more</div>
                     )}

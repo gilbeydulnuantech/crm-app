@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Opportunity, Stage } from '../../types/opportunity';
 import { toTitleCase } from '../../utils/text';
+import { DEFAULT_USER_COLOR, hexToRgba } from '../../utils/userColor';
 
 interface Props {
   weekStart: Date;
@@ -49,20 +50,36 @@ export default function DealWeekView({ weekStart, deals, stagesById, onDealClick
                 {day.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}
               </div>
               <div className="space-y-1.5">
-                {dayDeals.map((d) => (
-                  <div
-                    key={d.id}
-                    onClick={() => onDealClick(d)}
-                    className="text-[11px] px-1.5 py-1.5 rounded cursor-pointer bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-100"
-                  >
-                    <div className="font-semibold truncate">{d.name}</div>
-                    {d.contact_name && <div className="truncate text-indigo-700">{toTitleCase(d.contact_name)}</div>}
-                    <div className="mt-1 inline-block px-1.5 py-0.5 rounded-full bg-white text-indigo-700 text-[9px] font-medium truncate">
-                      {stagesById.get(d.stage_id)?.name ?? '--'}
+                {dayDeals.map((d) => {
+                  const ownerColor = d.assigned_user ? d.assigned_user_color || DEFAULT_USER_COLOR : undefined;
+                  return (
+                    <div
+                      key={d.id}
+                      onClick={() => onDealClick(d)}
+                      className={`text-[11px] px-1.5 py-1.5 rounded cursor-pointer border ${
+                        ownerColor ? '' : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border-indigo-100'
+                      }`}
+                      style={
+                        ownerColor
+                          ? {
+                              backgroundColor: hexToRgba(ownerColor, 0.14),
+                              borderColor: hexToRgba(ownerColor, 0.35),
+                              borderLeft: `3px solid ${ownerColor}`,
+                            }
+                          : undefined
+                      }
+                    >
+                      <div className="font-semibold truncate" style={ownerColor ? { color: ownerColor } : undefined}>
+                        {d.name}
+                      </div>
+                      {d.contact_name && <div className="truncate text-indigo-700">{toTitleCase(d.contact_name)}</div>}
+                      <div className="mt-1 inline-block px-1.5 py-0.5 rounded-full bg-white text-indigo-700 text-[9px] font-medium truncate">
+                        {stagesById.get(d.stage_id)?.name ?? '--'}
+                      </div>
+                      <div className="font-bold text-emerald-700">{currency(d.deal_value)}</div>
                     </div>
-                    <div className="font-bold text-emerald-700">{currency(d.deal_value)}</div>
-                  </div>
-                ))}
+                  );
+                })}
                 {dayDeals.length === 0 && (
                   <div className="text-[10px] text-slate-300 text-center pt-4">No deals</div>
                 )}

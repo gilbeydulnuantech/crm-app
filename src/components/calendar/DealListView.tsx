@@ -1,5 +1,6 @@
 import { Opportunity, Stage } from '../../types/opportunity';
 import { toTitleCase } from '../../utils/text';
+import { DEFAULT_USER_COLOR, hexToRgba } from '../../utils/userColor';
 
 interface Props {
   deals: Opportunity[];
@@ -32,11 +33,18 @@ export default function DealListView({ deals, stagesById, onDealClick, emptyLabe
 
   return (
     <div className="flex-1 overflow-auto p-4 space-y-2">
-      {sorted.map((d) => (
+      {sorted.map((d) => {
+        const ownerColor = d.assigned_user ? d.assigned_user_color || DEFAULT_USER_COLOR : undefined;
+        return (
         <div
           key={d.id}
           onClick={() => onDealClick(d)}
           className="flex items-center gap-3 border border-slate-200 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-slate-50"
+          style={
+            ownerColor
+              ? { backgroundColor: hexToRgba(ownerColor, 0.08), borderLeft: `3px solid ${ownerColor}` }
+              : undefined
+          }
         >
           <div className="w-20 shrink-0 text-xs text-slate-500">
             {new Date(d.expected_close!).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
@@ -64,7 +72,8 @@ export default function DealListView({ deals, stagesById, onDealClick, emptyLabe
             {d.status}
           </span>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
