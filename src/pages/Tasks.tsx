@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { VisibilityState } from '@tanstack/react-table';
 import { useSearchParams } from 'react-router-dom';
 import { Task, TaskPriority, TaskStatus, taskStatus, TasksView } from '../types/task';
 import { useAuth } from '../context/AuthContext';
@@ -16,7 +17,7 @@ import {
 import { startDm, sendMessage } from '../api/chat';
 import TasksStatsBar from '../components/tasks/TasksStatsBar';
 import TasksTabs from '../components/tasks/TasksTabs';
-import TasksTable from '../components/tasks/TasksTable';
+import TasksTable, { TasksColumnsMenu } from '../components/tasks/TasksTable';
 import TasksKanbanBoard from '../components/tasks/TasksKanbanBoard';
 import TasksBulkActionsMenu from '../components/tasks/TasksBulkActionsMenu';
 import TaskFormModal from '../components/tasks/TaskFormModal';
@@ -37,6 +38,7 @@ export default function Tasks() {
 
   const [view, setView] = useState<TasksView>('all');
   const [boardView, setBoardView] = useState<BoardView>('kanban');
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [search, setSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [addOpen, setAddOpen] = useState(false);
@@ -308,18 +310,26 @@ export default function Tasks() {
         onSearchChange={setSearch}
         placeholder="Search tasks..."
         endExtra={
-          <div className="flex items-center gap-1 border border-slate-200 rounded-md p-0.5 bg-slate-50">
-            {(['kanban', 'list'] as BoardView[]).map((v) => (
-              <button
-                key={v}
-                onClick={() => setBoardView(v)}
-                className={`px-2.5 py-1 text-xs font-semibold rounded capitalize ${
-                  boardView === v ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500'
-                }`}
-              >
-                {v}
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 border border-slate-200 rounded-md p-0.5 bg-slate-50">
+              {(['kanban', 'list'] as BoardView[]).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setBoardView(v)}
+                  className={`px-2.5 py-1 text-xs font-semibold rounded capitalize ${
+                    boardView === v ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500'
+                  }`}
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
+            {boardView === 'list' && (
+              <TasksColumnsMenu
+                visibility={columnVisibility}
+                onToggle={(id) => setColumnVisibility((v) => ({ ...v, [id]: v[id] === false }))}
+              />
+            )}
           </div>
         }
       />
@@ -335,6 +345,8 @@ export default function Tasks() {
             isLoading={view === 'archived' ? isLoadingArchived : isLoading}
             isAdmin={isAdmin}
             currentUserId={user?.id}
+            columnVisibility={columnVisibility}
+            onColumnVisibilityChange={setColumnVisibility}
           />
 
           <div className="px-4 py-2.5 border-t border-slate-200 flex items-center justify-between shrink-0">

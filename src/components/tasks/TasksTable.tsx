@@ -1,9 +1,10 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   createColumnHelper,
   flexRender,
   getCoreRowModel,
   useReactTable,
+  VisibilityState,
 } from '@tanstack/react-table';
 import { Task, taskStatus } from '../../types/task';
 import { toTitleCase } from '../../utils/text';
@@ -17,6 +18,8 @@ interface Props {
   isLoading: boolean;
   isAdmin: boolean;
   currentUserId?: number;
+  columnVisibility: VisibilityState;
+  onColumnVisibilityChange: (updater: VisibilityState | ((old: VisibilityState) => VisibilityState)) => void;
 }
 
 const columnHelper = createColumnHelper<Task>();
@@ -28,6 +31,58 @@ const STATUS_COLORS: Record<string, string> = {
   Upcoming: 'bg-slate-100 text-slate-800',
 };
 
+// Select and Task stay mandatory — everything else is toggleable via
+// TasksColumnsMenu, mirroring CompaniesTable's convention.
+const OPTIONAL_COLUMNS = ['related_to', 'assigned_user_name', 'due_at', 'status'] as const;
+const COLUMN_LABELS: Record<(typeof OPTIONAL_COLUMNS)[number], string> = {
+  related_to: 'Related To',
+  assigned_user_name: 'Assigned',
+  due_at: 'Due Date',
+  status: 'Status',
+};
+
+export function TasksColumnsMenu({
+  visibility,
+  onToggle,
+}: {
+  visibility: VisibilityState;
+  onToggle: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-indigo-600 py-1.5 px-2.5 border border-slate-200 rounded-md bg-white transition-colors"
+      >
+        <span>Columns</span>
+        <i className="fa-solid fa-gear text-[10px]" />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full mt-1 w-44 bg-white border border-slate-200 rounded-lg shadow-lg z-20 py-1.5">
+            {OPTIONAL_COLUMNS.map((id) => (
+              <label
+                key={id}
+                className="flex items-center gap-2 px-3 py-1 text-xs text-slate-600 cursor-pointer hover:bg-slate-50"
+              >
+                <input
+                  type="checkbox"
+                  checked={visibility[id] !== false}
+                  onChange={() => onToggle(id)}
+                  className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
+                />
+                {COLUMN_LABELS[id]}
+              </label>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function TasksTable({
   tasks,
   selectedIds,
@@ -37,6 +92,8 @@ export default function TasksTable({
   isLoading,
   isAdmin,
   currentUserId,
+  columnVisibility,
+  onColumnVisibilityChange,
 }: Props) {
   // View All, Edit Owned Only: standard users can see every task but only
   // select/edit the ones assigned to them. Admins can act on anything.
@@ -129,6 +186,8 @@ export default function TasksTable({
   const table = useReactTable({
     data: tasks,
     columns,
+    state: { columnVisibility },
+    onColumnVisibilityChange: onColumnVisibilityChange,
     getCoreRowModel: getCoreRowModel(),
   });
 

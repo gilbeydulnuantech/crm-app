@@ -5,6 +5,7 @@ import {
   getCoreRowModel,
   getSortedRowModel,
   SortingState,
+  VisibilityState,
   useReactTable,
 } from '@tanstack/react-table';
 import { Opportunity, Stage } from '../../types/opportunity';
@@ -15,9 +16,64 @@ interface Props {
   stages: Stage[];
   onRowClick: (opportunity: Opportunity) => void;
   isLoading: boolean;
+  columnVisibility: VisibilityState;
+  onColumnVisibilityChange: (updater: VisibilityState | ((old: VisibilityState) => VisibilityState)) => void;
 }
 
 const columnHelper = createColumnHelper<Opportunity>();
+
+// Opportunity (name) and Value stay mandatory — everything else is
+// toggleable via PipelineColumnsMenu, mirroring CompaniesTable's convention.
+const OPTIONAL_COLUMNS = ['company_name', 'contact_name', 'stage', 'assigned_user_name', 'expected_close'] as const;
+const COLUMN_LABELS: Record<(typeof OPTIONAL_COLUMNS)[number], string> = {
+  company_name: 'Company',
+  contact_name: 'Contact',
+  stage: 'Stage',
+  assigned_user_name: 'Owner',
+  expected_close: 'Due Date',
+};
+
+export function PipelineColumnsMenu({
+  visibility,
+  onToggle,
+}: {
+  visibility: VisibilityState;
+  onToggle: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-indigo-600 py-1.5 px-2.5 border border-slate-200 rounded-md bg-white transition-colors"
+      >
+        <span>Columns</span>
+        <i className="fa-solid fa-gear text-[10px]" />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full mt-1 w-44 bg-white border border-slate-200 rounded-lg shadow-lg z-20 py-1.5">
+            {OPTIONAL_COLUMNS.map((id) => (
+              <label
+                key={id}
+                className="flex items-center gap-2 px-3 py-1 text-xs text-slate-600 cursor-pointer hover:bg-slate-50"
+              >
+                <input
+                  type="checkbox"
+                  checked={visibility[id] !== false}
+                  onChange={() => onToggle(id)}
+                  className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
+                />
+                {COLUMN_LABELS[id]}
+              </label>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 function currency(val?: number | string | null) {
   if (val === undefined || val === null || val === '') return '--';
@@ -32,7 +88,14 @@ function currency(val?: number | string | null) {
   }).format(n);
 }
 
-export default function PipelineListView({ opportunities, stages, onRowClick, isLoading }: Props) {
+export default function PipelineListView({
+  opportunities,
+  stages,
+  onRowClick,
+  isLoading,
+  columnVisibility,
+  onColumnVisibilityChange,
+}: Props) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const stageName = (id: number) => stages.find((s) => s.id === id)?.name ?? '--';
 
@@ -78,8 +141,9 @@ export default function PipelineListView({ opportunities, stages, onRowClick, is
   const table = useReactTable({
     data: opportunities,
     columns,
-    state: { sorting },
+    state: { sorting, columnVisibility },
     onSortingChange: setSorting,
+    onColumnVisibilityChange: onColumnVisibilityChange,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
   });

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { VisibilityState } from '@tanstack/react-table';
 import { useSearchParams } from 'react-router-dom';
 import { Opportunity, PipelineViewMode } from '../types/opportunity';
 import { NewPipelineResult } from '../api/opportunities';
@@ -18,7 +19,7 @@ import { useAddTask } from '../hooks/useTasks';
 import { useAuth } from '../context/AuthContext';
 import PipelineStatsBar from '../components/pipeline/PipelineStatsBar';
 import PipelineBoard from '../components/pipeline/PipelineBoard';
-import PipelineListView from '../components/pipeline/PipelineListView';
+import PipelineListView, { PipelineColumnsMenu } from '../components/pipeline/PipelineListView';
 import PipelineSelector from '../components/pipeline/PipelineSelector';
 import PipelineTabs, { PipelineTabView } from '../components/pipeline/PipelineTabs';
 import ArchivedDealsList from '../components/pipeline/ArchivedDealsList';
@@ -45,6 +46,7 @@ export default function Pipeline() {
     urlPipelineId ? Number(urlPipelineId) : undefined
   );
   const [viewMode, setViewMode] = useState<PipelineViewMode>('board');
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [view, setView] = useState<PipelineTabView>('all');
   const [search, setSearch] = useState('');
   const [formOpen, setFormOpen] = useState(false);
@@ -323,25 +325,33 @@ export default function Pipeline() {
         onSearchChange={setSearch}
         placeholder="Search deals..."
         endExtra={
-          <div className="flex items-center gap-1 border border-slate-200 rounded-md p-0.5 bg-slate-50">
-            <button
-              onClick={() => setViewMode('board')}
-              className={`px-2.5 py-1 text-xs font-semibold rounded ${
-                viewMode === 'board' ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500'
-              }`}
-            >
-              <i className="fa-solid fa-table-columns text-[10px] mr-1" />
-              Board
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`px-2.5 py-1 text-xs font-semibold rounded ${
-                viewMode === 'list' ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500'
-              }`}
-            >
-              <i className="fa-solid fa-list text-[10px] mr-1" />
-              List
-            </button>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 border border-slate-200 rounded-md p-0.5 bg-slate-50">
+              <button
+                onClick={() => setViewMode('board')}
+                className={`px-2.5 py-1 text-xs font-semibold rounded ${
+                  viewMode === 'board' ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500'
+                }`}
+              >
+                <i className="fa-solid fa-table-columns text-[10px] mr-1" />
+                Board
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`px-2.5 py-1 text-xs font-semibold rounded ${
+                  viewMode === 'list' ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500'
+                }`}
+              >
+                <i className="fa-solid fa-list text-[10px] mr-1" />
+                List
+              </button>
+            </div>
+            {viewMode === 'list' && view !== 'archived' && (
+              <PipelineColumnsMenu
+                visibility={columnVisibility}
+                onToggle={(id) => setColumnVisibility((v) => ({ ...v, [id]: v[id] === false }))}
+              />
+            )}
           </div>
         }
       />
@@ -372,6 +382,8 @@ export default function Pipeline() {
           stages={stages}
           onRowClick={setQuickViewDeal}
           isLoading={isLoading}
+          columnVisibility={columnVisibility}
+          onColumnVisibilityChange={setColumnVisibility}
         />
       )}
 
