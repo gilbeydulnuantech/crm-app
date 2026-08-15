@@ -1,6 +1,8 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Contact, LEAD_STATUS_OPTIONS } from '../../types/contact';
-import { useAddContact, useUpdateContact } from '../../hooks/useContacts';
+import { useAddContact, useContacts, useUpdateContact, useUsers } from '../../hooks/useContacts';
+import { useAuth } from '../../context/AuthContext';
+import { toTitleCase } from '../../utils/text';
 import CompanyPicker from './CompanyPicker';
 
 interface Props {
@@ -29,6 +31,7 @@ const EMPTY = {
   lead_status: 'New',
   lead_source: '',
   do_not_contact: false,
+  owner_id: null as number | null,
 };
 
 const inputClass =
@@ -41,13 +44,42 @@ export default function AddContactModal({
   defaultCompanyName,
   onClose,
 }: Props) {
+  const formRef = useRef<HTMLFormElement>(null);
   const [form, setForm] = useState(EMPTY);
   const [error, setError] = useState<string | null>(null);
+  const [justAdded, setJustAdded] = useState(false);
   const addContact = useAddContact();
   const updateContact = useUpdateContact();
+  const { user, isAdmin } = useAuth();
+  const { data: users = [] } = useUsers();
+  // Reuses the ['contacts'] cache Contacts.tsx already populated — no extra
+  // request — just to check for an existing contact with the same email.
+  const { data: allContacts = [] } = useContacts();
 
   const isEdit = !!contact;
   const isSaving = addContact.isPending || updateContact.isPending;
+
+  // Soft warning only, not a hard block — cross-account emails (a shared
+  // support inbox, a spouse's forwarded address, etc.) are legitimately
+  // reused sometimes, so the rep should be able to proceed anyway.
+  const duplicateMatch = useMemo(() => {
+    const email = form.email.trim().toLowerCase();
+    if (!email) return null;
+    return (
+      allContacts.find(
+        (c) => c.id !== contact?.id && (c.email ?? '').trim().toLowerCase() === email
+      ) ?? null
+    );
+  }, [form.email, allContacts, contact]);
+
+  function resetForNew(keepCompany: boolean) {
+    setForm({
+      ...EMPTY,
+      account_id: keepCompany ? form.account_id : (defaultAccountId ?? null),
+      company_name: keepCompany ? form.company_name : (defaultCompanyName ?? ''),
+      owner_id: form.owner_id,
+    });
+  }
 
   useEffect(() => {
     if (contact) {
@@ -69,16 +101,19 @@ export default function AddContactModal({
         lead_status: contact.lead_status ?? 'New',
         lead_source: contact.lead_source ?? '',
         do_not_contact: contact.do_not_contact ?? false,
+        owner_id: contact.owner_id ?? null,
       });
     } else {
       setForm({
         ...EMPTY,
         account_id: defaultAccountId ?? null,
         company_name: defaultCompanyName ?? '',
+        owner_id: user?.id ?? null,
       });
     }
     setError(null);
-  }, [contact, open, defaultAccountId, defaultCompanyName]);
+    setJustAdded(false);
+  }, [contact, open, defaultAccountId, defaultCompanyName, user]);
 
   if (!open) return null;
 
@@ -86,9 +121,10 @@ export default function AddContactModal({
     setForm((f) => ({ ...f, [key]: value }));
   }
 
-  function handleSubmit(e: FormEvent) {
+  function handleSubmit(e: { preventDefault: () => void }, keepOpen = false) {
     e.preventDefault();
     setError(null);
+    setJustAdded(false);
 
     // account_id is the real link to the companies table; company_name is
     // sent too only so a backend that hasn't been updated to join it can
@@ -110,6 +146,9 @@ export default function AddContactModal({
       lead_status: form.lead_status,
       lead_source: form.lead_source,
       do_not_contact: form.do_not_contact,
+      // The backend only honors this for admins — anyone else's new
+      // contacts stay self-owned regardless of what's sent here.
+      ...(isEdit ? {} : { owner_id: form.owner_id }),
     };
 
     if (isEdit && contact) {
@@ -123,8 +162,13 @@ export default function AddContactModal({
     } else {
       addContact.mutate(payload, {
         onSuccess: () => {
-          setForm(EMPTY);
-          onClose();
+          if (keepOpen) {
+            resetForNew(true);
+            setJustAdded(true);
+          } else {
+            setForm(EMPTY);
+            onClose();
+          }
         },
         onError: (err) => setError(err instanceof Error ? err.message : 'Failed to add contact.'),
       });
@@ -141,10 +185,12 @@ export default function AddContactModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form ref={formRef} onSubmit={handleSubmit} className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">First Name</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">
+                First Name <span className="text-rose-500">*</span>
+              </label>
               <input
                 required
                 value={form.first_name}
@@ -171,6 +217,12 @@ export default function AddContactModal({
                 onChange={(e) => update('email', e.target.value)}
                 className={inputClass}
               />
+              {duplicateMatch && (
+                <p className="mt-1 text-[11px] text-amber-600 flex items-center gap-1">
+                  <i className="fa-solid fa-triangle-exclamation" />
+                  Already used by {toTitleCase(`${duplicateMatch.first_name} ${duplicateMatch.last_name}`.trim()) || 'another contact'}
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Secondary Email</label>
@@ -262,6 +314,30 @@ export default function AddContactModal({
             </div>
           </div>
 
+          {!isEdit && (
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Owner</label>
+              {isAdmin ? (
+                <select
+                  value={form.owner_id ?? ''}
+                  onChange={(e) => update('owner_id', e.target.value ? Number(e.target.value) : null)}
+                  className={inputClass}
+                >
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {toTitleCase(u.name)}
+                      {u.id === user?.id ? ' (You)' : ''}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className={`${inputClass} bg-slate-50 text-slate-500`}>
+                  {toTitleCase(user?.name) || 'You'}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Status</label>
@@ -304,6 +380,13 @@ export default function AddContactModal({
             </div>
           )}
 
+          {justAdded && (
+            <div className="p-2.5 text-xs rounded-lg text-center bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <i className="fa-solid fa-check mr-1" />
+              Contact added — form cleared for the next one.
+            </div>
+          )}
+
           <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"
@@ -312,6 +395,19 @@ export default function AddContactModal({
             >
               Cancel
             </button>
+            {!isEdit && (
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={(e) => {
+                  if (!formRef.current?.reportValidity()) return;
+                  handleSubmit(e, true);
+                }}
+                className="px-4 py-2 text-sm font-semibold border border-slate-200 hover:bg-slate-50 disabled:opacity-60 text-slate-700 rounded-lg"
+              >
+                Save &amp; New
+              </button>
+            )}
             <button
               type="submit"
               disabled={isSaving}
