@@ -133,9 +133,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id FROM contacts\nWHERE is_archived = false\n  AND email <> ''\n  AND LOWER(email) = LOWER($1)\n  AND LOWER(first_name) = LOWER($2)\n  AND LOWER(COALESCE(last_name, '')) = LOWER(COALESCE($3, ''))\nLIMIT 1;",
+        "query": "SELECT (\n  SELECT id FROM contacts\n  WHERE is_archived = false\n    AND (\n      ($1 <> '' AND (LOWER(email) = LOWER($1) OR LOWER(COALESCE(secondary_email, '')) = LOWER($1)))\n      OR\n      ($2 <> '' AND (LOWER(email) = LOWER($2) OR LOWER(COALESCE(secondary_email, '')) = LOWER($2)))\n    )\n  LIMIT 1\n) AS duplicate_id;",
         "options": {
-          "queryReplacement": "={{ [ $('Validate Token & Payload').first().json.email, $('Validate Token & Payload').first().json.first_name, $('Validate Token & Payload').first().json.last_name ] }}"
+          "queryReplacement": "={{ [ $('Validate Token & Payload').first().json.email, $('Validate Token & Payload').first().json.secondary_email ] }}"
         }
       },
       "id": "4792ea4d-ddd4-4bba-9ef5-bf970d056df5",
@@ -156,7 +156,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const result = $input.first();\nif (result && result.json && result.json.id) {\n  throw new Error('A contact with this name and email is already in the database.');\n}\nreturn [{ json: {} }];"
+        "jsCode": "const result = $input.first();\nif (result && result.json && result.json.duplicate_id) {\n  throw new Error('This email (primary or secondary) is already used by another contact in the database.');\n}\nreturn [{ json: {} }];"
       },
       "id": "dc31aa26-7176-44d9-ae16-4131016612e2",
       "name": "Validate No Duplicate",

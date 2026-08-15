@@ -72,18 +72,27 @@ export default function AddContactModal({
   const isEdit = !!contact;
   const isSaving = addContact.isPending || updateContact.isPending;
 
-  // Soft warning only, not a hard block — cross-account emails (a shared
-  // support inbox, a spouse's forwarded address, etc.) are legitimately
-  // reused sometimes, so the rep should be able to proceed anyway.
+  // Hard block — mirrors the backend's Check Duplicate Contact rule
+  // (contact_ add.json): a matching email on either side (primary or
+  // secondary), name irrelevant. An email address belongs to one inbox —
+  // a second contact record under a different name but the same address
+  // means outbound email/SMS would go to that person under the wrong
+  // identity, so this blocks regardless of whether the name matches.
+  // Blocking here on the same rule the server already enforces means Save
+  // never fails with a duplicate error the rep couldn't have seen coming.
   const duplicateMatch = useMemo(() => {
-    const email = form.email.trim().toLowerCase();
-    if (!email) return null;
-    return (
-      allContacts.find(
-        (c) => c.id !== contact?.id && (c.email ?? '').trim().toLowerCase() === email
-      ) ?? null
+    const candidateEmails = [form.email.trim().toLowerCase(), form.secondary_email.trim().toLowerCase()].filter(
+      Boolean
     );
-  }, [form.email, allContacts, contact]);
+    if (candidateEmails.length === 0) return null;
+    return (
+      allContacts.find((c) => {
+        if (c.id === contact?.id) return false;
+        const existingEmails = [(c.email ?? '').trim().toLowerCase(), (c.secondary_email ?? '').trim().toLowerCase()];
+        return candidateEmails.some((e) => existingEmails.includes(e));
+      }) ?? null
+    );
+  }, [form.email, form.secondary_email, allContacts, contact]);
 
   function resetForNew(keepCompany: boolean) {
     setForm({
@@ -233,9 +242,11 @@ export default function AddContactModal({
                 className={inputClass}
               />
               {duplicateMatch && (
-                <p className="mt-1 text-[11px] text-amber-600 flex items-center gap-1">
-                  <i className="fa-solid fa-triangle-exclamation" />
-                  Already used by {toTitleCase(`${duplicateMatch.first_name} ${duplicateMatch.last_name}`.trim()) || 'another contact'}
+                <p className="mt-1 text-[11px] text-rose-600 flex items-center gap-1">
+                  <i className="fa-solid fa-circle-exclamation" />
+                  Already used by{' '}
+                  {toTitleCase(`${duplicateMatch.first_name} ${duplicateMatch.last_name}`.trim()) || 'another contact'}{' '}
+                  — edit that contact instead, or use a different email for this one.
                 </p>
               )}
             </div>
@@ -434,7 +445,7 @@ export default function AddContactModal({
             {!isEdit && (
               <button
                 type="button"
-                disabled={isSaving}
+                disabled={isSaving || !!duplicateMatch}
                 onClick={(e) => {
                   if (!formRef.current?.reportValidity()) return;
                   handleSubmit(e, true);
@@ -446,7 +457,7 @@ export default function AddContactModal({
             )}
             <button
               type="submit"
-              disabled={isSaving}
+              disabled={isSaving || !!duplicateMatch}
               className="px-4 py-2 text-sm font-semibold bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] disabled:opacity-60 text-white rounded-lg"
             >
               {isSaving ? 'Saving...' : isEdit ? 'Save Changes' : 'Add Contact'}
