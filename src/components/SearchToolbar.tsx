@@ -9,6 +9,10 @@ interface Props {
   rightExtra?: ReactNode;
   density?: 'comfortable' | 'compact';
   onDensityChange?: (density: 'comfortable' | 'compact') => void;
+  // Renders at the very end of the far-right button group (after Filters/
+  // Columns) — for a control that needs to sit at the far right of the row
+  // rather than next to the search box, unlike `rightExtra`.
+  endExtra?: ReactNode;
 }
 
 export default function SearchToolbar({
@@ -20,6 +24,7 @@ export default function SearchToolbar({
   rightExtra,
   density,
   onDensityChange,
+  endExtra,
 }: Props) {
   return (
     <div className="p-4 border-b border-slate-200 flex items-center justify-between gap-4 shrink-0">
@@ -84,6 +89,8 @@ export default function SearchToolbar({
             <i className="fa-solid fa-gear text-[10px]" />
           </button>
         )}
+
+        {endExtra}
       </div>
     </div>
   );

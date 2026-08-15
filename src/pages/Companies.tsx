@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { VisibilityState } from '@tanstack/react-table';
 import { Company, CompaniesView } from '../types/company';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -8,21 +9,25 @@ import {
   useCompanies,
   useDeleteCompanies,
 } from '../hooks/useCompanies';
-import { useContacts } from '../hooks/useContacts';
-import CompaniesStatsBar from '../components/companies/CompaniesStatsBar';
+import { useContacts, useUsers } from '../hooks/useContacts';
 import CompaniesTabs from '../components/companies/CompaniesTabs';
 import CompaniesFilterRow, {
   CompaniesFilterValue,
 } from '../components/companies/CompaniesFilterRow';
-import CompaniesTable from '../components/companies/CompaniesTable';
+import CompaniesTable, {
+  CompaniesColumnsMenu,
+  DEFAULT_COMPANY_COLUMN_VISIBILITY,
+} from '../components/companies/CompaniesTable';
 import CompaniesBulkActionsMenu from '../components/companies/CompaniesBulkActionsMenu';
 import CompanyFormModal from '../components/companies/CompanyFormModal';
 import CompanyDetailModal from '../components/companies/CompanyDetailModal';
 import CompanyHierarchyModal from '../components/companies/CompanyHierarchyModal';
 import ContactDetailModal from '../components/contacts/ContactDetailModal';
 import SearchToolbar from '../components/SearchToolbar';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const EMPTY_FILTERS: CompaniesFilterValue = { industry: '', owner: '', tag: '' };
+const DENSITY_STORAGE_KEY = 'companies-row-density';
 
 export default function Companies() {
   const { user, isAdmin } = useAuth();
@@ -37,12 +42,28 @@ export default function Companies() {
   const [activeCompanyId, setActiveCompanyId] = useState<number | null>(null);
   const [hierarchyCompanyId, setHierarchyCompanyId] = useState<number | null>(null);
   const [activeContactId, setActiveContactId] = useState<number | null>(null);
+  const [bulkArchiveConfirmOpen, setBulkArchiveConfirmOpen] = useState(false);
+  const [bulkArchiveError, setBulkArchiveError] = useState<string | null>(null);
+  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
+  const [bulkDeleteError, setBulkDeleteError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Company | null>(null);
+  const [deleteTargetError, setDeleteTargetError] = useState<string | null>(null);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(DEFAULT_COMPANY_COLUMN_VISIBILITY);
+  const [density, setDensity] = useState<'comfortable' | 'compact'>(
+    () => (localStorage.getItem(DENSITY_STORAGE_KEY) as 'comfortable' | 'compact' | null) ?? 'comfortable'
+  );
+
+  function changeDensity(next: 'comfortable' | 'compact') {
+    setDensity(next);
+    localStorage.setItem(DENSITY_STORAGE_KEY, next);
+  }
 
   const { data: allCompanies = [], isLoading } = useCompanies();
   const { data: archivedCompanies = [], isLoading: isLoadingArchived } = useArchivedCompanies(
     view === 'archived'
   );
   const { data: allContacts = [] } = useContacts();
+  const { data: teamUsers = [] } = useUsers();
   const archiveCompanies = useArchiveCompanies();
   const deleteCompanies = useDeleteCompanies();
 
@@ -133,20 +154,6 @@ export default function Companies() {
     return list;
   }, [allCompanies, view, user, search, filters]);
 
-  const stats = useMemo(() => {
-    const now = new Date();
-    return {
-      total: allCompanies.length,
-      mine: allCompanies.filter((c) => c.owner_id === user?.id).length,
-      newThisMonth: allCompanies.filter((c) => {
-        if (!c.created_at) return false;
-        const d = new Date(c.created_at);
-        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-      }).length,
-      archived: archivedCompanies.length,
-    };
-  }, [allCompanies, archivedCompanies, user]);
-
   function toggleSelect(id: number) {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -164,28 +171,50 @@ export default function Companies() {
 
   function handleArchiveSelected() {
     if (selectedIds.size === 0) return;
-    if (!confirm(`Archive ${selectedIds.size} compan${selectedIds.size === 1 ? 'y' : 'ies'}?`)) return;
+    setBulkArchiveError(null);
+    setBulkArchiveConfirmOpen(true);
+  }
+
+  function confirmArchiveSelected() {
+    setBulkArchiveError(null);
     archiveCompanies.mutate(Array.from(selectedIds), {
-      onSuccess: () => setSelectedIds(new Set()),
+      onSuccess: () => {
+        setSelectedIds(new Set());
+        setBulkArchiveConfirmOpen(false);
+      },
+      onError: (err) => setBulkArchiveError(err instanceof Error ? err.message : 'Failed to archive.'),
     });
   }
 
   function handleDeleteSelected() {
     if (selectedIds.size === 0) return;
-    if (
-      !confirm(
-        `PERMANENT DELETE: Remove ${selectedIds.size} compan${selectedIds.size === 1 ? 'y' : 'ies'} forever?`
-      )
-    )
-      return;
+    setBulkDeleteError(null);
+    setBulkDeleteConfirmOpen(true);
+  }
+
+  function confirmDeleteSelected() {
+    setBulkDeleteError(null);
     deleteCompanies.mutate(Array.from(selectedIds), {
-      onSuccess: () => setSelectedIds(new Set()),
+      onSuccess: () => {
+        setSelectedIds(new Set());
+        setBulkDeleteConfirmOpen(false);
+      },
+      onError: (err) => setBulkDeleteError(err instanceof Error ? err.message : 'Failed to delete.'),
     });
   }
 
   function handleDeleteOne(company: Company) {
-    if (!confirm(`Delete ${company.name}? This cannot be undone.`)) return;
-    deleteCompanies.mutate([company.id]);
+    setDeleteTargetError(null);
+    setDeleteTarget(company);
+  }
+
+  function confirmDeleteOne() {
+    if (!deleteTarget) return;
+    setDeleteTargetError(null);
+    deleteCompanies.mutate([deleteTarget.id], {
+      onSuccess: () => setDeleteTarget(null),
+      onError: (err) => setDeleteTargetError(err instanceof Error ? err.message : 'Failed to delete.'),
+    });
   }
 
   function handleExport() {
@@ -227,13 +256,20 @@ export default function Companies() {
         </button>
       </div>
 
-      <CompaniesStatsBar {...stats} />
       <CompaniesTabs view={view} onChange={changeView} />
 
       <SearchToolbar
         search={search}
         onSearchChange={setSearch}
         placeholder="Search companies..."
+        density={density}
+        onDensityChange={changeDensity}
+        endExtra={
+          <CompaniesColumnsMenu
+            visibility={columnVisibility}
+            onToggle={(id) => setColumnVisibility((v) => ({ ...v, [id]: v[id] === false }))}
+          />
+        }
       />
 
       {view !== 'archived' && (
@@ -256,7 +292,10 @@ export default function Companies() {
             isLoading={isLoading}
             isAdmin={isAdmin}
             currentUserId={user?.id}
-            onExport={handleExport}
+            users={teamUsers}
+            density={density}
+            columnVisibility={columnVisibility}
+            onColumnVisibilityChange={setColumnVisibility}
           />
         </>
       )}
@@ -273,7 +312,10 @@ export default function Companies() {
           isLoading={isLoadingArchived}
           isAdmin={isAdmin}
           currentUserId={user?.id}
-          onExport={handleExport}
+          users={teamUsers}
+          density={density}
+          columnVisibility={columnVisibility}
+          onColumnVisibilityChange={setColumnVisibility}
         />
       )}
 
@@ -289,6 +331,7 @@ export default function Companies() {
             selectedCount={selectedIds.size}
             onArchiveSelected={handleArchiveSelected}
             onDeleteSelected={handleDeleteSelected}
+            onExport={handleExport}
           />
         </div>
         <span className="text-xs text-slate-500">
@@ -325,6 +368,37 @@ export default function Companies() {
           setHierarchyCompanyId(null);
           setActiveCompanyId(company.id);
         }}
+      />
+      <ConfirmDialog
+        open={bulkArchiveConfirmOpen}
+        title={`Archive ${selectedIds.size} compan${selectedIds.size === 1 ? 'y' : 'ies'}?`}
+        body="Archived companies are hidden from the main list but not deleted — you can restore them later from the Archived tab."
+        confirmLabel="Archive"
+        danger={false}
+        isSubmitting={archiveCompanies.isPending}
+        error={bulkArchiveError}
+        onConfirm={confirmArchiveSelected}
+        onCancel={() => setBulkArchiveConfirmOpen(false)}
+      />
+      <ConfirmDialog
+        open={bulkDeleteConfirmOpen}
+        title={`Permanently delete ${selectedIds.size} compan${selectedIds.size === 1 ? 'y' : 'ies'}?`}
+        body="This cannot be undone."
+        confirmLabel="Delete Forever"
+        isSubmitting={deleteCompanies.isPending}
+        error={bulkDeleteError}
+        onConfirm={confirmDeleteSelected}
+        onCancel={() => setBulkDeleteConfirmOpen(false)}
+      />
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title={deleteTarget ? `Delete ${deleteTarget.name}?` : 'Delete company?'}
+        body="This cannot be undone."
+        confirmLabel="Delete"
+        isSubmitting={deleteCompanies.isPending}
+        error={deleteTargetError}
+        onConfirm={confirmDeleteOne}
+        onCancel={() => setDeleteTarget(null)}
       />
     </div>
   );

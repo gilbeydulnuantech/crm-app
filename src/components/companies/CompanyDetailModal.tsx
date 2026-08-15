@@ -1,12 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Company } from '../../types/company';
 import { Contact } from '../../types/contact';
-import { useContacts } from '../../hooks/useContacts';
+import { ActivityLogEntry } from '../../types/activity';
+import { useContacts, useUsers } from '../../hooks/useContacts';
 import { usePipelines, useAllOpportunities, useAllStages } from '../../hooks/useOpportunities';
 import { useEntityActivity } from '../../hooks/useActivity';
 import { useAddNote, useDeleteNote, useNotes, useUpdateNote } from '../../hooks/useNotes';
 import { useUpdateCompany } from '../../hooks/useCompanies';
+import * as chatApi from '../../api/chat';
 import { toTitleCase } from '../../utils/text';
 import { DEFAULT_USER_COLOR, hexToRgba } from '../../utils/userColor';
 import DealFormModal from '../pipeline/DealFormModal';
@@ -14,6 +17,8 @@ import AddContactModal from '../contacts/AddContactModal';
 import LogCallModal from '../LogCallModal';
 import ComposeEmailPopover from '../contacts/ComposeEmailPopover';
 import ActivityTimeline from '../ActivityTimeline';
+import ActivityLogModal from '../ActivityLogModal';
+import ConfirmDialog from '../ConfirmDialog';
 
 const STATUS_COLORS: Record<string, string> = {
   New: 'bg-slate-100 text-slate-800',
@@ -50,6 +55,7 @@ export default function CompanyDetailModal({
   currentUserId,
 }: Props) {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const [dealFormOpen, setDealFormOpen] = useState(false);
   const [addContactOpen, setAddContactOpen] = useState(false);
   const [logCallOpen, setLogCallOpen] = useState(false);
@@ -58,6 +64,51 @@ export default function CompanyDetailModal({
   const [noteError, setNoteError] = useState<string | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
   const [editDraft, setEditDraft] = useState('');
+  const [deleteNoteTargetId, setDeleteNoteTargetId] = useState<number | null>(null);
+  const [deleteNoteError, setDeleteNoteError] = useState<string | null>(null);
+  const NOTES_PAGE_SIZE = 10;
+  const [visibleNotesCount, setVisibleNotesCount] = useState(NOTES_PAGE_SIZE);
+  const [selectedActivity, setSelectedActivity] = useState<ActivityLogEntry | null>(null);
+
+  // A read-only company otherwise dead-ends the rep — no path forward
+  // except finding the right person outside the app. DMs whoever can
+  // actually grant access, exactly like ContactDetailModal: the current
+  // owner if there is one, or every admin if the company is unassigned —
+  // only admins can assign an owner in the first place (update-companies'
+  // owner_id write requires role='admin' when the requester doesn't already
+  // own the row), so they're the correct recipient, not a self-serve claim.
+  const { data: teamUsers = [] } = useUsers();
+  const updateCompany = useUpdateCompany();
+  const [ownerPickerOpen, setOwnerPickerOpen] = useState(false);
+  const [requestSentConversationId, setRequestSentConversationId] = useState<number | null>(null);
+  const requestOwnership = useMutation({
+    mutationFn: async (target: { ownerIds: number[]; companyName: string; forAssignment: boolean }) => {
+      const message = target.forAssignment
+        ? `Hi, "${target.companyName}" is unassigned — could you assign it to me? I need edit access.`
+        : `Hi, could you transfer ownership of "${target.companyName}" to me? I need edit access.`;
+      const conversationIds = await Promise.all(
+        target.ownerIds.map(async (id) => {
+          const dm = await chatApi.startDm(id);
+          await chatApi.sendMessage(dm.id, message);
+          return dm.id;
+        })
+      );
+      return conversationIds[0];
+    },
+    onSuccess: (conversationId) => {
+      qc.invalidateQueries({ queryKey: ['conversations'] });
+      setRequestSentConversationId(conversationId);
+    },
+  });
+
+  useEffect(() => {
+    setVisibleNotesCount(NOTES_PAGE_SIZE);
+    setRequestSentConversationId(null);
+    setDeleteNoteTargetId(null);
+    setDeleteNoteError(null);
+    setOwnerPickerOpen(false);
+    setSelectedActivity(null);
+  }, [company?.id]);
 
   const { data: allContacts = [], isLoading: contactsLoading } = useContacts();
   const { data: pipelines = [] } = usePipelines();
@@ -72,7 +123,6 @@ export default function CompanyDetailModal({
   const addNote = useAddNote('company', company?.id ?? null);
   const updateNote = useUpdateNote('company', company?.id ?? null);
   const deleteNote = useDeleteNote('company', company?.id ?? null);
-  const updateCompany = useUpdateCompany();
 
   if (!company) return null;
 
@@ -102,11 +152,6 @@ export default function CompanyDetailModal({
     onClose();
     const pid = dealPipelineId ?? defaultPipelineId;
     navigate(`/pipeline?pipeline=${pid}&highlight=${dealId}`);
-  }
-
-  function handleClaimOwnership() {
-    if (!currentUserId) return;
-    updateCompany.mutate({ id: company!.id, payload: { owner_id: currentUserId } });
   }
 
   return (
@@ -151,34 +196,117 @@ export default function CompanyDetailModal({
                 {company.parent_company_name && company.industry && <span className="text-slate-300">|</span>}
                 {company.industry && <span>Industry: {toTitleCase(company.industry)}</span>}
                 <span className="text-slate-300">|</span>
-                <span className="flex items-center gap-1.5">
+                <span className="relative flex items-center gap-1.5">
                   Owner:
-                  {company.owner_name ? (
-                    <span
-                      className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium rounded-full"
-                      style={{
-                        backgroundColor: hexToRgba(company.owner_color || DEFAULT_USER_COLOR, 0.14),
-                        color: company.owner_color || DEFAULT_USER_COLOR,
-                      }}
-                    >
+                  {(() => {
+                    const label = company.owner_name ? (
                       <span
-                        className="w-1.5 h-1.5 rounded-full"
-                        style={{ backgroundColor: company.owner_color || DEFAULT_USER_COLOR }}
-                      />
-                      {toTitleCase(company.owner_name)}
-                    </span>
-                  ) : (
-                    'Unassigned'
-                  )}
+                        className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium rounded-full"
+                        style={{
+                          backgroundColor: hexToRgba(company.owner_color || DEFAULT_USER_COLOR, 0.14),
+                          color: company.owner_color || DEFAULT_USER_COLOR,
+                        }}
+                      >
+                        <span
+                          className="w-1.5 h-1.5 rounded-full"
+                          style={{ backgroundColor: company.owner_color || DEFAULT_USER_COLOR }}
+                        />
+                        {toTitleCase(company.owner_name)}
+                      </span>
+                    ) : (
+                      <span className="text-slate-500">Unassigned</span>
+                    );
+
+                    // Owner reassignment (including initial assignment of an
+                    // unassigned company) — same gate as the pencil/tags/
+                    // notes edit affordances, not a separate self-serve
+                    // claim. For a genuinely unassigned company that's
+                    // admin-only, since canEdit only allows the *current*
+                    // owner or an admin, and there is no current owner yet.
+                    if (!canEdit) return label;
+
+                    return (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setOwnerPickerOpen((v) => !v)}
+                          className="hover:ring-2 hover:ring-[var(--theme-accent)] rounded-full transition-shadow"
+                          title="Click to assign owner"
+                        >
+                          {label}
+                        </button>
+                        {ownerPickerOpen && (
+                          <>
+                            <div className="fixed inset-0 z-10" onClick={() => setOwnerPickerOpen(false)} />
+                            <div className="absolute left-0 top-full mt-1 w-44 max-h-56 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg z-20 py-1 text-xs">
+                              {teamUsers.map((u) => (
+                                <button
+                                  key={u.id}
+                                  onClick={() => {
+                                    setOwnerPickerOpen(false);
+                                    if (u.id !== company.owner_id) {
+                                      updateCompany.mutate({ id: company.id, payload: { owner_id: u.id } });
+                                    }
+                                  }}
+                                  className={`w-full text-left px-3 py-1.5 hover:bg-slate-50 truncate ${
+                                    u.id === company.owner_id ? 'font-semibold text-slate-800' : 'text-slate-600'
+                                  }`}
+                                >
+                                  {toTitleCase(u.name)}
+                                </button>
+                              ))}
+                            </div>
+                          </>
+                        )}
+                      </>
+                    );
+                  })()}
                 </span>
-                {!company.owner_id && currentUserId && (
-                  <button
-                    onClick={handleClaimOwnership}
-                    className="ml-1 px-2 py-0.5 text-[10px] font-semibold text-indigo-600 border border-indigo-200 rounded-full hover:bg-indigo-50"
-                  >
-                    Claim Ownership
-                  </button>
-                )}
+                {!canEdit && (() => {
+                  const isUnassigned = company.owner_id == null;
+                  const requestTargetIds = isUnassigned
+                    ? teamUsers.filter((u) => u.role === 'admin').map((u) => u.id)
+                    : [company.owner_id!];
+                  if (requestTargetIds.length === 0) return null;
+                  return (
+                    <>
+                      <span className="inline-flex items-center gap-1 ml-1 px-2 py-0.5 text-[10px] font-semibold bg-slate-100 text-slate-500 rounded-full border border-slate-200">
+                        <i className="fa-solid fa-lock text-[9px]" />
+                        {isUnassigned ? 'Unassigned' : 'Read Only'}
+                      </span>
+                      {requestSentConversationId != null ? (
+                        <button
+                          onClick={() => {
+                            navigate(`/team-chat?conversation=${requestSentConversationId}`);
+                            onClose();
+                          }}
+                          className="text-[10px] font-semibold text-emerald-600 hover:underline"
+                        >
+                          <i className="fa-solid fa-check mr-1" />
+                          Request sent — view conversation
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() =>
+                            requestOwnership.mutate({
+                              ownerIds: requestTargetIds,
+                              companyName: company.name,
+                              forAssignment: isUnassigned,
+                            })
+                          }
+                          disabled={requestOwnership.isPending}
+                          className="text-[10px] font-semibold text-[var(--theme-accent)] hover:underline disabled:opacity-50"
+                        >
+                          {requestOwnership.isPending
+                            ? 'Sending...'
+                            : isUnassigned
+                              ? 'Request Assignment'
+                              : 'Request Ownership'}
+                        </button>
+                      )}
+                    </>
+                  );
+                })()}
               </p>
 
               <div className="pt-2 border-t border-slate-100">
@@ -379,7 +507,12 @@ export default function CompanyDetailModal({
           {/* Column 2: Activity Timeline */}
           <div className="border-r border-slate-200 overflow-y-auto p-5 space-y-3">
             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Activity Timeline</h3>
-            <ActivityTimeline activity={activity} isLoading={activityLoading} onEmailClick={() => {}} />
+            <ActivityTimeline
+              activity={activity}
+              isLoading={activityLoading}
+              onEmailClick={() => {}}
+              onActivityClick={(entry) => setSelectedActivity(entry)}
+            />
           </div>
 
           {/* Column 3: Notes & Account Team */}
@@ -422,18 +555,48 @@ export default function CompanyDetailModal({
                 ) : notes.length === 0 ? (
                   <p className="text-xs text-slate-400 italic">No notes yet.</p>
                 ) : (
-                  notes.map((note) => {
+                  notes.slice(0, visibleNotesCount).map((note) => {
                     const canEditNote = isAdmin || note.created_by === currentUserId;
                     const isEditing = editingNoteId === note.id;
                     return (
-                      <div key={note.id} className="p-3 rounded-lg border border-slate-100 bg-slate-50 space-y-1.5">
+                      <div
+                        key={note.id}
+                        className={`p-3 rounded-lg border space-y-1.5 ${
+                          note.is_pinned ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-100'
+                        }`}
+                      >
                         <div className="flex items-center justify-between text-xs">
-                          <span className="font-medium text-slate-700">
-                            {note.created_by_name ? toTitleCase(note.created_by_name) : 'Unknown'}
+                          <span className="flex items-center gap-1.5 font-medium text-slate-700 min-w-0">
+                            {note.is_pinned && <i className="fa-solid fa-thumbtack text-amber-600 text-[10px] shrink-0" />}
+                            <span className="truncate">
+                              {note.created_by_name ? toTitleCase(note.created_by_name) : 'Unknown'}
+                            </span>
                           </span>
-                          <span className="text-slate-400 text-[10px]">
-                            {new Date(note.created_at).toLocaleDateString(undefined, { month: 'short', day: '2-digit' })}
-                            {note.updated_at ? ' (edited)' : ''}
+                          <span className="flex items-center gap-2 shrink-0">
+                            <span className="text-slate-400 text-[10px]">
+                              {new Date(note.created_at).toLocaleDateString(undefined, { month: 'short', day: '2-digit' })}
+                              {note.updated_at ? ' (edited)' : ''}
+                            </span>
+                            {canEdit && (
+                              <button
+                                onClick={() => {
+                                  setNoteError(null);
+                                  updateNote.mutate(
+                                    { id: note.id, isPinned: !note.is_pinned },
+                                    {
+                                      onError: (err) =>
+                                        setNoteError(err instanceof Error ? err.message : 'Failed to update pin.'),
+                                    }
+                                  );
+                                }}
+                                title={note.is_pinned ? 'Unpin note' : 'Pin note to top'}
+                                className={`text-[10px] ${
+                                  note.is_pinned ? 'text-amber-600 hover:text-amber-700' : 'text-slate-300 hover:text-amber-600'
+                                }`}
+                              >
+                                <i className="fa-solid fa-thumbtack" />
+                              </button>
+                            )}
                           </span>
                         </div>
                         {isEditing ? (
@@ -481,7 +644,8 @@ export default function CompanyDetailModal({
                                 </button>
                                 <button
                                   onClick={() => {
-                                    if (confirm('Delete this note?')) deleteNote.mutate(note.id);
+                                    setDeleteNoteError(null);
+                                    setDeleteNoteTargetId(note.id);
                                   }}
                                   className="text-[10px] font-medium text-slate-400 hover:text-rose-600"
                                 >
@@ -494,6 +658,15 @@ export default function CompanyDetailModal({
                       </div>
                     );
                   })
+                )}
+                {!notesLoading && notes.length > visibleNotesCount && (
+                  <button
+                    onClick={() => setVisibleNotesCount((c) => c + NOTES_PAGE_SIZE)}
+                    className="w-full text-xs font-semibold text-[var(--theme-accent)] hover:underline py-1"
+                  >
+                    Show {Math.min(notes.length - visibleNotesCount, NOTES_PAGE_SIZE)} more (
+                    {notes.length - visibleNotesCount} remaining)
+                  </button>
                 )}
               </div>
             </div>
@@ -540,6 +713,26 @@ export default function CompanyDetailModal({
       {emailContact && (
         <ComposeEmailPopover contact={emailContact} open onClose={() => setEmailContact(null)} />
       )}
+      <ActivityLogModal entry={selectedActivity} onClose={() => setSelectedActivity(null)} />
+      <ConfirmDialog
+        open={deleteNoteTargetId !== null}
+        title="Delete this note?"
+        confirmLabel="Delete"
+        isSubmitting={deleteNote.isPending}
+        error={deleteNoteError}
+        onConfirm={() => {
+          if (deleteNoteTargetId == null) return;
+          setDeleteNoteError(null);
+          deleteNote.mutate(deleteNoteTargetId, {
+            onSuccess: () => setDeleteNoteTargetId(null),
+            onError: (err) => setDeleteNoteError(err instanceof Error ? err.message : 'Failed to delete note.'),
+          });
+        }}
+        onCancel={() => {
+          setDeleteNoteTargetId(null);
+          setDeleteNoteError(null);
+        }}
+      />
     </div>
   );
 }

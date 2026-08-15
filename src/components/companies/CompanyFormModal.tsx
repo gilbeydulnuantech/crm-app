@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   COMPANY_EMPLOYEE_BANDS,
   COMPANY_HEALTH_STATUSES,
@@ -7,7 +7,7 @@ import {
   COMPANY_TIERS,
   Company,
 } from '../../types/company';
-import { useAddCompany, useUpdateCompany } from '../../hooks/useCompanies';
+import { useAddCompany, useCompanies, useUpdateCompany } from '../../hooks/useCompanies';
 import { useUsers } from '../../hooks/useContacts';
 import { useAuth } from '../../context/AuthContext';
 import ParentCompanyPicker from './ParentCompanyPicker';
@@ -95,10 +95,30 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 export default function CompanyFormModal({ open, company, onClose }: Props) {
   const { user, isAdmin } = useAuth();
   const { data: users = [] } = useUsers();
+  const formRef = useRef<HTMLFormElement>(null);
   const [form, setForm] = useState<FormState>(EMPTY);
   const [error, setError] = useState<string | null>(null);
   const addCompany = useAddCompany();
   const updateCompany = useUpdateCompany();
+  // Reuses the ['companies'] cache Companies.tsx already populated — no
+  // extra request — to catch a duplicate before the request is even sent.
+  // Mirrors the backend's Check Duplicate Company rule (same name OR same
+  // website, either matching is enough — a company only has one real
+  // website, so a name typo with a matching domain is still the same org).
+  const { data: allCompanies = [] } = useCompanies();
+  const duplicateMatch = useMemo(() => {
+    const name = form.name.trim().toLowerCase();
+    const website = form.website.trim().toLowerCase();
+    if (!name && !website) return null;
+    return (
+      allCompanies.find((c) => {
+        if (c.id === company?.id) return false;
+        if (name && c.name.trim().toLowerCase() === name) return true;
+        if (website && (c.website ?? '').trim().toLowerCase() === website) return true;
+        return false;
+      }) ?? null
+    );
+  }, [form.name, form.website, allCompanies, company]);
 
   const isEdit = !!company;
   const isSaving = addCompany.isPending || updateCompany.isPending;
@@ -218,7 +238,7 @@ export default function CompanyFormModal({ open, company, onClose }: Props) {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form ref={formRef} onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-3">
             <SectionHeading>{isEdit ? 'Basic Information' : 'Company Identification'}</SectionHeading>
             <div>
@@ -231,6 +251,13 @@ export default function CompanyFormModal({ open, company, onClose }: Props) {
                   className={inputClass}
                 />
               </Field>
+              {duplicateMatch && (
+                <p className="mt-1 text-[11px] text-rose-600 flex items-center gap-1">
+                  <i className="fa-solid fa-circle-exclamation" />
+                  Already in the database as {duplicateMatch.name} — edit that company instead, or use a different
+                  name/website for this one.
+                </p>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Domain / Website">
@@ -508,8 +535,11 @@ export default function CompanyFormModal({ open, company, onClose }: Props) {
             {!isEdit && (
               <button
                 type="button"
-                disabled={isSaving}
-                onClick={(e) => handleSubmit(e, true)}
+                disabled={isSaving || !!duplicateMatch}
+                onClick={(e) => {
+                  if (!formRef.current?.reportValidity()) return;
+                  handleSubmit(e, true);
+                }}
                 className="px-4 py-2 text-sm font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 disabled:opacity-60 rounded-lg"
               >
                 Save &amp; Add Another
@@ -517,7 +547,7 @@ export default function CompanyFormModal({ open, company, onClose }: Props) {
             )}
             <button
               type="submit"
-              disabled={isSaving}
+              disabled={isSaving || !!duplicateMatch}
               className="px-4 py-2 text-sm font-semibold bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] disabled:opacity-60 text-white rounded-lg"
             >
               {isSaving ? 'Saving...' : isEdit ? 'Save Changes' : 'Save Company'}

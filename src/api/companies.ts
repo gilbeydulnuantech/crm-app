@@ -33,6 +33,10 @@ export function addCompany(
 // edit_reason is required for audit logging (see entity_activity_log) — not
 // a column on companies, just carried through to the update-companies
 // workflow so it can write a system_audit row.
+// True partial update — omit a field to leave it untouched server-side
+// (update-companies builds its SET clause dynamically from whatever keys
+// are actually present in the body), so a minimal payload like
+// { owner_id } is safe and won't null out the rest of the row.
 export function updateCompany(id: number, payload: Partial<Company> & { edit_reason?: string }) {
   return apiFetch<{ success: boolean; error?: string }>('/webhook/update-companies', {
     method: 'POST',

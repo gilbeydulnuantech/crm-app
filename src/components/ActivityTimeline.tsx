@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ACTIVITY_TABS, ActivityLogEntry, ActivityTab } from '../types/activity';
 import { EmailLog } from '../types/contact';
+import { humanizeAuditSummary, toTitleCase } from '../utils/text';
 
 const TAB_FILTERS: Record<ActivityTab, (category: TimelineItem['category']) => boolean> = {
   All: () => true,
@@ -67,8 +68,8 @@ function activityToItem(entry: ActivityLogEntry, onClick?: (entry: ActivityLogEn
     icon,
     iconColor,
     cardClass,
-    title: entry.summary,
-    subtitle: entry.actor_name ? `By ${entry.actor_name}` : undefined,
+    title: category === 'system_audit' ? humanizeAuditSummary(entry.summary) : entry.summary,
+    subtitle: entry.actor_name ? `By ${toTitleCase(entry.actor_name)}` : undefined,
     timestamp: entry.created_at,
     // Meeting/audit summaries get cut off by the card's single-line
     // `truncate` — only these two categories carry a `detail` payload worth
@@ -176,13 +177,18 @@ export default function ActivityTimeline({ emails = [], activity, isLoading, onE
               {item.body && <p className="text-slate-600 text-xs whitespace-pre-wrap line-clamp-2">{item.body}</p>}
             </div>
           ))}
-          {remaining > 0 && (
+          {remaining > 0 ? (
             <button
               onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
               className="w-full text-xs font-semibold text-[var(--theme-accent)] hover:underline py-1"
             >
               Show {Math.min(remaining, PAGE_SIZE)} more ({remaining} remaining)
             </button>
+          ) : (
+            // Short accounts otherwise end in a wall of blank space below a
+            // single card, which reads as a broken/loading layout rather
+            // than "that's everything" — an explicit end marker fixes that.
+            <p className="text-center text-[11px] text-slate-300 pt-1">You're all caught up</p>
           )}
         </div>
       )}

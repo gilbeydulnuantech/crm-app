@@ -131,7 +131,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO companies (name, website, industry, city, state, country, phone, street_address, zip_code, owner_id, created_by, parent_company_id, tier, annual_revenue, employee_count, territory) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING id, name, is_archived, created_at;",
         "options": {
-          "queryReplacement": "={{ [ $json.body.name, $json.body.website || null, $json.body.industry || null, $json.body.city || null, $json.body.state || null, $json.body.country || null, $json.body.phone || null, $json.body.street_address || null, $json.body.zip_code || null, $json.body.owner_id || null, $json.body.requester_id || $json.body.owner_id || null, $json.body.parent_company_id || null, $json.body.tier || null, $json.body.annual_revenue || null, $json.body.employee_count || null, $json.body.territory || null ] }}"
+          "queryReplacement": "={{ [ $('Webhook: add-companies').first().json.body.name, $('Webhook: add-companies').first().json.body.website || null, $('Webhook: add-companies').first().json.body.industry || null, $('Webhook: add-companies').first().json.body.city || null, $('Webhook: add-companies').first().json.body.state || null, $('Webhook: add-companies').first().json.body.country || null, $('Webhook: add-companies').first().json.body.phone || null, $('Webhook: add-companies').first().json.body.street_address || null, $('Webhook: add-companies').first().json.body.zip_code || null, $('Webhook: add-companies').first().json.body.owner_id || null, $('Webhook: add-companies').first().json.body.requester_id || $('Webhook: add-companies').first().json.body.owner_id || null, $('Webhook: add-companies').first().json.body.parent_company_id || null, $('Webhook: add-companies').first().json.body.tier || null, $('Webhook: add-companies').first().json.body.annual_revenue || null, $('Webhook: add-companies').first().json.body.employee_count || null, $('Webhook: add-companies').first().json.body.territory || null ] }}"
         }
       },
       "id": "b3f2a463-5075-4b4f-95b4-67cf39d13dcf",
@@ -147,7 +147,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -186,9 +187,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE companies SET name = $1, website = $2, industry = $3, city = $4, state = $5, country = $6, phone = $7, street_address = $8, zip_code = $9, owner_id = COALESCE($10, owner_id), parent_company_id = $11, tier = $12, annual_revenue = $13, employee_count = $14, territory = $15, account_status = $16, account_health = $17, se_user_id = $18, csm_user_id = $19, updated_at = now() WHERE id = $20 AND ($21 = 'admin' OR owner_id = $22) RETURNING id, name, owner_id;",
+        "query": "={{ $json.sqlQuery }}",
         "options": {
-          "queryReplacement": "={{ [ $('Webhook: update-companies').first().json.body.name, $('Webhook: update-companies').first().json.body.website || null, $('Webhook: update-companies').first().json.body.industry || null, $('Webhook: update-companies').first().json.body.city || null, $('Webhook: update-companies').first().json.body.state || null, $('Webhook: update-companies').first().json.body.country || null, $('Webhook: update-companies').first().json.body.phone || null, $('Webhook: update-companies').first().json.body.street_address || null, $('Webhook: update-companies').first().json.body.zip_code || null, $('Webhook: update-companies').first().json.body.owner_id || null, $('Webhook: update-companies').first().json.body.parent_company_id || null, $('Webhook: update-companies').first().json.body.tier || null, $('Webhook: update-companies').first().json.body.annual_revenue || null, $('Webhook: update-companies').first().json.body.employee_count || null, $('Webhook: update-companies').first().json.body.territory || null, $('Webhook: update-companies').first().json.body.account_status || null, $('Webhook: update-companies').first().json.body.account_health || null, $('Webhook: update-companies').first().json.body.se_user_id || null, $('Webhook: update-companies').first().json.body.csm_user_id || null, $('Webhook: update-companies').first().json.body.id, $('Look Up Requester: update-companies').first().json.role, $('Look Up Requester: update-companies').first().json.id ] }}"
+          "queryReplacement": "={{ $json.queryParams }}"
         }
       },
       "id": "6585be97-f7e3-4c28-8d8a-67477064cd79",
@@ -680,7 +681,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name) VALUES ('company', $1, 'system_audit', 'field_change', $2, $3::jsonb, $4, $5);",
         "options": {
-          "queryReplacement": "={{ [ $('Postgres: Update Company').first().json.id, `${$('Look Up Requester: update-companies').first().json.name || 'Someone'} updated ${$('Postgres: Update Company').first().json.name || 'this company'}: ${$('Webhook: update-companies').first().json.body.edit_reason || 'No reason provided'}`, JSON.stringify({ reason: $('Webhook: update-companies').first().json.body.edit_reason || null }), $('Look Up Requester: update-companies').first().json.id, $('Look Up Requester: update-companies').first().json.name || 'Unknown' ] }}"
+          "queryReplacement": "={{ [ $('Postgres: Update Company').first().json.id, (() => { const tc = (s) => (s || '').replace(/\\b\\w/g, (c) => c.toUpperCase()); const actor = tc($('Look Up Requester: update-companies').first().json.name) || 'Someone'; const co = tc($('Postgres: Update Company').first().json.name) || 'this company'; const reason = $('Webhook: update-companies').first().json.body.edit_reason || 'No reason provided'; return `${actor} updated ${co}: ${reason}`; })(), JSON.stringify({ reason: $('Webhook: update-companies').first().json.body.edit_reason || null }), $('Look Up Requester: update-companies').first().json.id, $('Look Up Requester: update-companies').first().json.name || 'Unknown' ] }}"
         }
       },
       "id": "c49aeaef-30a2-4a09-9735-0a031ee31161",
@@ -733,6 +734,75 @@
           "name": "myRag"
         }
       }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT (\n  SELECT id FROM companies\n  WHERE is_archived = false\n    AND (\n      LOWER(name) = LOWER($1)\n      OR ($2 <> '' AND LOWER(website) = LOWER($2))\n    )\n  LIMIT 1\n) AS duplicate_id;",
+        "options": {
+          "queryReplacement": "={{ [ $('Webhook: add-companies').first().json.body.name, ($('Webhook: add-companies').first().json.body.website || '').trim() ] }}"
+        }
+      },
+      "id": "e7d50454-bea8-4f3d-967b-29c5e1e810a5",
+      "name": "Check Duplicate Company",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        548,
+        784
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (result && result.json && result.json.duplicate_id) {\n  throw new Error('A company with this name or website is already in the database.');\n}\nreturn [{ json: {} }];"
+      },
+      "id": "721975ee-8a2f-4122-ba74-4b8cf34be64f",
+      "name": "Validate No Duplicate Company",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        668,
+        784
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Add failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "88ee2c44-dcb7-4ec4-8566-8e05013e549d",
+      "name": "Respond - Error: add-companies",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        496,
+        944
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $('Look Up Requester: update-companies').first().json;\nconst body = $('Webhook: update-companies').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst companyId = parseInt(body.id, 10);\nif (!Number.isInteger(companyId)) throw new Error('\"id\" must be an integer.');\n\n// Only a field actually present in the request body gets written \u2014\n// an omitted key leaves that column untouched (true partial-update\n// semantics, same as contacts-update.json's Parse Token & Payload).\nfunction field(name) {\n  if (body[name] === undefined) return undefined;\n  return (body[name] === null || body[name] === '') ? null : body[name];\n}\nfunction intField(name) {\n  const v = field(name);\n  if (v === undefined) return undefined;\n  if (v === null || v === '') return null;\n  const n = parseInt(v, 10);\n  return Number.isInteger(n) ? n : null;\n}\n\nconst textColumns = [\n  'name', 'website', 'industry', 'city', 'state', 'country', 'phone',\n  'street_address', 'zip_code', 'tier', 'annual_revenue', 'employee_count',\n  'territory', 'account_status', 'account_health',\n];\nconst intColumns = ['owner_id', 'parent_company_id', 'se_user_id', 'csm_user_id'];\n\nconst setClauses = [];\nconst queryParams = [];\nlet idx = 1;\n\nfor (const col of textColumns) {\n  const v = field(col);\n  if (v === undefined) continue;\n  setClauses.push(`${col} = $${idx}`);\n  queryParams.push(v);\n  idx++;\n}\nfor (const col of intColumns) {\n  const v = intField(col);\n  if (v === undefined) continue;\n  setClauses.push(`${col} = $${idx}`);\n  queryParams.push(v);\n  idx++;\n}\n\nif (setClauses.length === 0) throw new Error('No fields to update.');\n\nsetClauses.push('updated_at = now()');\n\nconst sqlQuery = `\n  UPDATE companies SET\n    ${setClauses.join(',\\n    ')}\n  WHERE id = $${idx} AND ($${idx + 1} = 'admin' OR owner_id = $${idx + 2})\n  RETURNING id, name, owner_id;\n`;\n\nqueryParams.push(companyId, requester.role, requester.id);\n\nreturn [{ json: { sqlQuery, queryParams } }];"
+      },
+      "id": "313ece28-aadd-4882-84ee-2b7fd2500b92",
+      "name": "Build Update Query: update-companies",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        1000
+      ],
+      "onError": "continueErrorOutput"
     }
   ],
   "pinData": {},
@@ -785,7 +855,7 @@
       "main": [
         [
           {
-            "node": "Postgres: Insert Company",
+            "node": "Check Duplicate Company",
             "type": "main",
             "index": 0
           }
@@ -802,6 +872,13 @@
           },
           {
             "node": "Prepare Contact Link: add-companies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: add-companies",
             "type": "main",
             "index": 0
           }
@@ -1009,7 +1086,7 @@
       "main": [
         [
           {
-            "node": "Postgres: Update Company",
+            "node": "Build Update Query: update-companies",
             "type": "main",
             "index": 0
           }
@@ -1094,6 +1171,60 @@
         [
           {
             "node": "Postgres: Link Initial Contact: add-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Duplicate Company": {
+      "main": [
+        [
+          {
+            "node": "Validate No Duplicate Company",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: add-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate No Duplicate Company": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Insert Company",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: add-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Update Query: update-companies": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Update Company",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: update-companies",
             "type": "main",
             "index": 0
           }
