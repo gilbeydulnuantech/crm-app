@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Opportunity, PipelineViewMode } from '../types/opportunity';
 import { NewPipelineResult } from '../api/opportunities';
 import {
+  useArchiveOpportunities,
   useDeleteOpportunities,
   useMoveOpportunityStage,
   useOpportunities,
@@ -26,6 +27,7 @@ import PipelineFilterPanel, {
 import DealFormModal from '../components/pipeline/DealFormModal';
 import DealQuickView from '../components/pipeline/DealQuickView';
 import DealDetailModal from '../components/pipeline/DealDetailModal';
+import ArchivedDealsModal from '../components/pipeline/ArchivedDealsModal';
 import AddDealNoteModal from '../components/pipeline/AddDealNoteModal';
 import MarkLostModal, { MarkLostResult } from '../components/pipeline/MarkLostModal';
 import TaskFormModal from '../components/tasks/TaskFormModal';
@@ -109,6 +111,7 @@ export default function Pipeline() {
   const [detailDeal, setDetailDeal] = useState<Opportunity | null>(null);
   const [highlightDealId, setHighlightDealId] = useState<number | null>(null);
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+  const [archivedModalOpen, setArchivedModalOpen] = useState(false);
   const [filters, setFilters] = useState<DealFilters>(EMPTY_DEAL_FILTERS);
   const [toast, setToast] = useState<string | null>(null);
   const [noteDeal, setNoteDeal] = useState<Opportunity | null>(null);
@@ -174,6 +177,7 @@ export default function Pipeline() {
   const moveStage = useMoveOpportunityStage(pipelineId);
   const updateOpportunity = useUpdateOpportunity(pipelineId);
   const deleteOpportunities = useDeleteOpportunities(pipelineId);
+  const archiveOpportunities = useArchiveOpportunities(pipelineId);
   const addLostDealNote = useAddNote('opportunity', lostDeal?.id ?? null);
   const addTask = useAddTask();
 
@@ -254,8 +258,18 @@ export default function Pipeline() {
     setLostDeal(null);
   }
 
+  // Server-side guarded too (archive-opportunities rejects status='Open') —
+  // archiving clears closed deals off the active board, not deals still in
+  // progress that a rep might still need to act on.
   function handleArchive(opportunity: Opportunity) {
-    setToast(`Archiving "${opportunity.name}" isn't available yet.`);
+    if (opportunity.status === 'Open') {
+      setToast('Only Closed Won or Closed Lost deals can be archived.');
+      return;
+    }
+    archiveOpportunities.mutate([opportunity.id], {
+      onSuccess: () => setToast(`"${opportunity.name}" archived.`),
+      onError: () => setToast('Failed to archive deal.'),
+    });
   }
 
   function handleDelete(opportunity: Opportunity) {
@@ -313,6 +327,14 @@ export default function Pipeline() {
                   {activeFilterCount}
                 </span>
               )}
+            </button>
+
+            <button
+              onClick={() => setArchivedModalOpen(true)}
+              className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-indigo-600 py-1.5 px-2.5 border border-slate-200 rounded-md bg-white transition-colors"
+            >
+              <i className="fa-solid fa-box-archive text-[10px]" />
+              Archived
             </button>
 
             <div className="flex items-center gap-1 border border-slate-200 rounded-md p-0.5 bg-slate-50">
@@ -413,10 +435,20 @@ export default function Pipeline() {
           setLostDeal(deal);
         }}
         onMoveStage={handleMoveStage}
+        onArchive={(deal) => {
+          setDetailDeal(null);
+          handleArchive(deal);
+        }}
         onDelete={(deal) => {
           setDetailDeal(null);
           handleDelete(deal);
         }}
+      />
+
+      <ArchivedDealsModal
+        open={archivedModalOpen}
+        pipelineId={pipelineId}
+        onClose={() => setArchivedModalOpen(false)}
       />
 
       <PipelineFilterPanel

@@ -610,6 +610,7 @@ export default function Calendar() {
 
         <DealDetailModal
           deal={detailDeal}
+          stages={allStages}
           stagesById={stagesById}
           isAdmin={isAdmin}
           currentUserId={user?.id}

@@ -83,6 +83,14 @@ export function useOpportunities(pipelineId?: number) {
   });
 }
 
+export function useArchivedOpportunities(pipelineId?: number, enabled = true) {
+  return useQuery({
+    queryKey: ['opportunities', pipelineId, 'archived'],
+    queryFn: () => api.fetchArchivedOpportunities(pipelineId!),
+    enabled: !!pipelineId && enabled,
+  });
+}
+
 // get-opportunities/get-stages only take a single pipeline_id — there's no
 // "all pipelines" endpoint. These fan out one query per pipeline (reusing
 // the same ['opportunities', id]/['stages', id] cache keys the single-
@@ -213,5 +221,53 @@ export function useDeleteOpportunities(pipelineId?: number) {
       if (context?.previous) qc.setQueryData(['opportunities', pipelineId], context.previous);
     },
     onSettled: () => qc.invalidateQueries({ queryKey: ['opportunities', pipelineId] }),
+  });
+}
+
+export function useArchiveOpportunities(pipelineId?: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: number[]) => api.archiveOpportunities(ids),
+    // Optimistic removal from the active board — same pattern as delete.
+    onMutate: async (ids) => {
+      await qc.cancelQueries({ queryKey: ['opportunities', pipelineId] });
+      const previous = qc.getQueryData<Opportunity[]>(['opportunities', pipelineId]);
+      qc.setQueryData<Opportunity[]>(['opportunities', pipelineId], (old) =>
+        old?.filter((o) => !ids.includes(o.id))
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) qc.setQueryData(['opportunities', pipelineId], context.previous);
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['opportunities', pipelineId] });
+    },
+  });
+}
+
+export function useRestoreOpportunities(pipelineId?: number) {
+  const qc = useQueryClient();
+  const archivedKey = ['opportunities', pipelineId, 'archived'];
+  return useMutation({
+    mutationFn: (ids: number[]) => api.restoreOpportunities(ids),
+    // Optimistic removal from the Archived popup's own cache — invalidating
+    // ['opportunities', pipelineId] alone relies on that query being actively
+    // refetched while the popup is open, which wasn't reliably happening;
+    // removing it from this exact key immediately is what actually updates
+    // the list the user is looking at.
+    onMutate: async (ids) => {
+      await qc.cancelQueries({ queryKey: archivedKey });
+      const previous = qc.getQueryData<Opportunity[]>(archivedKey);
+      qc.setQueryData<Opportunity[]>(archivedKey, (old) => old?.filter((o) => !ids.includes(o.id)));
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) qc.setQueryData(archivedKey, context.previous);
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: archivedKey });
+      qc.invalidateQueries({ queryKey: ['opportunities', pipelineId] });
+    },
   });
 }

@@ -49,6 +49,8 @@ export interface Opportunity {
   description?: string | null;
   source?: string | null;
   priority?: DealPriority | null;
+  is_archived?: boolean;
+  archived_at?: string | null;
   // Reuses the generic taggables system (entity_type = 'opportunity') the
   // same way contacts already do — see get-opportunities' SQL.
   tags?: { id: number; name: string }[];

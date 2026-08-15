@@ -130,9 +130,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT o.id, o.name, o.contact_id, TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS contact_name, o.account_id, co.name AS company_name, o.pipeline_id, o.stage_id, o.assigned_user, u.name AS assigned_user_name, u.color AS assigned_user_color, o.created_by, o.deal_value, o.probability, o.status, o.lost_reason, o.expected_close, o.closed_at, o.created_at, o.updated_at, o.description, o.source, o.priority,\n  (SELECT COALESCE(json_agg(json_build_object('id', t.id, 'name', t.name) ORDER BY t.id), '[]'::json)\n   FROM taggables tg JOIN tags t ON t.id = tg.tag_id\n   WHERE tg.entity_type = 'opportunity' AND tg.entity_id = o.id) AS tags,\n  (SELECT COALESCE(json_agg(json_build_object('id', t.id, 'name', t.name) ORDER BY t.id), '[]'::json)\n   FROM taggables tg JOIN tags t ON t.id = tg.tag_id\n   WHERE tg.entity_type = 'contact' AND tg.entity_id = o.contact_id) AS contact_tags\nFROM opportunities o LEFT JOIN contacts c ON c.id = o.contact_id LEFT JOIN companies co ON co.id = o.account_id LEFT JOIN users u ON u.id = o.assigned_user WHERE o.pipeline_id = $1 ORDER BY o.created_at DESC, o.id DESC;",
+        "query": "SELECT o.id, o.name, o.contact_id, TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS contact_name, o.account_id, co.name AS company_name, o.pipeline_id, o.stage_id, o.assigned_user, u.name AS assigned_user_name, u.color AS assigned_user_color, o.created_by, o.deal_value, o.probability, o.status, o.lost_reason, o.expected_close, o.closed_at, o.created_at, o.updated_at, o.description, o.source, o.priority, o.is_archived, o.archived_at,\n  (SELECT COALESCE(json_agg(json_build_object('id', t.id, 'name', t.name) ORDER BY t.id), '[]'::json)\n   FROM taggables tg JOIN tags t ON t.id = tg.tag_id\n   WHERE tg.entity_type = 'opportunity' AND tg.entity_id = o.id) AS tags,\n  (SELECT COALESCE(json_agg(json_build_object('id', t.id, 'name', t.name) ORDER BY t.id), '[]'::json)\n   FROM taggables tg JOIN tags t ON t.id = tg.tag_id\n   WHERE tg.entity_type = 'contact' AND tg.entity_id = o.contact_id) AS contact_tags\nFROM opportunities o LEFT JOIN contacts c ON c.id = o.contact_id LEFT JOIN companies co ON co.id = o.account_id LEFT JOIN users u ON u.id = o.assigned_user WHERE o.pipeline_id = $1 AND COALESCE(o.is_archived, false) = false ORDER BY o.created_at DESC, o.id DESC;",
         "options": {
-          "queryReplacement": "={{ [$json.query.pipeline_id] }}"
+          "queryReplacement": "={{ [ $('Webhook: get-opportunities').first().json.query.pipeline_id ] }}"
         }
       },
       "id": "2d3387c2-2ba5-413e-bd81-642ce2d56c07",
@@ -1685,6 +1685,369 @@
           "name": "myRag"
         }
       }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT false;\nALTER TABLE opportunities ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP;",
+        "options": {}
+      },
+      "id": "c0fcb416-e547-4695-9de5-33f24f7d1425",
+      "name": "Postgres: Ensure Opportunities Archive Columns (get)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        928,
+        780
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "path": "get-archived-opportunities",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "2dd1b582-26f4-44e8-b8ae-da43b3d7ce64",
+      "name": "Webhook: get-archived-opportunities",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        816,
+        1900
+      ],
+      "webhookId": "e962be8f-33b1-4336-8430-6a86ad0a389b"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT false;\nALTER TABLE opportunities ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP;",
+        "options": {}
+      },
+      "id": "902b6055-fee1-40e3-b624-985b46828943",
+      "name": "Postgres: Ensure Opportunities Archive Columns (get-archived)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        928,
+        1900
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT o.id, o.name, o.contact_id, TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS contact_name, o.account_id, co.name AS company_name, o.pipeline_id, o.stage_id, o.assigned_user, u.name AS assigned_user_name, u.color AS assigned_user_color, o.created_by, o.deal_value, o.probability, o.status, o.lost_reason, o.expected_close, o.closed_at, o.created_at, o.updated_at, o.description, o.source, o.priority, o.is_archived, o.archived_at,\n  (SELECT COALESCE(json_agg(json_build_object('id', t.id, 'name', t.name) ORDER BY t.id), '[]'::json)\n   FROM taggables tg JOIN tags t ON t.id = tg.tag_id\n   WHERE tg.entity_type = 'opportunity' AND tg.entity_id = o.id) AS tags,\n  (SELECT COALESCE(json_agg(json_build_object('id', t.id, 'name', t.name) ORDER BY t.id), '[]'::json)\n   FROM taggables tg JOIN tags t ON t.id = tg.tag_id\n   WHERE tg.entity_type = 'contact' AND tg.entity_id = o.contact_id) AS contact_tags\nFROM opportunities o LEFT JOIN contacts c ON c.id = o.contact_id LEFT JOIN companies co ON co.id = o.account_id LEFT JOIN users u ON u.id = o.assigned_user WHERE o.pipeline_id = $1 AND COALESCE(o.is_archived, false) = true ORDER BY o.archived_at DESC NULLS LAST, o.id DESC;",
+        "options": {
+          "queryReplacement": "={{ [ $('Webhook: get-archived-opportunities').first().json.query.pipeline_id ] }}"
+        }
+      },
+      "id": "d14ca77e-acd9-4514-b57d-23f1d267fb7a",
+      "name": "Postgres: Select Archived Opportunities",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1040,
+        1900
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "32b4a406-7491-425d-b1f5-1b63808e94de",
+      "name": "Respond: get-archived-opportunities",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1264,
+        1900
+      ]
+    },
+    {
+      "parameters": {
+        "path": "archive-opportunities",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        },
+        "httpMethod": "POST"
+      },
+      "id": "dc075a1e-2f71-441d-8761-493a604785b0",
+      "name": "Webhook: archive-opportunities",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        816,
+        2100
+      ],
+      "webhookId": "c115135f-bd95-4822-91db-dcdfbccbe287"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "dfe80176-796c-45df-a3b7-8fa4d223bec0",
+      "name": "Parse Token: archive-opportunities",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        916,
+        2000
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "c50a1824-4db1-45de-9a11-3eb69d5030a8",
+      "name": "Look Up Requester: archive-opportunities",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1116,
+        2000
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT false;\nALTER TABLE opportunities ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP;",
+        "options": {}
+      },
+      "id": "3a247bfd-1298-4ce9-84bd-dd3112aa07ac",
+      "name": "Postgres: Ensure Opportunities Archive Columns (archive)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1300,
+        2000
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE opportunities SET is_archived = true, archived_at = now() WHERE id = ANY($1::int[]) AND status != 'Open' AND ($2 = 'admin' OR assigned_user = $3) RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $('Webhook: archive-opportunities').first().json.body.ids, $('Look Up Requester: archive-opportunities').first().json.role, $('Look Up Requester: archive-opportunities').first().json.id ] }}"
+        }
+      },
+      "id": "e8112989-4464-400b-b35d-b7a85cb0a9ae",
+      "name": "Postgres: Archive Opportunities",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1500,
+        2000
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true } }}",
+        "options": {}
+      },
+      "id": "a9665451-d726-4355-84e8-f6e08da27b6d",
+      "name": "Respond: archive-opportunities",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1700,
+        2100
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Archive failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "94ed5de0-49f5-480f-ba40-0e0a14d04481",
+      "name": "Respond - Error: archive-opportunities",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1116,
+        2250
+      ]
+    },
+    {
+      "parameters": {
+        "path": "restore-opportunities",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        },
+        "httpMethod": "POST"
+      },
+      "id": "e11598c7-d948-4c1b-9767-db59fe072d3a",
+      "name": "Webhook: restore-opportunities",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        816,
+        2450
+      ],
+      "webhookId": "2467838a-b331-4aad-b1cb-9d5431ecfb00"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "63f7293d-5fa0-4663-a312-22643a2e6f18",
+      "name": "Parse Token: restore-opportunities",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        916,
+        2350
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "50efdd29-213d-42f8-9ca0-e53d5ef35a8c",
+      "name": "Look Up Requester: restore-opportunities",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1116,
+        2350
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT false;\nALTER TABLE opportunities ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP;",
+        "options": {}
+      },
+      "id": "e79014d6-d331-4b67-8bbf-d2e6afab6b27",
+      "name": "Postgres: Ensure Opportunities Archive Columns (restore)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1300,
+        2350
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE opportunities SET is_archived = false, archived_at = NULL WHERE id = ANY($1::int[]) AND ($2 = 'admin' OR assigned_user = $3) RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $('Webhook: restore-opportunities').first().json.body.ids, $('Look Up Requester: restore-opportunities').first().json.role, $('Look Up Requester: restore-opportunities').first().json.id ] }}"
+        }
+      },
+      "id": "f8b845ea-5bc9-4079-aeac-e4cb752e551c",
+      "name": "Postgres: Restore Opportunities",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1500,
+        2350
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true } }}",
+        "options": {}
+      },
+      "id": "94967f6a-4217-42f2-a0c2-078022fef596",
+      "name": "Respond: restore-opportunities",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1700,
+        2450
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Restore failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "76b46965-b827-4ab1-b199-e45cda620be6",
+      "name": "Respond - Error: restore-opportunities",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1116,
+        2600
+      ]
     }
   ],
   "pinData": {},
@@ -1737,7 +2100,7 @@
       "main": [
         [
           {
-            "node": "Postgres: Select Opportunities",
+            "node": "Postgres: Ensure Opportunities Archive Columns (get)",
             "type": "main",
             "index": 0
           }
@@ -2658,6 +3021,188 @@
         [
           {
             "node": "Respond: update-opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Ensure Opportunities Archive Columns (get)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: get-archived-opportunities": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure Opportunities Archive Columns (get-archived)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Ensure Opportunities Archive Columns (get-archived)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Archived Opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Archived Opportunities": {
+      "main": [
+        [
+          {
+            "node": "Respond: get-archived-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: archive-opportunities": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: archive-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: archive-opportunities": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: archive-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: archive-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: archive-opportunities": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure Opportunities Archive Columns (archive)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: archive-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Ensure Opportunities Archive Columns (archive)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Archive Opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Archive Opportunities": {
+      "main": [
+        [
+          {
+            "node": "Respond: archive-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: restore-opportunities": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: restore-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: restore-opportunities": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: restore-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: restore-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: restore-opportunities": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure Opportunities Archive Columns (restore)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: restore-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Ensure Opportunities Archive Columns (restore)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Restore Opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Restore Opportunities": {
+      "main": [
+        [
+          {
+            "node": "Respond: restore-opportunities",
             "type": "main",
             "index": 0
           }

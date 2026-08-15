@@ -19,8 +19,12 @@ interface Props {
   onEdit: (deal: Opportunity) => void;
   onMarkWon: (deal: Opportunity) => void;
   onMarkLost: (deal: Opportunity) => void;
-  onMoveStage: (dealId: number, stageId: number) => void;
-  onDelete: (deal: Opportunity) => void;
+  // Optional — callers that only need a read-mostly popup (e.g. Calendar's
+  // deal detail view) can omit these and the corresponding stage-click/
+  // Archive/Delete affordances just don't render.
+  onMoveStage?: (dealId: number, stageId: number) => void;
+  onArchive?: (deal: Opportunity) => void;
+  onDelete?: (deal: Opportunity) => void;
 }
 
 function currency(n?: number | null) {
@@ -67,6 +71,7 @@ export default function DealDetailModal({
   onMarkWon,
   onMarkLost,
   onMoveStage,
+  onArchive,
   onDelete,
 }: Props) {
   const navigate = useNavigate();
@@ -101,7 +106,12 @@ export default function DealDetailModal({
   const stageName = stagesById.get(deal.stage_id)?.name ?? '--';
   const pipelineName = pipelines.find((p) => p.id === deal.pipeline_id)?.name ?? '--';
   const contact = deal.contact_id ? contacts.find((c) => c.id === deal.contact_id) : undefined;
-  const sortedStages = [...stages].sort((a, b) => a.display_order - b.display_order);
+  // Filtered by the deal's own pipeline_id — callers like Calendar.tsx pass
+  // stages merged across every pipeline (see useAllStages), so this can't
+  // assume the array is already scoped to just this deal's pipeline.
+  const sortedStages = stages
+    .filter((s) => s.pipeline_id === deal.pipeline_id)
+    .sort((a, b) => a.display_order - b.display_order);
   const currentStageIndex = sortedStages.findIndex((s) => s.id === deal.stage_id);
 
   function handleAddComment() {
@@ -110,7 +120,7 @@ export default function DealDetailModal({
   }
 
   function handleDelete() {
-    onDelete(deal);
+    onDelete?.(deal!);
   }
 
   return (
@@ -160,7 +170,15 @@ export default function DealDetailModal({
                 Edit
               </button>
             )}
-            {canDelete && (
+            {canEdit && onArchive && deal.status !== 'Open' && (
+              <button
+                onClick={() => onArchive(deal)}
+                className="px-3 py-1.5 text-xs font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg"
+              >
+                Archive
+              </button>
+            )}
+            {canDelete && onDelete && (
               <button
                 onClick={handleDelete}
                 className="px-3 py-1.5 text-xs font-semibold border border-rose-100 hover:bg-rose-50 text-rose-600 rounded-lg"
@@ -178,15 +196,15 @@ export default function DealDetailModal({
               {sortedStages.map((s, i) => (
                 <div key={s.id} className="flex items-center">
                   <button
-                    onClick={() => canEdit && deal.status === 'Open' && onMoveStage(deal.id, s.id)}
-                    disabled={!canEdit || deal.status !== 'Open'}
+                    onClick={() => canEdit && deal.status === 'Open' && onMoveStage?.(deal.id, s.id)}
+                    disabled={!canEdit || !onMoveStage || deal.status !== 'Open'}
                     className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap ${
                       i === currentStageIndex
                         ? 'bg-indigo-600 text-white'
                         : i < currentStageIndex
                           ? 'bg-emerald-100 text-emerald-700'
                           : 'bg-slate-100 text-slate-500'
-                    } ${canEdit && deal.status === 'Open' ? 'cursor-pointer' : 'cursor-default'}`}
+                    } ${canEdit && onMoveStage && deal.status === 'Open' ? 'cursor-pointer' : 'cursor-default'}`}
                   >
                     <i className={`fa-solid ${i <= currentStageIndex ? 'fa-circle-check' : 'fa-circle'} text-[9px]`} />
                     {s.name}

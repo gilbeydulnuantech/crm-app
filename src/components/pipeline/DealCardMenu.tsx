@@ -150,8 +150,12 @@ export default function DealCardMenu({
                 </>
               )}
 
-              <div className="my-1 border-t border-slate-100" />
-              <MenuItem icon="fa-box-archive" label="Archive Deal" onClick={() => run(onArchive)} />
+              {opportunity.status !== 'Open' && (
+                <>
+                  <div className="my-1 border-t border-slate-100" />
+                  <MenuItem icon="fa-box-archive" label="Archive Deal" onClick={() => run(onArchive)} />
+                </>
+              )}
             </>
           )}
 

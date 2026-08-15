@@ -70,6 +70,10 @@ export function fetchOpportunities(pipelineId: number) {
   return apiFetch<Opportunity[]>(`/webhook/get-opportunities?pipeline_id=${pipelineId}`);
 }
 
+export function fetchArchivedOpportunities(pipelineId: number) {
+  return apiFetch<Opportunity[]>(`/webhook/get-archived-opportunities?pipeline_id=${pipelineId}`);
+}
+
 export function addOpportunity(payload: Partial<Opportunity>) {
   return apiFetch<{ success: boolean; error?: string; id?: number }>(
     '/webhook/add-opportunity',
@@ -99,6 +103,23 @@ export function moveOpportunityStage(id: number, stage_id: number) {
 
 export function deleteOpportunities(ids: number[]) {
   return apiFetch<{ success: boolean; error?: string }>('/webhook/delete-opportunities', {
+    method: 'POST',
+    body: JSON.stringify({ ids }),
+  });
+}
+
+// Restricted server-side to non-Open deals (status != 'Open') — archiving is
+// for clearing closed (Won/Lost) deals off the active board, not for hiding
+// deals still in progress.
+export function archiveOpportunities(ids: number[]) {
+  return apiFetch<{ success: boolean; error?: string }>('/webhook/archive-opportunities', {
+    method: 'POST',
+    body: JSON.stringify({ ids }),
+  });
+}
+
+export function restoreOpportunities(ids: number[]) {
+  return apiFetch<{ success: boolean; error?: string }>('/webhook/restore-opportunities', {
     method: 'POST',
     body: JSON.stringify({ ids }),
   });
