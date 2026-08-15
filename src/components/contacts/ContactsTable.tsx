@@ -1,14 +1,18 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   createColumnHelper,
   flexRender,
   getCoreRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  PaginationState,
+  SortingState,
   useReactTable,
 } from '@tanstack/react-table';
 import { Contact } from '../../types/contact';
 import { useAuth } from '../../context/AuthContext';
 import { getTagColorClasses } from '../../utils/tagColors';
-import { toTitleCase } from '../../utils/text';
+import { formatRelativeTime, toTitleCase } from '../../utils/text';
 
 const STATUS_COLORS: Record<string, string> = {
   New: 'bg-slate-100 text-slate-800',
@@ -59,6 +63,7 @@ export default function ContactsTable({
     const cols = [
       columnHelper.display({
         id: 'select',
+        enableSorting: false,
         header: () => (
           <input
             type="checkbox"
@@ -100,7 +105,7 @@ export default function ContactsTable({
       company_name: () =>
         columnHelper.accessor('company_name', {
           header: 'Company',
-          cell: (info) => info.getValue() || '--',
+          cell: (info) => toTitleCase(info.getValue()) || '--',
         }),
       email: () =>
         columnHelper.accessor('email', {
@@ -115,7 +120,7 @@ export default function ContactsTable({
       job_title: () =>
         columnHelper.accessor('job_title', {
           header: 'Job Title',
-          cell: (info) => info.getValue() || '--',
+          cell: (info) => toTitleCase(info.getValue()) || '--',
         }),
       owner_name: () =>
         columnHelper.accessor('owner_name', {
@@ -125,6 +130,7 @@ export default function ContactsTable({
       tags: () =>
         columnHelper.accessor('tags', {
           header: 'Tags',
+          enableSorting: false,
           cell: (info) => {
             const tags = info.getValue();
             if (!tags || tags.length === 0) return <span className="text-slate-400">--</span>;
@@ -186,6 +192,22 @@ export default function ContactsTable({
           header: 'Created At',
           cell: (info) => (info.getValue() ? new Date(info.getValue()!).toLocaleDateString() : '--'),
         }),
+      last_activity_at: () =>
+        columnHelper.accessor('last_activity_at', {
+          header: 'Last Activity',
+          cell: (info) => {
+            const value = info.getValue();
+            if (!value) return <span className="text-slate-400">--</span>;
+            // Flag anything untouched for 30+ days — the whole point of this
+            // column is spotting contacts a rep has let go cold.
+            const days = Math.floor((Date.now() - new Date(value).getTime()) / 86400000);
+            return (
+              <span className={days >= 30 ? 'text-amber-600 font-medium' : 'text-slate-600'}>
+                {formatRelativeTime(value)}
+              </span>
+            );
+          },
+        }),
     };
 
     // "name" is always shown regardless of visibleColumns (it's the locked
@@ -204,6 +226,7 @@ export default function ContactsTable({
     cols.push(
       columnHelper.display({
         id: 'actions',
+        enableSorting: false,
         header: '',
         cell: ({ row }) => {
           if (!canEdit(row.original)) {
@@ -244,11 +267,30 @@ export default function ContactsTable({
     return cols;
   }, [selectedIds, allSelected, visibleColumns, columnOrder, user, isAdmin]);
 
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 25 });
+
   const table = useReactTable({
     data: contacts,
     columns,
+    state: { sorting, pagination },
+    onSortingChange: setSorting,
+    onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
   });
+
+  // Snap back to a valid page if the current one would be empty (a filter
+  // change or a delete shrinking the list out from under it) — but don't
+  // reset on every background poll, which would fight anyone paging
+  // forward on a list that just happens to re-fetch every 15s.
+  useEffect(() => {
+    if (pagination.pageIndex > 0 && pagination.pageIndex * pagination.pageSize >= contacts.length) {
+      setPagination((p) => ({ ...p, pageIndex: 0 }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contacts.length]);
 
   if (isLoading) {
     return (
@@ -272,14 +314,34 @@ export default function ContactsTable({
         <thead className="sticky top-0 bg-white z-10">
           {table.getHeaderGroups().map((hg) => (
             <tr key={hg.id} className="border-b border-slate-200">
-              {hg.headers.map((h) => (
-                <th
-                  key={h.id}
-                  className="text-left font-semibold text-slate-500 text-xs uppercase tracking-wide py-2 px-2"
-                >
-                  {flexRender(h.column.columnDef.header, h.getContext())}
-                </th>
-              ))}
+              {hg.headers.map((h) => {
+                const sortable = h.column.getCanSort();
+                const sortState = h.column.getIsSorted();
+                return (
+                  <th
+                    key={h.id}
+                    onClick={sortable ? h.column.getToggleSortingHandler() : undefined}
+                    className={`text-left font-semibold text-slate-500 text-xs uppercase tracking-wide py-2 px-2 ${
+                      sortable ? 'cursor-pointer select-none hover:text-slate-700' : ''
+                    }`}
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      {flexRender(h.column.columnDef.header, h.getContext())}
+                      {sortable && (
+                        <i
+                          className={`fa-solid ${
+                            sortState === 'asc'
+                              ? 'fa-arrow-up-short-wide'
+                              : sortState === 'desc'
+                                ? 'fa-arrow-down-wide-short'
+                                : 'fa-sort text-slate-300'
+                          } text-[10px]`}
+                        />
+                      )}
+                    </span>
+                  </th>
+                );
+              })}
             </tr>
           ))}
         </thead>
@@ -301,6 +363,68 @@ export default function ContactsTable({
           ))}
         </tbody>
       </table>
+
+      <div className="flex items-center justify-between py-3 sticky bottom-0 bg-white border-t border-slate-100 -mx-4 px-4">
+        <div className="flex items-center gap-2 text-xs text-slate-500">
+          <span>Rows per page:</span>
+          <select
+            value={pagination.pageSize}
+            onChange={(e) => setPagination({ pageIndex: 0, pageSize: Number(e.target.value) })}
+            className="border border-slate-200 rounded-md text-xs py-1 px-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
+          >
+            {[25, 50, 100, 200].map((size) => (
+              <option key={size} value={size}>
+                {size}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-slate-500">
+            {contacts.length === 0
+              ? '0 of 0'
+              : `${pagination.pageIndex * pagination.pageSize + 1}-${Math.min(
+                  (pagination.pageIndex + 1) * pagination.pageSize,
+                  contacts.length
+                )} of ${contacts.length}`}
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => table.setPageIndex(0)}
+              disabled={!table.getCanPreviousPage()}
+              className="w-7 h-7 flex items-center justify-center rounded text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent"
+              title="First page"
+            >
+              <i className="fa-solid fa-angles-left text-[11px]" />
+            </button>
+            <button
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+              className="w-7 h-7 flex items-center justify-center rounded text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent"
+              title="Previous page"
+            >
+              <i className="fa-solid fa-angle-left text-[11px]" />
+            </button>
+            <button
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+              className="w-7 h-7 flex items-center justify-center rounded text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent"
+              title="Next page"
+            >
+              <i className="fa-solid fa-angle-right text-[11px]" />
+            </button>
+            <button
+              onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+              disabled={!table.getCanNextPage()}
+              className="w-7 h-7 flex items-center justify-center rounded text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent"
+              title="Last page"
+            >
+              <i className="fa-solid fa-angles-right text-[11px]" />
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

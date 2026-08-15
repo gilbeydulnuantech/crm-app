@@ -30,11 +30,19 @@ import ImportContactsModal from '../components/contacts/ImportContactsModal';
 import ContactDetailModal from '../components/contacts/ContactDetailModal';
 import ArchiveReasonModal from '../components/contacts/ArchiveReasonModal';
 import SearchToolbar from '../components/SearchToolbar';
+import SavedViewsBar from '../components/SavedViewsBar';
 
 const EMPTY_FILTERS = { tag: '', owner: '', company: '', status: '' };
 const EMPTY_ADVANCED_FILTERS: AdvancedFilterValue = { company: '', stage: '', task: '' };
 const COLUMNS_STORAGE_KEY = 'contacts-visible-columns';
 const COLUMN_ORDER_STORAGE_KEY = 'contacts-column-order';
+
+interface ContactsSavedFilters {
+  view: ContactsView;
+  search: string;
+  filters: typeof EMPTY_FILTERS;
+  advancedFilters: AdvancedFilterValue;
+}
 
 function loadVisibleColumns(): Record<string, boolean> {
   try {
@@ -141,6 +149,14 @@ export default function Contacts() {
 
   function changeView(next: ContactsView) {
     setView(next);
+    setSelectedIds(new Set());
+  }
+
+  function applySavedFilters(saved: ContactsSavedFilters) {
+    setView(saved.view ?? 'all');
+    setSearch(saved.search ?? '');
+    setFilters({ ...EMPTY_FILTERS, ...saved.filters });
+    setAdvancedFilters({ ...EMPTY_ADVANCED_FILTERS, ...saved.advancedFilters });
     setSelectedIds(new Set());
   }
 
@@ -321,6 +337,11 @@ export default function Contacts() {
 
       {view !== 'archived' && (
         <>
+          <SavedViewsBar<ContactsSavedFilters>
+            entityType="contact"
+            currentFilters={{ view, search, filters, advancedFilters }}
+            onApply={applySavedFilters}
+          />
           <SearchToolbar
             search={search}
             onSearchChange={setSearch}

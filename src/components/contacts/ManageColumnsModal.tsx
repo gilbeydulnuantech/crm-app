@@ -33,10 +33,13 @@ export const CONTACT_COLUMNS: ColumnDef[] = [
   { key: 'lead_source', label: 'Lead Source' },
   { key: 'location', label: 'Location' },
   { key: 'created_at', label: 'Created At' },
+  { key: 'last_activity_at', label: 'Last Activity' },
 ];
 
 export const DEFAULT_VISIBLE_COLUMNS: Record<string, boolean> = {
-  id: true,
+  // Internal database row numbers have no business meaning to a rep —
+  // still available via Columns for anyone who genuinely wants it.
+  id: false,
   name: true,
   company_name: true,
   email: false,
@@ -48,6 +51,7 @@ export const DEFAULT_VISIBLE_COLUMNS: Record<string, boolean> = {
   lead_source: false,
   location: false,
   created_at: false,
+  last_activity_at: true,
 };
 
 export const DEFAULT_COLUMN_ORDER: string[] = CONTACT_COLUMNS.map((c) => c.key);

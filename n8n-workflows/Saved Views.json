@@ -1,0 +1,488 @@
+{
+  "name": "Saved Views",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "get-saved-views",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "84a8432a-504a-4eee-8803-97ba2e73dcfd",
+      "name": "Webhook: get-saved-views",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        800,
+        200
+      ],
+      "webhookId": "0f68033c-a5b7-4de0-a276-42ed4078a5b3"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst requesterId = parseInt(match[1], 10);\nconst entityType = ($input.first().json.query || {}).entity_type || 'contact';\n\nreturn [{ json: { requesterId, entityType } }];"
+      },
+      "id": "b808842f-468b-41ae-bcf3-983a720f2608",
+      "name": "Parse Token: get-saved-views",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1024,
+        200
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, entity_type, name, filters, created_at FROM saved_views WHERE user_id = $1 AND entity_type = $2 ORDER BY created_at ASC;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId, $json.entityType ] }}"
+        }
+      },
+      "id": "a61b725c-e348-4803-ae8b-a3d554b2f9b8",
+      "name": "Postgres: Select Saved Views",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1248,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "a51e50e7-f377-4360-a1fd-4cc6f8009143",
+      "name": "Respond: get-saved-views",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1472,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "OPTIONS",
+        "path": "get-saved-views",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "7cd3afc5-fd0f-40e2-93a0-6bc8b5f09304",
+      "name": "Webhook OPTIONS: get-saved-views",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        800,
+        340
+      ],
+      "webhookId": "09edf3e2-9b28-41e5-b82e-f633bf06a027"
+    },
+    {
+      "parameters": {
+        "respondWith": "noData",
+        "options": {
+          "responseCode": 204,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization, ngrok-skip-browser-warning"
+              }
+            ]
+          }
+        }
+      },
+      "id": "1d0785d3-7ead-4a70-b57f-fc23003322d6",
+      "name": "Respond OPTIONS: get-saved-views",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1024,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "9fbd6559-3a58-44d6-99c6-06a47f9e9a1a",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1248,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "add-saved-view",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "9f09110d-b767-4b72-b4fb-1c9eaed4b586",
+      "name": "Webhook: add-saved-view",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        800,
+        460
+      ],
+      "webhookId": "5da74e55-7591-45b7-bd88-79d4312bdc3d"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst requesterId = parseInt(match[1], 10);\nconst body = $input.first().json.body || {};\n\nconst entityType = (body.entity_type || '').toString().trim();\nconst name = (body.name || '').toString().trim();\nif (!entityType) throw new Error('\"entity_type\" is required.');\nif (!name) throw new Error('\"name\" is required.');\nif (name.length > 100) throw new Error('\"name\" must be 100 characters or fewer.');\nif (typeof body.filters !== 'object' || body.filters === null) {\n  throw new Error('\"filters\" must be an object.');\n}\n\nreturn [{ json: { requesterId, entityType, name, filters: JSON.stringify(body.filters) } }];"
+      },
+      "id": "c2ef69ce-3b4a-40ae-b1da-512588c8864f",
+      "name": "Validate Saved View Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1024,
+        460
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO saved_views (user_id, entity_type, name, filters) VALUES ($1, $2, $3, $4::jsonb) RETURNING id, entity_type, name, filters, created_at;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId, $json.entityType, $json.name, $json.filters ] }}"
+        }
+      },
+      "id": "51c9c702-f721-4324-919f-b62e85b4f1b6",
+      "name": "Postgres: Insert Saved View",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1248,
+        460
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, view: $json } }}",
+        "options": {}
+      },
+      "id": "963f83c5-c345-4a1d-8be8-5cf78b906993",
+      "name": "Respond: add-saved-view",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1472,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "delete-saved-view",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "95bb90ee-151e-4fac-bb1e-17b755dd0109",
+      "name": "Webhook: delete-saved-view",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        800,
+        620
+      ],
+      "webhookId": "c1742fe6-77c1-4178-b34e-75b66adff0da"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst requesterId = parseInt(match[1], 10);\nconst body = $input.first().json.body || {};\nconst viewId = parseInt(body.id, 10);\nif (!Number.isInteger(viewId)) throw new Error('\"id\" must be an integer.');\n\nreturn [{ json: { requesterId, viewId } }];"
+      },
+      "id": "1716c1a4-2c64-46f0-b4d4-501725211262",
+      "name": "Parse Token: delete-saved-view",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1024,
+        620
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM saved_views WHERE id = $1 AND user_id = $2 RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.viewId, $json.requesterId ] }}"
+        }
+      },
+      "id": "dcee6ef8-f1ae-458b-9ebc-2d415c2867c6",
+      "name": "Postgres: Delete Saved View",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1248,
+        780
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) {\n  throw new Error('View not found.');\n}\nreturn [{ json: { success: true, id: result.json.id } }];"
+      },
+      "id": "0fcb8a07-a713-4599-a45e-0f056c7fe922",
+      "name": "Check Delete Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1472,
+        780
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "0be05fc0-f710-4b35-bc51-6c50d868e7d2",
+      "name": "Respond: delete-saved-view",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1696,
+        780
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook: get-saved-views": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: get-saved-views",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: get-saved-views": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Saved Views",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Saved Views": {
+      "main": [
+        [
+          {
+            "node": "Respond: get-saved-views",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook OPTIONS: get-saved-views": {
+      "main": [
+        [
+          {
+            "node": "Respond OPTIONS: get-saved-views",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: add-saved-view": {
+      "main": [
+        [
+          {
+            "node": "Validate Saved View Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Saved View Payload": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Insert Saved View",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Insert Saved View": {
+      "main": [
+        [
+          {
+            "node": "Respond: add-saved-view",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: delete-saved-view": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: delete-saved-view",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: delete-saved-view": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Delete Saved View",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Delete Saved View": {
+      "main": [
+        [
+          {
+            "node": "Check Delete Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Delete Result": {
+      "main": [
+        [
+          {
+            "node": "Respond: delete-saved-view",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "9facaf34-ff42-4302-a15f-65d6d56e8163",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6a773e6041cc88fd4a5b60f3e46f2119d58608faafd09936499001d589f5c1af"
+  },
+  "id": "svdVws0001NewFlow",
+  "tags": []
+}

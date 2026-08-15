@@ -25,6 +25,9 @@ export interface Contact {
   owner_name?: string;
   created_at?: string;
   last_contacted_at?: string;
+  // GREATEST(contacts.updated_at, most recent entity_activity_log entry) —
+  // computed server-side in get-contacts, not a real column.
+  last_activity_at?: string;
   email_logs?: EmailLog[] | string;
   tags?: { id: number; name: string }[];
   // ASSUMPTION: these need a join in get-contacts that doesn't exist yet —
