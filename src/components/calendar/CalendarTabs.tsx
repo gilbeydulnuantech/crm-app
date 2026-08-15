@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { ReactNode, useEffect, useRef, useState } from 'react';
 import { TeamUser } from '../../api/contacts';
 import { Resource } from '../../types/resource';
 import { useUpdateUserColor } from '../../hooks/useContacts';
@@ -22,6 +22,7 @@ interface Props {
   onToggleAllResources: () => void;
   onSelectAllUsers: () => void;
   onSelectOnlyMe: () => void;
+  endExtra?: ReactNode;
 }
 
 // Split button — clicking "All Events" checks every team member (the
@@ -187,6 +188,7 @@ export default function CalendarTabs({
   onToggleAllResources,
   onSelectAllUsers,
   onSelectOnlyMe,
+  endExtra,
 }: Props) {
   const allChecked = users.length > 0 && users.every((u) => checkedUserIds.has(u.id));
   const onlyMeChecked = checkedUserIds.size === 1 && !!currentUserId && checkedUserIds.has(currentUserId);
@@ -217,6 +219,7 @@ export default function CalendarTabs({
         onToggleResource={onToggleResource}
         onToggleAllResources={onToggleAllResources}
       />
+      {endExtra && <div className="ml-auto flex items-center gap-2 shrink-0">{endExtra}</div>}
     </div>
   );
 }

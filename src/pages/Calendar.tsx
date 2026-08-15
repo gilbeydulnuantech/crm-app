@@ -407,26 +407,13 @@ export default function Calendar() {
           )}
         </div>
         <div className="flex-1" />
-        <div className="flex flex-col items-end gap-1.5 shrink-0">
-          <button
-            onClick={() => (mode === 'events' ? openAddModal() : openAddDeal())}
-            className="bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] text-white text-sm font-medium px-3 py-1.5 rounded-lg flex items-center space-x-2 shadow-sm transition-all"
-          >
-            <i className="fa-solid fa-plus text-xs" />
-            <span>{mode === 'events' ? 'New Event' : 'New Deal'}</span>
-          </button>
-          <div className="flex items-center gap-2">
-            <button onClick={goPrev} className="text-xs font-medium text-slate-600 hover:bg-slate-100 px-2 py-1 rounded">
-              &#9664; Previous
-            </button>
-            <button onClick={goToday} className="text-xs font-medium text-slate-600 hover:bg-slate-100 px-2 py-1 rounded">
-              Today
-            </button>
-            <button onClick={goNext} className="text-xs font-medium text-slate-600 hover:bg-slate-100 px-2 py-1 rounded">
-              Next &#9654;
-            </button>
-          </div>
-        </div>
+        <button
+          onClick={() => (mode === 'events' ? openAddModal() : openAddDeal())}
+          className="bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] text-white text-sm font-medium px-3 py-1.5 rounded-lg flex items-center space-x-2 shadow-sm transition-all shrink-0"
+        >
+          <i className="fa-solid fa-plus text-xs" />
+          <span>{mode === 'events' ? 'New Event' : 'New Deal'}</span>
+        </button>
       </div>
 
       <CalendarTabs
@@ -442,6 +429,19 @@ export default function Calendar() {
         onToggleAllResources={toggleAllResources}
         onSelectAllUsers={selectAllUsers}
         onSelectOnlyMe={selectOnlyMe}
+        endExtra={
+          <>
+            <button onClick={goPrev} className="text-xs font-medium text-slate-600 hover:bg-slate-100 px-2 py-1 rounded">
+              &#9664; Previous
+            </button>
+            <button onClick={goToday} className="text-xs font-medium text-slate-600 hover:bg-slate-100 px-2 py-1 rounded">
+              Today
+            </button>
+            <button onClick={goNext} className="text-xs font-medium text-slate-600 hover:bg-slate-100 px-2 py-1 rounded">
+              Next &#9654;
+            </button>
+          </>
+        }
       />
 
       {/* Events/Deals toggle + view toggle + search */}
