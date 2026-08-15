@@ -378,7 +378,7 @@ export default function TaskEditModal({ open, task, onClose }: Props) {
                 <option value="">None</option>
                 {relatedDealOptions.map((d) => (
                   <option key={d.id} value={d.id}>
-                    {d.name}
+                    {toTitleCase(d.name)}
                   </option>
                 ))}
               </select>

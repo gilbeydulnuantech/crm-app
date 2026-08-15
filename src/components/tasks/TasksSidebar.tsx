@@ -28,6 +28,7 @@ interface Props {
   onClearFilters: () => void;
   collapsed: boolean;
   onToggleCollapsed: () => void;
+  activeFilterCount: number;
 }
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -84,6 +85,7 @@ export default function TasksSidebar({
   onClearFilters,
   collapsed,
   onToggleCollapsed,
+  activeFilterCount,
 }: Props) {
   const updateUserColor = useUpdateUserColor();
   const allUsersChecked = users.length > 0 && users.every((u) => checkedUserIds.has(u.id));
@@ -93,10 +95,15 @@ export default function TasksSidebar({
       <div className="w-7 shrink-0 border-r border-slate-200 flex flex-col items-center pt-4 gap-1">
         <button
           onClick={onToggleCollapsed}
-          title="Show filters"
-          className="text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded p-1.5"
+          title={activeFilterCount > 0 ? `Show filters (${activeFilterCount} active)` : 'Show filters'}
+          className="relative text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded p-1.5"
         >
           <i className="fa-solid fa-chevron-right text-xs" />
+          {activeFilterCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 w-3 h-3 flex items-center justify-center rounded-full bg-indigo-600 text-white text-[8px] font-bold">
+              {activeFilterCount}
+            </span>
+          )}
         </button>
         <div className="w-full border-t border-slate-100 my-1" />
         {RAIL_ICONS.map((r) => (

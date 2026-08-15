@@ -132,7 +132,7 @@ export default function DealQuickView({
 
         <div className="px-5 pb-5">
           <div className="mt-3 flex items-start justify-between gap-2">
-            <p className="text-base font-bold text-slate-800 truncate">{deal.name}</p>
+            <p className="text-base font-bold text-slate-800 truncate">{toTitleCase(deal.name)}</p>
             {canEdit && (
               <button
                 onClick={() => onEdit(deal)}
@@ -172,7 +172,7 @@ export default function DealQuickView({
             </h4>
             <RecordLine
               label="Company"
-              value={deal.company_name}
+              value={toTitleCase(deal.company_name)}
               onClick={
                 deal.account_id
                   ? () => setQuickViewCompanyId(deal.account_id!)

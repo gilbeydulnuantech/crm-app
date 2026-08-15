@@ -308,7 +308,7 @@ export default function TaskFormModal({ open, defaultContactId, defaultOpportuni
                 <option value="">None</option>
                 {contactDeals.map((d) => (
                   <option key={d.id} value={d.id}>
-                    {d.name}
+                    {toTitleCase(d.name)}
                   </option>
                 ))}
               </select>

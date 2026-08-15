@@ -21,6 +21,7 @@ import {
   useUpdateTask,
 } from '../../hooks/useTasks';
 import { useUsers } from '../../hooks/useContacts';
+import ConfirmDialog from '../ConfirmDialog';
 
 interface Props {
   task: Task | null;
@@ -59,6 +60,13 @@ export default function TaskDetailModal({ task, isAdmin, currentUserId, onClose,
   const [reassignOpen, setReassignOpen] = useState(false);
   const [watcherPickerOpen, setWatcherPickerOpen] = useState(false);
   const [newSubtask, setNewSubtask] = useState('');
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
+  const [attachmentFormOpen, setAttachmentFormOpen] = useState(false);
+  const [attachmentName, setAttachmentName] = useState('');
+  const [attachmentUrl, setAttachmentUrl] = useState('');
+  const [logCallOpen, setLogCallOpen] = useState(false);
+  const [callNotes, setCallNotes] = useState('');
 
   const subtasks = useMemo(() => task?.subtasks ?? [], [task]);
   const attachments = useMemo(() => task?.attachments ?? [], [task]);
@@ -89,13 +97,16 @@ export default function TaskDetailModal({ task, isAdmin, currentUserId, onClose,
   }
 
   function handleAddAttachment() {
-    const url = prompt('Attachment URL:');
-    if (!url?.trim()) return;
-    const name = prompt('Attachment name:', url.split('/').pop() || 'Attachment') || url;
+    const url = attachmentUrl.trim();
+    if (!url) return;
+    const name = attachmentName.trim() || url.split('/').pop() || 'Attachment';
     setAttachments.mutate({
       taskId: task!.id,
-      attachments: [...attachments.map((a) => ({ name: a.name, url: a.url })), { name, url: url.trim() }],
+      attachments: [...attachments.map((a) => ({ name: a.name, url: a.url })), { name, url }],
     });
+    setAttachmentName('');
+    setAttachmentUrl('');
+    setAttachmentFormOpen(false);
   }
 
   function handleStatusStep(status: TaskStatus) {
@@ -145,18 +156,31 @@ export default function TaskDetailModal({ task, isAdmin, currentUserId, onClose,
   }
 
   function handleDelete() {
-    if (!confirm(`Permanently delete "${task!.subject}"? This cannot be undone.`)) return;
     deleteTasks.mutate([task!.id], { onSuccess: onClose });
   }
 
   function handleArchive() {
-    if (!confirm(`Archive "${task!.subject}"?`)) return;
     archiveTasks.mutate([task!.id], { onSuccess: onClose });
   }
 
   function handleAddComment() {
     if (!comment.trim()) return;
     addNote.mutate({ body: comment.trim(), requesterId: currentUserId }, { onSuccess: () => setComment('') });
+  }
+
+  function handleLogCall() {
+    if (!callNotes.trim()) return;
+    addNote.mutate(
+      { body: `📞 Call: ${callNotes.trim()}`, requesterId: currentUserId },
+      { onSuccess: () => { setCallNotes(''); setLogCallOpen(false); } }
+    );
+  }
+
+  function handleSnooze() {
+    if (!task!.due_at) return;
+    const next = new Date(task!.due_at);
+    next.setHours(next.getHours() + 24);
+    updateTask.mutate({ id: task!.id, payload: { due_at: next.toISOString() } });
   }
 
   function goToContact() {
@@ -200,7 +224,7 @@ export default function TaskDetailModal({ task, isAdmin, currentUserId, onClose,
               <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
                 Tasks / {taskDisplayId(task)}
               </p>
-              <h2 className="text-lg font-bold text-slate-800 truncate">{task.subject}</h2>
+              <h2 className="text-lg font-bold text-slate-800 truncate">{toTitleCase(task.subject)}</h2>
             </div>
             <button onClick={onClose} className="text-slate-400 hover:text-slate-600 shrink-0">
               <i className="fa-solid fa-xmark text-lg" />
@@ -222,6 +246,22 @@ export default function TaskDetailModal({ task, isAdmin, currentUserId, onClose,
                 className="px-3 py-1.5 text-xs font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg"
               >
                 Edit
+              </button>
+            )}
+            {canEdit && (
+              <button
+                onClick={() => setLogCallOpen((v) => !v)}
+                className="px-3 py-1.5 text-xs font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg"
+              >
+                Log Call
+              </button>
+            )}
+            {canEdit && task.due_at && (
+              <button
+                onClick={handleSnooze}
+                className="px-3 py-1.5 text-xs font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg"
+              >
+                Snooze 24h
               </button>
             )}
             {canEdit && (
@@ -258,7 +298,7 @@ export default function TaskDetailModal({ task, isAdmin, currentUserId, onClose,
             </button>
             {canArchive && (
               <button
-                onClick={handleArchive}
+                onClick={() => setArchiveConfirmOpen(true)}
                 className="px-3 py-1.5 text-xs font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg"
               >
                 Archive
@@ -266,13 +306,41 @@ export default function TaskDetailModal({ task, isAdmin, currentUserId, onClose,
             )}
             {canDelete && (
               <button
-                onClick={handleDelete}
+                onClick={() => setDeleteConfirmOpen(true)}
                 className="px-3 py-1.5 text-xs font-semibold border border-rose-100 hover:bg-rose-50 text-rose-600 rounded-lg"
               >
                 Delete
               </button>
             )}
           </div>
+
+          {logCallOpen && (
+            <div className="mt-3 space-y-1.5 max-w-md">
+              <textarea
+                autoFocus
+                value={callNotes}
+                onChange={(e) => setCallNotes(e.target.value)}
+                placeholder="Call notes..."
+                rows={2}
+                className="w-full px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-1 focus:ring-[var(--theme-accent)]"
+              />
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => { setLogCallOpen(false); setCallNotes(''); }}
+                  className="text-[11px] font-medium text-slate-500 hover:text-slate-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleLogCall}
+                  disabled={!callNotes.trim() || addNote.isPending}
+                  className="text-[11px] font-semibold text-[var(--theme-accent)] hover:text-[var(--theme-accent-hover)] disabled:opacity-50"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="flex items-center gap-1 mt-4 overflow-x-auto">
             {TASK_STATUSES.map((s, i) => (
@@ -385,7 +453,7 @@ export default function TaskDetailModal({ task, isAdmin, currentUserId, onClose,
                   <p>
                     <span className="text-slate-500">Deal: </span>
                     <button onClick={goToDeal} className="text-indigo-600 hover:underline font-medium">
-                      {task.opportunity_name} ({currency(task.opportunity_value)})
+                      {toTitleCase(task.opportunity_name)} ({currency(task.opportunity_value)})
                     </button>
                   </p>
                 )}
@@ -469,12 +537,50 @@ export default function TaskDetailModal({ task, isAdmin, currentUserId, onClose,
                 {attachments.length === 0 && <p className="text-xs text-slate-400 italic">No attachments.</p>}
               </div>
               {canEdit && (
-                <button
-                  onClick={handleAddAttachment}
-                  className="text-xs font-semibold text-indigo-600 hover:underline"
-                >
-                  + Upload File
-                </button>
+                attachmentFormOpen ? (
+                  <div className="space-y-1.5">
+                    <input
+                      autoFocus
+                      value={attachmentUrl}
+                      onChange={(e) => setAttachmentUrl(e.target.value)}
+                      placeholder="File URL"
+                      className="w-full px-2 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[var(--theme-accent)]"
+                    />
+                    <input
+                      value={attachmentName}
+                      onChange={(e) => setAttachmentName(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddAttachment()}
+                      placeholder="Display name (optional)"
+                      className="w-full px-2 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[var(--theme-accent)]"
+                    />
+                    <div className="flex justify-end gap-3">
+                      <button
+                        onClick={() => {
+                          setAttachmentFormOpen(false);
+                          setAttachmentName('');
+                          setAttachmentUrl('');
+                        }}
+                        className="text-[11px] font-medium text-slate-500 hover:text-slate-700"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleAddAttachment}
+                        disabled={!attachmentUrl.trim()}
+                        className="text-[11px] font-semibold text-[var(--theme-accent)] hover:text-[var(--theme-accent-hover)] disabled:opacity-50"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setAttachmentFormOpen(true)}
+                    className="text-xs font-semibold text-indigo-600 hover:underline"
+                  >
+                    + Upload File
+                  </button>
+                )
               )}
             </div>
 
@@ -531,6 +637,31 @@ export default function TaskDetailModal({ task, isAdmin, currentUserId, onClose,
             </div>
           </div>
         </div>
+      </div>
+
+      {/* stopPropagation here — this modal's own backdrop closes on click,
+          and without this a click landing on ConfirmDialog's backdrop/
+          buttons would bubble up and close the task modal underneath it. */}
+      <div onClick={(e) => e.stopPropagation()}>
+        <ConfirmDialog
+          open={deleteConfirmOpen}
+          title="Permanently delete this task?"
+          body={`"${task.subject}" and its subtasks, attachments, and comments will be permanently removed. This cannot be undone.`}
+          confirmLabel="Delete"
+          isSubmitting={deleteTasks.isPending}
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteConfirmOpen(false)}
+        />
+        <ConfirmDialog
+          open={archiveConfirmOpen}
+          title="Archive this task?"
+          body={`"${task.subject}" will be moved out of your active task list.`}
+          confirmLabel="Archive"
+          danger={false}
+          isSubmitting={archiveTasks.isPending}
+          onConfirm={handleArchive}
+          onCancel={() => setArchiveConfirmOpen(false)}
+        />
       </div>
     </div>
   );

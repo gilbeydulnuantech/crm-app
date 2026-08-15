@@ -398,6 +398,7 @@ export default function Pipeline() {
 
       <DealDetailModal
         deal={detailDeal}
+        stages={stages}
         stagesById={stagesById}
         isAdmin={isAdmin}
         currentUserId={user?.id}
@@ -410,6 +411,11 @@ export default function Pipeline() {
         onMarkLost={(deal) => {
           setDetailDeal(null);
           setLostDeal(deal);
+        }}
+        onMoveStage={handleMoveStage}
+        onDelete={(deal) => {
+          setDetailDeal(null);
+          handleDelete(deal);
         }}
       />
 

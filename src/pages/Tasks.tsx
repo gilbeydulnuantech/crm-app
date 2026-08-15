@@ -11,7 +11,9 @@ import {
   useRestoreTasks,
   useTasks,
   useToggleTaskComplete,
+  useUpdateTask,
 } from '../hooks/useTasks';
+import { startDm, sendMessage } from '../api/chat';
 import TasksStatsBar from '../components/tasks/TasksStatsBar';
 import TasksTabs from '../components/tasks/TasksTabs';
 import TasksSidebar, { TaskStatusFilter } from '../components/tasks/TasksSidebar';
@@ -71,6 +73,7 @@ export default function Tasks() {
   const restoreTasks = useRestoreTasks();
   const toggleComplete = useToggleTaskComplete();
   const moveTaskStatus = useMoveTaskStatus();
+  const updateTask = useUpdateTask();
 
   // Default to everyone checked once the team list loads — "All Members"
   // means unrestricted, not "hide everyone until you opt in".
@@ -175,6 +178,14 @@ export default function Tasks() {
     setPriorityFilters(new Set());
   }
 
+  // Mirrors Pipeline's countActiveDealFilters — one point per filter
+  // category that's narrowed from its "show everything" state, not per
+  // individual checkbox, so the badge stays legible at a glance.
+  const activeFilterCount =
+    (users.length > 0 && checkedUserIds.size < users.length ? 1 : 0) +
+    (statusFilters.size > 0 ? 1 : 0) +
+    (priorityFilters.size > 0 ? 1 : 0);
+
   const visibleTasks = useMemo(() => {
     let list = view === 'archived' ? archivedTasks : allTasks;
     if (view === 'mine') list = list.filter((t) => t.user_id === user?.id);
@@ -220,8 +231,33 @@ export default function Tasks() {
     return list;
   }, [allTasks, users, checkedUserIds, statusFilters, priorityFilters, search]);
 
-  function handleMoveTaskStatus(taskId: number, status: TaskStatus) {
-    moveTaskStatus.mutate({ id: taskId, status });
+  function handleMoveTaskStatus(task: Task, status: TaskStatus) {
+    moveTaskStatus.mutate({ id: task.id, status });
+  }
+
+  async function handleReassignTask(task: Task, userId: number) {
+    updateTask.mutate({ id: task.id, payload: { user_id: userId } });
+    if (userId !== user?.id) {
+      try {
+        const { id: conversationId } = await startDm(userId);
+        await sendMessage(conversationId, `Task reassigned to you: "[[ref:task:${task.id}:-:${task.subject}]]"`);
+      } catch (err) {
+        console.error('Failed to send reassignment DM:', err);
+      }
+    }
+  }
+
+  function handleMarkCompleteTask(task: Task) {
+    toggleComplete.mutate({ id: task.id, is_completed: true });
+  }
+
+  function handleArchiveTask(task: Task) {
+    archiveTasks.mutate([task.id]);
+  }
+
+  function handleDeleteTask(task: Task) {
+    if (!confirm(`Permanently delete "${task.subject}"? This cannot be undone.`)) return;
+    deleteTasks.mutate([task.id]);
   }
 
   // View All, Edit Owned Only: standard users can see every task but only
@@ -285,21 +321,24 @@ export default function Tasks() {
         onClearFilters={clearFilters}
         collapsed={!sidebarOpen}
         onToggleCollapsed={() => setSidebarOpen((v) => !v)}
+        activeFilterCount={activeFilterCount}
       />
 
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        <div className="px-4 py-4 flex items-center justify-between shrink-0 border-b border-slate-200">
-          <h1 className="text-lg font-bold text-slate-800">Tasks</h1>
+        <div className="px-4 py-3 flex items-center gap-4 shrink-0 border-b border-slate-200">
+          <h1 className="text-lg font-bold text-slate-800 shrink-0">Tasks</h1>
+          <div className="flex-1 flex justify-center min-w-0">
+            <TasksStatsBar tasks={allTasks} />
+          </div>
           <button
             onClick={openAddModal}
-            className="bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] text-white text-sm font-medium px-3 py-1.5 rounded-lg flex items-center space-x-2 shadow-sm transition-all"
+            className="bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] text-white text-sm font-medium px-3 py-1.5 rounded-lg flex items-center space-x-2 shadow-sm transition-all shrink-0"
           >
             <i className="fa-solid fa-plus text-xs" />
             <span>Add Task</span>
           </button>
         </div>
 
-        <TasksStatsBar tasks={allTasks} />
         {boardView === 'list' && <TasksTabs view={view} onChange={changeView} />}
 
         <SearchToolbar
@@ -307,6 +346,7 @@ export default function Tasks() {
           onSearchChange={setSearch}
           placeholder="Search tasks..."
           onFiltersClick={() => setSidebarOpen((v) => !v)}
+          filterCount={activeFilterCount}
           rightExtra={
             <div className="flex items-center gap-1 border border-slate-200 rounded-md p-0.5 bg-slate-50">
               {(['kanban', 'list'] as BoardView[]).map((v) => (
@@ -370,9 +410,17 @@ export default function Tasks() {
         ) : (
           <TasksKanbanBoard
             tasks={kanbanTasks}
+            users={users}
             onMoveStatus={handleMoveTaskStatus}
             onCardClick={openQuickView}
+            onViewDetails={openDetailModal}
+            onEdit={openEditModal}
+            onReassign={handleReassignTask}
+            onMarkComplete={handleMarkCompleteTask}
+            onArchive={handleArchiveTask}
+            onDelete={handleDeleteTask}
             canEditTask={canEditTask}
+            isAdmin={isAdmin}
             highlightTaskId={highlightTaskId}
           />
         )}

@@ -5,6 +5,7 @@ interface Props {
   onSearchChange: (value: string) => void;
   placeholder?: string;
   onFiltersClick?: () => void;
+  filterCount?: number;
   onColumnsClick?: () => void;
   rightExtra?: ReactNode;
   density?: 'comfortable' | 'compact';
@@ -20,6 +21,7 @@ export default function SearchToolbar({
   onSearchChange,
   placeholder = 'Search...',
   onFiltersClick,
+  filterCount,
   onColumnsClick,
   rightExtra,
   density,
@@ -73,9 +75,14 @@ export default function SearchToolbar({
         {onFiltersClick && (
           <button
             onClick={onFiltersClick}
-            className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-indigo-600 py-1.5 px-2.5 border border-slate-200 rounded-md bg-white transition-colors"
+            className="relative flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-indigo-600 py-1.5 px-2.5 border border-slate-200 rounded-md bg-white transition-colors"
           >
             <span>Filters</span>
+            {!!filterCount && (
+              <span className="w-4 h-4 flex items-center justify-center rounded-full bg-indigo-600 text-white text-[9px] font-bold">
+                {filterCount}
+              </span>
+            )}
             <i className="fa-solid fa-chevron-down text-[10px]" />
           </button>
         )}

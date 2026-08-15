@@ -1,12 +1,22 @@
 import { useDraggable } from '@dnd-kit/core';
-import { Task, taskStatus } from '../../types/task';
+import { Task, TaskStatus, taskStatus } from '../../types/task';
 import { toTitleCase } from '../../utils/text';
 import { DEFAULT_USER_COLOR, hexToRgba } from '../../utils/userColor';
+import TaskCardMenu from './TaskCardMenu';
 
 interface Props {
   task: Task;
+  users: { id: number; name: string }[];
   onClick: () => void;
+  onViewDetails: () => void;
+  onEdit: () => void;
+  onReassign: (userId: number) => void;
+  onMoveStatus: (status: TaskStatus) => void;
+  onMarkComplete: () => void;
+  onArchive: () => void;
+  onDelete: () => void;
   canEdit: boolean;
+  isAdmin: boolean;
   highlighted?: boolean;
 }
 
@@ -16,7 +26,21 @@ const PRIORITY_BORDER: Record<string, string> = {
   Low: '#3B82F6',
 };
 
-export default function TaskCard({ task, onClick, canEdit, highlighted }: Props) {
+export default function TaskCard({
+  task,
+  users,
+  onClick,
+  onViewDetails,
+  onEdit,
+  onReassign,
+  onMoveStatus,
+  onMarkComplete,
+  onArchive,
+  onDelete,
+  canEdit,
+  isAdmin,
+  highlighted,
+}: Props) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
     data: { task },
@@ -66,7 +90,22 @@ export default function TaskCard({ task, onClick, canEdit, highlighted }: Props)
           </span>
         )}
         {task.task_type && <span className="text-[10px] text-slate-400 truncate">{task.task_type}</span>}
-        {!canEdit && <i className="fa-solid fa-lock text-slate-300 text-[10px] shrink-0 ml-auto" />}
+        <div className="ml-auto flex items-center gap-1 shrink-0">
+          {!canEdit && <i className="fa-solid fa-lock text-slate-300 text-[10px]" />}
+          <TaskCardMenu
+            task={task}
+            users={users}
+            canEdit={canEdit}
+            isAdmin={isAdmin}
+            onViewDetails={onViewDetails}
+            onEdit={onEdit}
+            onReassign={onReassign}
+            onMoveStatus={onMoveStatus}
+            onMarkComplete={onMarkComplete}
+            onArchive={onArchive}
+            onDelete={onDelete}
+          />
+        </div>
       </div>
 
       <div
@@ -74,7 +113,7 @@ export default function TaskCard({ task, onClick, canEdit, highlighted }: Props)
           task.is_completed ? 'text-slate-400 line-through' : 'text-slate-800'
         }`}
       >
-        {task.subject}
+        {toTitleCase(task.subject)}
       </div>
 
       {accountName && (
@@ -86,7 +125,7 @@ export default function TaskCard({ task, onClick, canEdit, highlighted }: Props)
       {task.opportunity_name && (
         <div className="text-[11px] text-slate-400 truncate mt-0.5 flex items-center gap-1">
           <i className="fa-solid fa-sack-dollar text-[9px]" />
-          Deal: {task.opportunity_name}
+          Deal: {toTitleCase(task.opportunity_name)}
         </div>
       )}
 

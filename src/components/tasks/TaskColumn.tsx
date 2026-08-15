@@ -6,12 +6,37 @@ interface Props {
   status: TaskStatus;
   label: string;
   tasks: Task[];
+  users: { id: number; name: string }[];
   onCardClick: (task: Task) => void;
+  onViewDetails: (task: Task) => void;
+  onEdit: (task: Task) => void;
+  onReassign: (task: Task, userId: number) => void;
+  onMoveStatus: (task: Task, status: TaskStatus) => void;
+  onMarkComplete: (task: Task) => void;
+  onArchive: (task: Task) => void;
+  onDelete: (task: Task) => void;
   canEditTask: (task: Task) => boolean;
+  isAdmin: boolean;
   highlightTaskId?: number | null;
 }
 
-export default function TaskColumn({ status, label, tasks, onCardClick, canEditTask, highlightTaskId }: Props) {
+export default function TaskColumn({
+  status,
+  label,
+  tasks,
+  users,
+  onCardClick,
+  onViewDetails,
+  onEdit,
+  onReassign,
+  onMoveStatus,
+  onMarkComplete,
+  onArchive,
+  onDelete,
+  canEditTask,
+  isAdmin,
+  highlightTaskId,
+}: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
 
   return (
@@ -32,8 +57,17 @@ export default function TaskColumn({ status, label, tasks, onCardClick, canEditT
           <TaskCard
             key={t.id}
             task={t}
+            users={users}
             onClick={() => onCardClick(t)}
+            onViewDetails={() => onViewDetails(t)}
+            onEdit={() => onEdit(t)}
+            onReassign={(userId) => onReassign(t, userId)}
+            onMoveStatus={(s) => onMoveStatus(t, s)}
+            onMarkComplete={() => onMarkComplete(t)}
+            onArchive={() => onArchive(t)}
+            onDelete={() => onDelete(t)}
             canEdit={canEditTask(t)}
+            isAdmin={isAdmin}
             highlighted={t.id === highlightTaskId}
           />
         ))}
