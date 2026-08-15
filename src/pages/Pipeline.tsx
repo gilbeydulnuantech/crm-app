@@ -18,7 +18,7 @@ import { useAddNote } from '../hooks/useNotes';
 import { useAddTask } from '../hooks/useTasks';
 import { useAuth } from '../context/AuthContext';
 import PipelineStatsBar from '../components/pipeline/PipelineStatsBar';
-import PipelineBoard from '../components/pipeline/PipelineBoard';
+import PipelineBoard, { PipelineBoardColumnsMenu } from '../components/pipeline/PipelineBoard';
 import PipelineListView, { PipelineColumnsMenu } from '../components/pipeline/PipelineListView';
 import PipelineSelector from '../components/pipeline/PipelineSelector';
 import PipelineTabs, { PipelineTabView } from '../components/pipeline/PipelineTabs';
@@ -47,6 +47,8 @@ export default function Pipeline() {
   );
   const [viewMode, setViewMode] = useState<PipelineViewMode>('board');
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [visibleStageIds, setVisibleStageIds] = useState<Set<number>>(new Set());
+  const [stagesInitializedForPipeline, setStagesInitializedForPipeline] = useState<number | undefined>(undefined);
   const [view, setView] = useState<PipelineTabView>('all');
   const [search, setSearch] = useState('');
   const [formOpen, setFormOpen] = useState(false);
@@ -96,6 +98,16 @@ export default function Pipeline() {
   );
   const { data: users = [] } = useUsers();
   const { data: tags = [] } = useTags();
+
+  // Default to every stage visible once this pipeline's stages load — reset
+  // whenever the pipeline itself changes (stage ids differ per pipeline),
+  // not on every background refetch of the same pipeline's stages.
+  useEffect(() => {
+    if (stages.length > 0 && stagesInitializedForPipeline !== pipelineId) {
+      setVisibleStageIds(new Set(stages.map((s) => s.id)));
+      setStagesInitializedForPipeline(pipelineId);
+    }
+  }, [stages, pipelineId, stagesInitializedForPipeline]);
 
   // Default to everyone checked once the team list loads — "All Members"
   // means unrestricted, not "hide everyone until you opt in".
@@ -192,6 +204,14 @@ export default function Pipeline() {
     setTagFilters((prev) => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function toggleStageColumn(stageId: number) {
+    setVisibleStageIds((prev) => {
+      const next = new Set(prev);
+      next.has(stageId) ? next.delete(stageId) : next.add(stageId);
       return next;
     });
   }
@@ -346,12 +366,19 @@ export default function Pipeline() {
                 List
               </button>
             </div>
-            {viewMode === 'list' && view !== 'archived' && (
-              <PipelineColumnsMenu
-                visibility={columnVisibility}
-                onToggle={(id) => setColumnVisibility((v) => ({ ...v, [id]: v[id] === false }))}
-              />
-            )}
+            {view !== 'archived' &&
+              (viewMode === 'list' ? (
+                <PipelineColumnsMenu
+                  visibility={columnVisibility}
+                  onToggle={(id) => setColumnVisibility((v) => ({ ...v, [id]: v[id] === false }))}
+                />
+              ) : (
+                <PipelineBoardColumnsMenu
+                  stages={stages}
+                  visibleStageIds={visibleStageIds}
+                  onToggle={toggleStageColumn}
+                />
+              ))}
           </div>
         }
       />
@@ -361,6 +388,7 @@ export default function Pipeline() {
       ) : viewMode === 'board' ? (
         <PipelineBoard
           stages={stages}
+          visibleStageIds={visibleStageIds}
           opportunities={visibleOpportunities}
           onCardClick={setQuickViewDeal}
           onViewDetails={setDetailDeal}

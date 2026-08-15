@@ -51,10 +51,10 @@ export function useUpdateTask() {
 export function useToggleTaskComplete() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, is_completed }: { id: number; is_completed: boolean }) =>
-      api.toggleTaskComplete(id, is_completed),
+    mutationFn: ({ id, is_completed, statusName }: { id: number; is_completed: boolean; statusName: string }) =>
+      api.toggleTaskComplete(id, is_completed, statusName),
     // Optimistic checkbox toggle so it feels instant.
-    onMutate: async ({ id, is_completed }) => {
+    onMutate: async ({ id, is_completed, statusName }) => {
       await qc.cancelQueries({ queryKey: ['tasks'] });
       const previous = qc.getQueryData<Task[]>(['tasks']);
       qc.setQueryData<Task[]>(['tasks'], (old) =>
@@ -64,7 +64,7 @@ export function useToggleTaskComplete() {
                 ...t,
                 is_completed,
                 completed_at: is_completed ? new Date().toISOString() : null,
-                status: is_completed ? 'completed' : 'to_do',
+                status: statusName,
               }
             : t
         )
@@ -83,18 +83,21 @@ export function useToggleTaskComplete() {
 
 // Drag-and-drop across Kanban columns — keeps is_completed/completed_at in
 // sync with status so the List view/stats (which key off is_completed)
-// never contradict the board. Optimistic update mirrors
+// never contradict the board. `isCompletedStatus` is looked up by the
+// caller from useTaskStatuses() (whichever column has is_completed_status
+// = true), since "which status counts as done" is now admin-configurable,
+// not a fixed 'completed' string. Optimistic update mirrors
 // useMoveOpportunityStage's pattern for the Pipeline Kanban board.
 export function useMoveTaskStatus() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, status }: { id: number; status: TaskStatus }) =>
+    mutationFn: ({ id, status, isCompletedStatus }: { id: number; status: TaskStatus; isCompletedStatus: boolean }) =>
       api.updateTask(id, {
         status,
-        is_completed: status === 'completed',
-        completed_at: status === 'completed' ? new Date().toISOString() : null,
+        is_completed: isCompletedStatus,
+        completed_at: isCompletedStatus ? new Date().toISOString() : null,
       }),
-    onMutate: async ({ id, status }) => {
+    onMutate: async ({ id, status, isCompletedStatus }) => {
       await qc.cancelQueries({ queryKey: ['tasks'] });
       const previous = qc.getQueryData<Task[]>(['tasks']);
       qc.setQueryData<Task[]>(['tasks'], (old) =>
@@ -103,8 +106,8 @@ export function useMoveTaskStatus() {
             ? {
                 ...t,
                 status,
-                is_completed: status === 'completed',
-                completed_at: status === 'completed' ? new Date().toISOString() : null,
+                is_completed: isCompletedStatus,
+                completed_at: isCompletedStatus ? new Date().toISOString() : null,
               }
             : t
         )

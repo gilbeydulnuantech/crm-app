@@ -2,8 +2,6 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import {
   ESTIMATED_DURATION_OPTIONS,
   TASK_PRIORITIES,
-  TASK_STATUSES,
-  TASK_STATUS_LABELS,
   TASK_TYPES,
   Task,
   TaskPriority,
@@ -12,6 +10,7 @@ import {
   taskDisplayId,
 } from '../../types/task';
 import { useSetTaskWatchers, useUpdateTask } from '../../hooks/useTasks';
+import { useTaskStatuses } from '../../hooks/useTaskStatuses';
 import { useContacts, useUsers } from '../../hooks/useContacts';
 import { useAllOpportunities, usePipelines } from '../../hooks/useOpportunities';
 import { useAuth } from '../../context/AuthContext';
@@ -29,7 +28,7 @@ interface Props {
 const EMPTY = {
   subject: '',
   body: '',
-  status: 'to_do' as TaskStatus,
+  status: '' as TaskStatus,
   priority: 'Medium' as TaskPriority,
   task_type: '' as TaskType | '',
   date: '',
@@ -60,6 +59,9 @@ function combineDateTime(date: string, time: string): string | null {
 export default function TaskEditModal({ open, task, onClose }: Props) {
   const { user } = useAuth();
   const { data: users = [] } = useUsers();
+  const { data: taskStatuses = [] } = useTaskStatuses();
+  const completedStatus = taskStatuses.find((s) => s.is_completed_status);
+  const defaultStatus = taskStatuses[0];
   const { data: contacts = [] } = useContacts();
   const { data: pipelines = [] } = usePipelines();
   const pipelineIds = useMemo(() => pipelines.map((p) => p.id), [pipelines]);
@@ -76,7 +78,7 @@ export default function TaskEditModal({ open, task, onClose }: Props) {
     setForm({
       subject: task.subject ?? '',
       body: task.body ?? '',
-      status: task.status ?? (task.is_completed ? 'completed' : 'to_do'),
+      status: task.status ?? (task.is_completed ? completedStatus?.name : defaultStatus?.name) ?? '',
       priority: task.priority ?? 'Medium',
       task_type: task.task_type ?? '',
       date: task.due_at ? toDateInput(task.due_at) : '',
@@ -92,7 +94,7 @@ export default function TaskEditModal({ open, task, onClose }: Props) {
       edit_reason: '',
     });
     setError(null);
-  }, [open, task]);
+  }, [open, task, completedStatus, defaultStatus]);
 
   const contactDeals = useMemo(
     () => (form.contact_id ? allDeals.filter((d) => d.contact_id === Number(form.contact_id)) : []),
@@ -142,12 +144,13 @@ export default function TaskEditModal({ open, task, onClose }: Props) {
       return;
     }
 
+    const isCompletedStatus = taskStatuses.find((s) => s.name === form.status)?.is_completed_status ?? false;
     const payload = {
       subject: form.subject,
       body: form.body || undefined,
       status: form.status,
-      is_completed: form.status === 'completed',
-      completed_at: form.status === 'completed' ? new Date().toISOString() : null,
+      is_completed: isCompletedStatus,
+      completed_at: isCompletedStatus ? new Date().toISOString() : null,
       priority: form.priority,
       task_type: form.task_type || null,
       due_at: combineDateTime(form.date, form.time),
@@ -215,9 +218,9 @@ export default function TaskEditModal({ open, task, onClose }: Props) {
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Status</label>
               <select value={form.status} onChange={(e) => update('status', e.target.value as TaskStatus)} className={inputClass}>
-                {TASK_STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {TASK_STATUS_LABELS[s]}
+                {taskStatuses.map((s) => (
+                  <option key={s.id} value={s.name}>
+                    {s.name}
                   </option>
                 ))}
               </select>

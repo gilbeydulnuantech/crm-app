@@ -1,13 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  TASK_STATUSES,
-  TASK_STATUS_LABELS,
-  Task,
-  TaskStatus,
-  taskDisplayId,
-  taskKanbanStatus,
-} from '../../types/task';
+import { Task, TaskStatus, taskDisplayId, taskKanbanStatus } from '../../types/task';
 import { toTitleCase } from '../../utils/text';
 import { useNotes, useAddNote } from '../../hooks/useNotes';
 import { startDm, sendMessage } from '../../api/chat';
@@ -20,6 +13,7 @@ import {
   useSetTaskWatchers,
   useUpdateTask,
 } from '../../hooks/useTasks';
+import { useTaskStatuses } from '../../hooks/useTaskStatuses';
 import { useUsers } from '../../hooks/useContacts';
 import ConfirmDialog from '../ConfirmDialog';
 
@@ -46,6 +40,7 @@ function formatDateTime(value?: string | null) {
 export default function TaskDetailModal({ task, isAdmin, currentUserId, onClose, onEdit }: Props) {
   const navigate = useNavigate();
   const { data: users = [] } = useUsers();
+  const { data: taskStatuses = [] } = useTaskStatuses();
   const { data: notes = [] } = useNotes('task', task?.id ?? null);
   const addNote = useAddNote('task', task?.id ?? null);
   const updateTask = useUpdateTask();
@@ -77,7 +72,7 @@ export default function TaskDetailModal({ task, isAdmin, currentUserId, onClose,
   const canEdit = isAdmin || task.user_id === currentUserId;
   const canArchive = canEdit; // owner or admin
   const canDelete = isAdmin;
-  const currentStageIndex = TASK_STATUSES.indexOf(taskKanbanStatus(task));
+  const currentStageIndex = taskStatuses.findIndex((s) => s.name === taskKanbanStatus(task));
 
   function persistSubtasks(next: { title: string; is_completed: boolean }[]) {
     setSubtasks.mutate({ taskId: task!.id, subtasks: next });
@@ -111,14 +106,16 @@ export default function TaskDetailModal({ task, isAdmin, currentUserId, onClose,
 
   function handleStatusStep(status: TaskStatus) {
     if (!canEdit) return;
+    const isCompletedStatus = taskStatuses.find((s) => s.name === status)?.is_completed_status ?? false;
     updateTask.mutate({
       id: task!.id,
-      payload: { status, is_completed: status === 'completed', completed_at: status === 'completed' ? new Date().toISOString() : null },
+      payload: { status, is_completed: isCompletedStatus, completed_at: isCompletedStatus ? new Date().toISOString() : null },
     });
   }
 
   function handleComplete() {
-    handleStatusStep('completed');
+    const completedStatus = taskStatuses.find((s) => s.is_completed_status);
+    if (completedStatus) handleStatusStep(completedStatus.name);
   }
 
   async function handleReassign(userId: number) {
@@ -343,10 +340,10 @@ export default function TaskDetailModal({ task, isAdmin, currentUserId, onClose,
           )}
 
           <div className="flex items-center gap-1 mt-4 overflow-x-auto">
-            {TASK_STATUSES.map((s, i) => (
-              <div key={s} className="flex items-center">
+            {taskStatuses.map((s, i) => (
+              <div key={s.id} className="flex items-center">
                 <button
-                  onClick={() => handleStatusStep(s)}
+                  onClick={() => handleStatusStep(s.name)}
                   disabled={!canEdit}
                   className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap ${
                     i === currentStageIndex
@@ -357,9 +354,9 @@ export default function TaskDetailModal({ task, isAdmin, currentUserId, onClose,
                   } ${canEdit ? 'cursor-pointer' : 'cursor-default'}`}
                 >
                   <i className={`fa-solid ${i <= currentStageIndex ? 'fa-circle-check' : 'fa-circle'} text-[9px]`} />
-                  {TASK_STATUS_LABELS[s]}
+                  {s.name}
                 </button>
-                {i < TASK_STATUSES.length - 1 && <i className="fa-solid fa-chevron-right text-[9px] text-slate-300 mx-1.5" />}
+                {i < taskStatuses.length - 1 && <i className="fa-solid fa-chevron-right text-[9px] text-slate-300 mx-1.5" />}
               </div>
             ))}
           </div>

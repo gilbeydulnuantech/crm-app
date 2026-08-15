@@ -25,18 +25,20 @@ export const REMINDER_OPTIONS = [
   { value: 1440, label: '1 day before' },
 ] as const;
 
-// Kanban board columns — distinct from `is_completed` (a plain boolean).
-// `is_completed`/`completed_at` are kept in sync whenever status moves to/
-// from 'completed' (see useMoveTaskStatus) so the existing List view/stats,
-// which key off `is_completed`, never contradict the Kanban board.
-export const TASK_STATUSES = ['to_do', 'in_progress', 'waiting', 'completed'] as const;
-export type TaskStatus = (typeof TASK_STATUSES)[number];
-export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
-  to_do: 'Not Started',
-  in_progress: 'In Progress',
-  waiting: 'Waiting on Client',
-  completed: 'Completed',
-};
+// Board columns are now an admin-managed list (see task_statuses table /
+// useTaskStatuses), not a fixed enum — a status is just whatever string
+// name a task_statuses row currently has. `is_completed`/`completed_at` are
+// kept in sync whenever a task moves to/from whichever row has
+// `is_completed_status = true` (see useMoveTaskStatus) so the List view/
+// stats, which key off `is_completed`, never contradict the board.
+export type TaskStatus = string;
+
+export interface TaskStatusRow {
+  id: number;
+  name: string;
+  display_order: number;
+  is_completed_status: boolean;
+}
 
 export interface TaskSubtask {
   id: number;
@@ -113,11 +115,15 @@ export function suggestSlaTier(dealValue?: number | null): TaskSlaTier {
   return 'Standard';
 }
 
-// Legacy tasks (written before the `status` column existed) fall back to
-// is_completed so they still land in a sensible Kanban column.
+// Legacy tasks (written before the `status` column existed, or any task
+// whose status was never set) fall back to these seeded default names so
+// they still land in a sensible board column. If an admin has renamed or
+// removed the seeded "Not Started"/"Completed" columns, a legacy task like
+// this just won't match any column until it's moved — same graceful
+// degradation as any other renamed/deleted status.
 export function taskKanbanStatus(task: Task): TaskStatus {
   if (task.status) return task.status;
-  return task.is_completed ? 'completed' : 'to_do';
+  return task.is_completed ? 'Completed' : 'Not Started';
 }
 
 export function taskStatus(task: Task): 'Completed' | 'Overdue' | 'Due Today' | 'Upcoming' {

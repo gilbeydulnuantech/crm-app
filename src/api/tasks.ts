@@ -23,16 +23,18 @@ export function updateTask(id: number, payload: Partial<Task>) {
   });
 }
 
-export function toggleTaskComplete(id: number, is_completed: boolean) {
+// `statusName` is the actual task_statuses row name to move the task to —
+// the "Completed" column when checking, or the caller-chosen "not complete"
+// column when unchecking. Keeps the board column in sync — otherwise a task
+// marked complete from the List view stays parked in its old column.
+export function toggleTaskComplete(id: number, is_completed: boolean, statusName: string) {
   return apiFetch<{ success: boolean; error?: string }>('/webhook/update-task', {
     method: 'POST',
     body: JSON.stringify({
       id,
       is_completed,
       completed_at: is_completed ? new Date().toISOString() : null,
-      // Keep the Kanban column in sync — otherwise a task marked complete
-      // from the List view stays parked in its old column on the board.
-      status: is_completed ? 'completed' : 'to_do',
+      status: statusName,
     }),
   });
 }

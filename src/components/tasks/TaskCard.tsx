@@ -1,5 +1,5 @@
 import { useDraggable } from '@dnd-kit/core';
-import { Task, TaskStatus, taskStatus } from '../../types/task';
+import { Task, TaskStatus, TaskStatusRow, taskStatus } from '../../types/task';
 import { toTitleCase } from '../../utils/text';
 import { DEFAULT_USER_COLOR, hexToRgba } from '../../utils/userColor';
 import TaskCardMenu from './TaskCardMenu';
@@ -7,6 +7,7 @@ import TaskCardMenu from './TaskCardMenu';
 interface Props {
   task: Task;
   users: { id: number; name: string }[];
+  statuses: TaskStatusRow[];
   onClick: () => void;
   onViewDetails: () => void;
   onEdit: () => void;
@@ -29,6 +30,7 @@ const PRIORITY_BORDER: Record<string, string> = {
 export default function TaskCard({
   task,
   users,
+  statuses,
   onClick,
   onViewDetails,
   onEdit,
@@ -95,6 +97,7 @@ export default function TaskCard({
           <TaskCardMenu
             task={task}
             users={users}
+            statuses={statuses}
             canEdit={canEdit}
             isAdmin={isAdmin}
             onViewDetails={onViewDetails}

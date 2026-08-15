@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Task, taskDisplayId, taskKanbanStatus, TaskStatus, TASK_STATUSES, TASK_STATUS_LABELS, TASK_PRIORITIES, TaskPriority } from '../../types/task';
+import { Task, taskDisplayId, taskKanbanStatus, TaskStatus, TASK_PRIORITIES, TaskPriority } from '../../types/task';
 import { toTitleCase } from '../../utils/text';
 import { useAuth } from '../../context/AuthContext';
 import { useAddNote, useNotes } from '../../hooks/useNotes';
 import { useSetTaskSubtasks, useUpdateTask } from '../../hooks/useTasks';
+import { useTaskStatuses } from '../../hooks/useTaskStatuses';
 import { useUsers } from '../../hooks/useContacts';
 import { useCompanies } from '../../hooks/useCompanies';
 import { DEFAULT_USER_COLOR, hexToRgba } from '../../utils/userColor';
@@ -37,6 +38,7 @@ export default function TaskQuickView({ task, canEdit, onClose, onEdit, onOpenFu
   const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
   const { data: users = [] } = useUsers();
+  const { data: taskStatuses = [] } = useTaskStatuses();
   const updateTask = useUpdateTask();
   const setSubtasks = useSetTaskSubtasks();
   const { data: notes = [] } = useNotes('task', task?.id ?? null);
@@ -77,13 +79,19 @@ export default function TaskQuickView({ task, canEdit, onClose, onEdit, onOpenFu
   }
 
   function handleComplete() {
-    updateTask.mutate({ id: task!.id, payload: { status: 'completed', is_completed: true, completed_at: new Date().toISOString() } });
+    const completedStatus = taskStatuses.find((s) => s.is_completed_status);
+    if (!completedStatus) return;
+    updateTask.mutate({
+      id: task!.id,
+      payload: { status: completedStatus.name, is_completed: true, completed_at: new Date().toISOString() },
+    });
   }
 
   function handleStatusChange(status: TaskStatus) {
+    const isCompletedStatus = taskStatuses.find((s) => s.name === status)?.is_completed_status ?? false;
     updateTask.mutate({
       id: task!.id,
-      payload: { status, is_completed: status === 'completed', completed_at: status === 'completed' ? new Date().toISOString() : null },
+      payload: { status, is_completed: isCompletedStatus, completed_at: isCompletedStatus ? new Date().toISOString() : null },
     });
   }
 
@@ -176,9 +184,9 @@ export default function TaskQuickView({ task, canEdit, onClose, onEdit, onOpenFu
                     disabled={!canEdit}
                     className="px-1.5 py-0.5 text-xs border border-slate-200 rounded-md disabled:bg-slate-50"
                   >
-                    {TASK_STATUSES.map((s) => (
-                      <option key={s} value={s}>
-                        {TASK_STATUS_LABELS[s]}
+                    {taskStatuses.map((s) => (
+                      <option key={s.id} value={s.name}>
+                        {s.name}
                       </option>
                     ))}
                   </select>

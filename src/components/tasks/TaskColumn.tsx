@@ -1,5 +1,5 @@
 import { useDroppable } from '@dnd-kit/core';
-import { Task, TaskStatus } from '../../types/task';
+import { Task, TaskStatus, TaskStatusRow } from '../../types/task';
 import TaskCard from './TaskCard';
 
 interface Props {
@@ -7,6 +7,7 @@ interface Props {
   label: string;
   tasks: Task[];
   users: { id: number; name: string }[];
+  statuses: TaskStatusRow[];
   onCardClick: (task: Task) => void;
   onViewDetails: (task: Task) => void;
   onEdit: (task: Task) => void;
@@ -25,6 +26,7 @@ export default function TaskColumn({
   label,
   tasks,
   users,
+  statuses,
   onCardClick,
   onViewDetails,
   onEdit,
@@ -58,6 +60,7 @@ export default function TaskColumn({
             key={t.id}
             task={t}
             users={users}
+            statuses={statuses}
             onClick={() => onCardClick(t)}
             onViewDetails={() => onViewDetails(t)}
             onEdit={() => onEdit(t)}

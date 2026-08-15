@@ -14,11 +14,12 @@ import {
   useToggleTaskComplete,
   useUpdateTask,
 } from '../hooks/useTasks';
+import { useTaskStatuses } from '../hooks/useTaskStatuses';
 import { startDm, sendMessage } from '../api/chat';
 import TasksStatsBar from '../components/tasks/TasksStatsBar';
 import TasksTabs from '../components/tasks/TasksTabs';
 import TasksTable, { TasksColumnsMenu } from '../components/tasks/TasksTable';
-import TasksKanbanBoard from '../components/tasks/TasksKanbanBoard';
+import TasksKanbanBoard, { TaskColumnsManager } from '../components/tasks/TasksKanbanBoard';
 import TasksBulkActionsMenu from '../components/tasks/TasksBulkActionsMenu';
 import TaskFormModal from '../components/tasks/TaskFormModal';
 import TaskEditModal from '../components/tasks/TaskEditModal';
@@ -26,7 +27,7 @@ import TaskQuickView from '../components/tasks/TaskQuickView';
 import TaskDetailModal from '../components/tasks/TaskDetailModal';
 import SearchToolbar from '../components/SearchToolbar';
 
-type BoardView = 'list' | 'kanban';
+type BoardView = 'list' | 'board';
 
 function isOverdue(task: Task): boolean {
   return !task.is_completed && taskStatus(task) === 'Overdue';
@@ -37,8 +38,10 @@ export default function Tasks() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [view, setView] = useState<TasksView>('all');
-  const [boardView, setBoardView] = useState<BoardView>('kanban');
+  const [boardView, setBoardView] = useState<BoardView>('board');
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [visibleStatusIds, setVisibleStatusIds] = useState<Set<number>>(new Set());
+  const [statusesInitialized, setStatusesInitialized] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [addOpen, setAddOpen] = useState(false);
@@ -61,6 +64,8 @@ export default function Tasks() {
   const { data: allTasks = [], isLoading } = useTasks();
   const { data: archivedTasks = [], isLoading: isLoadingArchived } = useArchivedTasks(view === 'archived');
   const { data: users = [] } = useUsers();
+  const { data: taskStatuses = [] } = useTaskStatuses();
+  const completedStatusName = taskStatuses.find((s) => s.is_completed_status)?.name ?? 'Completed';
   const deleteTasks = useDeleteTasks();
   const archiveTasks = useArchiveTasks();
   const restoreTasks = useRestoreTasks();
@@ -77,6 +82,15 @@ export default function Tasks() {
     }
   }, [users, usersInitialized]);
 
+  // Default to every board column visible once the (admin-managed) status
+  // list loads.
+  useEffect(() => {
+    if (!statusesInitialized && taskStatuses.length > 0) {
+      setVisibleStatusIds(new Set(taskStatuses.map((s) => s.id)));
+      setStatusesInitialized(true);
+    }
+  }, [taskStatuses, statusesInitialized]);
+
   // Deep link from Team Chat notifications — ?highlight=<taskId> switches to
   // the Kanban board and rings that card for a few seconds, once its data
   // has loaded. Same pattern as Pipeline.tsx's ?highlight= for deal cards.
@@ -86,7 +100,7 @@ export default function Tasks() {
     const id = Number(param);
     if (!allTasks.some((t) => t.id === id)) return;
     setHighlightTaskId(id);
-    setBoardView('kanban');
+    setBoardView('board');
     const next = new URLSearchParams(searchParams);
     next.delete('highlight');
     setSearchParams(next, { replace: true });
@@ -157,6 +171,14 @@ export default function Tasks() {
     });
   }
 
+  function toggleStatusColumn(id: number) {
+    setVisibleStatusIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
   const visibleTasks = useMemo(() => {
     let list = view === 'archived' ? archivedTasks : allTasks;
     if (view === 'mine') list = list.filter((t) => t.user_id === user?.id);
@@ -203,8 +225,8 @@ export default function Tasks() {
     return list;
   }, [allTasks, archivedTasks, view, user, users, checkedUserIds, priorityFilters, search]);
 
-  function handleMoveTaskStatus(task: Task, status: TaskStatus) {
-    moveTaskStatus.mutate({ id: task.id, status });
+  function handleMoveTaskStatus(task: Task, status: TaskStatus, isCompletedStatus: boolean) {
+    moveTaskStatus.mutate({ id: task.id, status, isCompletedStatus });
   }
 
   async function handleReassignTask(task: Task, userId: number) {
@@ -220,7 +242,7 @@ export default function Tasks() {
   }
 
   function handleMarkCompleteTask(task: Task) {
-    toggleComplete.mutate({ id: task.id, is_completed: true });
+    toggleComplete.mutate({ id: task.id, is_completed: true, statusName: completedStatusName });
   }
 
   function handleArchiveTask(task: Task) {
@@ -257,7 +279,9 @@ export default function Tasks() {
 
   function handleCompleteSelected() {
     if (selectedIds.size === 0) return;
-    Array.from(selectedIds).forEach((id) => toggleComplete.mutate({ id, is_completed: true }));
+    Array.from(selectedIds).forEach((id) =>
+      toggleComplete.mutate({ id, is_completed: true, statusName: completedStatusName })
+    );
     setSelectedIds(new Set());
   }
 
@@ -312,7 +336,7 @@ export default function Tasks() {
         endExtra={
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1 border border-slate-200 rounded-md p-0.5 bg-slate-50">
-              {(['kanban', 'list'] as BoardView[]).map((v) => (
+              {(['board', 'list'] as BoardView[]).map((v) => (
                 <button
                   key={v}
                   onClick={() => setBoardView(v)}
@@ -324,10 +348,17 @@ export default function Tasks() {
                 </button>
               ))}
             </div>
-            {boardView === 'list' && (
+            {boardView === 'list' ? (
               <TasksColumnsMenu
                 visibility={columnVisibility}
                 onToggle={(id) => setColumnVisibility((v) => ({ ...v, [id]: v[id] === false }))}
+              />
+            ) : (
+              <TaskColumnsManager
+                statuses={taskStatuses}
+                visibleStatusIds={visibleStatusIds}
+                onToggleVisibility={toggleStatusColumn}
+                isAdmin={isAdmin}
               />
             )}
           </div>
@@ -383,6 +414,8 @@ export default function Tasks() {
         <TasksKanbanBoard
           tasks={kanbanTasks}
           users={users}
+          statuses={taskStatuses}
+          visibleStatusIds={visibleStatusIds}
           onMoveStatus={handleMoveTaskStatus}
           onCardClick={openQuickView}
           onViewDetails={openDetailModal}

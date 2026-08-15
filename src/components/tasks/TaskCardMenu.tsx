@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { TASK_STATUSES, TASK_STATUS_LABELS, Task, TaskStatus, taskKanbanStatus } from '../../types/task';
+import { Task, TaskStatus, TaskStatusRow, taskKanbanStatus } from '../../types/task';
 import { toTitleCase } from '../../utils/text';
 
 interface Props {
   task: Task;
   users: { id: number; name: string }[];
+  statuses: TaskStatusRow[];
   canEdit: boolean;
   isAdmin: boolean;
   onViewDetails: () => void;
@@ -44,6 +45,7 @@ function MenuItem({
 export default function TaskCardMenu({
   task,
   users,
+  statuses,
   canEdit,
   isAdmin,
   onViewDetails,
@@ -130,15 +132,15 @@ export default function TaskCardMenu({
                 </button>
                 {statusSubmenuOpen && (
                   <div className="absolute left-full top-0 -ml-px w-40 bg-white rounded-lg shadow-lg border border-slate-200 py-1">
-                    {TASK_STATUSES.map((s) => (
+                    {statuses.map((s) => (
                       <button
-                        key={s}
+                        key={s.id}
                         type="button"
-                        disabled={s === currentStatus}
-                        onClick={() => run(() => onMoveStatus(s))}
+                        disabled={s.name === currentStatus}
+                        onClick={() => run(() => onMoveStatus(s.name))}
                         className="w-full flex items-center px-3 py-1.5 text-xs font-medium text-left text-slate-700 hover:bg-slate-50 disabled:text-slate-300 disabled:cursor-default"
                       >
-                        {TASK_STATUS_LABELS[s]}
+                        {s.name}
                       </button>
                     ))}
                   </div>
