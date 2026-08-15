@@ -110,6 +110,20 @@ export function assignContactOwner(contactId: number, ownerId: number | null) {
   });
 }
 
+// Admin-only. primaryId survives; duplicateId's deals/tasks/notes/activity/
+// tags get reassigned onto it, its email_logs get merged in, and it's
+// archived (not deleted) so the merge itself stays undo-able by restoring
+// from the Archived tab.
+export function mergeContacts(primaryId: number, duplicateId: number) {
+  return apiFetch<{ success: boolean; primary_id?: number; merged_id?: number; error?: string }>(
+    '/webhook/merge-contacts',
+    {
+      method: 'POST',
+      body: JSON.stringify({ primary_id: primaryId, duplicate_id: duplicateId }),
+    }
+  );
+}
+
 export function toggleDoNotContact(contactId: number, doNotContact: boolean) {
   return apiFetch<{ success: boolean; error?: string }>('/webhook/update-contact', {
     method: 'POST',
@@ -145,6 +159,7 @@ export interface TeamUser {
   name: string;
   email?: string;
   color?: string;
+  role?: 'admin' | 'user';
 }
 
 export function fetchUsers() {

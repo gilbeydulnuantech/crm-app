@@ -1,0 +1,644 @@
+{
+  "name": "Merge Contacts",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "merge-contacts",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "cc46038b-e6b3-4e1c-89ae-e74fc773a3a1",
+      "name": "Webhook: merge-contacts",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        800,
+        200
+      ],
+      "webhookId": "4b7b8704-cab8-4122-aa0d-42a3abf5310e"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst requesterId = parseInt(match[1], 10);\nconst body = $input.first().json.body || {};\n// 'primary' is the contact that survives; 'duplicate' gets archived after\n// everything of value on it (deals, tasks, notes, activity, tags) is\n// reassigned onto primary.\nconst primaryId = parseInt(body.primary_id, 10);\nconst duplicateId = parseInt(body.duplicate_id, 10);\n\nif (!Number.isInteger(primaryId) || !Number.isInteger(duplicateId)) {\n  throw new Error('\"primary_id\" and \"duplicate_id\" must be integers.');\n}\nif (primaryId === duplicateId) {\n  throw new Error('\"primary_id\" and \"duplicate_id\" must be different contacts.');\n}\n\nreturn [{ json: { requesterId, primaryId, duplicateId } }];"
+      },
+      "id": "e929a629-8509-493e-a84e-dc2c1ca9102a",
+      "name": "Parse Token & Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        360
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "86c4a14a-0028-4afc-b2dc-e419e8a37c55",
+      "name": "Look Up Requester",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        800,
+        520
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, first_name, last_name, email_logs FROM contacts WHERE id = $1 OR id = $2;",
+        "options": {
+          "queryReplacement": "={{ [ $('Parse Token & Payload').first().json.primaryId, $('Parse Token & Payload').first().json.duplicateId ] }}"
+        }
+      },
+      "id": "1236c0ca-b046-42b3-a2de-3b4029402c8c",
+      "name": "Look Up Both Contacts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        800,
+        680
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $('Look Up Requester').first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Only admins can merge contacts.');\n\nconst { primaryId, duplicateId } = $('Parse Token & Payload').first().json;\nconst rows = $input.all().map((i) => i.json);\nconst primary = rows.find((r) => r.id === primaryId);\nconst duplicate = rows.find((r) => r.id === duplicateId);\nif (!primary || !duplicate) {\n  throw new Error('One or both contacts were not found.');\n}\n\nconst duplicateName = `${duplicate.first_name || ''} ${duplicate.last_name || ''}`.trim() || 'Unknown Contact';\nconst primaryName = `${primary.first_name || ''} ${primary.last_name || ''}`.trim() || 'Unknown Contact';\n\n// email_logs is a jsonb array column on each row \u2014 concatenate rather\n// than picking one side, so replies/sends recorded against the\n// duplicate aren't silently lost.\nconst primaryLogs = Array.isArray(primary.email_logs) ? primary.email_logs : [];\nconst duplicateLogs = Array.isArray(duplicate.email_logs) ? duplicate.email_logs : [];\nconst mergedEmailLogsJson = JSON.stringify([...primaryLogs, ...duplicateLogs]);\n\nconst summary = `${requester.name || 'Someone'} merged \"${duplicateName}\" (contact #${duplicateId}) into this contact`;\nconst detail = JSON.stringify({ merged_contact_id: duplicateId, merged_contact_name: duplicateName });\n\nreturn [{\n  json: {\n    primaryId, duplicateId, mergedEmailLogsJson, summary, detail,\n    requesterId: requester.id, requesterName: requester.name || 'Someone',\n    duplicateName, primaryName,\n  }\n}];"
+      },
+      "id": "c0adcc92-30f5-4c4d-b273-c3627768a328",
+      "name": "Validate Merge",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        840
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE opportunities SET contact_id = $1 WHERE contact_id = $2;",
+        "options": {
+          "queryReplacement": "={{ [ $('Parse Token & Payload').first().json.primaryId, $('Parse Token & Payload').first().json.duplicateId ] }}"
+        }
+      },
+      "id": "fc75f2b8-e518-4b23-8588-25826e47c483",
+      "name": "Reassign Opportunities",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        800,
+        1000
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE activities SET contact_id = $1 WHERE contact_id = $2;",
+        "options": {
+          "queryReplacement": "={{ [ $('Parse Token & Payload').first().json.primaryId, $('Parse Token & Payload').first().json.duplicateId ] }}"
+        }
+      },
+      "id": "0c5d9bc5-8c5a-4fca-8ac2-5d4a3d6030af",
+      "name": "Reassign Activities",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        800,
+        1160
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE notes SET entity_id = $1 WHERE entity_type = 'contact' AND entity_id = $2;",
+        "options": {
+          "queryReplacement": "={{ [ $('Parse Token & Payload').first().json.primaryId, $('Parse Token & Payload').first().json.duplicateId ] }}"
+        }
+      },
+      "id": "0e08697d-9b52-4e1a-bff9-3be90d5b482c",
+      "name": "Reassign Notes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        800,
+        1320
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE entity_activity_log SET entity_id = $1 WHERE entity_type = 'contact' AND entity_id = $2;",
+        "options": {
+          "queryReplacement": "={{ [ $('Parse Token & Payload').first().json.primaryId, $('Parse Token & Payload').first().json.duplicateId ] }}"
+        }
+      },
+      "id": "cc88845c-1063-4cd4-89bd-9767795817da",
+      "name": "Reassign Activity Log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        800,
+        1480
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM taggables WHERE entity_type = 'contact' AND entity_id = $2 AND tag_id IN (SELECT tag_id FROM taggables WHERE entity_type = 'contact' AND entity_id = $1);",
+        "options": {
+          "queryReplacement": "={{ [ $('Parse Token & Payload').first().json.primaryId, $('Parse Token & Payload').first().json.duplicateId ] }}"
+        }
+      },
+      "id": "da72da64-6c99-44ed-bff8-171b2b1d4078",
+      "name": "Dedupe Overlapping Tags",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        800,
+        1640
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE taggables SET entity_id = $1 WHERE entity_type = 'contact' AND entity_id = $2;",
+        "options": {
+          "queryReplacement": "={{ [ $('Parse Token & Payload').first().json.primaryId, $('Parse Token & Payload').first().json.duplicateId ] }}"
+        }
+      },
+      "id": "f09a3314-8f18-4370-9c1b-2749b35d089b",
+      "name": "Reassign Remaining Tags",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        800,
+        1800
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts SET email_logs = $1::jsonb WHERE id = $2;",
+        "options": {
+          "queryReplacement": "={{ [ $('Validate Merge').first().json.mergedEmailLogsJson, $('Validate Merge').first().json.primaryId ] }}"
+        }
+      },
+      "id": "009b7ca4-4c23-4d5b-be36-e887c36841cf",
+      "name": "Merge Email Logs Into Primary",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        800,
+        1960
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts\nSET is_archived = true, archived_by = $1, archived_at = now(),\n    archive_reason = $2\nWHERE id = $3\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $('Validate Merge').first().json.requesterId, 'Merged into contact #' + $('Validate Merge').first().json.primaryId, $('Validate Merge').first().json.duplicateId ] }}"
+        }
+      },
+      "id": "f4448125-ee05-4476-a876-7a9517c5c39b",
+      "name": "Archive Duplicate Contact",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        800,
+        2280
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name) VALUES ('contact', $1, 'system_audit', 'merge', $2, $3::jsonb, $4, $5) RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $('Validate Merge').first().json.primaryId, $('Validate Merge').first().json.summary, $('Validate Merge').first().json.detail, $('Validate Merge').first().json.requesterId, $('Validate Merge').first().json.requesterName ] }}"
+        }
+      },
+      "id": "47873dac-80eb-42cc-bdc7-615730a7c6ed",
+      "name": "Insert Merge Audit Row",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        800,
+        2440
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, primary_id: $('Validate Merge').first().json.primaryId, merged_id: $('Validate Merge').first().json.duplicateId } }}",
+        "options": {}
+      },
+      "id": "27985fec-e5e7-4e88-912b-83b2ccb8893d",
+      "name": "Respond: merge-contacts",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        800,
+        2600
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "b70e067d-c2fa-4c91-bff2-fa1335ce1c8b",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts p\nSET job_title = CASE WHEN COALESCE(p.job_title, '') = '' THEN d.job_title ELSE p.job_title END,\n    account_id = COALESCE(p.account_id, d.account_id),\n    email = CASE WHEN COALESCE(p.email, '') = '' THEN d.email ELSE p.email END,\n    secondary_email = CASE WHEN COALESCE(p.secondary_email, '') = '' THEN d.secondary_email ELSE p.secondary_email END,\n    phone = CASE WHEN COALESCE(p.phone, '') = '' THEN d.phone ELSE p.phone END,\n    secondary_phone = CASE WHEN COALESCE(p.secondary_phone, '') = '' THEN d.secondary_phone ELSE p.secondary_phone END,\n    linkedin_url = CASE WHEN COALESCE(p.linkedin_url, '') = '' THEN d.linkedin_url ELSE p.linkedin_url END,\n    city = CASE WHEN COALESCE(p.city, '') = '' THEN d.city ELSE p.city END,\n    state = CASE WHEN COALESCE(p.state, '') = '' THEN d.state ELSE p.state END,\n    zip_code = CASE WHEN COALESCE(p.zip_code, '') = '' THEN d.zip_code ELSE p.zip_code END,\n    country = CASE WHEN COALESCE(p.country, '') = '' THEN d.country ELSE p.country END,\n    lead_source = CASE WHEN COALESCE(p.lead_source, '') = '' THEN d.lead_source ELSE p.lead_source END,\n    timezone = CASE WHEN COALESCE(p.timezone, '') = '' THEN d.timezone ELSE p.timezone END,\n    do_not_contact = p.do_not_contact OR d.do_not_contact,\n    dnc_email = p.dnc_email OR d.dnc_email,\n    dnc_call = p.dnc_call OR d.dnc_call,\n    dnc_sms = p.dnc_sms OR d.dnc_sms,\n    updated_at = NOW()\nFROM contacts d\nWHERE p.id = $1 AND d.id = $2;",
+        "options": {
+          "queryReplacement": "={{ [ $('Parse Token & Payload').first().json.primaryId, $('Parse Token & Payload').first().json.duplicateId ] }}"
+        }
+      },
+      "id": "625c8a27-c3e9-4ebb-b27c-76c208f3113e",
+      "name": "Backfill Primary Fields From Duplicate",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        800,
+        2040
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook: merge-contacts": {
+      "main": [
+        [
+          {
+            "node": "Parse Token & Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token & Payload": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester": {
+      "main": [
+        [
+          {
+            "node": "Look Up Both Contacts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Both Contacts": {
+      "main": [
+        [
+          {
+            "node": "Validate Merge",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Merge": {
+      "main": [
+        [
+          {
+            "node": "Reassign Opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reassign Opportunities": {
+      "main": [
+        [
+          {
+            "node": "Reassign Activities",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reassign Activities": {
+      "main": [
+        [
+          {
+            "node": "Reassign Notes",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reassign Notes": {
+      "main": [
+        [
+          {
+            "node": "Reassign Activity Log",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reassign Activity Log": {
+      "main": [
+        [
+          {
+            "node": "Dedupe Overlapping Tags",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dedupe Overlapping Tags": {
+      "main": [
+        [
+          {
+            "node": "Reassign Remaining Tags",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reassign Remaining Tags": {
+      "main": [
+        [
+          {
+            "node": "Merge Email Logs Into Primary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Email Logs Into Primary": {
+      "main": [
+        [
+          {
+            "node": "Backfill Primary Fields From Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Archive Duplicate Contact": {
+      "main": [
+        [
+          {
+            "node": "Insert Merge Audit Row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Merge Audit Row": {
+      "main": [
+        [
+          {
+            "node": "Respond: merge-contacts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Backfill Primary Fields From Duplicate": {
+      "main": [
+        [
+          {
+            "node": "Archive Duplicate Contact",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "33234e64-d142-4bba-8a94-0325542a1f62",
+  "meta": {},
+  "id": "mrgCts0001NewFlow",
+  "tags": []
+}

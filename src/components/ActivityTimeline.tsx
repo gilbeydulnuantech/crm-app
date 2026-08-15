@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ACTIVITY_TABS, ActivityLogEntry, ActivityTab } from '../types/activity';
 import { EmailLog } from '../types/contact';
 
@@ -85,9 +85,14 @@ interface Props {
   onActivityClick?: (entry: ActivityLogEntry) => void;
 }
 
+const PAGE_SIZE = 20;
+
 export default function ActivityTimeline({ emails = [], activity, isLoading, onEmailClick, onActivityClick }: Props) {
   const [tab, setTab] = useState<ActivityTab>('All');
   const [search, setSearch] = useState('');
+  // A long-lived account can accumulate hundreds of activity rows — render
+  // them in pages instead of dumping every DOM node in at once.
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const items = useMemo(() => {
     const emailItems = emails.map((log, i) => emailToItem(log, i, onEmailClick));
@@ -106,6 +111,13 @@ export default function ActivityTimeline({ emails = [], activity, isLoading, onE
       return [item.title, item.subtitle, item.body].some((s) => s?.toLowerCase().includes(q));
     });
   }, [items, tab, search]);
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [tab, search]);
+
+  const visible = filtered.slice(0, visibleCount);
+  const remaining = filtered.length - visible.length;
 
   return (
     <div className="space-y-3">
@@ -144,7 +156,7 @@ export default function ActivityTimeline({ emails = [], activity, isLoading, onE
         </p>
       ) : (
         <div className="space-y-3">
-          {filtered.map((item) => (
+          {visible.map((item) => (
             <div
               key={item.key}
               onClick={item.onClick}
@@ -164,6 +176,14 @@ export default function ActivityTimeline({ emails = [], activity, isLoading, onE
               {item.body && <p className="text-slate-600 text-xs whitespace-pre-wrap line-clamp-2">{item.body}</p>}
             </div>
           ))}
+          {remaining > 0 && (
+            <button
+              onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+              className="w-full text-xs font-semibold text-[var(--theme-accent)] hover:underline py-1"
+            >
+              Show {Math.min(remaining, PAGE_SIZE)} more ({remaining} remaining)
+            </button>
+          )}
         </div>
       )}
     </div>

@@ -165,6 +165,15 @@ export function useAssignOwner() {
   });
 }
 
+export function useMergeContacts() {
+  const invalidate = useInvalidateContacts();
+  return useMutation({
+    mutationFn: ({ primaryId, duplicateId }: { primaryId: number; duplicateId: number }) =>
+      api.mergeContacts(primaryId, duplicateId),
+    onSuccess: invalidate,
+  });
+}
+
 export function useToggleDoNotContact() {
   const invalidate = useInvalidateContacts();
   return useMutation({

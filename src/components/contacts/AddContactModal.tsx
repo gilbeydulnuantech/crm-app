@@ -30,12 +30,25 @@ const EMPTY = {
   country: '',
   lead_status: 'New',
   lead_source: '',
+  timezone: '',
   do_not_contact: false,
   owner_id: null as number | null,
 };
 
 const inputClass =
   'w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]';
+
+// Real IANA list from the browser instead of a hand-maintained array — every
+// evergreen browser supports this (Intl.supportedValuesOf shipped in all of
+// them years ago); the try/catch just protects an unusually old runtime.
+function getTimezoneOptions(): string[] {
+  try {
+    return (Intl as any).supportedValuesOf('timeZone');
+  } catch {
+    return [];
+  }
+}
+const TIMEZONE_OPTIONS = getTimezoneOptions();
 
 export default function AddContactModal({
   open,
@@ -100,6 +113,7 @@ export default function AddContactModal({
         country: contact.country ?? '',
         lead_status: contact.lead_status ?? 'New',
         lead_source: contact.lead_source ?? '',
+        timezone: contact.timezone ?? '',
         do_not_contact: contact.do_not_contact ?? false,
         owner_id: contact.owner_id ?? null,
       });
@@ -145,6 +159,7 @@ export default function AddContactModal({
       country: form.country,
       lead_status: form.lead_status,
       lead_source: form.lead_source,
+      timezone: form.timezone,
       do_not_contact: form.do_not_contact,
       // The backend only honors this for admins — anyone else's new
       // contacts stay self-owned regardless of what's sent here.
@@ -362,6 +377,27 @@ export default function AddContactModal({
                 className={inputClass}
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Timezone</label>
+            {TIMEZONE_OPTIONS.length > 0 ? (
+              <select value={form.timezone} onChange={(e) => update('timezone', e.target.value)} className={inputClass}>
+                <option value="">--</option>
+                {TIMEZONE_OPTIONS.map((tz) => (
+                  <option key={tz} value={tz}>
+                    {tz.replace(/_/g, ' ')}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                value={form.timezone}
+                onChange={(e) => update('timezone', e.target.value)}
+                placeholder="e.g. America/New_York"
+                className={inputClass}
+              />
+            )}
           </div>
 
           <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer pt-1">

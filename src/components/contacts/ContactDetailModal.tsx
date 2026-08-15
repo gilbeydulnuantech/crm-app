@@ -1,10 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Contact, DNC_CHANNELS, EmailLog, LEAD_STATUS_OPTIONS } from '../../types/contact';
 import { ActivityLogEntry } from '../../types/activity';
-import { useMarkContactEmailRead, useToggleContactDncChannel, useUpdateContact } from '../../hooks/useContacts';
+import {
+  useContacts,
+  useMarkContactEmailRead,
+  useMergeContacts,
+  useToggleContactDncChannel,
+  useUpdateContact,
+  useUsers,
+} from '../../hooks/useContacts';
 import { useCompanies } from '../../hooks/useCompanies';
+import * as chatApi from '../../api/chat';
 import CompanyQuickView from '../companies/CompanyQuickView';
+import ConfirmDialog from '../ConfirmDialog';
 import { useAddNote, useDeleteNote, useNotes, useUpdateNote } from '../../hooks/useNotes';
 import { useEntityActivity } from '../../hooks/useActivity';
 import { useAuth } from '../../context/AuthContext';
@@ -70,11 +80,49 @@ function ActionButton({
 export default function ContactDetailModal({ contact, onClose }: Props) {
   const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const toggleDncChannel = useToggleContactDncChannel();
   const updateContact = useUpdateContact();
   const markEmailRead = useMarkContactEmailRead();
   const notesRef = useRef<HTMLDivElement>(null);
   const dndRef = useRef<HTMLDivElement>(null);
+
+  // A read-only contact otherwise dead-ends the rep — no owner, no edit
+  // access, no path forward except finding the right person in Slack/email
+  // outside the app. DMs whoever can actually grant access, through the
+  // existing Team Chat system: the current owner if there is one, or every
+  // admin if the contact is unassigned — admins are the only ones with the
+  // power to assign an owner in the first place (assign-contact-owner is
+  // admin-only), so they're the correct recipient, not a single arbitrary one.
+  const { data: teamUsers = [] } = useUsers();
+  const [requestSentConversationId, setRequestSentConversationId] = useState<number | null>(null);
+  const requestOwnership = useMutation({
+    mutationFn: async (target: { ownerIds: number[]; contactName: string; forAssignment: boolean }) => {
+      const message = target.forAssignment
+        ? `Hi, "${target.contactName}" is unassigned — could you assign it to me? I need edit access.`
+        : `Hi, could you transfer ownership of "${target.contactName}" to me? I need edit access.`;
+      const conversationIds = await Promise.all(
+        target.ownerIds.map(async (id) => {
+          const dm = await chatApi.startDm(id);
+          await chatApi.sendMessage(dm.id, message);
+          return dm.id;
+        })
+      );
+      return conversationIds[0];
+    },
+    onSuccess: (conversationId) => {
+      qc.invalidateQueries({ queryKey: ['conversations'] });
+      setRequestSentConversationId(conversationId);
+    },
+  });
+
+  // Duplicate detection reuses the already-cached ['contacts'] list (same
+  // query Contacts.tsx populated) — no extra request. Merge is admin-only
+  // and irreversible-by-undo-button (though the loser is archived, not
+  // deleted, so it's recoverable from the Archived tab if needed).
+  const { data: allContacts = [] } = useContacts();
+  const mergeContacts = useMergeContacts();
+  const [mergeTarget, setMergeTarget] = useState<Contact | null>(null);
 
   const [quickEditOpen, setQuickEditOpen] = useState(false);
   const [dndOpen, setDndOpen] = useState(false);
@@ -90,6 +138,9 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
   const [noteError, setNoteError] = useState<string | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
   const [editDraft, setEditDraft] = useState('');
+  const [deleteNoteTargetId, setDeleteNoteTargetId] = useState<number | null>(null);
+  const [deleteNoteError, setDeleteNoteError] = useState<string | null>(null);
+  const [mergeError, setMergeError] = useState<string | null>(null);
 
   const { data: companies = [] } = useCompanies();
   const quickViewCompany = useMemo(
@@ -117,8 +168,22 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
   // gate. Once loaded for the current contact, don't show the loading state
   // again until a different contact is opened.
   const [activityEverLoaded, setActivityEverLoaded] = useState(false);
+  // Notes and per-section deal lists are already fully loaded client-side —
+  // capping how many render at once (with a "Show more") keeps a very
+  // active account's DOM from ballooning without needing real pagination.
+  const NOTES_PAGE_SIZE = 10;
+  const DEALS_PAGE_SIZE = 5;
+  const [visibleNotesCount, setVisibleNotesCount] = useState(NOTES_PAGE_SIZE);
+  const [visibleDealsCount, setVisibleDealsCount] = useState<Record<string, number>>({});
   useEffect(() => {
     setActivityEverLoaded(false);
+    setRequestSentConversationId(null);
+    setVisibleNotesCount(NOTES_PAGE_SIZE);
+    setVisibleDealsCount({});
+    setMergeTarget(null);
+    setMergeError(null);
+    setDeleteNoteTargetId(null);
+    setDeleteNoteError(null);
   }, [contact?.id]);
   useEffect(() => {
     if (!activityLoading) setActivityEverLoaded(true);
@@ -136,6 +201,15 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
   }, [dndOpen]);
 
   if (!contact) return null;
+
+  // Same email, different row — the most common source of duplicate
+  // contacts (a rep re-adding someone who's already in the system, or two
+  // reps entering the same lead independently).
+  const duplicateMatch = contact.email
+    ? allContacts.find(
+        (c) => c.id !== contact.id && (c.email ?? '').trim().toLowerCase() === contact.email!.trim().toLowerCase()
+      ) ?? null
+    : null;
 
   // View All, Edit Owned Only: standard users can open any contact but only
   // edit the ones they own. Admins can always edit.
@@ -205,6 +279,29 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
         <div className="flex-1 grid grid-cols-3 min-h-0">
           {/* Column 1: Contact Details */}
           <div className="border-r border-slate-200 overflow-y-auto px-6 pb-6 space-y-5">
+            {duplicateMatch && (
+              <div className="flex items-center gap-2 px-3 py-2 text-xs bg-amber-50 border border-amber-200 rounded-lg text-amber-800">
+                <i className="fa-solid fa-triangle-exclamation shrink-0" />
+                <span className="flex-1 min-w-0">
+                  Possible duplicate — same email as{' '}
+                  <span className="font-semibold">
+                    {toTitleCase(`${duplicateMatch.first_name} ${duplicateMatch.last_name}`.trim()) || 'another contact'}
+                  </span>
+                  .
+                </span>
+                {isAdmin && (
+                  <button
+                    onClick={() => {
+                      setMergeError(null);
+                      setMergeTarget(duplicateMatch);
+                    }}
+                    className="shrink-0 font-semibold text-amber-900 hover:underline"
+                  >
+                    Merge
+                  </button>
+                )}
+              </div>
+            )}
             <div className="border border-slate-200 rounded-xl p-4 space-y-4">
               <div className="flex items-start gap-3">
                 <div className="w-14 h-14 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-lg shrink-0">
@@ -311,14 +408,53 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                 </div>
               </div>
 
-              {isReadOnly && (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold bg-slate-100 text-slate-500 rounded-full border border-slate-200">
-                  <i className="fa-solid fa-lock text-[10px]" />
-                  {contact.owner_name
-                    ? `Read Only — Owned by ${toTitleCase(contact.owner_name)}`
-                    : 'Read Only'}
-                </span>
-              )}
+              {isReadOnly && (() => {
+                const isUnassigned = contact.owner_id == null;
+                const requestTargetIds = isUnassigned
+                  ? teamUsers.filter((u) => u.role === 'admin').map((u) => u.id)
+                  : [contact.owner_id!];
+                return (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold bg-slate-100 text-slate-500 rounded-full border border-slate-200">
+                      <i className="fa-solid fa-lock text-[10px]" />
+                      {contact.owner_name
+                        ? `Read Only — Owned by ${toTitleCase(contact.owner_name)}`
+                        : 'Read Only — Unassigned'}
+                    </span>
+                    {requestTargetIds.length > 0 &&
+                      (requestSentConversationId != null ? (
+                        <button
+                          onClick={() => {
+                            navigate(`/team-chat?conversation=${requestSentConversationId}`);
+                            onClose();
+                          }}
+                          className="text-[11px] font-semibold text-emerald-600 hover:underline"
+                        >
+                          <i className="fa-solid fa-check mr-1" />
+                          Request sent — view conversation
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() =>
+                            requestOwnership.mutate({
+                              ownerIds: requestTargetIds,
+                              contactName: fullName,
+                              forAssignment: isUnassigned,
+                            })
+                          }
+                          disabled={requestOwnership.isPending}
+                          className="text-[11px] font-semibold text-[var(--theme-accent)] hover:underline disabled:opacity-50"
+                        >
+                          {requestOwnership.isPending
+                            ? 'Sending...'
+                            : isUnassigned
+                              ? 'Request Assignment'
+                              : 'Request Ownership'}
+                        </button>
+                      ))}
+                  </div>
+                );
+              })()}
 
               <div className="grid grid-cols-2 gap-4 items-start">
                 <TagsDropdown contact={contact} disabled={isReadOnly} />
@@ -343,8 +479,12 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                 <ActionButton
                   icon="fa-comment-sms"
                   label="SMS"
-                  disabled={!!contact.dnc_sms}
-                  title={contact.dnc_sms ? 'Marked Do Not Contact: SMS' : undefined}
+                  disabled
+                  title={
+                    contact.dnc_sms
+                      ? 'Marked Do Not Contact: SMS'
+                      : 'SMS sending is not connected yet — no provider is configured'
+                  }
                 />
                 <ActionButton
                   icon="fa-note-sticky"
@@ -411,16 +551,19 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                 <div className="space-y-4">
                   {dealSections.map((section) => {
                     const color = DEAL_SECTION_COLORS[section.key] ?? { text: 'text-slate-400', border: 'border-slate-200' };
+                    const shown = visibleDealsCount[section.key] ?? DEALS_PAGE_SIZE;
+                    const visibleItems = section.items.slice(0, shown);
+                    const remaining = section.items.length - visibleItems.length;
                     return (
                     <div key={section.key}>
                       <div className="flex items-center gap-2 mb-1.5">
                         <span className={`text-[10px] font-bold uppercase tracking-wide shrink-0 ${color.text}`}>
-                          {section.label}
+                          {section.label} ({section.items.length})
                         </span>
                         <div className={`flex-1 border-t ${color.border}`} />
                       </div>
                       <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg">
-                        {section.items.map((d) => {
+                        {visibleItems.map((d) => {
                           const pipelineName = pipelines.find((p) => p.id === d.pipeline_id)?.name;
                           const isClosed = d.status !== 'Open';
                           const closedDate = d.closed_at ?? d.created_at;
@@ -463,6 +606,16 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                           );
                         })}
                       </div>
+                      {remaining > 0 && (
+                        <button
+                          onClick={() =>
+                            setVisibleDealsCount((prev) => ({ ...prev, [section.key]: shown + DEALS_PAGE_SIZE }))
+                          }
+                          className="w-full mt-1.5 text-xs font-semibold text-[var(--theme-accent)] hover:underline py-1"
+                        >
+                          Show {Math.min(remaining, DEALS_PAGE_SIZE)} more ({remaining} remaining)
+                        </button>
+                      )}
                     </div>
                     );
                   })}
@@ -544,7 +697,7 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
               ) : notes.length === 0 ? (
                 <p className="text-xs text-slate-400 italic">No notes yet.</p>
               ) : (
-                notes.map((note) => {
+                notes.slice(0, visibleNotesCount).map((note) => {
                   const canEdit = isAdmin || note.created_by === user?.id;
                   const isEditing = editingNoteId === note.id;
                   return (
@@ -606,7 +759,8 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                               </button>
                               <button
                                 onClick={() => {
-                                  if (confirm('Delete this note?')) deleteNote.mutate(note.id);
+                                  setDeleteNoteError(null);
+                                  setDeleteNoteTargetId(note.id);
                                 }}
                                 className="text-[10px] font-medium text-slate-400 hover:text-rose-600"
                               >
@@ -619,6 +773,15 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                     </div>
                   );
                 })
+              )}
+              {!notesLoading && notes.length > visibleNotesCount && (
+                <button
+                  onClick={() => setVisibleNotesCount((c) => c + NOTES_PAGE_SIZE)}
+                  className="w-full text-xs font-semibold text-[var(--theme-accent)] hover:underline py-1"
+                >
+                  Show {Math.min(notes.length - visibleNotesCount, NOTES_PAGE_SIZE)} more (
+                  {notes.length - visibleNotesCount} remaining)
+                </button>
               )}
             </div>
           </div>
@@ -654,6 +817,52 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
       />
       <EmailLogModal log={selectedLog} onClose={() => setSelectedLog(null)} />
       <ActivityLogModal entry={selectedActivity} onClose={() => setSelectedActivity(null)} />
+      <ConfirmDialog
+        open={deleteNoteTargetId !== null}
+        title="Delete this note?"
+        confirmLabel="Delete"
+        isSubmitting={deleteNote.isPending}
+        error={deleteNoteError}
+        onConfirm={() => {
+          if (deleteNoteTargetId == null) return;
+          setDeleteNoteError(null);
+          deleteNote.mutate(deleteNoteTargetId, {
+            onSuccess: () => setDeleteNoteTargetId(null),
+            onError: (err) => setDeleteNoteError(err instanceof Error ? err.message : 'Failed to delete note.'),
+          });
+        }}
+        onCancel={() => {
+          setDeleteNoteTargetId(null);
+          setDeleteNoteError(null);
+        }}
+      />
+      <ConfirmDialog
+        open={mergeTarget !== null}
+        title="Merge duplicate contact?"
+        body={
+          mergeTarget
+            ? `"${toTitleCase(`${mergeTarget.first_name} ${mergeTarget.last_name}`.trim())}" will be merged into "${fullName}" — its deals, tasks, notes, activity, and tags all move onto this contact, any field left blank here gets filled in from the duplicate, and the duplicate is archived (not deleted, so it's recoverable from the Archived tab).`
+            : undefined
+        }
+        confirmLabel="Merge"
+        isSubmitting={mergeContacts.isPending}
+        error={mergeError}
+        onConfirm={() => {
+          if (!mergeTarget) return;
+          setMergeError(null);
+          mergeContacts.mutate(
+            { primaryId: contact.id, duplicateId: mergeTarget.id },
+            {
+              onSuccess: () => setMergeTarget(null),
+              onError: (err) => setMergeError(err instanceof Error ? err.message : 'Failed to merge contacts.'),
+            }
+          );
+        }}
+        onCancel={() => {
+          setMergeTarget(null);
+          setMergeError(null);
+        }}
+      />
       <CompanyQuickView
         company={quickViewCompany}
         onClose={() => setQuickViewCompanyId(null)}

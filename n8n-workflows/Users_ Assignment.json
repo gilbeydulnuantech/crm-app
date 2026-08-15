@@ -22,7 +22,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, name, email, color FROM users WHERE active = true ORDER BY name ASC;",
+        "query": "SELECT id, name, email, color, role FROM users WHERE active = true ORDER BY name ASC;",
         "options": {}
       },
       "id": "7ed2f986-ccc4-420e-a7d7-15a2fb090650",
