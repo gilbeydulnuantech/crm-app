@@ -49,8 +49,18 @@ export default function TopBar() {
           value={globalSearch}
           onChange={(e) => setGlobalSearch(e.target.value)}
           placeholder="Search contacts..."
-          className="w-full pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
+          className="w-full pl-8 pr-8 py-1.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
         />
+        {globalSearch && (
+          <button
+            type="button"
+            onClick={() => setGlobalSearch('')}
+            title="Clear search"
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500"
+          >
+            <i className="fa-solid fa-xmark text-xs" />
+          </button>
+        )}
       </form>
 
       <div className="flex items-center gap-4 shrink-0">

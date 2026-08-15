@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Opportunity, PipelineViewMode } from '../types/opportunity';
 import { NewPipelineResult } from '../api/opportunities';
 import {
+  useArchivedOpportunities,
   useArchiveOpportunities,
   useDeleteOpportunities,
   useMoveOpportunityStage,
@@ -19,15 +20,11 @@ import PipelineStatsBar from '../components/pipeline/PipelineStatsBar';
 import PipelineBoard from '../components/pipeline/PipelineBoard';
 import PipelineListView from '../components/pipeline/PipelineListView';
 import PipelineSelector from '../components/pipeline/PipelineSelector';
-import PipelineFilterPanel, {
-  countActiveDealFilters,
-  DealFilters,
-  EMPTY_DEAL_FILTERS,
-} from '../components/pipeline/PipelineFilterPanel';
+import PipelineTabs, { PipelineTabView } from '../components/pipeline/PipelineTabs';
+import ArchivedDealsList from '../components/pipeline/ArchivedDealsList';
 import DealFormModal from '../components/pipeline/DealFormModal';
 import DealQuickView from '../components/pipeline/DealQuickView';
 import DealDetailModal from '../components/pipeline/DealDetailModal';
-import ArchivedDealsModal from '../components/pipeline/ArchivedDealsModal';
 import AddDealNoteModal from '../components/pipeline/AddDealNoteModal';
 import MarkLostModal, { MarkLostResult } from '../components/pipeline/MarkLostModal';
 import TaskFormModal from '../components/tasks/TaskFormModal';
@@ -35,64 +32,8 @@ import SearchToolbar from '../components/SearchToolbar';
 
 const CLOSED_LOST_STAGE = /lost/i;
 
-function dateRangeForPreset(filters: DealFilters): [Date, Date] | null {
-  const now = new Date();
-  switch (filters.datePreset) {
-    case 'this_month': {
-      const start = new Date(now.getFullYear(), now.getMonth(), 1);
-      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-      return [start, end];
-    }
-    case 'next_30': {
-      const end = new Date(now);
-      end.setDate(now.getDate() + 30);
-      return [now, end];
-    }
-    case 'this_quarter': {
-      const quarter = Math.floor(now.getMonth() / 3);
-      const start = new Date(now.getFullYear(), quarter * 3, 1);
-      const end = new Date(now.getFullYear(), quarter * 3 + 3, 0, 23, 59, 59);
-      return [start, end];
-    }
-    case 'custom': {
-      if (!filters.customStart && !filters.customEnd) return null;
-      const start = filters.customStart ? new Date(filters.customStart) : new Date(0);
-      const end = filters.customEnd ? new Date(filters.customEnd + 'T23:59:59') : new Date(8640000000000000);
-      return [start, end];
-    }
-    default:
-      return null;
-  }
-}
-
-function matchesDealFilters(o: Opportunity, filters: DealFilters, currentUserId?: number): boolean {
-  if (filters.owner === 'mine' && o.assigned_user !== currentUserId) return false;
-  if (filters.owner === 'unassigned' && o.assigned_user) return false;
-  if (!['all', 'mine', 'unassigned'].includes(filters.owner) && String(o.assigned_user ?? '') !== filters.owner) {
-    return false;
-  }
-
-  const range = dateRangeForPreset(filters);
-  if (range) {
-    if (!o.expected_close) return false;
-    const closeDate = new Date(o.expected_close);
-    if (closeDate < range[0] || closeDate > range[1]) return false;
-  }
-
-  const min = filters.minValue ? Number(filters.minValue) : null;
-  const max = filters.maxValue ? Number(filters.maxValue) : null;
-  if (min !== null || max !== null) {
-    if (o.deal_value == null) return false;
-    if (min !== null && o.deal_value < min) return false;
-    if (max !== null && o.deal_value > max) return false;
-  }
-
-  if (filters.tagIds.length > 0) {
-    const dealTagIds = new Set((o.tags ?? []).map((t) => t.id));
-    if (!filters.tagIds.some((id) => dealTagIds.has(id))) return false;
-  }
-
-  return true;
+function isDealOverdue(o: Opportunity): boolean {
+  return o.status === 'Open' && !!o.expected_close && new Date(o.expected_close).getTime() < Date.now();
 }
 
 export default function Pipeline() {
@@ -104,15 +45,16 @@ export default function Pipeline() {
     urlPipelineId ? Number(urlPipelineId) : undefined
   );
   const [viewMode, setViewMode] = useState<PipelineViewMode>('board');
+  const [view, setView] = useState<PipelineTabView>('all');
   const [search, setSearch] = useState('');
   const [formOpen, setFormOpen] = useState(false);
   const [editingOpportunity, setEditingOpportunity] = useState<Opportunity | null>(null);
   const [quickViewDeal, setQuickViewDeal] = useState<Opportunity | null>(null);
   const [detailDeal, setDetailDeal] = useState<Opportunity | null>(null);
   const [highlightDealId, setHighlightDealId] = useState<number | null>(null);
-  const [filterPanelOpen, setFilterPanelOpen] = useState(false);
-  const [archivedModalOpen, setArchivedModalOpen] = useState(false);
-  const [filters, setFilters] = useState<DealFilters>(EMPTY_DEAL_FILTERS);
+  const [checkedUserIds, setCheckedUserIds] = useState<Set<number>>(new Set());
+  const [usersInitialized, setUsersInitialized] = useState(false);
+  const [tagFilters, setTagFilters] = useState<Set<number>>(new Set());
   const [toast, setToast] = useState<string | null>(null);
   const [noteDeal, setNoteDeal] = useState<Opportunity | null>(null);
   const [taskDeal, setTaskDeal] = useState<Opportunity | null>(null);
@@ -146,8 +88,21 @@ export default function Pipeline() {
   const { data: stages = [] } = useStages(pipelineId);
   const stagesById = useMemo(() => new Map(stages.map((s) => [s.id, s])), [stages]);
   const { data: opportunities = [], isLoading } = useOpportunities(pipelineId);
+  const { data: archivedOpportunities = [], isLoading: isLoadingArchived } = useArchivedOpportunities(
+    pipelineId,
+    view === 'archived'
+  );
   const { data: users = [] } = useUsers();
   const { data: tags = [] } = useTags();
+
+  // Default to everyone checked once the team list loads — "All Members"
+  // means unrestricted, not "hide everyone until you opt in".
+  useEffect(() => {
+    if (!usersInitialized && users.length > 0) {
+      setCheckedUserIds(new Set(users.map((u) => u.id)));
+      setUsersInitialized(true);
+    }
+  }, [users, usersInitialized]);
 
   // Deep link from Task/Contact/Company quick views — ?pipeline=<id> already
   // switches to the right board (handled above); ?highlight=<dealId> then
@@ -181,8 +136,28 @@ export default function Pipeline() {
   const addLostDealNote = useAddNote('opportunity', lostDeal?.id ?? null);
   const addTask = useAddTask();
 
+  // Same tabs model as Tasks: view narrows which records (All/Mine/Overdue/
+  // Archived), checkedUserIds narrows which teammates on top of that, tags
+  // narrow further still, and none of them are mutually exclusive.
   const visibleOpportunities = useMemo(() => {
-    let list = opportunities;
+    let list = view === 'archived' ? archivedOpportunities : opportunities;
+    if (view === 'mine') list = list.filter((o) => o.assigned_user === user?.id);
+    else if (view === 'overdue') list = list.filter(isDealOverdue);
+
+    if (users.length > 0 && checkedUserIds.size < users.length) {
+      list = list.filter((o) => o.assigned_user == null || checkedUserIds.has(o.assigned_user));
+    }
+
+    if (tagFilters.size > 0) {
+      list = list.filter((o) => {
+        // Matches whatever tag pills the card actually shows — DealCard
+        // renders the deal's own tags AND the linked contact's tags
+        // together (see its `allTags` merge), so filtering on o.tags alone
+        // missed any deal whose only visible match came from the contact.
+        const dealTagIds = new Set([...(o.tags ?? []), ...(o.contact_tags ?? [])].map((t) => t.id));
+        return [...tagFilters].some((id) => dealTagIds.has(id));
+      });
+    }
 
     if (search.trim()) {
       const q = search.trim().toLowerCase();
@@ -194,10 +169,30 @@ export default function Pipeline() {
       );
     }
 
-    return list.filter((o) => matchesDealFilters(o, filters, user?.id));
-  }, [opportunities, search, filters, user]);
+    return list;
+  }, [opportunities, archivedOpportunities, view, user, users, checkedUserIds, tagFilters, search]);
 
-  const activeFilterCount = countActiveDealFilters(filters);
+  function toggleUser(id: number) {
+    setCheckedUserIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAllUsers() {
+    setCheckedUserIds((prev) =>
+      users.length > 0 && users.every((u) => prev.has(u.id)) ? new Set() : new Set(users.map((u) => u.id))
+    );
+  }
+
+  function toggleTag(id: number) {
+    setTagFilters((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
 
   function openAddModal() {
     setEditingOpportunity(null);
@@ -310,58 +305,50 @@ export default function Pipeline() {
         </button>
       </div>
 
+      <PipelineTabs
+        view={view}
+        onChange={setView}
+        users={users}
+        currentUserId={user?.id}
+        checkedUserIds={checkedUserIds}
+        onToggleUser={toggleUser}
+        onToggleAllUsers={toggleAllUsers}
+        tags={tags}
+        tagFilters={tagFilters}
+        onToggleTag={toggleTag}
+      />
+
       <SearchToolbar
         search={search}
         onSearchChange={setSearch}
         placeholder="Search deals..."
-        rightExtra={
-          <div className="flex items-center gap-2">
+        endExtra={
+          <div className="flex items-center gap-1 border border-slate-200 rounded-md p-0.5 bg-slate-50">
             <button
-              onClick={() => setFilterPanelOpen(true)}
-              className="relative flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-indigo-600 py-1.5 px-2.5 border border-slate-200 rounded-md bg-white transition-colors"
+              onClick={() => setViewMode('board')}
+              className={`px-2.5 py-1 text-xs font-semibold rounded ${
+                viewMode === 'board' ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500'
+              }`}
             >
-              <i className="fa-solid fa-filter text-[10px]" />
-              Filter
-              {activeFilterCount > 0 && (
-                <span className="ml-0.5 w-4 h-4 flex items-center justify-center rounded-full bg-indigo-600 text-white text-[9px] font-bold">
-                  {activeFilterCount}
-                </span>
-              )}
+              <i className="fa-solid fa-table-columns text-[10px] mr-1" />
+              Board
             </button>
-
             <button
-              onClick={() => setArchivedModalOpen(true)}
-              className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-indigo-600 py-1.5 px-2.5 border border-slate-200 rounded-md bg-white transition-colors"
+              onClick={() => setViewMode('list')}
+              className={`px-2.5 py-1 text-xs font-semibold rounded ${
+                viewMode === 'list' ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500'
+              }`}
             >
-              <i className="fa-solid fa-box-archive text-[10px]" />
-              Archived
+              <i className="fa-solid fa-list text-[10px] mr-1" />
+              List
             </button>
-
-            <div className="flex items-center gap-1 border border-slate-200 rounded-md p-0.5 bg-slate-50">
-              <button
-                onClick={() => setViewMode('board')}
-                className={`px-2.5 py-1 text-xs font-semibold rounded ${
-                  viewMode === 'board' ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500'
-                }`}
-              >
-                <i className="fa-solid fa-table-columns text-[10px] mr-1" />
-                Board
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`px-2.5 py-1 text-xs font-semibold rounded ${
-                  viewMode === 'list' ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500'
-                }`}
-              >
-                <i className="fa-solid fa-list text-[10px] mr-1" />
-                List
-              </button>
-            </div>
           </div>
         }
       />
 
-      {viewMode === 'board' ? (
+      {view === 'archived' ? (
+        <ArchivedDealsList deals={visibleOpportunities} isLoading={isLoadingArchived} pipelineId={pipelineId} />
+      ) : viewMode === 'board' ? (
         <PipelineBoard
           stages={stages}
           opportunities={visibleOpportunities}
@@ -443,21 +430,6 @@ export default function Pipeline() {
           setDetailDeal(null);
           handleDelete(deal);
         }}
-      />
-
-      <ArchivedDealsModal
-        open={archivedModalOpen}
-        pipelineId={pipelineId}
-        onClose={() => setArchivedModalOpen(false)}
-      />
-
-      <PipelineFilterPanel
-        open={filterPanelOpen}
-        value={filters}
-        users={users}
-        tags={tags}
-        onChange={setFilters}
-        onClose={() => setFilterPanelOpen(false)}
       />
 
       {noteDeal && (

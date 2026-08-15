@@ -16,7 +16,6 @@ import {
 import { startDm, sendMessage } from '../api/chat';
 import TasksStatsBar from '../components/tasks/TasksStatsBar';
 import TasksTabs from '../components/tasks/TasksTabs';
-import TasksSidebar, { TaskStatusFilter } from '../components/tasks/TasksSidebar';
 import TasksTable from '../components/tasks/TasksTable';
 import TasksKanbanBoard from '../components/tasks/TasksKanbanBoard';
 import TasksBulkActionsMenu from '../components/tasks/TasksBulkActionsMenu';
@@ -28,14 +27,8 @@ import SearchToolbar from '../components/SearchToolbar';
 
 type BoardView = 'list' | 'kanban';
 
-function matchesStatusFilters(task: Task, statusFilters: Set<TaskStatusFilter>): boolean {
-  if (statusFilters.size === 0) return true;
-  const isOverdue = !task.is_completed && taskStatus(task) === 'Overdue';
-  return (
-    (statusFilters.has('open') && !task.is_completed) ||
-    (statusFilters.has('completed') && task.is_completed) ||
-    (statusFilters.has('overdue') && isOverdue)
-  );
+function isOverdue(task: Task): boolean {
+  return !task.is_completed && taskStatus(task) === 'Overdue';
 }
 
 export default function Tasks() {
@@ -56,13 +49,11 @@ export default function Tasks() {
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
   const [quickViewTaskId, setQuickViewTaskId] = useState<number | null>(null);
   const [detailTaskId, setDetailTaskId] = useState<number | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  // Sidebar filters — additional narrowing on top of the All/Mine/Completed
+  // Additional narrowing on top of the All/Mine/Completed/Overdue/Archived
   // tabs, not a replacement for them.
   const [checkedUserIds, setCheckedUserIds] = useState<Set<number>>(new Set());
   const [usersInitialized, setUsersInitialized] = useState(false);
-  const [statusFilters, setStatusFilters] = useState<Set<TaskStatusFilter>>(new Set(['open']));
   const [priorityFilters, setPriorityFilters] = useState<Set<TaskPriority>>(new Set());
 
   const { data: allTasks = [], isLoading } = useTasks();
@@ -156,14 +147,6 @@ export default function Tasks() {
     );
   }
 
-  function toggleStatus(s: TaskStatusFilter) {
-    setStatusFilters((prev) => {
-      const next = new Set(prev);
-      next.has(s) ? next.delete(s) : next.add(s);
-      return next;
-    });
-  }
-
   function togglePriority(p: TaskPriority) {
     setPriorityFilters((prev) => {
       const next = new Set(prev);
@@ -172,34 +155,17 @@ export default function Tasks() {
     });
   }
 
-  function clearFilters() {
-    setCheckedUserIds(new Set(users.map((u) => u.id)));
-    setStatusFilters(new Set());
-    setPriorityFilters(new Set());
-  }
-
-  // Mirrors Pipeline's countActiveDealFilters — one point per filter
-  // category that's narrowed from its "show everything" state, not per
-  // individual checkbox, so the badge stays legible at a glance.
-  const activeFilterCount =
-    (users.length > 0 && checkedUserIds.size < users.length ? 1 : 0) +
-    (statusFilters.size > 0 ? 1 : 0) +
-    (priorityFilters.size > 0 ? 1 : 0);
-
   const visibleTasks = useMemo(() => {
     let list = view === 'archived' ? archivedTasks : allTasks;
     if (view === 'mine') list = list.filter((t) => t.user_id === user?.id);
     if (view === 'completed') list = list.filter((t) => t.is_completed);
+    else if (view === 'overdue') list = list.filter(isOverdue);
     else if (view === 'all' || view === 'mine') list = list.filter((t) => !t.is_completed); // All/Mine default to open tasks
 
     if (users.length > 0 && checkedUserIds.size < users.length) {
       list = list.filter((t) => t.user_id == null || checkedUserIds.has(t.user_id));
     }
 
-    if (view !== 'archived') {
-      list = list.filter((t) => matchesStatusFilters(t, statusFilters));
-    }
-
     if (priorityFilters.size > 0) {
       list = list.filter((t) => t.priority && priorityFilters.has(t.priority));
     }
@@ -209,18 +175,22 @@ export default function Tasks() {
       list = list.filter((t) => t.subject.toLowerCase().includes(q));
     }
     return list;
-  }, [allTasks, archivedTasks, view, user, search, users, checkedUserIds, statusFilters, priorityFilters]);
+  }, [allTasks, archivedTasks, view, user, search, users, checkedUserIds, priorityFilters]);
 
-  // Kanban groups by status across the whole board, so it bypasses the
-  // All/Mine/Completed tabs (is_completed-based, would permanently empty 3
-  // of the 4 columns) — but the sidebar's Status section still applies, so
-  // checking e.g. only "Completed" narrows the board down to just that.
+  // Same All/Mine/Completed/Overdue/Archived tabs as the List view, but
+  // unlike visibleTasks this never auto-hides completed tasks under
+  // "All"/"Mine" — Kanban's whole point is seeing every stage (including the
+  // Completed column) at once, so that default would just empty a column for
+  // no reason a List row doesn't have.
   const kanbanTasks = useMemo(() => {
-    let list = allTasks;
+    let list = view === 'archived' ? archivedTasks : allTasks;
+    if (view === 'mine') list = list.filter((t) => t.user_id === user?.id);
+    if (view === 'completed') list = list.filter((t) => t.is_completed);
+    else if (view === 'overdue') list = list.filter(isOverdue);
+
     if (users.length > 0 && checkedUserIds.size < users.length) {
       list = list.filter((t) => t.user_id == null || checkedUserIds.has(t.user_id));
     }
-    list = list.filter((t) => matchesStatusFilters(t, statusFilters));
     if (priorityFilters.size > 0) {
       list = list.filter((t) => t.priority && priorityFilters.has(t.priority));
     }
@@ -229,7 +199,7 @@ export default function Tasks() {
       list = list.filter((t) => t.subject.toLowerCase().includes(q));
     }
     return list;
-  }, [allTasks, users, checkedUserIds, statusFilters, priorityFilters, search]);
+  }, [allTasks, archivedTasks, view, user, users, checkedUserIds, priorityFilters, search]);
 
   function handleMoveTaskStatus(task: Task, status: TaskStatus) {
     moveTaskStatus.mutate({ id: task.id, status });
@@ -306,144 +276,133 @@ export default function Tasks() {
   }
 
   return (
-    <div className="flex-1 flex min-h-0 overflow-hidden">
-      <TasksSidebar
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+      <div className="px-4 py-3 flex items-center gap-4 shrink-0 border-b border-slate-200">
+        <h1 className="text-lg font-bold text-slate-800 shrink-0">Tasks</h1>
+        <div className="flex-1 flex justify-center min-w-0">
+          <TasksStatsBar tasks={allTasks} />
+        </div>
+        <button
+          onClick={openAddModal}
+          className="bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] text-white text-sm font-medium px-3 py-1.5 rounded-lg flex items-center space-x-2 shadow-sm transition-all shrink-0"
+        >
+          <i className="fa-solid fa-plus text-xs" />
+          <span>Add Task</span>
+        </button>
+      </div>
+
+      <TasksTabs
+        view={view}
+        onChange={changeView}
         users={users}
         currentUserId={user?.id}
-        isAdmin={isAdmin}
         checkedUserIds={checkedUserIds}
         onToggleUser={toggleUser}
         onToggleAllUsers={toggleAllUsers}
-        statusFilters={statusFilters}
-        onToggleStatus={toggleStatus}
         priorityFilters={priorityFilters}
         onTogglePriority={togglePriority}
-        onClearFilters={clearFilters}
-        collapsed={!sidebarOpen}
-        onToggleCollapsed={() => setSidebarOpen((v) => !v)}
-        activeFilterCount={activeFilterCount}
       />
 
-      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        <div className="px-4 py-3 flex items-center gap-4 shrink-0 border-b border-slate-200">
-          <h1 className="text-lg font-bold text-slate-800 shrink-0">Tasks</h1>
-          <div className="flex-1 flex justify-center min-w-0">
-            <TasksStatsBar tasks={allTasks} />
+      <SearchToolbar
+        search={search}
+        onSearchChange={setSearch}
+        placeholder="Search tasks..."
+        endExtra={
+          <div className="flex items-center gap-1 border border-slate-200 rounded-md p-0.5 bg-slate-50">
+            {(['kanban', 'list'] as BoardView[]).map((v) => (
+              <button
+                key={v}
+                onClick={() => setBoardView(v)}
+                className={`px-2.5 py-1 text-xs font-semibold rounded capitalize ${
+                  boardView === v ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500'
+                }`}
+              >
+                {v}
+              </button>
+            ))}
           </div>
-          <button
-            onClick={openAddModal}
-            className="bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] text-white text-sm font-medium px-3 py-1.5 rounded-lg flex items-center space-x-2 shadow-sm transition-all shrink-0"
-          >
-            <i className="fa-solid fa-plus text-xs" />
-            <span>Add Task</span>
-          </button>
-        </div>
+        }
+      />
 
-        {boardView === 'list' && <TasksTabs view={view} onChange={changeView} />}
-
-        <SearchToolbar
-          search={search}
-          onSearchChange={setSearch}
-          placeholder="Search tasks..."
-          onFiltersClick={() => setSidebarOpen((v) => !v)}
-          filterCount={activeFilterCount}
-          rightExtra={
-            <div className="flex items-center gap-1 border border-slate-200 rounded-md p-0.5 bg-slate-50">
-              {(['kanban', 'list'] as BoardView[]).map((v) => (
-                <button
-                  key={v}
-                  onClick={() => setBoardView(v)}
-                  className={`px-2.5 py-1 text-xs font-semibold rounded capitalize ${
-                    boardView === v ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500'
-                  }`}
-                >
-                  {v}
-                </button>
-              ))}
-            </div>
-          }
-        />
-
-        {boardView === 'list' ? (
-          <>
-            <TasksTable
-              tasks={visibleTasks}
-              selectedIds={selectedIds}
-              onToggleSelect={toggleSelect}
-              onToggleSelectAll={toggleSelectAll}
-              onRowClick={openQuickView}
-              isLoading={view === 'archived' ? isLoadingArchived : isLoading}
-              isAdmin={isAdmin}
-              currentUserId={user?.id}
-            />
-
-            <div className="px-4 py-2.5 border-t border-slate-200 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3">
-                {selectedIds.size > 0 && (
-                  <span className="text-[11px] text-slate-400 font-medium">
-                    {selectedIds.size} selected
-                  </span>
-                )}
-                {view === 'archived' ? (
-                  <button
-                    disabled={selectedIds.size === 0}
-                    onClick={handleRestoreSelected}
-                    className="text-xs font-semibold text-slate-600 hover:text-indigo-600 py-1.5 px-2.5 border border-slate-200 rounded-md bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Restore Selected
-                  </button>
-                ) : (
-                  <TasksBulkActionsMenu
-                    selectedCount={selectedIds.size}
-                    isAdmin={isAdmin}
-                    onCompleteSelected={handleCompleteSelected}
-                    onArchiveSelected={handleArchiveSelected}
-                    onDeleteSelected={handleDeleteSelected}
-                  />
-                )}
-              </div>
-              <span className="text-xs text-slate-500">
-                Showing {visibleTasks.length} of {(view === 'archived' ? archivedTasks : allTasks).length} Tasks
-              </span>
-            </div>
-          </>
-        ) : (
-          <TasksKanbanBoard
-            tasks={kanbanTasks}
-            users={users}
-            onMoveStatus={handleMoveTaskStatus}
-            onCardClick={openQuickView}
-            onViewDetails={openDetailModal}
-            onEdit={openEditModal}
-            onReassign={handleReassignTask}
-            onMarkComplete={handleMarkCompleteTask}
-            onArchive={handleArchiveTask}
-            onDelete={handleDeleteTask}
-            canEditTask={canEditTask}
+      {boardView === 'list' ? (
+        <>
+          <TasksTable
+            tasks={visibleTasks}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelect}
+            onToggleSelectAll={toggleSelectAll}
+            onRowClick={openQuickView}
+            isLoading={view === 'archived' ? isLoadingArchived : isLoading}
             isAdmin={isAdmin}
-            highlightTaskId={highlightTaskId}
+            currentUserId={user?.id}
           />
-        )}
 
-        <TaskQuickView
-          task={quickViewTask}
-          canEdit={quickViewTask ? canEditTask(quickViewTask) : false}
-          onClose={() => setQuickViewTaskId(null)}
+          <div className="px-4 py-2.5 border-t border-slate-200 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-3">
+              {selectedIds.size > 0 && (
+                <span className="text-[11px] text-slate-400 font-medium">
+                  {selectedIds.size} selected
+                </span>
+              )}
+              {view === 'archived' ? (
+                <button
+                  disabled={selectedIds.size === 0}
+                  onClick={handleRestoreSelected}
+                  className="text-xs font-semibold text-slate-600 hover:text-indigo-600 py-1.5 px-2.5 border border-slate-200 rounded-md bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  Restore Selected
+                </button>
+              ) : (
+                <TasksBulkActionsMenu
+                  selectedCount={selectedIds.size}
+                  isAdmin={isAdmin}
+                  onCompleteSelected={handleCompleteSelected}
+                  onArchiveSelected={handleArchiveSelected}
+                  onDeleteSelected={handleDeleteSelected}
+                />
+              )}
+            </div>
+            <span className="text-xs text-slate-500">
+              Showing {visibleTasks.length} of {(view === 'archived' ? archivedTasks : allTasks).length} Tasks
+            </span>
+          </div>
+        </>
+      ) : (
+        <TasksKanbanBoard
+          tasks={kanbanTasks}
+          users={users}
+          onMoveStatus={handleMoveTaskStatus}
+          onCardClick={openQuickView}
+          onViewDetails={openDetailModal}
           onEdit={openEditModal}
-          onOpenFullDetails={openDetailModal}
-        />
-
-        <TaskDetailModal
-          task={detailTask}
+          onReassign={handleReassignTask}
+          onMarkComplete={handleMarkCompleteTask}
+          onArchive={handleArchiveTask}
+          onDelete={handleDeleteTask}
+          canEditTask={canEditTask}
           isAdmin={isAdmin}
-          currentUserId={user?.id}
-          onClose={() => setDetailTaskId(null)}
-          onEdit={openEditModal}
+          highlightTaskId={highlightTaskId}
         />
+      )}
 
-        <TaskFormModal open={addOpen} onClose={() => setAddOpen(false)} />
-        <TaskEditModal open={!!editingTask} task={editingTask} onClose={() => setEditingTaskId(null)} />
-      </div>
+      <TaskQuickView
+        task={quickViewTask}
+        canEdit={quickViewTask ? canEditTask(quickViewTask) : false}
+        onClose={() => setQuickViewTaskId(null)}
+        onEdit={openEditModal}
+        onOpenFullDetails={openDetailModal}
+      />
+
+      <TaskDetailModal
+        task={detailTask}
+        isAdmin={isAdmin}
+        currentUserId={user?.id}
+        onClose={() => setDetailTaskId(null)}
+        onEdit={openEditModal}
+      />
+
+      <TaskFormModal open={addOpen} onClose={() => setAddOpen(false)} />
+      <TaskEditModal open={!!editingTask} task={editingTask} onClose={() => setEditingTaskId(null)} />
     </div>
   );
 }

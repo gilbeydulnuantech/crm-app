@@ -96,7 +96,7 @@ export interface Task {
   watchers?: TaskWatcher[];
 }
 
-export type TasksView = 'all' | 'mine' | 'completed' | 'archived';
+export type TasksView = 'all' | 'mine' | 'completed' | 'overdue' | 'archived';
 
 // A short, human-readable id for display only (e.g. "TSK-8921") — not a
 // stored column, just the row id formatted consistently across the UI.
