@@ -356,7 +356,11 @@ export default function Contacts() {
             onDensityChange={changeDensity}
             rightExtra={
               <>
-                <SavedViewsBar<ContactsSavedFilters> entityType="contact" onApply={applySavedFilters} />
+                <SavedViewsBar<ContactsSavedFilters>
+                  entityType="contact"
+                  currentFilters={{ view, search, filters, advancedFilters }}
+                  onApply={applySavedFilters}
+                />
                 <SaveViewButton<ContactsSavedFilters>
                   entityType="contact"
                   currentFilters={{ view, search, filters, advancedFilters }}

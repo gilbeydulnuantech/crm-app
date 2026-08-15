@@ -245,7 +245,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "DELETE FROM saved_views WHERE id = $1 AND user_id = $2 RETURNING id;",
+        "query": "DELETE FROM saved_views\nWHERE id = $1\n  AND (user_id = $2 OR EXISTS (SELECT 1 FROM users WHERE id = $2 AND role = 'admin'))\nRETURNING id;",
         "options": {
           "queryReplacement": "={{ [ $json.viewId, $json.requesterId ] }}"
         }
@@ -293,6 +293,92 @@
       "position": [
         1696,
         780
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "update-saved-view",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "fc03d8ee-b8f5-4439-99ee-f0662cda7365",
+      "name": "Webhook: update-saved-view",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        800,
+        940
+      ],
+      "webhookId": "c8a820ef-b85d-420c-8cb6-65bbb783d95a"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst requesterId = parseInt(match[1], 10);\nconst body = $input.first().json.body || {};\nconst viewId = parseInt(body.id, 10);\nif (!Number.isInteger(viewId)) throw new Error('\"id\" must be an integer.');\n\n// Partial update \u2014 only fields actually present in the body get\n// changed (COALESCE against the existing row in the UPDATE query),\n// same semantics as update-contact's partial-update behavior.\nlet name = null;\nif (body.name !== undefined) {\n  name = (body.name || '').toString().trim();\n  if (!name) throw new Error('\"name\" is required.');\n  if (name.length > 100) throw new Error('\"name\" must be 100 characters or fewer.');\n}\n\nlet filters = null;\nif (body.filters !== undefined) {\n  if (typeof body.filters !== 'object' || body.filters === null) {\n    throw new Error('\"filters\" must be an object.');\n  }\n  filters = JSON.stringify(body.filters);\n}\n\nconst isShared = body.is_shared === undefined\n  ? null\n  : (body.is_shared === true || body.is_shared === 'true');\n\nif (name === null && filters === null && isShared === null) {\n  throw new Error('Nothing to update.');\n}\n\nreturn [{ json: { requesterId, viewId, name, filters, isShared } }];"
+      },
+      "id": "202cfd9b-77a0-470a-af62-479d3eebf2e5",
+      "name": "Validate Update Saved View Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1024,
+        940
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE saved_views\nSET name = COALESCE($3, name),\n    filters = COALESCE($4::jsonb, filters),\n    is_shared = COALESCE($5, is_shared)\nWHERE id = $1\n  AND (user_id = $2 OR EXISTS (SELECT 1 FROM users WHERE id = $2 AND role = 'admin'))\nRETURNING id, entity_type, name, filters, created_at, user_id, is_shared;",
+        "options": {
+          "queryReplacement": "={{ [ $json.viewId, $json.requesterId, $json.name, $json.filters, $json.isShared ] }}"
+        }
+      },
+      "id": "1fa6d109-8b89-4997-bcde-36613e04f098",
+      "name": "Postgres: Update Saved View",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1248,
+        940
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) {\n  throw new Error('View not found or you do not have permission to edit it.');\n}\nreturn [{ json: { success: true, view: result.json } }];"
+      },
+      "id": "81d51cc5-db7f-4cd5-a6a9-59a7a772cd3b",
+      "name": "Check Update Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1472,
+        940
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "c7fcf541-119c-4b02-841a-c415b158d9b0",
+      "name": "Respond: update-saved-view",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1696,
+        940
       ]
     }
   ],
@@ -455,6 +541,71 @@
         [
           {
             "node": "Respond: delete-saved-view",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: update-saved-view": {
+      "main": [
+        [
+          {
+            "node": "Validate Update Saved View Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Update Saved View Payload": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Update Saved View",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Update Saved View": {
+      "main": [
+        [
+          {
+            "node": "Check Update Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Update Result": {
+      "main": [
+        [
+          {
+            "node": "Respond: update-saved-view",
             "type": "main",
             "index": 0
           }

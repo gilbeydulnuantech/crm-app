@@ -17,6 +17,15 @@ export function useAddSavedView<TFilters>(entityType: string) {
   });
 }
 
+export function useUpdateSavedView<TFilters>(entityType: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, updates }: { id: number; updates: api.SavedViewUpdate<TFilters> }) =>
+      api.updateSavedView(id, updates),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['saved-views', entityType] }),
+  });
+}
+
 export function useDeleteSavedView(entityType: string) {
   const qc = useQueryClient();
   const queryKey = ['saved-views', entityType];

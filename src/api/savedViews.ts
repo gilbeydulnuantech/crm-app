@@ -23,3 +23,23 @@ export function deleteSavedView(id: number) {
     body: JSON.stringify({ id }),
   });
 }
+
+export interface SavedViewUpdate<TFilters> {
+  name?: string;
+  filters?: TFilters;
+  isShared?: boolean;
+}
+
+// Partial update — omit a field to leave it untouched server-side, same
+// semantics as update-contact. Owner or admin only (enforced server-side).
+export function updateSavedView<TFilters>(id: number, updates: SavedViewUpdate<TFilters>) {
+  return apiFetch<{ success: boolean; view?: SavedView<TFilters>; error?: string }>('/webhook/update-saved-view', {
+    method: 'POST',
+    body: JSON.stringify({
+      id,
+      ...(updates.name !== undefined ? { name: updates.name } : {}),
+      ...(updates.filters !== undefined ? { filters: updates.filters } : {}),
+      ...(updates.isShared !== undefined ? { is_shared: updates.isShared } : {}),
+    }),
+  });
+}
