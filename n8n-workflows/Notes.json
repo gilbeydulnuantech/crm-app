@@ -22,7 +22,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "CREATE TABLE IF NOT EXISTS notes (\n  id SERIAL PRIMARY KEY,\n  entity_type VARCHAR(20) NOT NULL,\n  entity_id INTEGER NOT NULL,\n  body TEXT NOT NULL,\n  created_by INTEGER REFERENCES users(id),\n  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n  updated_at TIMESTAMPTZ\n);\nCREATE INDEX IF NOT EXISTS idx_notes_entity ON notes(entity_type, entity_id);",
+        "query": "CREATE TABLE IF NOT EXISTS notes (\n  id SERIAL PRIMARY KEY,\n  entity_type VARCHAR(20) NOT NULL,\n  entity_id INTEGER NOT NULL,\n  body TEXT NOT NULL,\n  created_by INTEGER REFERENCES users(id),\n  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n  updated_at TIMESTAMPTZ,\n  is_pinned BOOLEAN NOT NULL DEFAULT false\n);\nCREATE INDEX IF NOT EXISTS idx_notes_entity ON notes(entity_type, entity_id);\nALTER TABLE notes ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN NOT NULL DEFAULT false;",
         "options": {}
       },
       "id": "9daab5cf-8cfb-4074-bb10-5692e81ceeb1",
@@ -43,7 +43,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT n.id, n.entity_type, n.entity_id, n.body, n.created_by, u.name AS created_by_name, n.created_at, n.updated_at FROM notes n LEFT JOIN users u ON u.id = n.created_by WHERE n.entity_type = $1 AND n.entity_id = $2 ORDER BY n.created_at DESC, n.id DESC;",
+        "query": "SELECT n.id, n.entity_type, n.entity_id, n.body, n.created_by, u.name AS created_by_name, n.created_at, n.updated_at, n.is_pinned FROM notes n LEFT JOIN users u ON u.id = n.created_by WHERE n.entity_type = $1 AND n.entity_id = $2 ORDER BY n.is_pinned DESC, n.created_at DESC, n.id DESC;",
         "options": {
           "queryReplacement": "={{ [ $('Webhook: get-notes').first().json.query.entity_type, Number($('Webhook: get-notes').first().json.query.entity_id) ] }}"
         }
@@ -148,7 +148,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "CREATE TABLE IF NOT EXISTS notes (\n  id SERIAL PRIMARY KEY,\n  entity_type VARCHAR(20) NOT NULL,\n  entity_id INTEGER NOT NULL,\n  body TEXT NOT NULL,\n  created_by INTEGER REFERENCES users(id),\n  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n  updated_at TIMESTAMPTZ\n);\nCREATE INDEX IF NOT EXISTS idx_notes_entity ON notes(entity_type, entity_id);",
+        "query": "CREATE TABLE IF NOT EXISTS notes (\n  id SERIAL PRIMARY KEY,\n  entity_type VARCHAR(20) NOT NULL,\n  entity_id INTEGER NOT NULL,\n  body TEXT NOT NULL,\n  created_by INTEGER REFERENCES users(id),\n  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n  updated_at TIMESTAMPTZ,\n  is_pinned BOOLEAN NOT NULL DEFAULT false\n);\nCREATE INDEX IF NOT EXISTS idx_notes_entity ON notes(entity_type, entity_id);\nALTER TABLE notes ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN NOT NULL DEFAULT false;",
         "options": {}
       },
       "id": "0334fdde-36c4-45ee-812b-27ee6612d807",
@@ -169,7 +169,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO notes (entity_type, entity_id, body, created_by) VALUES ($1, $2, $3, $4) RETURNING id, entity_type, entity_id, body, created_by, created_at;",
+        "query": "INSERT INTO notes (entity_type, entity_id, body, created_by) VALUES ($1, $2, $3, $4) RETURNING id, entity_type, entity_id, body, created_by, created_at, is_pinned;",
         "options": {
           "queryReplacement": "={{ [ $('Webhook: add-note').first().json.body.entity_type, Number($('Webhook: add-note').first().json.body.entity_id), $('Webhook: add-note').first().json.body.body, $('Webhook: add-note').first().json.body.requester_id || null ] }}"
         }
@@ -249,7 +249,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "CREATE TABLE IF NOT EXISTS notes (\n  id SERIAL PRIMARY KEY,\n  entity_type VARCHAR(20) NOT NULL,\n  entity_id INTEGER NOT NULL,\n  body TEXT NOT NULL,\n  created_by INTEGER REFERENCES users(id),\n  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n  updated_at TIMESTAMPTZ\n);\nCREATE INDEX IF NOT EXISTS idx_notes_entity ON notes(entity_type, entity_id);",
+        "query": "CREATE TABLE IF NOT EXISTS notes (\n  id SERIAL PRIMARY KEY,\n  entity_type VARCHAR(20) NOT NULL,\n  entity_id INTEGER NOT NULL,\n  body TEXT NOT NULL,\n  created_by INTEGER REFERENCES users(id),\n  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n  updated_at TIMESTAMPTZ,\n  is_pinned BOOLEAN NOT NULL DEFAULT false\n);\nCREATE INDEX IF NOT EXISTS idx_notes_entity ON notes(entity_type, entity_id);\nALTER TABLE notes ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN NOT NULL DEFAULT false;",
         "options": {}
       },
       "id": "e6cabb0a-dd1c-4145-9bc8-de358b425a3f",
@@ -270,9 +270,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE notes SET body = $1, updated_at = NOW() WHERE id = $2 RETURNING id;",
+        "query": "UPDATE notes SET\n  body = COALESCE($1, body),\n  is_pinned = COALESCE($2, is_pinned),\n  updated_at = NOW()\nWHERE id = $3\nRETURNING id, is_pinned;",
         "options": {
-          "queryReplacement": "={{ [ $('Webhook: update-note').first().json.body.body, Number($('Webhook: update-note').first().json.body.id) ] }}"
+          "queryReplacement": "={{ [ $('Parse Update Payload').first().json.noteBody, $('Parse Update Payload').first().json.isPinned, $('Parse Update Payload').first().json.id ] }}"
         }
       },
       "id": "24830d46-1410-4ddc-b992-43e792f434d0",
@@ -294,7 +294,7 @@
       "parameters": {
         "options": {},
         "respondWith": "json",
-        "responseBody": "={{ { \"success\": true } }}"
+        "responseBody": "={{ { success: true, is_pinned: $json.is_pinned } }}"
       },
       "id": "301e7c3f-1de0-48d8-ad6d-9715074dc036",
       "name": "Respond: update-note",
@@ -327,7 +327,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "CREATE TABLE IF NOT EXISTS notes (\n  id SERIAL PRIMARY KEY,\n  entity_type VARCHAR(20) NOT NULL,\n  entity_id INTEGER NOT NULL,\n  body TEXT NOT NULL,\n  created_by INTEGER REFERENCES users(id),\n  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n  updated_at TIMESTAMPTZ\n);\nCREATE INDEX IF NOT EXISTS idx_notes_entity ON notes(entity_type, entity_id);",
+        "query": "CREATE TABLE IF NOT EXISTS notes (\n  id SERIAL PRIMARY KEY,\n  entity_type VARCHAR(20) NOT NULL,\n  entity_id INTEGER NOT NULL,\n  body TEXT NOT NULL,\n  created_by INTEGER REFERENCES users(id),\n  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n  updated_at TIMESTAMPTZ,\n  is_pinned BOOLEAN NOT NULL DEFAULT false\n);\nCREATE INDEX IF NOT EXISTS idx_notes_entity ON notes(entity_type, entity_id);\nALTER TABLE notes ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN NOT NULL DEFAULT false;",
         "options": {}
       },
       "id": "4d7493d8-4dc3-40b5-8057-02c1f8d6ae77",
@@ -381,6 +381,19 @@
       "position": [
         1488,
         1168
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || {};\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" must be an integer.');\n\n// Partial update \u2014 body text and the pinned flag can each be sent\n// independently (toggling pin from the note list shouldn't require\n// resending the full note text, and editing the text shouldn't\n// accidentally unpin/pin it).\nconst noteBody = body.body === undefined ? null : body.body;\nconst isPinned = body.is_pinned === undefined ? null : (body.is_pinned === true || body.is_pinned === 'true');\n\nreturn [{ json: { id, noteBody, isPinned } }];"
+      },
+      "id": "a0815281-465a-45ce-b7ed-97ff07eed541",
+      "name": "Parse Update Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        928,
+        992
       ]
     }
   ],
@@ -478,7 +491,7 @@
       "main": [
         [
           {
-            "node": "Postgres: Ensure Notes Table (update)",
+            "node": "Parse Update Payload",
             "type": "main",
             "index": 0
           }
@@ -534,6 +547,17 @@
         [
           {
             "node": "Respond: delete-note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Update Payload": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure Notes Table (update)",
             "type": "main",
             "index": 0
           }

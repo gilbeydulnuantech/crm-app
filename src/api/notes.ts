@@ -12,10 +12,17 @@ export function addNote(entityType: string, entityId: number, body: string, requ
   });
 }
 
-export function updateNote(id: number, body: string) {
-  return apiFetch<{ success: boolean; error?: string }>('/webhook/update-note', {
+// Partial update — omit a field to leave it untouched server-side, so
+// toggling the pin doesn't require resending the note body and editing the
+// body doesn't accidentally pin/unpin it.
+export function updateNote(id: number, updates: { body?: string; isPinned?: boolean }) {
+  return apiFetch<{ success: boolean; is_pinned?: boolean; error?: string }>('/webhook/update-note', {
     method: 'POST',
-    body: JSON.stringify({ id, body }),
+    body: JSON.stringify({
+      id,
+      ...(updates.body !== undefined ? { body: updates.body } : {}),
+      ...(updates.isPinned !== undefined ? { is_pinned: updates.isPinned } : {}),
+    }),
   });
 }
 

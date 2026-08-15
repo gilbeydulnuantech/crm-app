@@ -701,17 +701,47 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                   const canEdit = isAdmin || note.created_by === user?.id;
                   const isEditing = editingNoteId === note.id;
                   return (
-                    <div key={note.id} className="p-3 rounded-lg border border-slate-100 bg-slate-50 space-y-1.5">
+                    <div
+                      key={note.id}
+                      className={`p-3 rounded-lg border space-y-1.5 ${
+                        note.is_pinned ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-100'
+                      }`}
+                    >
                       <div className="flex items-center justify-between text-xs">
-                        <span className="font-medium text-slate-700">
-                          {note.created_by_name ? toTitleCase(note.created_by_name) : 'Unknown'}
+                        <span className="flex items-center gap-1.5 font-medium text-slate-700 min-w-0">
+                          {note.is_pinned && <i className="fa-solid fa-thumbtack text-amber-600 text-[10px] shrink-0" />}
+                          <span className="truncate">
+                            {note.created_by_name ? toTitleCase(note.created_by_name) : 'Unknown'}
+                          </span>
                         </span>
-                        <span className="text-slate-400 text-[10px]">
-                          {new Date(note.created_at).toLocaleString(undefined, {
-                            dateStyle: 'medium',
-                            timeStyle: 'short',
-                          })}
-                          {note.updated_at ? ' (edited)' : ''}
+                        <span className="flex items-center gap-2 shrink-0">
+                          <span className="text-slate-400 text-[10px]">
+                            {new Date(note.created_at).toLocaleString(undefined, {
+                              dateStyle: 'medium',
+                              timeStyle: 'short',
+                            })}
+                            {note.updated_at ? ' (edited)' : ''}
+                          </span>
+                          {!isReadOnly && (
+                            <button
+                              onClick={() => {
+                                setNoteError(null);
+                                updateNote.mutate(
+                                  { id: note.id, isPinned: !note.is_pinned },
+                                  {
+                                    onError: (err) =>
+                                      setNoteError(err instanceof Error ? err.message : 'Failed to update pin.'),
+                                  }
+                                );
+                              }}
+                              title={note.is_pinned ? 'Unpin note' : 'Pin note to top'}
+                              className={`text-[10px] ${
+                                note.is_pinned ? 'text-amber-600 hover:text-amber-700' : 'text-slate-300 hover:text-amber-600'
+                              }`}
+                            >
+                              <i className="fa-solid fa-thumbtack" />
+                            </button>
+                          )}
                         </span>
                       </div>
                       {isEditing ? (

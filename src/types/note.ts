@@ -10,4 +10,5 @@ export interface Note {
   created_by_name?: string; // joined
   created_at: string;
   updated_at?: string | null;
+  is_pinned: boolean;
 }

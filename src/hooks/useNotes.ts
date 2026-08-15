@@ -26,7 +26,8 @@ export function useAddNote(entityType: string, entityId: number | null) {
 export function useUpdateNote(entityType: string, entityId: number | null) {
   const invalidate = useInvalidateNotes(entityType, entityId);
   return useMutation({
-    mutationFn: ({ id, body }: { id: number; body: string }) => api.updateNote(id, body),
+    mutationFn: ({ id, body, isPinned }: { id: number; body?: string; isPinned?: boolean }) =>
+      api.updateNote(id, { body, isPinned }),
     onSuccess: invalidate,
   });
 }
