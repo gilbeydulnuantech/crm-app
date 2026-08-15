@@ -1,23 +1,20 @@
 import { useState } from 'react';
-import { useAddSavedView, useDeleteSavedView, useSavedViews } from '../hooks/useSavedViews';
+import { useDeleteSavedView, useSavedViews } from '../hooks/useSavedViews';
 import { SavedView } from '../types/savedView';
 
 interface Props<TFilters> {
   entityType: string;
-  currentFilters: TFilters;
   onApply: (filters: TFilters) => void;
 }
 
 // Personal saved filter combinations — "My overdue follow-ups", "VIP leads
 // this week", etc. Self-owned only (see saved_views_schema.sql), so this
 // bar only ever shows the signed-in user's own views, never a shared list.
-export default function SavedViewsBar<TFilters>({ entityType, currentFilters, onApply }: Props<TFilters>) {
+// New views are created via SaveViewButton (next to Bulk Actions); this bar
+// only lists, applies, and deletes them.
+export default function SavedViewsBar<TFilters>({ entityType, onApply }: Props<TFilters>) {
   const { data: views = [] } = useSavedViews<TFilters>(entityType);
-  const addView = useAddSavedView<TFilters>(entityType);
   const deleteView = useDeleteSavedView(entityType);
-  const [naming, setNaming] = useState(false);
-  const [name, setName] = useState('');
-  const [error, setError] = useState<string | null>(null);
   const [activeViewId, setActiveViewId] = useState<number | null>(null);
 
   function handleApply(view: SavedView<TFilters>) {
@@ -25,32 +22,20 @@ export default function SavedViewsBar<TFilters>({ entityType, currentFilters, on
     onApply(view.filters);
   }
 
-  function handleSave() {
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    setError(null);
-    addView.mutate(
-      { name: trimmed, filters: currentFilters },
-      {
-        onSuccess: (result) => {
-          setNaming(false);
-          setName('');
-          if (result.view) setActiveViewId(result.view.id);
-        },
-        onError: (err) => setError(err instanceof Error ? err.message : 'Failed to save view.'),
-      }
-    );
-  }
-
   function handleDelete(id: number) {
     if (!confirm('Delete this saved view?')) return;
+    // Drop it from the list immediately rather than waiting on the
+    // invalidate+refetch round trip — otherwise the chip visibly lingers
+    // after clicking the x until the next background refetch lands.
     deleteView.mutate(id, {
       onSuccess: () => setActiveViewId((prev) => (prev === id ? null : prev)),
     });
   }
 
+  if (views.length === 0) return null;
+
   return (
-    <div className="px-4 py-2 flex items-center gap-1.5 border-b border-slate-200 flex-wrap">
+    <div className="flex items-center gap-1.5 flex-wrap">
       {views.map((v) => (
         <span
           key={v.id}
@@ -74,52 +59,6 @@ export default function SavedViewsBar<TFilters>({ entityType, currentFilters, on
           </button>
         </span>
       ))}
-
-      {naming ? (
-        <div className="flex items-center gap-1.5">
-          <input
-            autoFocus
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleSave();
-              if (e.key === 'Escape') {
-                setNaming(false);
-                setName('');
-                setError(null);
-              }
-            }}
-            placeholder="View name..."
-            className="px-2 py-1 text-xs border border-slate-200 rounded-full w-40 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
-          />
-          <button
-            onClick={handleSave}
-            disabled={!name.trim() || addView.isPending}
-            className="px-2.5 py-1 text-xs font-semibold rounded-full bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] text-white disabled:opacity-50"
-          >
-            {addView.isPending ? 'Saving...' : 'Save'}
-          </button>
-          <button
-            onClick={() => {
-              setNaming(false);
-              setName('');
-              setError(null);
-            }}
-            className="text-xs font-medium text-slate-400 hover:text-slate-600"
-          >
-            Cancel
-          </button>
-        </div>
-      ) : (
-        <button
-          onClick={() => setNaming(true)}
-          className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-slate-500 border border-dashed border-slate-300 rounded-full hover:border-[var(--theme-accent)] hover:text-[var(--theme-accent)]"
-        >
-          <i className="fa-solid fa-plus text-[9px]" />
-          Save Current View
-        </button>
-      )}
-      {error && <span className="text-[11px] text-rose-600">{error}</span>}
     </div>
   );
 }

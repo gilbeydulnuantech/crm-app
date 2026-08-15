@@ -19,8 +19,23 @@ export function useAddSavedView<TFilters>(entityType: string) {
 
 export function useDeleteSavedView(entityType: string) {
   const qc = useQueryClient();
+  const queryKey = ['saved-views', entityType];
   return useMutation({
     mutationFn: (id: number) => api.deleteSavedView(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['saved-views', entityType] }),
+    // Remove it from the cache right away so the chip disappears as soon as
+    // the x is clicked, instead of lingering until the invalidate+refetch
+    // round trip lands. Roll back if the delete actually fails.
+    onMutate: async (id: number) => {
+      await qc.cancelQueries({ queryKey });
+      const previous = qc.getQueryData(queryKey);
+      qc.setQueryData(queryKey, (old: any) =>
+        Array.isArray(old) ? old.filter((v) => v.id !== id) : old
+      );
+      return { previous };
+    },
+    onError: (_err, _id, context) => {
+      if (context?.previous) qc.setQueryData(queryKey, context.previous);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey }),
   });
 }

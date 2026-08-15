@@ -31,6 +31,7 @@ import ContactDetailModal from '../components/contacts/ContactDetailModal';
 import ArchiveReasonModal from '../components/contacts/ArchiveReasonModal';
 import SearchToolbar from '../components/SearchToolbar';
 import SavedViewsBar from '../components/SavedViewsBar';
+import SaveViewButton from '../components/SaveViewButton';
 
 const EMPTY_FILTERS = { tag: '', owner: '', company: '', status: '' };
 const EMPTY_ADVANCED_FILTERS: AdvancedFilterValue = { company: '', stage: '', task: '' };
@@ -337,16 +338,20 @@ export default function Contacts() {
 
       {view !== 'archived' && (
         <>
-          <SavedViewsBar<ContactsSavedFilters>
-            entityType="contact"
-            currentFilters={{ view, search, filters, advancedFilters }}
-            onApply={applySavedFilters}
-          />
           <SearchToolbar
             search={search}
             onSearchChange={setSearch}
             placeholder="Search contacts..."
             onColumnsClick={() => setColumnsModalOpen(true)}
+            rightExtra={
+              <>
+                <SavedViewsBar<ContactsSavedFilters> entityType="contact" onApply={applySavedFilters} />
+                <SaveViewButton<ContactsSavedFilters>
+                  entityType="contact"
+                  currentFilters={{ view, search, filters, advancedFilters }}
+                />
+              </>
+            }
           />
           <ContactsFilterRow
             tags={tagOptions}

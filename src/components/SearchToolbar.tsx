@@ -19,20 +19,21 @@ export default function SearchToolbar({
 }: Props) {
   return (
     <div className="p-4 border-b border-slate-200 flex items-center justify-between gap-4 shrink-0">
-      <div className="relative flex-1 max-w-sm">
-        <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => onSearchChange(e.target.value)}
-          placeholder={placeholder}
-          className="w-full pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
-        />
+      <div className="flex items-center gap-2 flex-1">
+        <div className="relative flex-1 max-w-sm">
+          <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder={placeholder}
+            className="w-full pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
+          />
+        </div>
+        {rightExtra}
       </div>
 
       <div className="flex items-center gap-2">
-        {rightExtra}
-
         {onFiltersClick && (
           <button
             onClick={onFiltersClick}
