@@ -25,10 +25,6 @@ interface Props {
   highlighted?: boolean;
 }
 
-/**
- * Formats values to USD currency.
- * Fixes the "0800" bug by casting to Number and using Intl.NumberFormat.
- */
 function currency(val?: number | string | null) {
   if (val === undefined || val === null || val === '') return '--';
 
@@ -126,7 +122,7 @@ export default function DealCard({
       {/* Deal Name + Value */}
       <div className="flex items-center gap-1.5">
         <div className="text-xs font-bold text-slate-800 truncate flex-1">
-          {opportunity.name} <span className="font-semibold text-emerald-600">- {currency(opportunity.deal_value)}</span>
+          {toTitleCase(opportunity.name)} <span className="font-semibold text-emerald-600">- {currency(opportunity.deal_value)}</span>
         </div>
         {opportunity.status === 'Won' && (
           <span
@@ -170,7 +166,7 @@ export default function DealCard({
       {/* Contact - Company */}
       <div className="text-[11px] text-slate-500 truncate mt-0.5">
         {toTitleCase(opportunity.contact_name) || 'No Contact'}
-        {opportunity.company_name && ` - ${opportunity.company_name}`}
+        {opportunity.company_name && ` - ${toTitleCase(opportunity.company_name)}`}
       </div>
 
       {/* Tags (deal's own tags, plus the contact's own tags for context) —

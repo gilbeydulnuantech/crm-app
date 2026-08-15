@@ -276,7 +276,7 @@ export default function Pipeline() {
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-      <div className="px-4 py-4 flex items-center justify-between shrink-0 border-b border-slate-200">
+      <div className="px-4 py-3 flex items-center gap-4 shrink-0 border-b border-slate-200">
         <PipelineSelector
           pipelines={pipelines}
           pipelineId={pipelineId}
@@ -284,16 +284,17 @@ export default function Pipeline() {
           onChange={setPipelineId}
           onCreated={handlePipelineCreated}
         />
+        <div className="flex-1 flex justify-center min-w-0">
+          <PipelineStatsBar opportunities={opportunities} />
+        </div>
         <button
           onClick={openAddModal}
-          className="bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] text-white text-sm font-medium px-3 py-1.5 rounded-lg flex items-center space-x-2 shadow-sm transition-all"
+          className="bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] text-white text-sm font-medium px-3 py-1.5 rounded-lg flex items-center space-x-2 shadow-sm transition-all shrink-0"
         >
           <i className="fa-solid fa-plus text-xs" />
           <span>Add Deal</span>
         </button>
       </div>
-
-      <PipelineStatsBar opportunities={opportunities} />
 
       <SearchToolbar
         search={search}

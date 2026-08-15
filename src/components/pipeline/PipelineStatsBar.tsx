@@ -1,77 +1,14 @@
 import { useMemo } from 'react';
 import { Opportunity } from '../../types/opportunity';
 
-/*
-function currency(n: number) {
-  return `$${n.toLocaleString()}`;
-}
-
-export default function PipelineStatsBar({ opportunities }: { opportunities: Opportunity[] }) {
-  const stats = useMemo(() => {
-    const now = new Date();
-    const open = opportunities.filter((o) => o.status === 'Open');
-    const wonThisMonth = opportunities.filter(
-      (o) =>
-        o.status === 'Won' &&
-        o.closed_at &&
-        new Date(o.closed_at).getMonth() === now.getMonth() &&
-        new Date(o.closed_at).getFullYear() === now.getFullYear()
-    );
-    const lostThisMonth = opportunities.filter(
-      (o) =>
-        o.status === 'Lost' &&
-        o.closed_at &&
-        new Date(o.closed_at).getMonth() === now.getMonth() &&
-        new Date(o.closed_at).getFullYear() === now.getFullYear()
-    );
-    //const pipelineValue = open.reduce((sum, o) => sum + (o.deal_value ?? 0), 0);
-     const pipelineValue = open.reduce((sum, o) => sum + (o.deal_value ?? 0), 0);
-    const totalValue = opportunities.reduce((sum, o) => sum + (o.deal_value ?? 0), 0);
-
-    return {
-      openCount: open.length,
-      pipelineValue,
-      wonThisMonth: wonThisMonth.length,
-      lostThisMonth: lostThisMonth.length,
-      totalValue,
-    };
-  }, [opportunities]);
-
-  const cards = [
-    { label: 'Opportunities', value: stats.openCount },
-    { label: 'Pipeline Value', value: currency(stats.pipelineValue) },
-    { label: 'Won This Month', value: stats.wonThisMonth, tone: 'text-emerald-600' },
-    { label: 'Lost This Month', value: stats.lostThisMonth, tone: 'text-rose-600' },
-    { label: 'Total Value', value: currency(stats.totalValue) },
-  ];
-
-  return (
-    <div className="px-4 pt-4 grid grid-cols-5 gap-3 shrink-0">
-      {cards.map((c) => (
-        <div key={c.label} className="border border-slate-200 rounded-lg p-3 text-center">
-          <div className={`text-xl font-bold ${c.tone ?? 'text-slate-800'}`}>{c.value}</div>
-          <div className="text-[11px] text-slate-500 uppercase tracking-wide">{c.label}</div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-*/
-
-
-
-const formatCurrency = (val: string | number) => {
-  const n = Number(val);
-  if (isNaN(n)) return '$0.00';
-  
+function formatCurrency(val: number) {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(n);
-};
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(val);
+}
 
 export default function PipelineStatsBar({ opportunities }: { opportunities: Opportunity[] }) {
   const stats = useMemo(() => {
@@ -79,12 +16,10 @@ export default function PipelineStatsBar({ opportunities }: { opportunities: Opp
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
-    // 1. Filter by status
     const open = opportunities.filter((o) => o.status === 'Open');
     const won = opportunities.filter((o) => o.status === 'Won');
     const lost = opportunities.filter((o) => o.status === 'Lost');
 
-    // 2. Helper to check if a date string falls in the current month
     const isThisMonth = (dateStr?: string | null) => {
       if (!dateStr) return false;
       const d = new Date(dateStr);
@@ -94,8 +29,8 @@ export default function PipelineStatsBar({ opportunities }: { opportunities: Opp
     const wonThisMonth = won.filter((o) => isThisMonth(o.closed_at));
     const lostThisMonth = lost.filter((o) => isThisMonth(o.closed_at));
 
-    // 3. Calculate Values
-    // IMPORTANT: Number(o.deal_value) forces math addition instead of string joining
+    // Number(...) guards against deal_value arriving as a numeric string —
+    // reduce would otherwise concatenate instead of summing.
     const pipelineValue = open.reduce((sum, o) => sum + Number(o.deal_value ?? 0), 0);
     const totalWonValue = won.reduce((sum, o) => sum + Number(o.deal_value ?? 0), 0);
 
@@ -109,39 +44,21 @@ export default function PipelineStatsBar({ opportunities }: { opportunities: Opp
   }, [opportunities]);
 
   const cards = [
-    { 
-      label: 'Open Deals', 
-      value: stats.openCount 
-    },
-    { 
-      label: 'Pipeline Value', 
-      value: formatCurrency(stats.pipelineValue) 
-    },
-    { 
-      label: 'Won This Month', 
-      value: stats.wonThisMonth, 
-      tone: 'text-emerald-600' 
-    },
-    { 
-      label: 'Lost This Month', 
-      value: stats.lostThisMonth, 
-      tone: 'text-rose-600' 
-    },
-    { 
-      label: 'Total Revenue', 
-      value: formatCurrency(stats.totalWonValue) 
-    },
+    { label: 'Open', value: stats.openCount },
+    { label: 'Pipeline', value: formatCurrency(stats.pipelineValue) },
+    { label: 'Won MTD', value: stats.wonThisMonth, tone: 'text-emerald-600' },
+    { label: 'Lost MTD', value: stats.lostThisMonth, tone: 'text-rose-600' },
+    { label: 'Revenue', value: formatCurrency(stats.totalWonValue) },
   ];
 
   return (
-    <div className="px-4 pt-4 grid grid-cols-5 gap-3 shrink-0">
-      {cards.map((c) => (
-        <div key={c.label} className="border border-slate-200 rounded-lg p-3 text-center bg-white shadow-sm">
-          <div className={`text-xl font-bold truncate ${c.tone ?? 'text-slate-800'}`}>
-            {c.value}
-          </div>
-          <div className="text-[11px] text-slate-500 uppercase tracking-wide mt-1">
-            {c.label}
+    <div className="flex items-center gap-2.5 min-w-0">
+      {cards.map((c, i) => (
+        <div key={c.label} className="flex items-center gap-2.5 shrink-0">
+          {i > 0 && <span className="w-px h-4 bg-slate-200 shrink-0" />}
+          <div className="flex items-baseline gap-1 whitespace-nowrap">
+            <span className={`text-xs font-bold ${c.tone ?? 'text-slate-800'}`}>{c.value}</span>
+            <span className="text-[9px] text-slate-400 uppercase tracking-wide">{c.label}</span>
           </div>
         </div>
       ))}

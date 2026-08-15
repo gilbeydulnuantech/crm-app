@@ -21,7 +21,6 @@ interface Props {
   highlightDealId?: number | null;
 }
 
-// FIX 1: Use Intl.NumberFormat for clean, localized currency
 const currency = (n: number) =>
   new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -55,7 +54,8 @@ export default function PipelineColumn({
   const isWon = CLOSED_WON.test(stage.name);
   const isLost = CLOSED_LOST.test(stage.name);
 
-  // FIX 2: Wrap o.deal_value in Number() to prevent string concatenation (the "0800" bug)
+  // Number(...) guards against deal_value arriving as a numeric string —
+  // reduce would otherwise concatenate instead of summing.
   const total = opportunities.reduce((sum, o) => sum + Number(o.deal_value ?? 0), 0);
   // Weighted Value: each deal's value scaled by its own probability — a
   // column full of 10%-probability deals shouldn't read the same as one
@@ -91,7 +91,6 @@ export default function PipelineColumn({
             {opportunities.length}
           </span>
         </div>
-        {/* This will now display correctly as $800.00 instead of $0800.00 */}
         <div className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1.5">
           <span>{currency(total)}</span>
           <span className="text-slate-300">·</span>
