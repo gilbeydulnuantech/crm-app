@@ -11,8 +11,8 @@ export function useSavedViews<TFilters>(entityType: string) {
 export function useAddSavedView<TFilters>(entityType: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ name, filters }: { name: string; filters: TFilters }) =>
-      api.addSavedView(entityType, name, filters),
+    mutationFn: ({ name, filters, isShared }: { name: string; filters: TFilters; isShared: boolean }) =>
+      api.addSavedView(entityType, name, filters, isShared),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['saved-views', entityType] }),
   });
 }

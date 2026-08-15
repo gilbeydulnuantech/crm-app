@@ -9,10 +9,12 @@ import {
   SortingState,
   useReactTable,
 } from '@tanstack/react-table';
-import { Contact } from '../../types/contact';
+import { Contact, LEAD_STATUS_OPTIONS } from '../../types/contact';
 import { useAuth } from '../../context/AuthContext';
+import { useAssignOwner, useUpdateContact } from '../../hooks/useContacts';
 import { getTagColorClasses } from '../../utils/tagColors';
-import { formatRelativeTime, toTitleCase } from '../../utils/text';
+import { formatPhone, formatRelativeTime, toTitleCase } from '../../utils/text';
+import Avatar from '../Avatar';
 
 const STATUS_COLORS: Record<string, string> = {
   New: 'bg-slate-100 text-slate-800',
@@ -34,9 +36,147 @@ interface Props {
   onEdit: (contact: Contact) => void;
   onDelete: (contact: Contact) => void;
   isLoading: boolean;
+  density?: 'comfortable' | 'compact';
+  users: { id: number; name: string }[];
 }
 
 const columnHelper = createColumnHelper<Contact>();
+
+// Click-to-edit status badge — avoids forcing a full edit-modal round trip
+// for the single most commonly changed field on a contact.
+function StatusCell({
+  contact,
+  editable,
+}: {
+  contact: Contact;
+  editable: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const updateContact = useUpdateContact();
+  const val = contact.lead_status || 'New';
+  const badge = (
+    <span
+      className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+        STATUS_COLORS[val] ?? 'bg-slate-100 text-slate-800'
+      }`}
+    >
+      {val}
+    </span>
+  );
+
+  if (!editable) return badge;
+
+  return (
+    <div className="relative inline-block">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+        className="hover:ring-2 hover:ring-[var(--theme-accent)] rounded-full transition-shadow"
+        title="Click to change status"
+      >
+        {badge}
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setOpen(false); }} />
+          <div
+            className="absolute left-0 top-full mt-1 w-40 bg-white border border-slate-200 rounded-lg shadow-lg z-20 py-1 text-xs"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {LEAD_STATUS_OPTIONS.map((status) => (
+              <button
+                key={status}
+                onClick={() => {
+                  setOpen(false);
+                  if (status !== contact.lead_status) {
+                    updateContact.mutate({ id: contact.id, payload: { lead_status: status } });
+                  }
+                }}
+                className={`w-full text-left px-3 py-1.5 hover:bg-slate-50 ${
+                  status === val ? 'font-semibold text-slate-800' : 'text-slate-600'
+                }`}
+              >
+                {status}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// Reassigning ownership is admin-only — reps shouldn't be able to hand their
+// own contacts off to someone else from a table cell.
+function OwnerCell({
+  contact,
+  users,
+  editable,
+}: {
+  contact: Contact;
+  users: { id: number; name: string }[];
+  editable: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const assignOwner = useAssignOwner();
+  const name = toTitleCase(contact.owner_name);
+
+  const label = name ? (
+    <div className="flex items-center gap-1.5 min-w-0">
+      <Avatar name={name} size="xs" />
+      <span className="truncate">{name}</span>
+    </div>
+  ) : (
+    <span className="text-slate-400">--</span>
+  );
+
+  if (!editable) return label;
+
+  return (
+    <div className="relative inline-block w-full">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+        className="hover:ring-2 hover:ring-[var(--theme-accent)] rounded transition-shadow w-full text-left"
+        title="Click to reassign owner"
+      >
+        {label}
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setOpen(false); }} />
+          <div
+            className="absolute left-0 top-full mt-1 w-44 max-h-56 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg z-20 py-1 text-xs"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {users.map((u) => (
+              <button
+                key={u.id}
+                onClick={() => {
+                  setOpen(false);
+                  if (u.id !== contact.owner_id) {
+                    assignOwner.mutate({ contactId: contact.id, ownerId: u.id });
+                  }
+                }}
+                className={`w-full text-left px-3 py-1.5 hover:bg-slate-50 truncate ${
+                  u.id === contact.owner_id ? 'font-semibold text-slate-800' : 'text-slate-600'
+                }`}
+              >
+                {toTitleCase(u.name)}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 export default function ContactsTable({
   contacts,
@@ -49,6 +189,8 @@ export default function ContactsTable({
   onEdit,
   onDelete,
   isLoading,
+  density = 'comfortable',
+  users,
 }: Props) {
   const { user, isAdmin } = useAuth();
   const allSelected = contacts.length > 0 && contacts.every((c) => selectedIds.has(c.id));
@@ -98,9 +240,15 @@ export default function ContactsTable({
         columnHelper.accessor((row) => `${row.first_name} ${row.last_name}`.trim(), {
           id: 'name',
           header: 'Name',
-          cell: (info) => (
-            <span className="font-medium text-slate-800">{toTitleCase(info.getValue()) || 'No Name'}</span>
-          ),
+          cell: (info) => {
+            const displayName = toTitleCase(info.getValue()) || 'No Name';
+            return (
+              <div className="flex items-center gap-2 min-w-0">
+                <Avatar name={displayName} size={density === 'compact' ? 'xs' : 'sm'} />
+                <span className="font-medium text-slate-800 truncate">{displayName}</span>
+              </div>
+            );
+          },
         }),
       company_name: () =>
         columnHelper.accessor('company_name', {
@@ -115,7 +263,7 @@ export default function ContactsTable({
       phone: () =>
         columnHelper.accessor('phone', {
           header: 'Phone',
-          cell: (info) => info.getValue() || '--',
+          cell: (info) => formatPhone(info.getValue()) || '--',
         }),
       job_title: () =>
         columnHelper.accessor('job_title', {
@@ -125,7 +273,7 @@ export default function ContactsTable({
       owner_name: () =>
         columnHelper.accessor('owner_name', {
           header: 'Owner',
-          cell: (info) => toTitleCase(info.getValue()) || '--',
+          cell: (info) => <OwnerCell contact={info.row.original} users={users} editable={isAdmin} />,
         }),
       tags: () =>
         columnHelper.accessor('tags', {
@@ -160,18 +308,7 @@ export default function ContactsTable({
       lead_status: () =>
         columnHelper.accessor('lead_status', {
           header: 'Status',
-          cell: (info) => {
-            const val = info.getValue() || 'New';
-            return (
-              <span
-                className={`px-2 py-0.5 text-xs font-medium rounded-full ${
-                  STATUS_COLORS[val] ?? 'bg-slate-100 text-slate-800'
-                }`}
-              >
-                {val}
-              </span>
-            );
-          },
+          cell: (info) => <StatusCell contact={info.row.original} editable={canEdit(info.row.original)} />,
         }),
       lead_source: () =>
         columnHelper.accessor('lead_source', {
@@ -265,7 +402,7 @@ export default function ContactsTable({
     );
 
     return cols;
-  }, [selectedIds, allSelected, visibleColumns, columnOrder, user, isAdmin]);
+  }, [selectedIds, allSelected, visibleColumns, columnOrder, user, isAdmin, density, users]);
 
   const [sorting, setSorting] = useState<SortingState>([]);
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 25 });
@@ -279,7 +416,11 @@ export default function ContactsTable({
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    enableMultiSort: true,
+    isMultiSortEvent: (e) => (e as unknown as MouseEvent).shiftKey,
   });
+
+  const cellPad = density === 'compact' ? 'py-1 px-2' : 'py-2 px-2';
 
   // Snap back to a valid page if the current one would be empty (a filter
   // change or a delete shrinking the list out from under it) — but don't
@@ -294,16 +435,28 @@ export default function ContactsTable({
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center text-sm text-slate-400">
-        Loading contacts...
+      <div className="flex-1 overflow-hidden px-4">
+        <div className="animate-pulse mt-3 space-y-2">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3 py-1.5">
+              <div className="w-4 h-4 rounded bg-slate-100 shrink-0" />
+              <div className="w-7 h-7 rounded-full bg-slate-100 shrink-0" />
+              <div className="h-3 rounded bg-slate-100 w-40" />
+              <div className="h-3 rounded bg-slate-100 w-28" />
+              <div className="h-3 rounded bg-slate-100 w-24" />
+              <div className="h-3 rounded bg-slate-100 flex-1" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
 
   if (contacts.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center text-sm text-slate-400">
-        No contacts found.
+      <div className="flex-1 flex flex-col items-center justify-center gap-2 text-slate-400">
+        <i className="fa-solid fa-address-card text-2xl text-slate-300" />
+        <span className="text-sm">No contacts found.</span>
       </div>
     );
   }
@@ -321,6 +474,7 @@ export default function ContactsTable({
                   <th
                     key={h.id}
                     onClick={sortable ? h.column.getToggleSortingHandler() : undefined}
+                    title={sortable ? 'Click to sort, shift-click to sort by multiple columns' : undefined}
                     className={`text-left font-semibold text-slate-500 text-xs uppercase tracking-wide py-2 px-2 ${
                       sortable ? 'cursor-pointer select-none hover:text-slate-700' : ''
                     }`}
@@ -337,6 +491,9 @@ export default function ContactsTable({
                                 : 'fa-sort text-slate-300'
                           } text-[10px]`}
                         />
+                      )}
+                      {sortState && (h.column.getSortIndex() ?? 0) >= 0 && sorting.length > 1 && (
+                        <span className="text-[9px] text-slate-400">{h.column.getSortIndex() + 1}</span>
                       )}
                     </span>
                   </th>
@@ -355,7 +512,7 @@ export default function ContactsTable({
               }`}
             >
               {row.getVisibleCells().map((cell) => (
-                <td key={cell.id} className="py-2 px-2 align-middle">
+                <td key={cell.id} className={`${cellPad} align-middle`}>
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </td>
               ))}

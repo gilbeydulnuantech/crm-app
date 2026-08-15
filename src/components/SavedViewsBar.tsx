@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { useDeleteSavedView, useSavedViews } from '../hooks/useSavedViews';
 import { SavedView } from '../types/savedView';
 
@@ -7,12 +8,15 @@ interface Props<TFilters> {
   onApply: (filters: TFilters) => void;
 }
 
-// Personal saved filter combinations — "My overdue follow-ups", "VIP leads
-// this week", etc. Self-owned only (see saved_views_schema.sql), so this
-// bar only ever shows the signed-in user's own views, never a shared list.
-// New views are created via SaveViewButton (next to Bulk Actions); this bar
-// only lists, applies, and deletes them.
+// Saved filter combinations — "My overdue follow-ups", "VIP leads this
+// week", etc. Personal by default (saved_views_schema.sql); a view can also
+// be marked shared at creation time (SaveViewButton), which makes it visible
+// to every user for this entity_type — see saved_views_add_shared.sql.
+// Delete stays creator-only regardless of is_shared (enforced server-side).
+// New views are created via SaveViewButton (next to the search box); this
+// bar only lists, applies, and deletes them.
 export default function SavedViewsBar<TFilters>({ entityType, onApply }: Props<TFilters>) {
+  const { user } = useAuth();
   const { data: views = [] } = useSavedViews<TFilters>(entityType);
   const deleteView = useDeleteSavedView(entityType);
   const [activeViewId, setActiveViewId] = useState<number | null>(null);
@@ -46,17 +50,25 @@ export default function SavedViewsBar<TFilters>({ entityType, onApply }: Props<T
           }`}
           onClick={() => handleApply(v)}
         >
+          {v.is_shared && (
+            <i
+              className="fa-solid fa-users text-[9px] text-slate-400"
+              title={v.user_id === user?.id ? 'Shared with your team' : `Shared by ${v.owner_name ?? 'a teammate'}`}
+            />
+          )}
           {v.name}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDelete(v.id);
-            }}
-            className="opacity-0 group-hover:opacity-60 hover:!opacity-100 rounded-full w-4 h-4 flex items-center justify-center"
-            title="Delete this view"
-          >
-            <i className="fa-solid fa-xmark text-[9px]" />
-          </button>
+          {v.user_id === user?.id && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDelete(v.id);
+              }}
+              className="opacity-0 group-hover:opacity-60 hover:!opacity-100 rounded-full w-4 h-4 flex items-center justify-center"
+              title="Delete this view"
+            >
+              <i className="fa-solid fa-xmark text-[9px]" />
+            </button>
+          )}
         </span>
       ))}
     </div>

@@ -36,7 +36,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, entity_type, name, filters, created_at FROM saved_views WHERE user_id = $1 AND entity_type = $2 ORDER BY created_at ASC;",
+        "query": "SELECT sv.id, sv.entity_type, sv.name, sv.filters, sv.created_at, sv.user_id, sv.is_shared, u.name AS owner_name\nFROM saved_views sv\nJOIN users u ON u.id = sv.user_id\nWHERE sv.entity_type = $2 AND (sv.user_id = $1 OR sv.is_shared = true)\nORDER BY sv.created_at ASC;",
         "options": {
           "queryReplacement": "={{ [ $json.requesterId, $json.entityType ] }}"
         }
@@ -158,7 +158,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst requesterId = parseInt(match[1], 10);\nconst body = $input.first().json.body || {};\n\nconst entityType = (body.entity_type || '').toString().trim();\nconst name = (body.name || '').toString().trim();\nif (!entityType) throw new Error('\"entity_type\" is required.');\nif (!name) throw new Error('\"name\" is required.');\nif (name.length > 100) throw new Error('\"name\" must be 100 characters or fewer.');\nif (typeof body.filters !== 'object' || body.filters === null) {\n  throw new Error('\"filters\" must be an object.');\n}\n\nreturn [{ json: { requesterId, entityType, name, filters: JSON.stringify(body.filters) } }];"
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst requesterId = parseInt(match[1], 10);\nconst body = $input.first().json.body || {};\n\nconst entityType = (body.entity_type || '').toString().trim();\nconst name = (body.name || '').toString().trim();\nif (!entityType) throw new Error('\"entity_type\" is required.');\nif (!name) throw new Error('\"name\" is required.');\nif (name.length > 100) throw new Error('\"name\" must be 100 characters or fewer.');\nif (typeof body.filters !== 'object' || body.filters === null) {\n  throw new Error('\"filters\" must be an object.');\n}\nconst isShared = body.is_shared === true || body.is_shared === 'true';\n\nreturn [{ json: { requesterId, entityType, name, filters: JSON.stringify(body.filters), isShared } }];"
       },
       "id": "c2ef69ce-3b4a-40ae-b1da-512588c8864f",
       "name": "Validate Saved View Payload",
@@ -173,9 +173,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO saved_views (user_id, entity_type, name, filters) VALUES ($1, $2, $3, $4::jsonb) RETURNING id, entity_type, name, filters, created_at;",
+        "query": "INSERT INTO saved_views (user_id, entity_type, name, filters, is_shared) VALUES ($1, $2, $3, $4::jsonb, $5) RETURNING id, entity_type, name, filters, created_at, user_id, is_shared;",
         "options": {
-          "queryReplacement": "={{ [ $json.requesterId, $json.entityType, $json.name, $json.filters ] }}"
+          "queryReplacement": "={{ [ $json.requesterId, $json.entityType, $json.name, $json.filters, $json.isShared ] }}"
         }
       },
       "id": "51c9c702-f721-4324-919f-b62e85b4f1b6",

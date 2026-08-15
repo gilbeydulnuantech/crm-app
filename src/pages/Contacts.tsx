@@ -27,6 +27,7 @@ import BulkActionsMenu from '../components/contacts/BulkActionsMenu';
 import AddContactDropdown from '../components/contacts/AddContactDropdown';
 import AddContactModal from '../components/contacts/AddContactModal';
 import ImportContactsModal from '../components/contacts/ImportContactsModal';
+import ExportContactsModal from '../components/contacts/ExportContactsModal';
 import ContactDetailModal from '../components/contacts/ContactDetailModal';
 import ArchiveReasonModal from '../components/contacts/ArchiveReasonModal';
 import SearchToolbar from '../components/SearchToolbar';
@@ -37,6 +38,7 @@ const EMPTY_FILTERS = { tag: '', owner: '', company: '', status: '' };
 const EMPTY_ADVANCED_FILTERS: AdvancedFilterValue = { company: '', stage: '', task: '' };
 const COLUMNS_STORAGE_KEY = 'contacts-visible-columns';
 const COLUMN_ORDER_STORAGE_KEY = 'contacts-column-order';
+const DENSITY_STORAGE_KEY = 'contacts-row-density';
 
 interface ContactsSavedFilters {
   view: ContactsView;
@@ -84,9 +86,18 @@ export default function Contacts() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [addOpen, setAddOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [activeContactId, setActiveContactId] = useState<number | null>(null);
   const [archiveTargetIds, setArchiveTargetIds] = useState<number[] | null>(null);
+  const [density, setDensity] = useState<'comfortable' | 'compact'>(
+    () => (localStorage.getItem(DENSITY_STORAGE_KEY) as 'comfortable' | 'compact' | null) ?? 'comfortable'
+  );
+
+  function changeDensity(next: 'comfortable' | 'compact') {
+    setDensity(next);
+    localStorage.setItem(DENSITY_STORAGE_KEY, next);
+  }
 
   const { data: allContacts = [], isLoading } = useContacts();
   const { data: archivedContacts = [], isLoading: isLoadingArchived } = useArchivedContacts(
@@ -123,6 +134,19 @@ export default function Contacts() {
     () => allContacts.find((c) => c.id === activeContactId) ?? null,
     [allContacts, activeContactId]
   );
+
+  // Deep link from the TopBar global search — ?search=<query> prefills the
+  // search box, then clears the param so a refresh/back-nav doesn't keep
+  // re-applying it over whatever the user typed next.
+  useEffect(() => {
+    const searchParam = searchParams.get('search');
+    if (searchParam === null) return;
+    setSearch(searchParam);
+    const next = new URLSearchParams(searchParams);
+    next.delete('search');
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Deep link from the notification bell — ?contactId=<id> opens that
   // contact's detail modal once the list has loaded, then clears the param
@@ -304,22 +328,7 @@ export default function Contacts() {
   function handleExport() {
     const list = view === 'archived' ? visibleArchivedContacts : visibleContacts;
     if (list.length === 0) return;
-    const rows = list.map((c) => ({
-      Name: `${c.first_name} ${c.last_name}`.trim(),
-      Company: c.company_name ?? '',
-      Email: c.email ?? '',
-      Phone: c.phone ?? '',
-      Status: c.lead_status ?? '',
-    }));
-    const header = Object.keys(rows[0]).join(',');
-    const csv = [header, ...rows.map((r) => Object.values(r).join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'contacts.csv';
-    a.click();
-    URL.revokeObjectURL(url);
+    setExportOpen(true);
   }
 
   return (
@@ -343,6 +352,8 @@ export default function Contacts() {
             onSearchChange={setSearch}
             placeholder="Search contacts..."
             onColumnsClick={() => setColumnsModalOpen(true)}
+            density={density}
+            onDensityChange={changeDensity}
             rightExtra={
               <>
                 <SavedViewsBar<ContactsSavedFilters> entityType="contact" onApply={applySavedFilters} />
@@ -372,6 +383,8 @@ export default function Contacts() {
             onEdit={openEditModal}
             onDelete={handleDeleteOne}
             isLoading={isLoading}
+            density={density}
+            users={users}
           />
         </>
       )}
@@ -418,6 +431,11 @@ export default function Contacts() {
         }}
       />
       <ImportContactsModal open={importOpen} onClose={() => setImportOpen(false)} />
+      <ExportContactsModal
+        open={exportOpen}
+        contacts={view === 'archived' ? visibleArchivedContacts : visibleContacts}
+        onClose={() => setExportOpen(false)}
+      />
       <ContactDetailModal contact={activeContact} onClose={() => setActiveContactId(null)} />
       <ContactsFilterModal
         open={filterModalOpen}

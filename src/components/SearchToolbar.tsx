@@ -7,6 +7,8 @@ interface Props {
   onFiltersClick?: () => void;
   onColumnsClick?: () => void;
   rightExtra?: ReactNode;
+  density?: 'comfortable' | 'compact';
+  onDensityChange?: (density: 'comfortable' | 'compact') => void;
 }
 
 export default function SearchToolbar({
@@ -16,6 +18,8 @@ export default function SearchToolbar({
   onFiltersClick,
   onColumnsClick,
   rightExtra,
+  density,
+  onDensityChange,
 }: Props) {
   return (
     <div className="p-4 border-b border-slate-200 flex items-center justify-between gap-4 shrink-0">
@@ -34,6 +38,33 @@ export default function SearchToolbar({
       </div>
 
       <div className="flex items-center gap-2">
+        {onDensityChange && (
+          <div className="flex items-center border border-slate-200 rounded-md overflow-hidden text-xs font-semibold">
+            <button
+              onClick={() => onDensityChange('comfortable')}
+              title="Comfortable rows"
+              className={`px-2 py-1.5 transition-colors ${
+                density === 'comfortable'
+                  ? 'bg-[var(--theme-accent-tint)] text-[var(--theme-accent)]'
+                  : 'bg-white text-slate-500 hover:bg-slate-50'
+              }`}
+            >
+              <i className="fa-solid fa-bars text-[10px]" />
+            </button>
+            <button
+              onClick={() => onDensityChange('compact')}
+              title="Compact rows"
+              className={`px-2 py-1.5 border-l border-slate-200 transition-colors ${
+                density === 'compact'
+                  ? 'bg-[var(--theme-accent-tint)] text-[var(--theme-accent)]'
+                  : 'bg-white text-slate-500 hover:bg-slate-50'
+              }`}
+            >
+              <i className="fa-solid fa-list text-[10px]" />
+            </button>
+          </div>
+        )}
+
         {onFiltersClick && (
           <button
             onClick={onFiltersClick}

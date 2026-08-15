@@ -4,4 +4,7 @@ export interface SavedView<TFilters = Record<string, unknown>> {
   name: string;
   filters: TFilters;
   created_at: string;
+  user_id: number;
+  is_shared: boolean;
+  owner_name?: string;
 }

@@ -12,6 +12,26 @@ export function toTitleCase(value?: string | null): string {
     .join(' ');
 }
 
+// Reps enter phone numbers however they come in (with/without country code,
+// dashes, spaces) — normalize to a consistent display format without
+// touching the stored value. Falls back to the raw string for anything that
+// doesn't look like a standard 10/11-digit number (international numbers
+// with unusual lengths, extensions, etc.).
+export function formatPhone(value?: string | null): string {
+  if (!value) return '';
+  const digits = value.replace(/\D/g, '');
+  if (digits.length === 10) {
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+  if (digits.length === 11 && digits[0] === '1') {
+    return `+1 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
+  }
+  if (digits.length > 11) {
+    return `+${digits}`;
+  }
+  return value;
+}
+
 export function formatRelativeTime(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diffMs / 60000);

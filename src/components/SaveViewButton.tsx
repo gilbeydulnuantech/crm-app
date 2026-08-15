@@ -13,6 +13,7 @@ export default function SaveViewButton<TFilters>({ entityType, currentFilters }:
   const addView = useAddSavedView<TFilters>(entityType);
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState('');
+  const [shared, setShared] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function handleSave() {
@@ -20,11 +21,12 @@ export default function SaveViewButton<TFilters>({ entityType, currentFilters }:
     if (!trimmed) return;
     setError(null);
     addView.mutate(
-      { name: trimmed, filters: currentFilters },
+      { name: trimmed, filters: currentFilters, isShared: shared },
       {
         onSuccess: () => {
           setNaming(false);
           setName('');
+          setShared(false);
         },
         onError: (err) => setError(err instanceof Error ? err.message : 'Failed to save view.'),
       }
@@ -34,6 +36,7 @@ export default function SaveViewButton<TFilters>({ entityType, currentFilters }:
   function cancel() {
     setNaming(false);
     setName('');
+    setShared(false);
     setError(null);
   }
 
@@ -51,6 +54,15 @@ export default function SaveViewButton<TFilters>({ entityType, currentFilters }:
           placeholder="View name..."
           className="px-2 py-1 text-xs border border-slate-200 rounded-md w-36 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
         />
+        <label className="flex items-center gap-1 text-[11px] text-slate-500 cursor-pointer" title="Visible to your whole team, not just you">
+          <input
+            type="checkbox"
+            checked={shared}
+            onChange={(e) => setShared(e.target.checked)}
+            className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
+          />
+          Share with team
+        </label>
         <button
           onClick={handleSave}
           disabled={!name.trim() || addView.isPending}
