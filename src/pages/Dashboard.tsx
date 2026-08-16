@@ -42,9 +42,16 @@ function formatRelativeTime(iso: string): string {
 
 // Templates the activity_log's structured verb/entity/detail fields into the
 // two-line copy shown in the Recent Activity feed.
+const ENTITY_LABELS: Record<DashboardActivity['entity_type'], string> = {
+  contact: 'contact',
+  opportunity: 'deal',
+  task: 'task',
+};
+
 function activityLine(a: DashboardActivity): { main: string; detail?: string } {
   const actor = toTitleCase(a.actor_name);
   const name = a.entity_name ?? '';
+  const kind = ENTITY_LABELS[a.entity_type] ?? a.entity_type;
   switch (a.verb) {
     case 'moved':
       return { main: `${actor} moved ${name}`, detail: a.detail ?? undefined };
@@ -53,7 +60,9 @@ function activityLine(a: DashboardActivity): { main: string; detail?: string } {
     case 'completed':
       return { main: `${actor} completed task "${name}"` };
     case 'archived':
-      return { main: `${actor} archived contact ${name}` };
+      return { main: `${actor} archived ${kind} ${name}` };
+    case 'restored':
+      return { main: `${actor} restored ${kind} ${name}` };
     case 'noted':
       return { main: `${actor} added note to ${name}` };
     default:

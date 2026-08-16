@@ -192,7 +192,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO activity_log (actor_id, verb, entity_type, entity_id, entity_name)\nSELECT $1, 'noted', $2, $3,\n  CASE\n    WHEN $2 = 'contact' THEN (SELECT TRIM(CONCAT(first_name, ' ', last_name)) FROM contacts WHERE id = $3)\n    WHEN $2 = 'opportunity' THEN (SELECT name FROM opportunities WHERE id = $3)\n    ELSE NULL\n  END;",
+        "query": "INSERT INTO activity_log (actor_id, verb, entity_type, entity_id, entity_name)\nSELECT $1, 'noted', $2, $3,\n  CASE\n    WHEN $2 = 'contact' THEN (SELECT TRIM(CONCAT(first_name, ' ', last_name)) FROM contacts WHERE id = $3)\n    WHEN $2 = 'opportunity' THEN (SELECT name FROM opportunities WHERE id = $3)\n    WHEN $2 = 'task' THEN (SELECT subject FROM activities WHERE id = $3)\n    WHEN $2 = 'company' THEN (SELECT name FROM companies WHERE id = $3)\n    ELSE NULL\n  END;",
         "options": {
           "queryReplacement": "={{ [ $('Postgres: Insert Note').first().json.created_by, $('Postgres: Insert Note').first().json.entity_type, $('Postgres: Insert Note').first().json.entity_id ] }}"
         }

@@ -652,7 +652,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE activities SET is_archived = true, archived_at = now() WHERE id = ANY($1::int[]) AND type = 'task' AND ($2 = 'admin' OR user_id = $3) RETURNING id;",
+        "query": "UPDATE activities SET is_archived = true, archived_at = now() WHERE id = ANY($1::int[]) AND type = 'task' AND ($2 = 'admin' OR user_id = $3) RETURNING id, subject;",
         "options": {
           "queryReplacement": "={{ [ $('Webhook: archive-tasks').first().json.body.ids, $('Look Up Requester: archive-tasks').first().json.role, $('Look Up Requester: archive-tasks').first().json.id ] }}"
         }
@@ -663,6 +663,29 @@
       "typeVersion": 2.5,
       "position": [
         720,
+        1800
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO activity_log (actor_id, verb, entity_type, entity_id, entity_name) VALUES ($1, 'archived', 'task', $2, $3);",
+        "options": {
+          "queryReplacement": "={{ [ $('Look Up Requester: archive-tasks').first().json.id, $json.id, $json.subject ] }}"
+        }
+      },
+      "id": "f3a1c9e2-7b4d-4a6f-9e1c-2d5b8a7c6f30",
+      "name": "Postgres: Log Activity (archived-tasks)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        840,
         1800
       ],
       "credentials": {
@@ -762,7 +785,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE activities SET is_archived = false, archived_at = NULL WHERE id = ANY($1::int[]) AND type = 'task' AND ($2 = 'admin' OR user_id = $3) RETURNING id;",
+        "query": "UPDATE activities SET is_archived = false, archived_at = NULL WHERE id = ANY($1::int[]) AND type = 'task' AND ($2 = 'admin' OR user_id = $3) RETURNING id, subject;",
         "options": {
           "queryReplacement": "={{ [ $('Webhook: restore-tasks').first().json.body.ids, $('Look Up Requester: restore-tasks').first().json.role, $('Look Up Requester: restore-tasks').first().json.id ] }}"
         }
@@ -773,6 +796,29 @@
       "typeVersion": 2.5,
       "position": [
         720,
+        2100
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO activity_log (actor_id, verb, entity_type, entity_id, entity_name) VALUES ($1, 'restored', 'task', $2, $3);",
+        "options": {
+          "queryReplacement": "={{ [ $('Look Up Requester: restore-tasks').first().json.id, $json.id, $json.subject ] }}"
+        }
+      },
+      "id": "a4b2d8f6-3c9e-4b7a-8f1d-6e0c9a2b5d47",
+      "name": "Postgres: Log Activity (restored-tasks)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        840,
         2100
       ],
       "credentials": {
@@ -1942,6 +1988,17 @@
       "main": [
         [
           {
+            "node": "Postgres: Log Activity (archived-tasks)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Log Activity (archived-tasks)": {
+      "main": [
+        [
+          {
             "node": "Respond: archive-tasks",
             "type": "main",
             "index": 0
@@ -1997,6 +2054,17 @@
       ]
     },
     "Postgres: Restore Tasks": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Log Activity (restored-tasks)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Log Activity (restored-tasks)": {
       "main": [
         [
           {

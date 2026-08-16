@@ -51,7 +51,7 @@ export interface DashboardUpcomingTask {
   due_at: string | null;
 }
 
-export type ActivityVerb = 'moved' | 'created' | 'completed' | 'archived' | 'noted';
+export type ActivityVerb = 'moved' | 'created' | 'completed' | 'archived' | 'restored' | 'noted';
 
 export interface DashboardActivity {
   id: number;
