@@ -199,6 +199,16 @@ export function updateUserActive(userId: number, active: boolean) {
   });
 }
 
+// Backend resolves the target user from the session token — you can only
+// ever change your own password, and it re-verifies current_password
+// server-side before hashing/storing new_password.
+export function changePassword(currentPassword: string, newPassword: string) {
+  return apiFetch<{ success: boolean; error?: string }>('/webhook/change-password', {
+    method: 'POST',
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+  });
+}
+
 export function updateUserColor(userId: number, color: string) {
   return apiFetch<{ success: boolean; user?: TeamUser; error?: string }>('/webhook/update-user-color', {
     method: 'POST',

@@ -42,6 +42,13 @@ export function useUsers() {
   });
 }
 
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) =>
+      api.changePassword(currentPassword, newPassword),
+  });
+}
+
 export function useUpdateUserColor() {
   const qc = useQueryClient();
   return useMutation({

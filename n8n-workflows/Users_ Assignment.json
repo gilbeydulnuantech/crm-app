@@ -1296,6 +1296,128 @@
         2528,
         2576
       ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "change-password",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a5b6c001-1111-4a5a-9b1a-changepwd001",
+      "name": "Webhook - Change Password",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        2800
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "a5b6c002-2222-4a5a-9b1a-changepwd002",
+      "name": "Parse Token (Change Password)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        2800
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, password_hash, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "a5b6c003-3333-4a5a-9b1a-changepwd003",
+      "name": "Look Up Requester (Change Password)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1408,
+        2800
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const bcrypt = require('bcryptjs');\nconst requester = $input.first().json;\nconst body = $('Webhook - Change Password').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst currentPassword = body.current_password || '';\nconst newPassword = body.new_password || '';\n\nif (!currentPassword || !newPassword) {\n  throw new Error('Current and new password are required.');\n}\nif (newPassword.length < 8) {\n  throw new Error('New password must be at least 8 characters.');\n}\n\nconst isValid = bcrypt.compareSync(currentPassword, requester.password_hash);\nif (!isValid) {\n  throw new Error('Current password is incorrect.');\n}\n\nconst salt = bcrypt.genSaltSync(10);\nconst newHash = bcrypt.hashSync(newPassword, salt);\n\nreturn [{ json: { targetUserId: requester.id, newHash } }];"
+      },
+      "id": "a5b6c004-4444-4a5a-9b1a-changepwd004",
+      "name": "Verify & Hash New Password",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        2800
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE users SET password_hash = $1, updated_at = now() WHERE id = $2 RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.newHash, $json.targetUserId ] }}"
+        }
+      },
+      "id": "a5b6c005-5555-4a5a-9b1a-changepwd005",
+      "name": "Update User Password",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1856,
+        2800
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) throw new Error('User not found.');\nreturn [{ json: { success: true } }];"
+      },
+      "id": "a5b6c006-6666-4a5a-9b1a-changepwd006",
+      "name": "Check Change Password Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        2800
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "a5b6c007-7777-4a5a-9b1a-changepwd007",
+      "name": "Respond - Change Password Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2304,
+        2800
+      ]
     }
   ],
   "pinData": {},
@@ -2276,6 +2398,107 @@
         [
           {
             "node": "Respond - Upload Avatar Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Change Password": {
+      "main": [
+        [
+          {
+            "node": "Parse Token (Change Password)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token (Change Password)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester (Change Password)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester (Change Password)": {
+      "main": [
+        [
+          {
+            "node": "Verify & Hash New Password",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify & Hash New Password": {
+      "main": [
+        [
+          {
+            "node": "Update User Password",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update User Password": {
+      "main": [
+        [
+          {
+            "node": "Check Change Password Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Change Password Result": {
+      "main": [
+        [
+          {
+            "node": "Respond - Change Password Success",
             "type": "main",
             "index": 0
           }

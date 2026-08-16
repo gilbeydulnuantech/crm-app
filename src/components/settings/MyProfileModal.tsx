@@ -6,6 +6,7 @@ import { DEFAULT_USER_COLOR } from '../../utils/userColor';
 import Avatar from '../Avatar';
 import UserColorPicker from '../calendar/UserColorPicker';
 import AvatarCropModal from './AvatarCropModal';
+import ChangePasswordModal from './ChangePasswordModal';
 
 interface Props {
   open: boolean;
@@ -23,6 +24,7 @@ export default function MyProfileModal({ open, onClose }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [cropFile, setCropFile] = useState<File | null>(null);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 
   if (!open) return null;
 
@@ -116,6 +118,17 @@ export default function MyProfileModal({ open, onClose }: Props) {
           </p>
         )}
 
+        <div className="pt-4 mt-4 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={() => setChangePasswordOpen(true)}
+            className="flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-indigo-600"
+          >
+            <i className="fa-solid fa-key text-slate-400" />
+            Change Password
+          </button>
+        </div>
+
         <div className="flex justify-end pt-6">
           <button
             type="button"
@@ -134,6 +147,7 @@ export default function MyProfileModal({ open, onClose }: Props) {
         onCancel={() => setCropFile(null)}
         onConfirm={handleCropConfirm}
       />
+      <ChangePasswordModal open={changePasswordOpen} onClose={() => setChangePasswordOpen(false)} />
     </>
   );
 }
