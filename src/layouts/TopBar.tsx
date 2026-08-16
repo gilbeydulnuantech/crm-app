@@ -2,8 +2,9 @@ import { FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toTitleCase } from '../utils/text';
-import { useUnreadEmailContacts } from '../hooks/useContacts';
+import { useUnreadEmailContacts, useUsers } from '../hooks/useContacts';
 import { useConversations } from '../hooks/useChat';
+import { useTasks } from '../hooks/useTasks';
 import { stripRefTokens } from '../utils/chatRefs';
 
 export default function TopBar() {
@@ -11,12 +12,30 @@ export default function TopBar() {
   const navigate = useNavigate();
   const [bellOpen, setBellOpen] = useState(false);
   const [globalSearch, setGlobalSearch] = useState('');
-  const unreadContacts = useUnreadEmailContacts();
+
+  const { data: users = [] } = useUsers();
+  const prefs = users.find((u) => u.id === user?.id)?.notification_preferences;
+  const emailEnabled = prefs?.email !== false;
+  const chatEnabled = prefs?.chat !== false;
+  const tasksDueEnabled = prefs?.tasks_due !== false;
+
+  const allUnreadContacts = useUnreadEmailContacts();
+  const unreadContacts = emailEnabled ? allUnreadContacts : [];
   const emailUnreadCount = unreadContacts.reduce((total, c) => total + c.unreadCount, 0);
+
   const { data: conversations = [] } = useConversations();
-  const unreadConversations = conversations.filter((c) => c.unread_count > 0);
+  const unreadConversations = chatEnabled ? conversations.filter((c) => c.unread_count > 0) : [];
   const chatUnreadCount = unreadConversations.reduce((total, c) => total + c.unread_count, 0);
-  const unreadCount = emailUnreadCount + chatUnreadCount;
+
+  const { data: allTasks = [] } = useTasks();
+  const todayStr = new Date().toDateString();
+  const tasksDueToday = tasksDueEnabled
+    ? allTasks.filter(
+        (t) => t.user_id === user?.id && !t.is_completed && t.due_at && new Date(t.due_at).toDateString() === todayStr
+      )
+    : [];
+
+  const unreadCount = emailUnreadCount + chatUnreadCount + tasksDueToday.length;
 
   function openContact(contactId: number) {
     setBellOpen(false);
@@ -26,6 +45,11 @@ export default function TopBar() {
   function openConversation(conversationId: number) {
     setBellOpen(false);
     navigate(`/team-chat?conversation=${conversationId}`);
+  }
+
+  function openTask(taskId: number) {
+    setBellOpen(false);
+    navigate(`/tasks?highlight=${taskId}`);
   }
 
   function runGlobalSearch(e: FormEvent) {
@@ -89,7 +113,7 @@ export default function TopBar() {
                 <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
                   Notifications
                 </div>
-                {unreadContacts.length === 0 && unreadConversations.length === 0 ? (
+                {unreadContacts.length === 0 && unreadConversations.length === 0 && tasksDueToday.length === 0 ? (
                   <p className="px-3 py-3 text-xs text-slate-400">Nothing new.</p>
                 ) : (
                   <>
@@ -149,6 +173,23 @@ export default function TopBar() {
                             </div>
                           )}
                         </div>
+                      </button>
+                    ))}
+                    {tasksDueToday.length > 0 && (
+                      <div className="px-3 pt-2 pb-0.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wide border-t border-slate-100 mt-1">
+                        Tasks Due Today ({tasksDueToday.length})
+                      </div>
+                    )}
+                    {tasksDueToday.map((t) => (
+                      <button
+                        key={`task-${t.id}`}
+                        onClick={() => openTask(t.id)}
+                        className="w-full flex items-start gap-2.5 px-3 py-2 text-left hover:bg-slate-50"
+                      >
+                        <i className="fa-solid fa-check text-indigo-500 text-xs mt-0.5 shrink-0" />
+                        <span className="text-xs font-semibold text-slate-800 truncate">
+                          {toTitleCase(t.subject)}
+                        </span>
                       </button>
                     ))}
                   </>

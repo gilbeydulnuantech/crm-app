@@ -154,12 +154,19 @@ export function fetchContactIdsByTag(tagName: string) {
   );
 }
 
+export interface NotificationPreferences {
+  email?: boolean;
+  chat?: boolean;
+  tasks_due?: boolean;
+}
+
 export interface TeamUser {
   id: number;
   name: string;
   email?: string;
   color?: string;
   role?: 'admin' | 'user';
+  notification_preferences?: NotificationPreferences;
 }
 
 export function fetchUsers() {
@@ -184,6 +191,18 @@ export function updateUserTheme(userId: number, theme: UserTheme) {
     method: 'POST',
     body: JSON.stringify({ user_id: userId, ...theme }),
   });
+}
+
+// Backend resolves the target user from the session token — a user can
+// only ever update their own notification preferences.
+export function updateNotificationPreferences(preferences: NotificationPreferences) {
+  return apiFetch<{ success: boolean; user?: TeamUser; error?: string }>(
+    '/webhook/update-notification-preferences',
+    {
+      method: 'POST',
+      body: JSON.stringify({ preferences }),
+    }
+  );
 }
 
 export function fetchTags() {

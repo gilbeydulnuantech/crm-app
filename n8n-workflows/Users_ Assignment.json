@@ -22,7 +22,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, name, email, color, role FROM users WHERE active = true ORDER BY name ASC;",
+        "query": "SELECT id, name, email, color, role, notification_preferences FROM users WHERE active = true ORDER BY name ASC;",
         "options": {}
       },
       "id": "7ed2f986-ccc4-420e-a7d7-15a2fb090650",
@@ -665,6 +665,128 @@
         2304,
         1440
       ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "update-notification-preferences",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "e2f3a001-1111-4a5a-9b1a-notifprefs001",
+      "name": "Webhook - Update Notification Preferences",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        1680
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) {\n  throw new Error('Invalid or missing session token.');\n}\n\nconst requesterId = parseInt(match[1], 10);\n\nreturn [{ json: { requesterId } }];"
+      },
+      "id": "e2f3a002-2222-4a5a-9b1a-notifprefs002",
+      "name": "Parse Requester Token (Notif Prefs)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        1680
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "e2f3a003-3333-4a5a-9b1a-notifprefs003",
+      "name": "Look Up Requester Role (Notif Prefs)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1408,
+        1680
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Update Notification Preferences').first().json.body || {};\n\nif (!requester.id || !requester.active) {\n  throw new Error('Invalid session.');\n}\n\n// Users only ever manage their own notification preferences \u2014 unlike color,\n// there's no admin-on-behalf-of-someone-else case for this.\nconst targetUserId = requester.id;\n\nconst allowedKeys = ['email', 'chat', 'tasks_due'];\nconst prefs = body.preferences && typeof body.preferences === 'object' ? body.preferences : {};\nconst cleaned = {};\nfor (const key of allowedKeys) {\n  if (key in prefs) cleaned[key] = !!prefs[key];\n}\nif (Object.keys(cleaned).length === 0) {\n  throw new Error('No valid preference keys provided.');\n}\n\nreturn [{ json: { targetUserId, preferences: JSON.stringify(cleaned) } }];"
+      },
+      "id": "e2f3a004-4444-4a5a-9b1a-notifprefs004",
+      "name": "Validate Notif Prefs Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        1680
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE users SET notification_preferences = COALESCE(notification_preferences, '{}'::jsonb) || $1::jsonb WHERE id = $2 RETURNING id, name, notification_preferences;",
+        "options": {
+          "queryReplacement": "={{ [ $json.preferences, $json.targetUserId ] }}"
+        }
+      },
+      "id": "e2f3a005-5555-4a5a-9b1a-notifprefs005",
+      "name": "Update Notification Preferences",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1840,
+        1680
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) {\n  throw new Error('User not found.');\n}\nreturn [{ json: { success: true, user: result.json } }];"
+      },
+      "id": "e2f3a006-6666-4a5a-9b1a-notifprefs006",
+      "name": "Check Notif Prefs Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2064,
+        1680
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "e2f3a007-7777-4a5a-9b1a-notifprefs007",
+      "name": "Respond - Update Notif Prefs Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2288,
+        1680
+      ]
     }
   ],
   "pinData": {},
@@ -1119,6 +1241,114 @@
         [
           {
             "node": "Respond - Update User Theme Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Update Notification Preferences": {
+      "main": [
+        [
+          {
+            "node": "Parse Requester Token (Notif Prefs)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Requester Token (Notif Prefs)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester Role (Notif Prefs)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester Role (Notif Prefs)": {
+      "main": [
+        [
+          {
+            "node": "Validate Notif Prefs Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Notif Prefs Payload": {
+      "main": [
+        [
+          {
+            "node": "Update Notification Preferences",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Notification Preferences": {
+      "main": [
+        [
+          {
+            "node": "Check Notif Prefs Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Notif Prefs Result": {
+      "main": [
+        [
+          {
+            "node": "Respond - Update Notif Prefs Success",
             "type": "main",
             "index": 0
           }

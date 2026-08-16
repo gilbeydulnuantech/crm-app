@@ -60,6 +60,14 @@ export function useUpdateUserTheme() {
   });
 }
 
+export function useUpdateNotificationPreferences() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (preferences: api.NotificationPreferences) => api.updateNotificationPreferences(preferences),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
+  });
+}
+
 export function useTags() {
   return useQuery({
     queryKey: ['tags'],
