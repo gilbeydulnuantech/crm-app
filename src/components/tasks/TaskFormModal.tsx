@@ -249,7 +249,7 @@ export default function TaskFormModal({
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Task Type</label>
               <select
@@ -280,22 +280,23 @@ export default function TaskFormModal({
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Due Date &amp; Time</label>
-              <div className="flex gap-1.5">
-                <input
-                  required
-                  type="date"
-                  value={form.date}
-                  onChange={(e) => update('date', e.target.value)}
-                  className={inputClass}
-                />
-                <input
-                  type="time"
-                  value={form.time}
-                  onChange={(e) => update('time', e.target.value)}
-                  className={`${inputClass} shrink-0 w-24`}
-                />
-              </div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Due Date</label>
+              <input
+                required
+                type="date"
+                value={form.date}
+                onChange={(e) => update('date', e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Due Time</label>
+              <input
+                type="time"
+                value={form.time}
+                onChange={(e) => update('time', e.target.value)}
+                className={inputClass}
+              />
             </div>
           </div>
 
