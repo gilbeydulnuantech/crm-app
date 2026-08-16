@@ -47,6 +47,7 @@ const ENTITY_LABELS: Record<DashboardActivity['entity_type'], string> = {
   opportunity: 'deal',
   task: 'task',
   company: 'company',
+  event: 'event',
 };
 
 function activityLine(a: DashboardActivity): { main: string; detail?: string } {

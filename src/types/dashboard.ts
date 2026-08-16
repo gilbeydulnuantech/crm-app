@@ -57,7 +57,7 @@ export interface DashboardActivity {
   id: number;
   actor_name: string;
   verb: ActivityVerb;
-  entity_type: 'opportunity' | 'contact' | 'task' | 'company';
+  entity_type: 'opportunity' | 'contact' | 'task' | 'company' | 'event';
   entity_name: string | null;
   detail: string | null; // e.g. "Proposal Sent → Contract Signed", only set for 'moved'
   created_at: string;

@@ -24,6 +24,10 @@ const SUBTYPE_ICONS: Record<string, string> = {
   archived: 'fa-box-archive',
   restored: 'fa-clock-rotate-left',
   merge: 'fa-code-merge',
+  created: 'fa-plus',
+  completed: 'fa-check',
+  noted: 'fa-note-sticky',
+  subtask: 'fa-list-check',
 };
 
 interface TimelineItem {

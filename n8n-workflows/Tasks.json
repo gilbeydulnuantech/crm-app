@@ -111,6 +111,29 @@
     },
     {
       "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH resolved AS (\n  SELECT COALESCE(a.contact_id, o.contact_id) AS contact_id,\n         COALESCE(a.account_id, c.account_id, o.account_id) AS account_id\n  FROM activities a\n  LEFT JOIN opportunities o ON o.id = a.opportunity_id\n  LEFT JOIN contacts c ON c.id = COALESCE(a.contact_id, o.contact_id)\n  WHERE a.id = $1\n)\nINSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'contact', r.contact_id, 'system_audit', 'created', COALESCE((SELECT name FROM users WHERE id = $3), 'Someone') || ' created task \"' || $2 || '\"', NULL::jsonb, $3, (SELECT name FROM users WHERE id = $3)\nFROM resolved r WHERE r.contact_id IS NOT NULL\nUNION ALL\nSELECT 'company', r.account_id, 'system_audit', 'created', COALESCE((SELECT name FROM users WHERE id = $3), 'Someone') || ' created task \"' || $2 || '\"', NULL::jsonb, $3, (SELECT name FROM users WHERE id = $3)\nFROM resolved r WHERE r.account_id IS NOT NULL;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id, $json.subject, $('Webhook: add-task').first().json.body.requester_id || $('Webhook: add-task').first().json.body.user_id || null ] }}"
+        }
+      },
+      "id": "c9d0e1f2-a3b4-45c5-d6e7-f8a9b0c1d2e3",
+      "name": "Postgres: Log System Audit (created-task)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        832,
+        700
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
         "respondWith": "json",
         "responseBody": "={{ { \"success\": true, \"id\": $json.id } }}",
         "options": {
@@ -452,6 +475,29 @@
     },
     {
       "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH resolved AS (\n  SELECT COALESCE(a.contact_id, o.contact_id) AS contact_id,\n         COALESCE(a.account_id, c.account_id, o.account_id) AS account_id\n  FROM activities a\n  LEFT JOIN opportunities o ON o.id = a.opportunity_id\n  LEFT JOIN contacts c ON c.id = COALESCE(a.contact_id, o.contact_id)\n  WHERE a.id = $2\n)\nINSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'contact', r.contact_id, 'system_audit', 'completed', COALESCE((SELECT name FROM users WHERE id = $1), 'Someone') || ' completed task \"' || $3 || '\"', NULL::jsonb, $1, (SELECT name FROM users WHERE id = $1)\nFROM resolved r WHERE r.contact_id IS NOT NULL AND $4 = true\nUNION ALL\nSELECT 'company', r.account_id, 'system_audit', 'completed', COALESCE((SELECT name FROM users WHERE id = $1), 'Someone') || ' completed task \"' || $3 || '\"', NULL::jsonb, $1, (SELECT name FROM users WHERE id = $1)\nFROM resolved r WHERE r.account_id IS NOT NULL AND $4 = true;",
+        "options": {
+          "queryReplacement": "={{ [ $('Look Up Requester: update-task').first().json.id, $('Check Result: update-task').first().json.id, $('Check Result: update-task').first().json.subject, $('Webhook: update-task').first().json.body.is_completed === true ] }}"
+        }
+      },
+      "id": "d0e1f2a3-b4c5-46d6-e7f8-a9b0c1d2e3f4",
+      "name": "Postgres: Log System Audit (completed-task)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1700,
+        760
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
         "respondWith": "json",
         "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Update failed.\" } }}",
         "options": {
@@ -675,6 +721,29 @@
     {
       "parameters": {
         "operation": "executeQuery",
+        "query": "WITH resolved AS (\n  SELECT COALESCE(a.contact_id, o.contact_id) AS contact_id,\n         COALESCE(a.account_id, c.account_id, o.account_id) AS account_id\n  FROM activities a\n  LEFT JOIN opportunities o ON o.id = a.opportunity_id\n  LEFT JOIN contacts c ON c.id = COALESCE(a.contact_id, o.contact_id)\n  WHERE a.id = $2\n)\nINSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'contact', r.contact_id, 'system_audit', 'archived', COALESCE((SELECT name FROM users WHERE id = $1), 'Someone') || ' archived the linked task \"' || $3 || '\"', NULL::jsonb, $1, (SELECT name FROM users WHERE id = $1)\nFROM resolved r WHERE r.contact_id IS NOT NULL\nUNION ALL\nSELECT 'company', r.account_id, 'system_audit', 'archived', COALESCE((SELECT name FROM users WHERE id = $1), 'Someone') || ' archived the linked task \"' || $3 || '\"', NULL::jsonb, $1, (SELECT name FROM users WHERE id = $1)\nFROM resolved r WHERE r.account_id IS NOT NULL;",
+        "options": {
+          "queryReplacement": "={{ [ $('Look Up Requester: archive-tasks').first().json.id, $json.id, $json.subject ] }}"
+        }
+      },
+      "id": "e1f2a3b4-c5d6-47e7-f8a9-b0c1d2e3f4a5",
+      "name": "Postgres: Log System Audit (archived-task-links)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        840,
+        1880
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
         "query": "INSERT INTO activity_log (actor_id, verb, entity_type, entity_id, entity_name) VALUES ($1, 'archived', 'task', $2, $3);",
         "options": {
           "queryReplacement": "={{ [ $('Look Up Requester: archive-tasks').first().json.id, $json.id, $json.subject ] }}"
@@ -808,6 +877,29 @@
     {
       "parameters": {
         "operation": "executeQuery",
+        "query": "WITH resolved AS (\n  SELECT COALESCE(a.contact_id, o.contact_id) AS contact_id,\n         COALESCE(a.account_id, c.account_id, o.account_id) AS account_id\n  FROM activities a\n  LEFT JOIN opportunities o ON o.id = a.opportunity_id\n  LEFT JOIN contacts c ON c.id = COALESCE(a.contact_id, o.contact_id)\n  WHERE a.id = $2\n)\nINSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'contact', r.contact_id, 'system_audit', 'restored', COALESCE((SELECT name FROM users WHERE id = $1), 'Someone') || ' restored the linked task \"' || $3 || '\"', NULL::jsonb, $1, (SELECT name FROM users WHERE id = $1)\nFROM resolved r WHERE r.contact_id IS NOT NULL\nUNION ALL\nSELECT 'company', r.account_id, 'system_audit', 'restored', COALESCE((SELECT name FROM users WHERE id = $1), 'Someone') || ' restored the linked task \"' || $3 || '\"', NULL::jsonb, $1, (SELECT name FROM users WHERE id = $1)\nFROM resolved r WHERE r.account_id IS NOT NULL;",
+        "options": {
+          "queryReplacement": "={{ [ $('Look Up Requester: restore-tasks').first().json.id, $json.id, $json.subject ] }}"
+        }
+      },
+      "id": "f2a3b4c5-d6e7-48f8-a9b0-c1d2e3f4a5b6",
+      "name": "Postgres: Log System Audit (restored-task-links)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        840,
+        2180
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
         "query": "INSERT INTO activity_log (actor_id, verb, entity_type, entity_id, entity_name) VALUES ($1, 'restored', 'task', $2, $3);",
         "options": {
           "queryReplacement": "={{ [ $('Look Up Requester: restore-tasks').first().json.id, $json.id, $json.subject ] }}"
@@ -915,6 +1007,30 @@
       "position": [
         480,
         2400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH counts AS (\n  SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE is_completed) AS completed\n  FROM task_subtasks WHERE task_id = $2\n),\nresolved AS (\n  SELECT a.subject,\n         COALESCE(a.contact_id, o.contact_id) AS contact_id,\n         COALESCE(a.account_id, c.account_id, o.account_id) AS account_id\n  FROM activities a\n  LEFT JOIN opportunities o ON o.id = a.opportunity_id\n  LEFT JOIN contacts c ON c.id = COALESCE(a.contact_id, o.contact_id)\n  WHERE a.id = $2\n)\nINSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'contact', r.contact_id, 'system_audit', 'subtask', COALESCE((SELECT name FROM users WHERE id = $1), 'Someone') || ' updated subtasks on task \"' || r.subject || '\" (' || co.completed || '/' || co.total || ' complete)', NULL::jsonb, $1, (SELECT name FROM users WHERE id = $1)\nFROM resolved r, counts co WHERE r.contact_id IS NOT NULL\nUNION ALL\nSELECT 'company', r.account_id, 'system_audit', 'subtask', COALESCE((SELECT name FROM users WHERE id = $1), 'Someone') || ' updated subtasks on task \"' || r.subject || '\" (' || co.completed || '/' || co.total || ' complete)', NULL::jsonb, $1, (SELECT name FROM users WHERE id = $1)\nFROM resolved r, counts co WHERE r.account_id IS NOT NULL;",
+        "options": {
+          "queryReplacement": "={{ [ $('Webhook: set-task-subtasks').first().json.body.requester_id || null, $('Webhook: set-task-subtasks').first().json.body.task_id ] }}"
+        }
+      },
+      "id": "d9e0f1a2-b3c4-45d5-e6f7-a8b9c0d1e2f3",
+      "name": "Postgres: Log System Audit (subtasks-links)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "executeOnce": true,
+      "position": [
+        480,
+        2520
       ],
       "credentials": {
         "postgres": {
@@ -1736,6 +1852,11 @@
             "node": "Respond: add-task",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Postgres: Log System Audit (created-task)",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -1844,6 +1965,11 @@
         [
           {
             "node": "Postgres: Log Task Completed",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Postgres: Log System Audit (completed-task)",
             "type": "main",
             "index": 0
           }
@@ -1991,6 +2117,11 @@
             "node": "Postgres: Log Activity (archived-tasks)",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Postgres: Log System Audit (archived-task-links)",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -2060,6 +2191,11 @@
             "node": "Postgres: Log Activity (restored-tasks)",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Postgres: Log System Audit (restored-task-links)",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -2102,6 +2238,11 @@
         [
           {
             "node": "Respond: set-task-subtasks",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Postgres: Log System Audit (subtasks-links)",
             "type": "main",
             "index": 0
           }

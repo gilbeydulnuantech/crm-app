@@ -63,7 +63,7 @@ export default function TaskQuickView({ task, canEdit, onClose, onEdit, onOpenFu
   const ownerColor = task.assigned_user_name ? task.assigned_user_color || DEFAULT_USER_COLOR : undefined;
 
   function persistSubtasks(next: { title: string; is_completed: boolean }[]) {
-    setSubtasks.mutate({ taskId: task!.id, subtasks: next });
+    setSubtasks.mutate({ taskId: task!.id, subtasks: next, requesterId: user?.id });
   }
 
   function handleAddSubtask() {

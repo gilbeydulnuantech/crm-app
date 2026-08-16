@@ -63,10 +63,14 @@ export function restoreTasks(ids: number[]) {
 // These three replace the whole list in one call — subtasks/attachments/
 // watchers are small (a handful of rows), so full-replace on every change
 // is simpler and cheap enough vs. individual add/remove endpoints.
-export function setTaskSubtasks(taskId: number, subtasks: Pick<TaskSubtask, 'title' | 'is_completed'>[]) {
+export function setTaskSubtasks(
+  taskId: number,
+  subtasks: Pick<TaskSubtask, 'title' | 'is_completed'>[],
+  requesterId?: number | null
+) {
   return apiFetch<{ success: boolean; error?: string; subtasks?: TaskSubtask[] }>('/webhook/set-task-subtasks', {
     method: 'POST',
-    body: JSON.stringify({ task_id: taskId, subtasks }),
+    body: JSON.stringify({ task_id: taskId, subtasks, requester_id: requesterId ?? null }),
   });
 }
 

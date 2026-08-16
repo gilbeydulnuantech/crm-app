@@ -75,7 +75,7 @@ export default function TaskDetailModal({ task, isAdmin, currentUserId, onClose,
   const currentStageIndex = taskStatuses.findIndex((s) => s.name === taskKanbanStatus(task));
 
   function persistSubtasks(next: { title: string; is_completed: boolean }[]) {
-    setSubtasks.mutate({ taskId: task!.id, subtasks: next });
+    setSubtasks.mutate({ taskId: task!.id, subtasks: next, requesterId: currentUserId });
   }
 
   function handleAddSubtask() {

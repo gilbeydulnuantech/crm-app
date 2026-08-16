@@ -186,7 +186,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO opportunities (name, contact_id, account_id, pipeline_id, stage_id, assigned_user, created_by, deal_value, probability, status, expected_close, description, source, priority) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Open', $10, $11, $12, $13) RETURNING id, name, stage_id, status, created_at;",
+        "query": "INSERT INTO opportunities (name, contact_id, account_id, pipeline_id, stage_id, assigned_user, created_by, deal_value, probability, status, expected_close, description, source, priority) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Open', $10, $11, $12, $13) RETURNING id, name, contact_id, account_id, stage_id, status, created_at;",
         "options": {
           "queryReplacement": "={{ [$json.body.name, $json.body.contact_id, $json.body.account_id || null, $json.body.pipeline_id, $json.body.stage_id, $json.body.assigned_user || $json.body.requester_id || null, $json.body.requester_id || null, $json.body.deal_value || null, $json.body.probability || 0, $json.body.expected_close || null, $json.body.description || null, $json.body.source || null, $json.body.priority || null] }}"
         }
@@ -221,6 +221,29 @@
       "position": [
         1152,
         1056
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'contact', $1, 'system_audit', 'created', COALESCE((SELECT name FROM users WHERE id = $4), 'Someone') || ' created deal \"' || $2 || '\"', NULL::jsonb, $4, (SELECT name FROM users WHERE id = $4)\nWHERE $1 IS NOT NULL\nUNION ALL\nSELECT 'company', $3, 'system_audit', 'created', COALESCE((SELECT name FROM users WHERE id = $4), 'Someone') || ' created deal \"' || $2 || '\"', NULL::jsonb, $4, (SELECT name FROM users WHERE id = $4)\nWHERE $3 IS NOT NULL;",
+        "options": {
+          "queryReplacement": "={{ [ $json.contact_id, $json.name, $json.account_id, $('Webhook: add-opportunity').first().json.body.requester_id || null ] }}"
+        }
+      },
+      "id": "f6a7b8c9-d0e1-42f3-a4b5-c6d7e8f9a0b1",
+      "name": "Postgres: Log System Audit (created-opportunity)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1152,
+        980
       ],
       "credentials": {
         "postgres": {
@@ -1864,7 +1887,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE opportunities SET is_archived = true, archived_at = now() WHERE id = ANY($1::int[]) AND status != 'Open' AND ($2 = 'admin' OR assigned_user = $3) RETURNING id, name;",
+        "query": "UPDATE opportunities SET is_archived = true, archived_at = now() WHERE id = ANY($1::int[]) AND status != 'Open' AND ($2 = 'admin' OR assigned_user = $3) RETURNING id, name, contact_id, account_id;",
         "options": {
           "queryReplacement": "={{ [ $('Webhook: archive-opportunities').first().json.body.ids, $('Look Up Requester: archive-opportunities').first().json.role, $('Look Up Requester: archive-opportunities').first().json.id ] }}"
         }
@@ -1899,6 +1922,29 @@
       "position": [
         1600,
         2000
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'contact', $1, 'system_audit', 'archived', $4 || ' archived the linked deal \"' || $2 || '\"', NULL::jsonb, $5, $4\nWHERE $1 IS NOT NULL\nUNION ALL\nSELECT 'company', $3, 'system_audit', 'archived', $4 || ' archived the linked deal \"' || $2 || '\"', NULL::jsonb, $5, $4\nWHERE $3 IS NOT NULL;",
+        "options": {
+          "queryReplacement": "={{ [ $json.contact_id, $json.name, $json.account_id, $('Look Up Requester: archive-opportunities').first().json.name || 'Someone', $('Look Up Requester: archive-opportunities').first().json.id ] }}"
+        }
+      },
+      "id": "a7b8c9d0-e1f2-43a4-b5c6-d7e8f9a0b1c2",
+      "name": "Postgres: Log System Audit (archived-opportunities-links)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1600,
+        2100
       ],
       "credentials": {
         "postgres": {
@@ -2020,7 +2066,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE opportunities SET is_archived = false, archived_at = NULL WHERE id = ANY($1::int[]) AND ($2 = 'admin' OR assigned_user = $3) RETURNING id, name;",
+        "query": "UPDATE opportunities SET is_archived = false, archived_at = NULL WHERE id = ANY($1::int[]) AND ($2 = 'admin' OR assigned_user = $3) RETURNING id, name, contact_id, account_id;",
         "options": {
           "queryReplacement": "={{ [ $('Webhook: restore-opportunities').first().json.body.ids, $('Look Up Requester: restore-opportunities').first().json.role, $('Look Up Requester: restore-opportunities').first().json.id ] }}"
         }
@@ -2055,6 +2101,29 @@
       "position": [
         1600,
         2350
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'contact', $1, 'system_audit', 'restored', $4 || ' restored the linked deal \"' || $2 || '\"', NULL::jsonb, $5, $4\nWHERE $1 IS NOT NULL\nUNION ALL\nSELECT 'company', $3, 'system_audit', 'restored', $4 || ' restored the linked deal \"' || $2 || '\"', NULL::jsonb, $5, $4\nWHERE $3 IS NOT NULL;",
+        "options": {
+          "queryReplacement": "={{ [ $json.contact_id, $json.name, $json.account_id, $('Look Up Requester: restore-opportunities').first().json.name || 'Someone', $('Look Up Requester: restore-opportunities').first().json.id ] }}"
+        }
+      },
+      "id": "b8c9d0e1-f2a3-44b5-c6d7-e8f9a0b1c2d3",
+      "name": "Postgres: Log System Audit (restored-opportunities-links)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1600,
+        2450
       ],
       "credentials": {
         "postgres": {
@@ -2180,6 +2249,11 @@
         [
           {
             "node": "Postgres: Log Activity (created)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Postgres: Log System Audit (created-opportunity)",
             "type": "main",
             "index": 0
           }
@@ -3187,6 +3261,11 @@
             "node": "Postgres: Log Activity (archived-opportunities)",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Postgres: Log System Audit (archived-opportunities-links)",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -3259,6 +3338,11 @@
           },
           {
             "node": "Postgres: Log Activity (restored-opportunities)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Postgres: Log System Audit (restored-opportunities-links)",
             "type": "main",
             "index": 0
           }

@@ -156,8 +156,15 @@ export function useRestoreTasks() {
 export function useSetTaskSubtasks() {
   const invalidate = useInvalidateTasks();
   return useMutation({
-    mutationFn: ({ taskId, subtasks }: { taskId: number; subtasks: Pick<TaskSubtask, 'title' | 'is_completed'>[] }) =>
-      api.setTaskSubtasks(taskId, subtasks),
+    mutationFn: ({
+      taskId,
+      subtasks,
+      requesterId,
+    }: {
+      taskId: number;
+      subtasks: Pick<TaskSubtask, 'title' | 'is_completed'>[];
+      requesterId?: number | null;
+    }) => api.setTaskSubtasks(taskId, subtasks, requesterId),
     onSuccess: invalidate,
   });
 }
