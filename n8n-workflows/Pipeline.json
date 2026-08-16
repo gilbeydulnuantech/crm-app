@@ -1819,7 +1819,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
         "options": {
           "queryReplacement": "={{ [ $json.requesterId ] }}"
         }
@@ -1864,7 +1864,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE opportunities SET is_archived = true, archived_at = now() WHERE id = ANY($1::int[]) AND status != 'Open' AND ($2 = 'admin' OR assigned_user = $3) RETURNING id;",
+        "query": "UPDATE opportunities SET is_archived = true, archived_at = now() WHERE id = ANY($1::int[]) AND status != 'Open' AND ($2 = 'admin' OR assigned_user = $3) RETURNING id, name;",
         "options": {
           "queryReplacement": "={{ [ $('Webhook: archive-opportunities').first().json.body.ids, $('Look Up Requester: archive-opportunities').first().json.role, $('Look Up Requester: archive-opportunities').first().json.id ] }}"
         }
@@ -1875,6 +1875,29 @@
       "typeVersion": 2.5,
       "position": [
         1500,
+        2000
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO activity_log (actor_id, verb, entity_type, entity_id, entity_name) VALUES ($1, 'archived', 'opportunity', $2, $3);",
+        "options": {
+          "queryReplacement": "={{ [ $('Look Up Requester: archive-opportunities').first().json.id, $json.id, $json.name ] }}"
+        }
+      },
+      "id": "4d5e6f7a-8b9c-40d1-e2f3-a4b5c6d7e8f9",
+      "name": "Postgres: Log Activity (archived-opportunities)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1600,
         2000
       ],
       "credentials": {
@@ -1952,7 +1975,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
         "options": {
           "queryReplacement": "={{ [ $json.requesterId ] }}"
         }
@@ -1997,7 +2020,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE opportunities SET is_archived = false, archived_at = NULL WHERE id = ANY($1::int[]) AND ($2 = 'admin' OR assigned_user = $3) RETURNING id;",
+        "query": "UPDATE opportunities SET is_archived = false, archived_at = NULL WHERE id = ANY($1::int[]) AND ($2 = 'admin' OR assigned_user = $3) RETURNING id, name;",
         "options": {
           "queryReplacement": "={{ [ $('Webhook: restore-opportunities').first().json.body.ids, $('Look Up Requester: restore-opportunities').first().json.role, $('Look Up Requester: restore-opportunities').first().json.id ] }}"
         }
@@ -2008,6 +2031,29 @@
       "typeVersion": 2.5,
       "position": [
         1500,
+        2350
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO activity_log (actor_id, verb, entity_type, entity_id, entity_name) VALUES ($1, 'restored', 'opportunity', $2, $3);",
+        "options": {
+          "queryReplacement": "={{ [ $('Look Up Requester: restore-opportunities').first().json.id, $json.id, $json.name ] }}"
+        }
+      },
+      "id": "5e6f7a8b-9c0d-41e2-f3a4-b5c6d7e8f9a0",
+      "name": "Postgres: Log Activity (restored-opportunities)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1600,
         2350
       ],
       "credentials": {
@@ -3136,6 +3182,11 @@
             "node": "Respond: archive-opportunities",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Postgres: Log Activity (archived-opportunities)",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -3203,6 +3254,11 @@
         [
           {
             "node": "Respond: restore-opportunities",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Postgres: Log Activity (restored-opportunities)",
             "type": "main",
             "index": 0
           }

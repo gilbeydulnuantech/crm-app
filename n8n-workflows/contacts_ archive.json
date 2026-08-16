@@ -36,7 +36,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
         "options": {
           "queryReplacement": "={{ [ $json.requesterId ] }}"
         }
@@ -131,6 +131,29 @@
     },
     {
       "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name) VALUES ('contact', $1, 'system_audit', 'archived', $2, NULL, $3, $4);",
+        "options": {
+          "queryReplacement": "={{ [ $json.contact.id, ($('Look Up Requester').first().json.name || 'Someone') + ' archived this contact' + ($('Parse Token').first().json.reason ? (': ' + $('Parse Token').first().json.reason) : ''), $('Look Up Requester').first().json.id, $('Look Up Requester').first().json.name || 'Someone' ] }}"
+        }
+      },
+      "id": "c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f",
+      "name": "Postgres: Log System Audit (archived)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1216,
+        160
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
         "respondWith": "json",
         "responseBody": "={{ $('Check Result').first().json }}",
         "options": {
@@ -161,6 +184,162 @@
       "position": [
         448,
         192
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "restore-contacts",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "d1e2f3a4-5b6c-47d8-9e0f-1a2b3c4d5e6f",
+      "name": "Webhook: restore-contacts",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        400
+      ],
+      "webhookId": "e5f6a7b8-9c0d-41e2-8f3a-4b5c6d7e8f90"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "f2a3b4c5-6d7e-48f9-a0b1-2c3d4e5f6a7b",
+      "name": "Parse Token: restore-contacts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        400
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "a3b4c5d6-7e8f-49a0-b1c2-3d4e5f6a7b8c",
+      "name": "Look Up Requester: restore-contacts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        448,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts SET is_archived = false, archived_by = NULL, archived_at = NULL, archive_reason = NULL WHERE id = ANY($1::int[]) AND ($2 = 'admin' OR owner_id = $3) RETURNING id, TRIM(CONCAT(first_name, ' ', last_name)) AS full_name;",
+        "options": {
+          "queryReplacement": "={{ [ $('Webhook: restore-contacts').first().json.body.ids, $('Look Up Requester: restore-contacts').first().json.role, $('Look Up Requester: restore-contacts').first().json.id ] }}"
+        }
+      },
+      "id": "b4c5d6e7-8f9a-40b1-c2d3-4e5f6a7b8c9d",
+      "name": "Postgres: Restore Contacts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        672,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO activity_log (actor_id, verb, entity_type, entity_id, entity_name) VALUES ($1, 'restored', 'contact', $2, $3);",
+        "options": {
+          "queryReplacement": "={{ [ $('Look Up Requester: restore-contacts').first().json.id, $json.id, $json.full_name ] }}"
+        }
+      },
+      "id": "c5d6e7f8-9a0b-41c2-d3e4-5f6a7b8c9d0e",
+      "name": "Postgres: Log Activity (restored-contacts)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        896,
+        320
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name) VALUES ('contact', $1, 'system_audit', 'restored', $2, NULL, $3, $4);",
+        "options": {
+          "queryReplacement": "={{ [ $json.id, ($('Look Up Requester: restore-contacts').first().json.name || 'Someone') + ' restored this contact', $('Look Up Requester: restore-contacts').first().json.id, $('Look Up Requester: restore-contacts').first().json.name || 'Someone' ] }}"
+        }
+      },
+      "id": "d6e7f8a9-0b1c-42d3-e4f5-6a7b8c9d0e1f",
+      "name": "Postgres: Log System Audit (restored-contacts)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        896,
+        480
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true } }}",
+        "options": {}
+      },
+      "id": "e7f8a9b0-1c2d-43e4-f5a6-7b8c9d0e1f2a",
+      "name": "Respond: restore-contacts",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1096,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Restore failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "f8a9b0c1-2d3e-44f5-a6b7-8c9d0e1f2a3b",
+      "name": "Respond - Error: restore-contacts",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        448,
+        560
       ]
     }
   ],
@@ -228,6 +407,11 @@
             "node": "Postgres: Log Activity (archived)",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Postgres: Log System Audit (archived)",
+            "type": "main",
+            "index": 0
           }
         ],
         [
@@ -244,6 +428,80 @@
         [
           {
             "node": "Respond - Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: restore-contacts": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: restore-contacts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: restore-contacts": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: restore-contacts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: restore-contacts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: restore-contacts": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Restore Contacts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: restore-contacts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Restore Contacts": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Log Activity (restored-contacts)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Postgres: Log System Audit (restored-contacts)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Log Activity (restored-contacts)": {
+      "main": [
+        [
+          {
+            "node": "Respond: restore-contacts",
             "type": "main",
             "index": 0
           }

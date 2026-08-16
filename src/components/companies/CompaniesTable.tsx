@@ -10,7 +10,7 @@ import {
   useReactTable,
   VisibilityState,
 } from '@tanstack/react-table';
-import { Company } from '../../types/company';
+import { Company, CompaniesView } from '../../types/company';
 import { useAllOpportunities, usePipelines } from '../../hooks/useOpportunities';
 import { useUpdateCompany } from '../../hooks/useCompanies';
 import { COMPANY_HEALTH_DISPLAY } from '../../utils/companyHealth';
@@ -25,6 +25,8 @@ interface Props {
   onRowClick: (company: Company) => void;
   onEdit: (company: Company) => void;
   onDelete: (company: Company) => void;
+  onRestore?: (company: Company) => void;
+  view?: CompaniesView;
   isLoading: boolean;
   isAdmin: boolean;
   currentUserId?: number;
@@ -54,13 +56,17 @@ export const DEFAULT_COMPANY_COLUMN_VISIBILITY: VisibilityState = Object.fromEnt
 function RowActionsMenu({
   company,
   canEdit,
+  isArchivedView,
   onEdit,
   onDelete,
+  onRestore,
 }: {
   company: Company;
   canEdit: boolean;
+  isArchivedView: boolean;
   onEdit: () => void;
   onDelete: () => void;
+  onRestore?: () => void;
 }) {
   // View All, Edit Owned Only, same as Contacts — including unassigned
   // companies: only an admin can edit those (canEdit already accounts for
@@ -73,6 +79,26 @@ function RowActionsMenu({
         title={company.owner_id == null ? 'Unassigned — an admin can assign an owner' : 'View only — owned by another user'}
       >
         <i className="fa-solid fa-lock text-slate-300 text-[11px]" />
+      </div>
+    );
+  }
+
+  // Archived rows can't be edited/deleted from here — same pattern as
+  // ArchivedDealsList/ArchivedTasksList's single Restore action, just kept
+  // inline in this table's actions column instead of a separate list view.
+  if (isArchivedView) {
+    return (
+      <div className="flex items-center justify-end">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onRestore?.();
+          }}
+          className="text-slate-400 hover:text-emerald-600"
+          title="Restore"
+        >
+          <i className="fa-solid fa-clock-rotate-left text-xs" />
+        </button>
       </div>
     );
   }
@@ -232,6 +258,8 @@ export default function CompaniesTable({
   onRowClick,
   onEdit,
   onDelete,
+  onRestore,
+  view,
   isLoading,
   isAdmin,
   currentUserId,
@@ -240,6 +268,7 @@ export default function CompaniesTable({
   columnVisibility,
   onColumnVisibilityChange,
 }: Props) {
+  const isArchivedView = view === 'archived';
   const { data: pipelines = [] } = usePipelines();
   const pipelineIds = useMemo(() => pipelines.map((p) => p.id), [pipelines]);
   const { data: allOpportunities = [] } = useAllOpportunities(pipelineIds);
@@ -374,13 +403,15 @@ export default function CompaniesTable({
           <RowActionsMenu
             company={row.original}
             canEdit={canEdit(row.original)}
+            isArchivedView={isArchivedView}
             onEdit={() => onEdit(row.original)}
             onDelete={() => onDelete(row.original)}
+            onRestore={() => onRestore?.(row.original)}
           />
         ),
       }),
     ],
-    [selectedIds, allSelected, isAdmin, currentUserId, dealsByCompany, density, users]
+    [selectedIds, allSelected, isAdmin, currentUserId, dealsByCompany, density, users, isArchivedView, onRestore]
   );
 
   const table = useReactTable({

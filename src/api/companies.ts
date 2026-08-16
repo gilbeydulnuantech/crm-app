@@ -51,6 +51,13 @@ export function archiveCompanies(ids: number[]) {
   });
 }
 
+export function restoreCompanies(ids: number[]) {
+  return apiFetch<{ success: boolean; error?: string }>('/webhook/restore-companies', {
+    method: 'POST',
+    body: JSON.stringify({ ids }),
+  });
+}
+
 export function deleteCompanies(ids: number[]) {
   return apiFetch<{ success: boolean; error?: string }>('/webhook/delete-companies', {
     method: 'POST',

@@ -8,7 +8,8 @@ export type ActivityCategory = 'call' | 'meeting' | 'system_audit';
 export type ActivitySubtype =
   | 'manual' // call: logged by a rep from the Call button
   | 'calendar_sync' | 'video_call' | 'physical' | 'transcript' // meeting
-  | 'field_change' | 'automation' | 'ownership_change' | 'integration_sync' | 'permission'; // system_audit
+  | 'field_change' | 'automation' | 'ownership_change' | 'integration_sync' | 'permission' // system_audit
+  | 'archived' | 'restored' | 'merge'; // system_audit
 
 export interface ActivityLogEntry {
   id: number;

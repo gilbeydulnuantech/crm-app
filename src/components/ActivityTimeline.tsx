@@ -21,6 +21,9 @@ const SUBTYPE_ICONS: Record<string, string> = {
   ownership_change: 'fa-right-left',
   integration_sync: 'fa-plug',
   permission: 'fa-shield-halved',
+  archived: 'fa-box-archive',
+  restored: 'fa-clock-rotate-left',
+  merge: 'fa-code-merge',
 };
 
 interface TimelineItem {

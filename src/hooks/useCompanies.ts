@@ -53,6 +53,14 @@ export function useArchiveCompanies() {
   });
 }
 
+export function useRestoreCompanies() {
+  const invalidate = useInvalidateCompanies();
+  return useMutation({
+    mutationFn: (ids: number[]) => api.restoreCompanies(ids),
+    onSuccess: invalidate,
+  });
+}
+
 export function useDeleteCompanies() {
   const invalidate = useInvalidateCompanies();
   return useMutation({

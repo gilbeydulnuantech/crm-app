@@ -46,6 +46,7 @@ const ENTITY_LABELS: Record<DashboardActivity['entity_type'], string> = {
   contact: 'contact',
   opportunity: 'deal',
   task: 'task',
+  company: 'company',
 };
 
 function activityLine(a: DashboardActivity): { main: string; detail?: string } {
@@ -56,7 +57,7 @@ function activityLine(a: DashboardActivity): { main: string; detail?: string } {
     case 'moved':
       return { main: `${actor} moved ${name}`, detail: a.detail ?? undefined };
     case 'created':
-      return { main: `${actor} created new deal "${name}"` };
+      return { main: `${actor} created new ${kind} "${name}"` };
     case 'completed':
       return { main: `${actor} completed task "${name}"` };
     case 'archived':

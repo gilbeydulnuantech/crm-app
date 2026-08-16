@@ -5,6 +5,7 @@ interface Props {
   view: CompaniesView;
   selectedCount: number;
   onArchiveSelected: () => void;
+  onRestoreSelected: () => void;
   onDeleteSelected: () => void;
   onExport: () => void;
 }
@@ -13,6 +14,7 @@ export default function CompaniesBulkActionsMenu({
   view,
   selectedCount,
   onArchiveSelected,
+  onRestoreSelected,
   onDeleteSelected,
   onExport,
 }: Props) {
@@ -37,7 +39,15 @@ export default function CompaniesBulkActionsMenu({
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
           <div className="absolute bottom-full mb-1 left-0 w-48 bg-white border border-slate-200 rounded-lg shadow-lg z-20 py-1 text-xs">
-            {view !== 'archived' && (
+            {view === 'archived' ? (
+              <button
+                disabled={selectedCount === 0}
+                onClick={() => run(onRestoreSelected)}
+                className="w-full text-left px-3 py-1.5 hover:bg-slate-50 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Restore Selected
+              </button>
+            ) : (
               <button
                 disabled={selectedCount === 0}
                 onClick={() => run(onArchiveSelected)}

@@ -98,6 +98,29 @@
     },
     {
       "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO activity_log (actor_id, verb, entity_type, entity_id, entity_name) VALUES ($1, 'created', 'contact', $2, $3);",
+        "options": {
+          "queryReplacement": "={{ [ $('Look Up Requester').first().json.id, $json.id, (($json.first_name || '') + ' ' + ($json.last_name || '')).trim() ] }}"
+        }
+      },
+      "id": "9a0b1c2d-3e4f-45a6-b7c8-9d0e1f2a3b4c",
+      "name": "Postgres: Log Activity (created)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1104,
+        160
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
         "respondWith": "json",
         "responseBody": "={{ { success: true, contact: $json } }}",
         "options": {
@@ -241,6 +264,11 @@
         [
           {
             "node": "Respond - Success",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Postgres: Log Activity (created)",
             "type": "main",
             "index": 0
           }

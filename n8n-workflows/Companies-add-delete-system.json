@@ -129,7 +129,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO companies (name, website, industry, city, state, country, phone, street_address, zip_code, owner_id, created_by, parent_company_id, tier, annual_revenue, employee_count, territory) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING id, name, is_archived, created_at;",
+        "query": "INSERT INTO companies (name, website, industry, city, state, country, phone, street_address, zip_code, owner_id, created_by, parent_company_id, tier, annual_revenue, employee_count, territory) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING id, name, is_archived, created_at, created_by;",
         "options": {
           "queryReplacement": "={{ [ $('Webhook: add-companies').first().json.body.name, $('Webhook: add-companies').first().json.body.website || null, $('Webhook: add-companies').first().json.body.industry || null, $('Webhook: add-companies').first().json.body.city || null, $('Webhook: add-companies').first().json.body.state || null, $('Webhook: add-companies').first().json.body.country || null, $('Webhook: add-companies').first().json.body.phone || null, $('Webhook: add-companies').first().json.body.street_address || null, $('Webhook: add-companies').first().json.body.zip_code || null, $('Webhook: add-companies').first().json.body.owner_id || null, $('Webhook: add-companies').first().json.body.requester_id || $('Webhook: add-companies').first().json.body.owner_id || null, $('Webhook: add-companies').first().json.body.parent_company_id || null, $('Webhook: add-companies').first().json.body.tier || null, $('Webhook: add-companies').first().json.body.annual_revenue || null, $('Webhook: add-companies').first().json.body.employee_count || null, $('Webhook: add-companies').first().json.body.territory || null ] }}"
         }
@@ -149,6 +149,29 @@
         }
       },
       "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO activity_log (actor_id, verb, entity_type, entity_id, entity_name) VALUES ($1, 'created', 'company', $2, $3);",
+        "options": {
+          "queryReplacement": "={{ [ $json.created_by, $json.id, $json.name ] }}"
+        }
+      },
+      "id": "1a2b3c4d-5e6f-47a8-b9c0-d1e2f3a4b5c6",
+      "name": "Postgres: Log Activity (created-companies)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        720,
+        900
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
     },
     {
       "parameters": {
@@ -245,7 +268,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE companies SET is_archived = true, updated_at = now() WHERE id = ANY($1::int[]) AND ($2 = 'admin' OR owner_id = $3) RETURNING id;",
+        "query": "UPDATE companies SET is_archived = true, updated_at = now() WHERE id = ANY($1::int[]) AND ($2 = 'admin' OR owner_id = $3) RETURNING id, name;",
         "options": {
           "queryReplacement": "={{ [ $('Webhook: archive-companies').first().json.body.ids, $('Look Up Requester: archive-companies').first().json.role, $('Look Up Requester: archive-companies').first().json.id ] }}"
         }
@@ -257,6 +280,75 @@
       "position": [
         720,
         1184
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO activity_log (actor_id, verb, entity_type, entity_id, entity_name) VALUES ($1, 'archived', 'company', $2, $3);",
+        "options": {
+          "queryReplacement": "={{ [ $('Look Up Requester: archive-companies').first().json.id, $json.id, $json.name ] }}"
+        }
+      },
+      "id": "2b3c4d5e-6f7a-48b9-c0d1-e2f3a4b5c6d7",
+      "name": "Postgres: Log Activity (archived-companies)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        820,
+        1104
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'contact', c.id, 'system_audit', 'archived', ($1 || ' archived the linked company \"' || $2 || '\"'), NULL, $3, $1\nFROM contacts c\nWHERE c.account_id = $4 AND c.is_archived = false;",
+        "options": {
+          "queryReplacement": "={{ [ $('Look Up Requester: archive-companies').first().json.name || 'Someone', $json.name, $('Look Up Requester: archive-companies').first().json.id, $json.id ] }}"
+        }
+      },
+      "id": "4d5e6f7a-8b9c-40d1-e2f3-a4b5c6d7e8f9",
+      "name": "Postgres: Log System Audit (archived-companies-contacts)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        820,
+        1344
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name) VALUES ('company', $1, 'system_audit', 'archived', $2, NULL, $3, $4);",
+        "options": {
+          "queryReplacement": "={{ [ $json.id, ($('Look Up Requester: archive-companies').first().json.name || 'Someone') + ' archived this company', $('Look Up Requester: archive-companies').first().json.id, $('Look Up Requester: archive-companies').first().json.name || 'Someone' ] }}"
+        }
+      },
+      "id": "3c4d5e6f-7a8b-49c0-d1e2-f3a4b5c6d7e8",
+      "name": "Postgres: Log System Audit (archived-companies)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        820,
+        1264
       ],
       "credentials": {
         "postgres": {
@@ -422,7 +514,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
         "options": {
           "queryReplacement": "={{ [ $json.requesterId ] }}"
         }
@@ -803,6 +895,187 @@
         1000
       ],
       "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "restore-companies",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "6a7b8c9d-0e1f-42a3-b4c5-d6e7f8a9b0c1",
+      "name": "Webhook: restore-companies",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        496,
+        1600
+      ],
+      "webhookId": "7b8c9d0e-1f2a-43b4-c5d6-e7f8a9b0c1d2"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "8c9d0e1f-2a3b-44c5-d6e7-f8a9b0c1d2e3",
+      "name": "Parse Token: restore-companies",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        656,
+        1600
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "9d0e1f2a-3b4c-45d6-e7f8-a9b0c1d2e3f4",
+      "name": "Look Up Requester: restore-companies",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        856,
+        1600
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE companies SET is_archived = false, updated_at = now() WHERE id = ANY($1::int[]) AND ($2 = 'admin' OR owner_id = $3) RETURNING id, name;",
+        "options": {
+          "queryReplacement": "={{ [ $('Webhook: restore-companies').first().json.body.ids, $('Look Up Requester: restore-companies').first().json.role, $('Look Up Requester: restore-companies').first().json.id ] }}"
+        }
+      },
+      "id": "a0e1f2a3-4b5c-46d7-e8f9-a0b1c2d3e4f5",
+      "name": "Postgres: Restore Companies",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1056,
+        1600
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true } }}",
+        "options": {}
+      },
+      "id": "b1f2a3b4-5c6d-47e8-f9a0-b1c2d3e4f5a6",
+      "name": "Respond: restore-companies",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1280,
+        1600
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Restore failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "c2a3b4c5-6d7e-48f9-a0b1-c2d3e4f5a6b7",
+      "name": "Respond - Error: restore-companies",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        856,
+        1760
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO activity_log (actor_id, verb, entity_type, entity_id, entity_name) VALUES ($1, 'restored', 'company', $2, $3);",
+        "options": {
+          "queryReplacement": "={{ [ $('Look Up Requester: restore-companies').first().json.id, $json.id, $json.name ] }}"
+        }
+      },
+      "id": "d3b4c5d6-7e8f-49a0-b1c2-d3e4f5a6b7c8",
+      "name": "Postgres: Log Activity (restored-companies)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1180,
+        1520
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name) VALUES ('company', $1, 'system_audit', 'restored', $2, NULL, $3, $4);",
+        "options": {
+          "queryReplacement": "={{ [ $json.id, ($('Look Up Requester: restore-companies').first().json.name || 'Someone') + ' restored this company', $('Look Up Requester: restore-companies').first().json.id, $('Look Up Requester: restore-companies').first().json.name || 'Someone' ] }}"
+        }
+      },
+      "id": "e4c5d6e7-8f9a-40b1-c2d3-e4f5a6b7c8d9",
+      "name": "Postgres: Log System Audit (restored-companies)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1180,
+        1680
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'contact', c.id, 'system_audit', 'restored', ($1 || ' restored the linked company \"' || $2 || '\"'), NULL, $3, $1\nFROM contacts c\nWHERE c.account_id = $4 AND c.is_archived = false;",
+        "options": {
+          "queryReplacement": "={{ [ $('Look Up Requester: restore-companies').first().json.name || 'Someone', $json.name, $('Look Up Requester: restore-companies').first().json.id, $json.id ] }}"
+        }
+      },
+      "id": "f5d6e7f8-9a0b-41c2-d3e4-f5a6b7c8d9e0",
+      "name": "Postgres: Log System Audit (restored-companies-contacts)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1180,
+        1840
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
     }
   ],
   "pinData": {},
@@ -874,6 +1147,11 @@
             "node": "Prepare Contact Link: add-companies",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Postgres: Log Activity (created-companies)",
+            "type": "main",
+            "index": 0
           }
         ],
         [
@@ -930,6 +1208,94 @@
         [
           {
             "node": "Respond: archive-companies",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Postgres: Log Activity (archived-companies)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Postgres: Log System Audit (archived-companies)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Postgres: Log System Audit (archived-companies-contacts)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: restore-companies": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: restore-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: restore-companies": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: restore-companies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: restore-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: restore-companies": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Restore Companies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: restore-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Restore Companies": {
+      "main": [
+        [
+          {
+            "node": "Respond: restore-companies",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Postgres: Log Activity (restored-companies)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Postgres: Log System Audit (restored-companies)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Postgres: Log System Audit (restored-companies-contacts)",
             "type": "main",
             "index": 0
           }

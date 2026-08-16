@@ -8,6 +8,7 @@ import {
   useArchiveCompanies,
   useCompanies,
   useDeleteCompanies,
+  useRestoreCompanies,
 } from '../hooks/useCompanies';
 import { useContacts, useUsers } from '../hooks/useContacts';
 import CompaniesTabs from '../components/companies/CompaniesTabs';
@@ -65,6 +66,7 @@ export default function Companies() {
   const { data: allContacts = [] } = useContacts();
   const { data: teamUsers = [] } = useUsers();
   const archiveCompanies = useArchiveCompanies();
+  const restoreCompanies = useRestoreCompanies();
   const deleteCompanies = useDeleteCompanies();
 
   // Reactive like Contacts' activeContact — always reflects the latest data
@@ -184,6 +186,15 @@ export default function Companies() {
       },
       onError: (err) => setBulkArchiveError(err instanceof Error ? err.message : 'Failed to archive.'),
     });
+  }
+
+  function handleRestoreSelected() {
+    if (selectedIds.size === 0) return;
+    restoreCompanies.mutate(Array.from(selectedIds), { onSuccess: () => setSelectedIds(new Set()) });
+  }
+
+  function handleRestoreOne(company: Company) {
+    restoreCompanies.mutate([company.id]);
   }
 
   function handleDeleteSelected() {
@@ -309,6 +320,8 @@ export default function Companies() {
           onRowClick={(c) => setActiveCompanyId(c.id)}
           onEdit={openEditModal}
           onDelete={handleDeleteOne}
+          onRestore={handleRestoreOne}
+          view={view}
           isLoading={isLoadingArchived}
           isAdmin={isAdmin}
           currentUserId={user?.id}
@@ -330,6 +343,7 @@ export default function Companies() {
             view={view}
             selectedCount={selectedIds.size}
             onArchiveSelected={handleArchiveSelected}
+            onRestoreSelected={handleRestoreSelected}
             onDeleteSelected={handleDeleteSelected}
             onExport={handleExport}
           />
