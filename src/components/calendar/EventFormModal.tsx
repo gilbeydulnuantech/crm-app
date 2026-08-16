@@ -5,6 +5,7 @@ import { useContacts, useSendContactEmail, useUsers } from '../../hooks/useConta
 import { useAuth } from '../../context/AuthContext';
 import { toTitleCase } from '../../utils/text';
 import ContactPicker from '../pipeline/ContactPicker';
+import CompanyPicker from '../contacts/CompanyPicker';
 import ResourcePicker from './ResourcePicker';
 
 interface Props {
@@ -12,6 +13,8 @@ interface Props {
   event: CalendarEvent | null; // null = add mode
   defaultDate?: Date | null;
   defaultContactId?: number | null;
+  defaultAccountId?: number | null;
+  defaultCompanyName?: string;
   onClose: () => void;
 }
 
@@ -20,6 +23,7 @@ const EMPTY = {
   type: 'meeting' as EventType,
   contact_id: '',
   contact_name: '',
+  account_id: '',
   company_name: '',
   date: '',
   startTime: '',
@@ -84,7 +88,15 @@ function TypeSelect({ value, onChange }: { value: EventType; onChange: (t: Event
   );
 }
 
-export default function EventFormModal({ open, event, defaultDate, defaultContactId, onClose }: Props) {
+export default function EventFormModal({
+  open,
+  event,
+  defaultDate,
+  defaultContactId,
+  defaultAccountId,
+  defaultCompanyName,
+  onClose,
+}: Props) {
   const { user } = useAuth();
   const { data: users = [] } = useUsers();
   const { data: contacts = [] } = useContacts();
@@ -106,6 +118,7 @@ export default function EventFormModal({ open, event, defaultDate, defaultContac
         type: event.type ?? 'meeting',
         contact_id: event.contact_id ? String(event.contact_id) : '',
         contact_name: event.contact_name ?? '',
+        account_id: event.company_id ? String(event.company_id) : '',
         company_name: event.company_name ?? '',
         date: toDateInput(event.due_at),
         startTime: toTimeInput(event.due_at),
@@ -123,7 +136,12 @@ export default function EventFormModal({ open, event, defaultDate, defaultContac
         ...EMPTY,
         contact_id: defaultContactId ? String(defaultContactId) : '',
         contact_name: defaultContact ? `${defaultContact.first_name} ${defaultContact.last_name}`.trim() : '',
-        company_name: defaultContact?.company_name ?? '',
+        account_id: defaultContact?.account_id
+          ? String(defaultContact.account_id)
+          : defaultAccountId
+            ? String(defaultAccountId)
+            : '',
+        company_name: defaultContact?.company_name ?? defaultCompanyName ?? '',
         date: toDateInput(base.toISOString()),
         startTime: '09:00',
         assigned_user: user ? String(user.id) : '',
@@ -131,7 +149,7 @@ export default function EventFormModal({ open, event, defaultDate, defaultContac
     }
     setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [event, open, defaultDate, defaultContactId, user]);
+  }, [event, open, defaultDate, defaultContactId, defaultAccountId, defaultCompanyName, user]);
 
   // Which resources are already booked by another event overlapping this
   // date/time — informational, not a hard block on selecting them anyway.
@@ -212,6 +230,7 @@ export default function EventFormModal({ open, event, defaultDate, defaultContac
       ...f,
       contact_id: id ? String(id) : '',
       contact_name: name,
+      account_id: matched?.account_id ? String(matched.account_id) : f.account_id,
       company_name: matched?.company_name ?? (id ? f.company_name : ''),
       // Only auto-fill if the user hasn't already typed a location.
       location:
@@ -236,6 +255,7 @@ export default function EventFormModal({ open, event, defaultDate, defaultContac
       type: form.type,
       body: form.body || undefined,
       contact_id: form.contact_id ? Number(form.contact_id) : null,
+      account_id: form.account_id ? Number(form.account_id) : null,
       user_id: form.assigned_user ? Number(form.assigned_user) : null,
       due_at,
       end_at: combineDateTime(form.date, form.endTime),
@@ -314,13 +334,15 @@ export default function EventFormModal({ open, event, defaultDate, defaultContac
               contactId={form.contact_id ? Number(form.contact_id) : null}
               contactName={form.contact_name}
               onChange={handleContactChange}
+              accountId={form.account_id ? Number(form.account_id) : null}
             />
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Company</label>
-              <div className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg bg-slate-50 text-slate-500 truncate">
-                {toTitleCase(form.company_name) || '--'}
-              </div>
-            </div>
+            <CompanyPicker
+              accountId={form.account_id ? Number(form.account_id) : null}
+              companyName={form.company_name}
+              onChange={(accountId, name) =>
+                setForm((f) => ({ ...f, account_id: accountId ? String(accountId) : '', company_name: name }))
+              }
+            />
           </div>
 
           <div>

@@ -22,6 +22,8 @@ import { startDm, sendMessage } from '../../api/chat';
 interface Props {
   open: boolean;
   defaultContactId?: number;
+  defaultAccountId?: number;
+  defaultCompanyName?: string;
   defaultOpportunity?: Opportunity | null;
   onClose: () => void;
 }
@@ -52,7 +54,14 @@ function combineDateTime(date: string, time: string): string | null {
   return new Date(`${date}T${time || '09:00'}`).toISOString();
 }
 
-export default function TaskFormModal({ open, defaultContactId, defaultOpportunity, onClose }: Props) {
+export default function TaskFormModal({
+  open,
+  defaultContactId,
+  defaultAccountId,
+  defaultCompanyName,
+  defaultOpportunity,
+  onClose,
+}: Props) {
   const { user } = useAuth();
   const { data: users = [] } = useUsers();
   const { data: contacts = [] } = useContacts();
@@ -91,8 +100,12 @@ export default function TaskFormModal({ open, defaultContactId, defaultOpportuni
         ...EMPTY,
         contact_id: defaultContactId ? String(defaultContactId) : '',
         contact_name: defaultContact ? `${defaultContact.first_name} ${defaultContact.last_name}`.trim() : '',
-        account_id: defaultContact?.account_id ? String(defaultContact.account_id) : '',
-        account_name: defaultContact?.company_name ?? '',
+        account_id: defaultContact?.account_id
+          ? String(defaultContact.account_id)
+          : defaultAccountId
+            ? String(defaultAccountId)
+            : '',
+        account_name: defaultContact?.company_name ?? defaultCompanyName ?? '',
         assigned_user: user ? String(user.id) : '',
         date: toDateInput(new Date().toISOString()),
       });
@@ -101,7 +114,7 @@ export default function TaskFormModal({ open, defaultContactId, defaultOpportuni
     setSendReminder(false);
     setReminderMinutes(30);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, defaultContactId, defaultOpportunity, user]);
+  }, [open, defaultContactId, defaultAccountId, defaultCompanyName, defaultOpportunity, user]);
 
   const contactDeals = useMemo(
     () => (form.contact_id ? allDeals.filter((d) => d.contact_id === Number(form.contact_id)) : []),
@@ -289,6 +302,7 @@ export default function TaskFormModal({ open, defaultContactId, defaultOpportuni
               contactId={form.contact_id ? Number(form.contact_id) : null}
               contactName={form.contact_name}
               onChange={handleContactChange}
+              accountId={form.account_id ? Number(form.account_id) : null}
             />
             <CompanyPicker
               accountId={form.account_id ? Number(form.account_id) : null}

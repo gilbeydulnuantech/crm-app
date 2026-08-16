@@ -1,24 +1,38 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Company } from '../../types/company';
 import { Contact } from '../../types/contact';
+import { CalendarEvent } from '../../types/event';
 import { ActivityLogEntry } from '../../types/activity';
 import { useContacts, useUsers } from '../../hooks/useContacts';
 import { usePipelines, useAllOpportunities, useAllStages } from '../../hooks/useOpportunities';
 import { useEntityActivity } from '../../hooks/useActivity';
 import { useAddNote, useDeleteNote, useNotes, useUpdateNote } from '../../hooks/useNotes';
 import { useUpdateCompany } from '../../hooks/useCompanies';
+import { useTasks } from '../../hooks/useTasks';
+import { useEvents } from '../../hooks/useEvents';
 import * as chatApi from '../../api/chat';
-import { toTitleCase } from '../../utils/text';
+import { toTitleCase, formatPhone } from '../../utils/text';
 import { DEFAULT_USER_COLOR, hexToRgba } from '../../utils/userColor';
+import { COMPANY_HEALTH_DISPLAY } from '../../utils/companyHealth';
 import DealFormModal from '../pipeline/DealFormModal';
 import AddContactModal from '../contacts/AddContactModal';
+import TaskFormModal from '../tasks/TaskFormModal';
+import EventFormModal from '../calendar/EventFormModal';
+import EventQuickView from '../calendar/EventQuickView';
 import LogCallModal from '../LogCallModal';
 import ComposeEmailPopover from '../contacts/ComposeEmailPopover';
 import ActivityTimeline from '../ActivityTimeline';
 import ActivityLogModal from '../ActivityLogModal';
 import ConfirmDialog from '../ConfirmDialog';
+
+const ACCOUNT_STATUS_COLORS: Record<string, string> = {
+  Prospect: 'bg-slate-100 text-slate-700',
+  'Customer - Active': 'bg-emerald-100 text-emerald-800',
+  'Customer - Churned': 'bg-rose-100 text-rose-700',
+  Partner: 'bg-blue-100 text-blue-800',
+};
 
 const STATUS_COLORS: Record<string, string> = {
   New: 'bg-slate-100 text-slate-800',
@@ -45,6 +59,33 @@ interface Props {
   currentUserId?: number;
 }
 
+function ActionButton({
+  icon,
+  label,
+  onClick,
+  disabled,
+  title,
+}: {
+  icon: string;
+  label: string;
+  onClick?: () => void;
+  disabled?: boolean;
+  title?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled || !onClick}
+      title={title}
+      className="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-lg text-slate-600 hover:bg-white hover:shadow-sm disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:shadow-none transition-colors"
+    >
+      <i className={`fa-solid ${icon} text-sm`} />
+      <span className="text-[11px] font-medium">{label}</span>
+    </button>
+  );
+}
+
 export default function CompanyDetailModal({
   company,
   onClose,
@@ -56,6 +97,7 @@ export default function CompanyDetailModal({
 }: Props) {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const notesRef = useRef<HTMLDivElement>(null);
   const [dealFormOpen, setDealFormOpen] = useState(false);
   const [addContactOpen, setAddContactOpen] = useState(false);
   const [logCallOpen, setLogCallOpen] = useState(false);
@@ -67,8 +109,15 @@ export default function CompanyDetailModal({
   const [deleteNoteTargetId, setDeleteNoteTargetId] = useState<number | null>(null);
   const [deleteNoteError, setDeleteNoteError] = useState<string | null>(null);
   const NOTES_PAGE_SIZE = 10;
+  const LINKED_PAGE_SIZE = 5;
   const [visibleNotesCount, setVisibleNotesCount] = useState(NOTES_PAGE_SIZE);
+  const [visibleTasksCount, setVisibleTasksCount] = useState(LINKED_PAGE_SIZE);
+  const [visibleEventsCount, setVisibleEventsCount] = useState(LINKED_PAGE_SIZE);
   const [selectedActivity, setSelectedActivity] = useState<ActivityLogEntry | null>(null);
+  const [taskFormOpen, setTaskFormOpen] = useState(false);
+  const [eventFormOpen, setEventFormOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
+  const [quickViewEvent, setQuickViewEvent] = useState<CalendarEvent | null>(null);
 
   // A read-only company otherwise dead-ends the rep — no path forward
   // except finding the right person outside the app. DMs whoever can
@@ -103,6 +152,8 @@ export default function CompanyDetailModal({
 
   useEffect(() => {
     setVisibleNotesCount(NOTES_PAGE_SIZE);
+    setVisibleTasksCount(LINKED_PAGE_SIZE);
+    setVisibleEventsCount(LINKED_PAGE_SIZE);
     setRequestSentConversationId(null);
     setDeleteNoteTargetId(null);
     setDeleteNoteError(null);
@@ -123,6 +174,21 @@ export default function CompanyDetailModal({
   const addNote = useAddNote('company', company?.id ?? null);
   const updateNote = useUpdateNote('company', company?.id ?? null);
   const deleteNote = useDeleteNote('company', company?.id ?? null);
+  const { data: allTasks = [] } = useTasks();
+  // get-events is date-range scoped (no "all events for a company" endpoint
+  // exists) — a wide ±1 year window is a pragmatic stand-in, same tradeoff
+  // as ContactDetailModal's Events section.
+  const eventsRangeStart = useMemo(() => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - 1);
+    return d.toISOString().slice(0, 10);
+  }, []);
+  const eventsRangeEnd = useMemo(() => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() + 1);
+    return d.toISOString().slice(0, 10);
+  }, []);
+  const { data: allEvents = [] } = useEvents(eventsRangeStart, eventsRangeEnd, !!company);
 
   if (!company) return null;
 
@@ -140,8 +206,34 @@ export default function CompanyDetailModal({
   ].filter((section) => section.items.length > 0);
   const stageName = (stageId: number) => stages.find((s) => s.id === stageId)?.name ?? '--';
 
+  // No contract-value/ARR column exists in the schema — this sums Won deals
+  // as the closest real proxy (same computation CompaniesTable's ARR column
+  // already uses), rather than showing a fabricated number.
+  const wonValue = companyOpportunities
+    .filter((o) => o.status === 'Won')
+    .reduce((sum, o) => sum + Number(o.deal_value ?? 0), 0);
+  const openPipelineValue = companyOpportunities
+    .filter((o) => o.status === 'Open')
+    .reduce((sum, o) => sum + Number(o.deal_value ?? 0), 0);
+
+  const companyTasks = allTasks.filter((t) => t.account_id === company.id);
+  const companyEvents = allEvents
+    .filter((e) => e.company_id === company.id)
+    .sort((a, b) => new Date(b.due_at).getTime() - new Date(a.due_at).getTime());
+
   function openAddDeal() {
     setDealFormOpen(true);
+  }
+
+  function openTaskView(taskId: number) {
+    onClose();
+    navigate(`/tasks?highlight=${taskId}`);
+  }
+
+  function openParentCompany() {
+    if (!company!.parent_company_id) return;
+    onClose();
+    navigate(`/companies?companyId=${company!.parent_company_id}`);
   }
 
   // Takes over the deal's real pipeline (it may not be the default one) and
@@ -169,9 +261,18 @@ export default function CompanyDetailModal({
           {/* Column 1: Identity + Firmographics + Contacts + Opportunities */}
           <div className="border-r border-slate-200 overflow-y-auto p-5 space-y-5">
             <div className="border border-slate-200 rounded-xl p-4 space-y-1.5">
+              <div className="flex items-start gap-3">
+                <div className="w-14 h-14 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-lg shrink-0">
+                  <i className="fa-solid fa-building" />
+                </div>
+                <div className="min-w-0 flex-1 pt-1">
               <h2 className="text-base font-bold text-slate-800 truncate flex items-center gap-1.5">
                 {toTitleCase(company.name)}
-                {company.tier && <span className="text-xs text-slate-400 font-medium">({company.tier})</span>}
+                {company.tier && (
+                  <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded-full bg-indigo-50 text-indigo-700 shrink-0">
+                    {company.tier}
+                  </span>
+                )}
                 {canEdit && (
                   <button
                     onClick={() => onEdit(company)}
@@ -192,7 +293,18 @@ export default function CompanyDetailModal({
                 )}
               </h2>
               <p className="text-xs text-slate-500 flex items-center gap-1.5 flex-wrap">
-                {company.parent_company_name && <span>Parent: {toTitleCase(company.parent_company_name)}</span>}
+                {company.parent_company_name && (
+                  <span>
+                    Parent:{' '}
+                    {company.parent_company_id ? (
+                      <button onClick={openParentCompany} className="text-indigo-600 hover:underline font-medium">
+                        {toTitleCase(company.parent_company_name)}
+                      </button>
+                    ) : (
+                      toTitleCase(company.parent_company_name)
+                    )}
+                  </span>
+                )}
                 {company.parent_company_name && company.industry && <span className="text-slate-300">|</span>}
                 {company.industry && <span>Industry: {toTitleCase(company.industry)}</span>}
                 <span className="text-slate-300">|</span>
@@ -309,11 +421,60 @@ export default function CompanyDetailModal({
                 })()}
               </p>
 
+              <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                {company.is_archived ? (
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 text-slate-500">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                    Archived
+                  </span>
+                ) : (
+                  <>
+                    {company.account_status && (
+                      <span
+                        className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                          ACCOUNT_STATUS_COLORS[company.account_status] ?? 'bg-slate-100 text-slate-700'
+                        }`}
+                      >
+                        {company.account_status}
+                      </span>
+                    )}
+                    {company.account_health && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-slate-50 border border-slate-200 text-slate-700">
+                        {COMPANY_HEALTH_DISPLAY[company.account_health]?.emoji ?? '⚪'}
+                        {COMPANY_HEALTH_DISPLAY[company.account_health]?.label ?? company.account_health}
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
+                </div>
+              </div>
+
+              {/* Account value — the first thing an exec check-in needs: what
+                  this account is actually worth, not just its own firmographic
+                  size. No contract-value/renewal-date column exists in the
+                  schema yet, so Won-deal total is used as the closest real
+                  proxy instead of fabricating a number. */}
+              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+                <div className="bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2">
+                  <p className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wide">Revenue Won</p>
+                  <p className="text-base font-bold text-emerald-800">
+                    ${wonValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </p>
+                </div>
+                <div className="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+                  <p className="text-[10px] font-semibold text-blue-700 uppercase tracking-wide">Open Pipeline</p>
+                  <p className="text-base font-bold text-blue-800">
+                    ${openPipelineValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </p>
+                </div>
+              </div>
+
               <div className="pt-2 border-t border-slate-100">
                 <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Firmographics</h3>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                   <DetailField label="Website" value={company.website} />
-                  <DetailField label="Phone" value={company.phone} />
+                  <DetailField label="Phone" value={formatPhone(company.phone)} />
                   <DetailField label="Revenue" value={company.annual_revenue ?? undefined} />
                   <DetailField label="Employees" value={company.employee_count ?? undefined} />
                   <DetailField
@@ -326,19 +487,36 @@ export default function CompanyDetailModal({
                   />
                   <DetailField label="Region" value={company.territory ?? undefined} />
                 </div>
-                <div className="mt-3">
-                  <label className="block text-[11px] font-medium text-slate-500 mb-1">Status</label>
-                  <span
-                    className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium rounded-full ${
-                      company.is_archived ? 'bg-slate-100 text-slate-500' : 'bg-emerald-100 text-emerald-800'
-                    }`}
-                  >
-                    <span
-                      className={`w-1.5 h-1.5 rounded-full ${company.is_archived ? 'bg-slate-400' : 'bg-emerald-500'}`}
-                    />
-                    {company.is_archived ? 'Archived' : 'Active'}
-                  </span>
-                </div>
+              </div>
+
+              <div className="flex items-stretch gap-1 bg-slate-50 border border-slate-200 rounded-xl p-1.5">
+                <ActionButton
+                  icon="fa-phone"
+                  label="Call"
+                  onClick={() => setLogCallOpen(true)}
+                />
+                <ActionButton
+                  icon="fa-note-sticky"
+                  label="Notes"
+                  onClick={() => notesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                />
+                <ActionButton
+                  icon="fa-check"
+                  label="Tasks"
+                  onClick={canEdit ? () => setTaskFormOpen(true) : undefined}
+                />
+                <ActionButton
+                  icon="fa-calendar-plus"
+                  label="Event"
+                  onClick={
+                    canEdit
+                      ? () => {
+                          setEditingEvent(null);
+                          setEventFormOpen(true);
+                        }
+                      : undefined
+                  }
+                />
               </div>
             </div>
 
@@ -502,6 +680,113 @@ export default function CompanyDetailModal({
                 </div>
               )}
             </div>
+
+            <div className="pt-2 border-t border-slate-100">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                  Tasks ({companyTasks.length})
+                </h3>
+                {canEdit && (
+                  <button
+                    onClick={() => setTaskFormOpen(true)}
+                    className="text-xs font-semibold text-indigo-600 hover:underline"
+                  >
+                    + New Task
+                  </button>
+                )}
+              </div>
+              {companyTasks.length === 0 ? (
+                <p className="text-xs text-slate-400">No tasks linked to this company yet.</p>
+              ) : (
+                <>
+                  <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg">
+                    {companyTasks.slice(0, visibleTasksCount).map((t) => (
+                      <div key={t.id} className="px-3 py-2.5 space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className={`text-sm font-medium truncate ${t.is_completed ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
+                            {toTitleCase(t.subject)}
+                          </p>
+                          {t.priority && (
+                            <span className="text-[10px] font-semibold text-slate-500 shrink-0">{t.priority}</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500">
+                          {t.assigned_user_name ? `Owner: ${toTitleCase(t.assigned_user_name)}` : 'Unassigned'}
+                          {t.due_at &&
+                            ` · Due ${new Date(t.due_at).toLocaleDateString(undefined, { month: 'short', day: '2-digit' })}`}
+                        </p>
+                        <button
+                          onClick={() => openTaskView(t.id)}
+                          className="w-full mt-1.5 text-xs font-semibold text-indigo-600 border border-indigo-200 rounded-lg py-1.5 hover:bg-indigo-50"
+                        >
+                          View Task
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  {companyTasks.length > visibleTasksCount && (
+                    <button
+                      onClick={() => setVisibleTasksCount((c) => c + LINKED_PAGE_SIZE)}
+                      className="w-full mt-1.5 text-xs font-semibold text-[var(--theme-accent)] hover:underline py-1"
+                    >
+                      Show {Math.min(companyTasks.length - visibleTasksCount, LINKED_PAGE_SIZE)} more (
+                      {companyTasks.length - visibleTasksCount} remaining)
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className="pt-2 border-t border-slate-100">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                  Events ({companyEvents.length})
+                </h3>
+                {canEdit && (
+                  <button
+                    onClick={() => {
+                      setEditingEvent(null);
+                      setEventFormOpen(true);
+                    }}
+                    className="text-xs font-semibold text-indigo-600 hover:underline"
+                  >
+                    + New Event
+                  </button>
+                )}
+              </div>
+              {companyEvents.length === 0 ? (
+                <p className="text-xs text-slate-400">No events linked to this company yet.</p>
+              ) : (
+                <>
+                  <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg">
+                    {companyEvents.slice(0, visibleEventsCount).map((e) => (
+                      <div key={e.id} className="px-3 py-2.5 space-y-1">
+                        <p className="text-sm font-medium text-slate-800 truncate">{toTitleCase(e.subject)}</p>
+                        <p className="text-xs text-slate-500">
+                          {new Date(e.due_at).toLocaleDateString(undefined, { month: 'short', day: '2-digit', year: 'numeric' })}
+                          {e.assigned_user_name ? ` · ${toTitleCase(e.assigned_user_name)}` : ''}
+                        </p>
+                        <button
+                          onClick={() => setQuickViewEvent(e)}
+                          className="w-full mt-1.5 text-xs font-semibold text-indigo-600 border border-indigo-200 rounded-lg py-1.5 hover:bg-indigo-50"
+                        >
+                          View Event
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  {companyEvents.length > visibleEventsCount && (
+                    <button
+                      onClick={() => setVisibleEventsCount((c) => c + LINKED_PAGE_SIZE)}
+                      className="w-full mt-1.5 text-xs font-semibold text-[var(--theme-accent)] hover:underline py-1"
+                    >
+                      Show {Math.min(companyEvents.length - visibleEventsCount, LINKED_PAGE_SIZE)} more (
+                      {companyEvents.length - visibleEventsCount} remaining)
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
           </div>
 
           {/* Column 2: Activity Timeline */}
@@ -516,7 +801,7 @@ export default function CompanyDetailModal({
           </div>
 
           {/* Column 3: Notes & Account Team */}
-          <div className="overflow-y-auto p-5 space-y-5">
+          <div ref={notesRef} className="overflow-y-auto p-5 space-y-5">
             <div>
               <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Notes</h3>
               <textarea
@@ -702,6 +987,39 @@ export default function CompanyDetailModal({
         defaultAccountId={company.id}
         defaultCompanyName={company.name}
         onClose={() => setAddContactOpen(false)}
+      />
+      <TaskFormModal
+        open={taskFormOpen}
+        defaultAccountId={company.id}
+        defaultCompanyName={company.name}
+        onClose={() => setTaskFormOpen(false)}
+      />
+      <EventFormModal
+        open={eventFormOpen}
+        event={editingEvent}
+        defaultAccountId={company.id}
+        defaultCompanyName={company.name}
+        onClose={() => {
+          setEventFormOpen(false);
+          setEditingEvent(null);
+        }}
+      />
+      <EventQuickView
+        event={quickViewEvent}
+        onClose={() => setQuickViewEvent(null)}
+        onViewFullDetails={(event) => {
+          setQuickViewEvent(null);
+          onClose();
+          const eventDate = event.due_at.slice(0, 10);
+          navigate(`/calendar?highlight=${event.id}&date=${eventDate}`);
+        }}
+        onEdit={(event) => {
+          setQuickViewEvent(null);
+          setEditingEvent(event);
+          setEventFormOpen(true);
+        }}
+        isAdmin={isAdmin}
+        currentUserId={currentUserId}
       />
       <LogCallModal
         open={logCallOpen}

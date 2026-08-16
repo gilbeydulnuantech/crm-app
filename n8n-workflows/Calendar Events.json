@@ -20,7 +20,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT a.id, a.contact_id, TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS contact_name, a.opportunity_id, o.name AS opportunity_name, co.id AS company_id, co.name AS company_name, a.user_id, u.name AS assigned_user_name, u.color AS assigned_user_color, a.type, a.subject, a.body, a.is_completed, a.due_at, a.end_at, a.location, a.is_all_day, a.completed_at, a.created_at,\n  (SELECT COALESCE(json_agg(json_build_object('id', r.id, 'name', r.name)), '[]'::json)\n   FROM activity_resources ar JOIN resources r ON r.id = ar.resource_id\n   WHERE ar.activity_id = a.id) AS resources\nFROM activities a LEFT JOIN contacts c ON c.id = a.contact_id LEFT JOIN opportunities o ON o.id = a.opportunity_id LEFT JOIN companies co ON co.id = COALESCE(o.account_id, c.account_id) LEFT JOIN users u ON u.id = a.user_id WHERE a.due_at IS NOT NULL AND a.due_at >= $1::date AND a.due_at <= ($2::date + interval '1 day') ORDER BY a.due_at ASC;",
+        "query": "SELECT a.id, a.contact_id, TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS contact_name, a.opportunity_id, o.name AS opportunity_name, co.id AS company_id, co.name AS company_name, a.user_id, u.name AS assigned_user_name, u.color AS assigned_user_color, a.type, a.subject, a.body, a.is_completed, a.due_at, a.end_at, a.location, a.is_all_day, a.completed_at, a.created_at,\n  (SELECT COALESCE(json_agg(json_build_object('id', r.id, 'name', r.name)), '[]'::json)\n   FROM activity_resources ar JOIN resources r ON r.id = ar.resource_id\n   WHERE ar.activity_id = a.id) AS resources\nFROM activities a LEFT JOIN contacts c ON c.id = a.contact_id LEFT JOIN opportunities o ON o.id = a.opportunity_id LEFT JOIN companies co ON co.id = COALESCE(a.account_id, o.account_id, c.account_id) LEFT JOIN users u ON u.id = a.user_id WHERE a.due_at IS NOT NULL AND a.due_at >= $1::date AND a.due_at <= ($2::date + interval '1 day') ORDER BY a.due_at ASC;",
         "options": {
           "queryReplacement": "={{ [$('Webhook: get-events').first().json.query.start, $('Webhook: get-events').first().json.query.end] }}"
         }
@@ -91,9 +91,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO activities (contact_id, opportunity_id, user_id, type, subject, body, due_at, end_at, location, is_all_day) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, subject, due_at, created_at;",
+        "query": "INSERT INTO activities (contact_id, account_id, opportunity_id, user_id, type, subject, body, due_at, end_at, location, is_all_day) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id, subject, due_at, created_at;",
         "options": {
-          "queryReplacement": "={{ [$('Webhook: add-event').first().json.body.contact_id || null, $('Webhook: add-event').first().json.body.opportunity_id || null, $('Webhook: add-event').first().json.body.user_id || $('Webhook: add-event').first().json.body.requester_id || null, $('Webhook: add-event').first().json.body.type || 'meeting', $('Webhook: add-event').first().json.body.subject, $('Webhook: add-event').first().json.body.body || null, $('Webhook: add-event').first().json.body.due_at, $('Webhook: add-event').first().json.body.end_at || null, $('Webhook: add-event').first().json.body.location || null, $('Webhook: add-event').first().json.body.is_all_day === true || $('Webhook: add-event').first().json.body.is_all_day === 'true'] }}"
+          "queryReplacement": "={{ [$('Webhook: add-event').first().json.body.contact_id || null, $('Webhook: add-event').first().json.body.account_id || null, $('Webhook: add-event').first().json.body.opportunity_id || null, $('Webhook: add-event').first().json.body.user_id || $('Webhook: add-event').first().json.body.requester_id || null, $('Webhook: add-event').first().json.body.type || 'meeting', $('Webhook: add-event').first().json.body.subject, $('Webhook: add-event').first().json.body.body || null, $('Webhook: add-event').first().json.body.due_at, $('Webhook: add-event').first().json.body.end_at || null, $('Webhook: add-event').first().json.body.location || null, $('Webhook: add-event').first().json.body.is_all_day === true || $('Webhook: add-event').first().json.body.is_all_day === 'true'] }}"
         }
       },
       "id": "bf04f093-2874-4134-ac24-6669dd81340e",
@@ -137,7 +137,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH resolved AS (\n  SELECT COALESCE(a.contact_id, o.contact_id) AS contact_id,\n         COALESCE(c.account_id, o.account_id) AS account_id\n  FROM activities a\n  LEFT JOIN opportunities o ON o.id = a.opportunity_id\n  LEFT JOIN contacts c ON c.id = COALESCE(a.contact_id, o.contact_id)\n  WHERE a.id = $1\n)\nINSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'contact', r.contact_id, 'system_audit', 'created', COALESCE((SELECT name FROM users WHERE id = $3), 'Someone') || ' created event \"' || $2 || '\"', NULL::jsonb, $3, (SELECT name FROM users WHERE id = $3)\nFROM resolved r WHERE r.contact_id IS NOT NULL\nUNION ALL\nSELECT 'company', r.account_id, 'system_audit', 'created', COALESCE((SELECT name FROM users WHERE id = $3), 'Someone') || ' created event \"' || $2 || '\"', NULL::jsonb, $3, (SELECT name FROM users WHERE id = $3)\nFROM resolved r WHERE r.account_id IS NOT NULL;",
+        "query": "WITH resolved AS (\n  SELECT COALESCE(a.contact_id, o.contact_id) AS contact_id,\n         COALESCE(a.account_id, c.account_id, o.account_id) AS account_id\n  FROM activities a\n  LEFT JOIN opportunities o ON o.id = a.opportunity_id\n  LEFT JOIN contacts c ON c.id = COALESCE(a.contact_id, o.contact_id)\n  WHERE a.id = $1\n)\nINSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'contact', r.contact_id, 'system_audit', 'created', COALESCE((SELECT name FROM users WHERE id = $3), 'Someone') || ' created event \"' || $2 || '\"', NULL::jsonb, $3, (SELECT name FROM users WHERE id = $3)\nFROM resolved r WHERE r.contact_id IS NOT NULL\nUNION ALL\nSELECT 'company', r.account_id, 'system_audit', 'created', COALESCE((SELECT name FROM users WHERE id = $3), 'Someone') || ' created event \"' || $2 || '\"', NULL::jsonb, $3, (SELECT name FROM users WHERE id = $3)\nFROM resolved r WHERE r.account_id IS NOT NULL;",
         "options": {
           "queryReplacement": "={{ [ $json.id, $json.subject, $('Webhook: add-event').first().json.body.requester_id || $('Webhook: add-event').first().json.body.user_id || null ] }}"
         }
@@ -209,9 +209,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE activities SET subject = COALESCE($1, subject), body = COALESCE($2, body), type = COALESCE($3, type), contact_id = COALESCE($4, contact_id), opportunity_id = COALESCE($5, opportunity_id), user_id = COALESCE($6, user_id), due_at = COALESCE($7, due_at), is_completed = COALESCE($8, is_completed), completed_at = CASE WHEN $9::text IS NOT NULL THEN $9::timestamptz ELSE completed_at END, end_at = COALESCE($10, end_at), location = COALESCE($11, location), is_all_day = COALESCE($12, is_all_day) WHERE id = $13 AND ($14 = 'admin' OR user_id = $15) RETURNING id;",
+        "query": "UPDATE activities SET subject = COALESCE($1, subject), body = COALESCE($2, body), type = COALESCE($3, type), contact_id = COALESCE($4, contact_id), opportunity_id = COALESCE($5, opportunity_id), user_id = COALESCE($6, user_id), due_at = COALESCE($7, due_at), is_completed = COALESCE($8, is_completed), completed_at = CASE WHEN $9::text IS NOT NULL THEN $9::timestamptz ELSE completed_at END, end_at = COALESCE($10, end_at), location = COALESCE($11, location), is_all_day = COALESCE($12, is_all_day), account_id = COALESCE($13, account_id) WHERE id = $14 AND ($15 = 'admin' OR user_id = $16) RETURNING id;",
         "options": {
-          "queryReplacement": "={{ [$('Webhook: update-event').first().json.body.subject || null, $('Webhook: update-event').first().json.body.body || null, $('Webhook: update-event').first().json.body.type || null, $('Webhook: update-event').first().json.body.contact_id || null, $('Webhook: update-event').first().json.body.opportunity_id || null, $('Webhook: update-event').first().json.body.user_id || null, $('Webhook: update-event').first().json.body.due_at || null, $('Webhook: update-event').first().json.body.is_completed !== undefined ? $('Webhook: update-event').first().json.body.is_completed : null, $('Webhook: update-event').first().json.body.completed_at || null, $('Webhook: update-event').first().json.body.end_at || null, $('Webhook: update-event').first().json.body.location || null, $('Webhook: update-event').first().json.body.is_all_day !== undefined ? ($('Webhook: update-event').first().json.body.is_all_day === true || $('Webhook: update-event').first().json.body.is_all_day === 'true') : null, $('Webhook: update-event').first().json.body.id, $('Look Up Requester: update-event').first().json.role, $('Look Up Requester: update-event').first().json.id ] }}"
+          "queryReplacement": "={{ [$('Webhook: update-event').first().json.body.subject || null, $('Webhook: update-event').first().json.body.body || null, $('Webhook: update-event').first().json.body.type || null, $('Webhook: update-event').first().json.body.contact_id || null, $('Webhook: update-event').first().json.body.opportunity_id || null, $('Webhook: update-event').first().json.body.user_id || null, $('Webhook: update-event').first().json.body.due_at || null, $('Webhook: update-event').first().json.body.is_completed !== undefined ? $('Webhook: update-event').first().json.body.is_completed : null, $('Webhook: update-event').first().json.body.completed_at || null, $('Webhook: update-event').first().json.body.end_at || null, $('Webhook: update-event').first().json.body.location || null, $('Webhook: update-event').first().json.body.is_all_day !== undefined ? ($('Webhook: update-event').first().json.body.is_all_day === true || $('Webhook: update-event').first().json.body.is_all_day === 'true') : null, $('Webhook: update-event').first().json.body.account_id || null, $('Webhook: update-event').first().json.body.id, $('Look Up Requester: update-event').first().json.role, $('Look Up Requester: update-event').first().json.id ] }}"
         }
       },
       "id": "898a6266-6993-4969-b70d-65ae210ca328",
@@ -855,6 +855,7 @@
       "name": "Postgres: Check Event Conflict (Add)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
+      "alwaysOutputData": true,
       "position": [
         1264,
         100
@@ -909,6 +910,7 @@
       "name": "Postgres: Check Event Conflict (Update)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
+      "alwaysOutputData": true,
       "position": [
         1712,
         300

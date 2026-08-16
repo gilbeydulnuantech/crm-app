@@ -30,8 +30,9 @@ export interface CalendarEvent {
   contact_name?: string; // joined
   opportunity_id?: number | null;
   opportunity_name?: string; // joined
-  company_id?: number | null; // joined via the linked deal's account_id, falling
-  company_name?: string; // back to the linked contact's account_id when there's no deal
+  account_id?: number | null; // direct company link on the event itself
+  company_id?: number | null; // resolved: own account_id, else the linked deal's,
+  company_name?: string; // else the linked contact's — whichever is set first
   user_id?: number | null;
   assigned_user_name?: string; // joined
   assigned_user_color?: string; // joined from users.color

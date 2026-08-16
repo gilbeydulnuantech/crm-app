@@ -334,6 +334,7 @@ export default function DealFormModal({
                 contactId={form.contact_id ? Number(form.contact_id) : null}
                 contactName={form.contact_name}
                 onChange={handleContactChange}
+                accountId={form.account_id ? Number(form.account_id) : null}
               />
             )}
             <CompanyPicker
