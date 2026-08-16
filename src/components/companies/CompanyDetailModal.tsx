@@ -118,6 +118,7 @@ export default function CompanyDetailModal({
   const [eventFormOpen, setEventFormOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [quickViewEvent, setQuickViewEvent] = useState<CalendarEvent | null>(null);
+  const [relatedTab, setRelatedTab] = useState<'opportunities' | 'tasks' | 'events'>('tasks');
 
   // A read-only company otherwise dead-ends the rep — no path forward
   // except finding the right person outside the app. DMs whoever can
@@ -197,12 +198,43 @@ export default function CompanyDetailModal({
 
   const companyContacts = allContacts.filter((c) => c.account_id === company.id);
   const companyOpportunities = opportunities.filter((o) => o.account_id === company.id);
+  // Open items first, soonest-due/most-overdue before items further out;
+  // items with no date sort last within their group. Finished items (done
+  // tasks, closed deals) go after everything still actionable, most
+  // recently finished first — a rep triaging this account should see what
+  // needs attention before what's already handled.
+  const byDateAsc = (a?: string | null, b?: string | null) => {
+    if (!a && !b) return 0;
+    if (!a) return 1;
+    if (!b) return -1;
+    return new Date(a).getTime() - new Date(b).getTime();
+  };
   // Grouped into sections (Active, Closed Won, Closed Lost) instead of one
   // flat list, so closed deals are easy to spot separately from open ones.
+  // Active sorts soonest-expected-close first; closed sections sort most
+  // recently closed first.
   const dealSections = [
-    { key: 'active', label: 'Active', items: companyOpportunities.filter((d) => d.status === 'Open') },
-    { key: 'won', label: 'Closed Won', items: companyOpportunities.filter((d) => d.status === 'Won') },
-    { key: 'lost', label: 'Closed Lost', items: companyOpportunities.filter((d) => d.status === 'Lost') },
+    {
+      key: 'active',
+      label: 'Active',
+      items: [...companyOpportunities.filter((d) => d.status === 'Open')].sort((a, b) =>
+        byDateAsc(a.expected_close, b.expected_close)
+      ),
+    },
+    {
+      key: 'won',
+      label: 'Closed Won',
+      items: [...companyOpportunities.filter((d) => d.status === 'Won')].sort((a, b) =>
+        byDateAsc(b.closed_at ?? b.created_at, a.closed_at ?? a.created_at)
+      ),
+    },
+    {
+      key: 'lost',
+      label: 'Closed Lost',
+      items: [...companyOpportunities.filter((d) => d.status === 'Lost')].sort((a, b) =>
+        byDateAsc(b.closed_at ?? b.created_at, a.closed_at ?? a.created_at)
+      ),
+    },
   ].filter((section) => section.items.length > 0);
   const stageName = (stageId: number) => stages.find((s) => s.id === stageId)?.name ?? '--';
 
@@ -216,10 +248,14 @@ export default function CompanyDetailModal({
     .filter((o) => o.status === 'Open')
     .reduce((sum, o) => sum + Number(o.deal_value ?? 0), 0);
 
-  const companyTasks = allTasks.filter((t) => t.account_id === company.id);
-  const companyEvents = allEvents
-    .filter((e) => e.company_id === company.id)
-    .sort((a, b) => new Date(b.due_at).getTime() - new Date(a.due_at).getTime());
+  const companyTasks = [...allTasks.filter((t) => t.account_id === company.id)].sort((a, b) => {
+    if (a.is_completed !== b.is_completed) return a.is_completed ? 1 : -1;
+    return a.is_completed ? byDateAsc(b.due_at, a.due_at) : byDateAsc(a.due_at, b.due_at);
+  });
+  const companyEvents = [...allEvents.filter((e) => e.company_id === company.id)].sort((a, b) => {
+    if (a.is_completed !== b.is_completed) return a.is_completed ? 1 : -1;
+    return a.is_completed ? byDateAsc(b.due_at, a.due_at) : byDateAsc(a.due_at, b.due_at);
+  });
 
   function openAddDeal() {
     setDealFormOpen(true);
@@ -500,6 +536,7 @@ export default function CompanyDetailModal({
                   label="Notes"
                   onClick={() => notesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
                 />
+                <ActionButton icon="fa-handshake" label="Deal" onClick={canEdit ? openAddDeal : undefined} />
                 <ActionButton
                   icon="fa-check"
                   label="Tasks"
@@ -608,184 +645,164 @@ export default function CompanyDetailModal({
             </div>
 
             <div className="pt-2 border-t border-slate-100">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
-                  Opportunities ({companyOpportunities.length})
-                </h3>
-                {canEdit && (
+              <div className="flex items-center gap-1 border-b border-slate-200 mb-2">
+                {(
+                  [
+                    ['opportunities', `Opportunities (${companyOpportunities.length})`],
+                    ['tasks', `Tasks (${companyTasks.length})`],
+                    ['events', `Events (${companyEvents.length})`],
+                  ] as const
+                ).map(([key, label]) => (
                   <button
-                    onClick={openAddDeal}
-                    className="text-xs font-semibold text-indigo-600 hover:underline"
+                    key={key}
+                    onClick={() => setRelatedTab(key)}
+                    className={`px-2.5 py-1.5 text-xs font-semibold border-b-2 whitespace-nowrap transition-colors -mb-px ${
+                      relatedTab === key
+                        ? 'border-indigo-600 text-indigo-600'
+                        : 'border-transparent text-slate-400 hover:text-slate-600'
+                    }`}
                   >
-                    + New Deal
+                    {label}
                   </button>
-                )}
+                ))}
               </div>
 
-              {oppsLoading ? (
-                <p className="text-sm text-slate-400">Loading opportunities...</p>
-              ) : companyOpportunities.length === 0 ? (
-                <p className="text-xs text-slate-400">No opportunities for this company yet.</p>
-              ) : (
-                <div className="space-y-4">
-                  {dealSections.map((section) => {
-                    const color = DEAL_SECTION_COLORS[section.key] ?? { text: 'text-slate-400', border: 'border-slate-200' };
-                    return (
-                    <div key={section.key}>
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <span className={`text-[10px] font-bold uppercase tracking-wide shrink-0 ${color.text}`}>
-                          {section.label}
-                        </span>
-                        <div className={`flex-1 border-t ${color.border}`} />
-                      </div>
-                      <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg">
-                        {section.items.map((d) => {
-                          const isClosed = d.status !== 'Open';
-                          const closeDate = isClosed ? d.closed_at ?? d.created_at : d.expected_close;
-                          return (
-                            <div key={d.id} className="px-3 py-2.5 space-y-1">
-                              <div className="flex items-center justify-between gap-2">
-                                <p className="text-sm font-medium text-slate-800 truncate">{toTitleCase(d.name)}</p>
-                                <span className="text-sm font-semibold text-emerald-600 shrink-0">
-                                  {d.deal_value != null
-                                    ? `$${Number(d.deal_value).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
-                                    : '--'}
-                                </span>
-                              </div>
-                              <p className="text-xs text-slate-400 truncate">
-                                Stage: {stageName(d.stage_id)}
-                                {closeDate &&
-                                  ` | ${isClosed ? 'Closed' : 'Close'}: ${new Date(closeDate).toLocaleDateString(undefined, {
-                                    month: 'short',
-                                    day: '2-digit',
-                                    year: 'numeric',
-                                  })}`}
-                              </p>
-                              {d.status === 'Lost' && d.lost_reason && (
-                                <p className="text-xs text-rose-600">Lost Reason: {d.lost_reason}</p>
-                              )}
-                              <button
-                                onClick={() => openPipelineView(d.id, d.pipeline_id)}
-                                className="w-full mt-1.5 text-xs font-semibold text-indigo-600 border border-indigo-200 rounded-lg py-1.5 hover:bg-indigo-50"
-                              >
-                                View Deal
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            <div className="pt-2 border-t border-slate-100">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
-                  Tasks ({companyTasks.length})
-                </h3>
-                {canEdit && (
-                  <button
-                    onClick={() => setTaskFormOpen(true)}
-                    className="text-xs font-semibold text-indigo-600 hover:underline"
-                  >
-                    + New Task
-                  </button>
-                )}
-              </div>
-              {companyTasks.length === 0 ? (
-                <p className="text-xs text-slate-400">No tasks linked to this company yet.</p>
-              ) : (
-                <>
-                  <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg">
-                    {companyTasks.slice(0, visibleTasksCount).map((t) => (
-                      <div key={t.id} className="px-3 py-2.5 space-y-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className={`text-sm font-medium truncate ${t.is_completed ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
-                            {toTitleCase(t.subject)}
-                          </p>
-                          {t.priority && (
-                            <span className="text-[10px] font-semibold text-slate-500 shrink-0">{t.priority}</span>
-                          )}
+              {relatedTab === 'opportunities' &&
+                (oppsLoading ? (
+                  <p className="text-sm text-slate-400">Loading opportunities...</p>
+                ) : companyOpportunities.length === 0 ? (
+                  <p className="text-xs text-slate-400">No opportunities for this company yet.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {dealSections.map((section) => {
+                      const color = DEAL_SECTION_COLORS[section.key] ?? { text: 'text-slate-400', border: 'border-slate-200' };
+                      return (
+                      <div key={section.key}>
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className={`text-[10px] font-bold uppercase tracking-wide shrink-0 ${color.text}`}>
+                            {section.label}
+                          </span>
+                          <div className={`flex-1 border-t ${color.border}`} />
                         </div>
-                        <p className="text-xs text-slate-500">
-                          {t.assigned_user_name ? `Owner: ${toTitleCase(t.assigned_user_name)}` : 'Unassigned'}
-                          {t.due_at &&
-                            ` · Due ${new Date(t.due_at).toLocaleDateString(undefined, { month: 'short', day: '2-digit' })}`}
-                        </p>
-                        <button
-                          onClick={() => openTaskView(t.id)}
-                          className="w-full mt-1.5 text-xs font-semibold text-indigo-600 border border-indigo-200 rounded-lg py-1.5 hover:bg-indigo-50"
-                        >
-                          View Task
-                        </button>
+                        <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg">
+                          {section.items.map((d) => {
+                            const isClosed = d.status !== 'Open';
+                            const closeDate = isClosed ? d.closed_at ?? d.created_at : d.expected_close;
+                            return (
+                              <div key={d.id} className="px-3 py-2.5 space-y-1">
+                                <div className="flex items-center justify-between gap-2">
+                                  <p className="text-sm font-medium text-slate-800 truncate">{toTitleCase(d.name)}</p>
+                                  <span className="text-sm font-semibold text-emerald-600 shrink-0">
+                                    {d.deal_value != null
+                                      ? `$${Number(d.deal_value).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+                                      : '--'}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-slate-400 truncate">
+                                  Stage: {stageName(d.stage_id)}
+                                  {closeDate &&
+                                    ` | ${isClosed ? 'Closed' : 'Close'}: ${new Date(closeDate).toLocaleDateString(undefined, {
+                                      month: 'short',
+                                      day: '2-digit',
+                                      year: 'numeric',
+                                    })}`}
+                                </p>
+                                {d.status === 'Lost' && d.lost_reason && (
+                                  <p className="text-xs text-rose-600">Lost Reason: {d.lost_reason}</p>
+                                )}
+                                <button
+                                  onClick={() => openPipelineView(d.id, d.pipeline_id)}
+                                  className="w-full mt-1.5 text-xs font-semibold text-indigo-600 border border-indigo-200 rounded-lg py-1.5 hover:bg-indigo-50"
+                                >
+                                  View Deal
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
-                  {companyTasks.length > visibleTasksCount && (
-                    <button
-                      onClick={() => setVisibleTasksCount((c) => c + LINKED_PAGE_SIZE)}
-                      className="w-full mt-1.5 text-xs font-semibold text-[var(--theme-accent)] hover:underline py-1"
-                    >
-                      Show {Math.min(companyTasks.length - visibleTasksCount, LINKED_PAGE_SIZE)} more (
-                      {companyTasks.length - visibleTasksCount} remaining)
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
+                ))}
 
-            <div className="pt-2 border-t border-slate-100">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
-                  Events ({companyEvents.length})
-                </h3>
-                {canEdit && (
-                  <button
-                    onClick={() => {
-                      setEditingEvent(null);
-                      setEventFormOpen(true);
-                    }}
-                    className="text-xs font-semibold text-indigo-600 hover:underline"
-                  >
-                    + New Event
-                  </button>
-                )}
-              </div>
-              {companyEvents.length === 0 ? (
-                <p className="text-xs text-slate-400">No events linked to this company yet.</p>
-              ) : (
-                <>
-                  <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg">
-                    {companyEvents.slice(0, visibleEventsCount).map((e) => (
-                      <div key={e.id} className="px-3 py-2.5 space-y-1">
-                        <p className="text-sm font-medium text-slate-800 truncate">{toTitleCase(e.subject)}</p>
-                        <p className="text-xs text-slate-500">
-                          {new Date(e.due_at).toLocaleDateString(undefined, { month: 'short', day: '2-digit', year: 'numeric' })}
-                          {e.assigned_user_name ? ` · ${toTitleCase(e.assigned_user_name)}` : ''}
-                        </p>
-                        <button
-                          onClick={() => setQuickViewEvent(e)}
-                          className="w-full mt-1.5 text-xs font-semibold text-indigo-600 border border-indigo-200 rounded-lg py-1.5 hover:bg-indigo-50"
-                        >
-                          View Event
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                  {companyEvents.length > visibleEventsCount && (
-                    <button
-                      onClick={() => setVisibleEventsCount((c) => c + LINKED_PAGE_SIZE)}
-                      className="w-full mt-1.5 text-xs font-semibold text-[var(--theme-accent)] hover:underline py-1"
-                    >
-                      Show {Math.min(companyEvents.length - visibleEventsCount, LINKED_PAGE_SIZE)} more (
-                      {companyEvents.length - visibleEventsCount} remaining)
-                    </button>
-                  )}
-                </>
-              )}
+              {relatedTab === 'tasks' &&
+                (companyTasks.length === 0 ? (
+                  <p className="text-xs text-slate-400">No tasks linked to this company yet.</p>
+                ) : (
+                  <>
+                    <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg">
+                      {companyTasks.slice(0, visibleTasksCount).map((t) => (
+                        <div key={t.id} className="px-3 py-2.5 space-y-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className={`text-sm font-medium truncate ${t.is_completed ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
+                              {toTitleCase(t.subject)}
+                            </p>
+                            {t.priority && (
+                              <span className="text-[10px] font-semibold text-slate-500 shrink-0">{t.priority}</span>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-500">
+                            {t.assigned_user_name ? `Owner: ${toTitleCase(t.assigned_user_name)}` : 'Unassigned'}
+                            {t.due_at &&
+                              ` · Due ${new Date(t.due_at).toLocaleDateString(undefined, { month: 'short', day: '2-digit' })}`}
+                          </p>
+                          <button
+                            onClick={() => openTaskView(t.id)}
+                            className="w-full mt-1.5 text-xs font-semibold text-indigo-600 border border-indigo-200 rounded-lg py-1.5 hover:bg-indigo-50"
+                          >
+                            View Task
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    {companyTasks.length > visibleTasksCount && (
+                      <button
+                        onClick={() => setVisibleTasksCount((c) => c + LINKED_PAGE_SIZE)}
+                        className="w-full mt-1.5 text-xs font-semibold text-[var(--theme-accent)] hover:underline py-1"
+                      >
+                        Show {Math.min(companyTasks.length - visibleTasksCount, LINKED_PAGE_SIZE)} more (
+                        {companyTasks.length - visibleTasksCount} remaining)
+                      </button>
+                    )}
+                  </>
+                ))}
+
+              {relatedTab === 'events' &&
+                (companyEvents.length === 0 ? (
+                  <p className="text-xs text-slate-400">No events linked to this company yet.</p>
+                ) : (
+                  <>
+                    <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg">
+                      {companyEvents.slice(0, visibleEventsCount).map((e) => (
+                        <div key={e.id} className="px-3 py-2.5 space-y-1">
+                          <p className={`text-sm font-medium truncate ${e.is_completed ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
+                            {toTitleCase(e.subject)}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {new Date(e.due_at).toLocaleDateString(undefined, { month: 'short', day: '2-digit', year: 'numeric' })}
+                            {e.assigned_user_name ? ` · ${toTitleCase(e.assigned_user_name)}` : ''}
+                          </p>
+                          <button
+                            onClick={() => setQuickViewEvent(e)}
+                            className="w-full mt-1.5 text-xs font-semibold text-indigo-600 border border-indigo-200 rounded-lg py-1.5 hover:bg-indigo-50"
+                          >
+                            View Event
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    {companyEvents.length > visibleEventsCount && (
+                      <button
+                        onClick={() => setVisibleEventsCount((c) => c + LINKED_PAGE_SIZE)}
+                        className="w-full mt-1.5 text-xs font-semibold text-[var(--theme-accent)] hover:underline py-1"
+                      >
+                        Show {Math.min(companyEvents.length - visibleEventsCount, LINKED_PAGE_SIZE)} more (
+                        {companyEvents.length - visibleEventsCount} remaining)
+                      </button>
+                    )}
+                  </>
+                ))}
             </div>
           </div>
 
