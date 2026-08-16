@@ -812,6 +812,7 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                 setSelectedLog(log);
               }}
               onActivityClick={(entry) => setSelectedActivity(entry)}
+              onClose={onClose}
             />
           </div>
 

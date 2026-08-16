@@ -797,6 +797,7 @@ export default function CompanyDetailModal({
               isLoading={activityLoading}
               onEmailClick={() => {}}
               onActivityClick={(entry) => setSelectedActivity(entry)}
+              onClose={onClose}
             />
           </div>
 

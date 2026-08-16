@@ -1,7 +1,51 @@
-import { useEffect, useMemo, useState } from 'react';
+import { ReactNode, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ACTIVITY_TABS, ActivityLogEntry, ActivityTab } from '../types/activity';
 import { EmailLog } from '../types/contact';
 import { humanizeAuditSummary, toTitleCase } from '../utils/text';
+
+// system_audit summaries embed the linked record's name in quotes (e.g.
+// `X created task "Follow up"`) — when the row's `detail` carries a
+// link_type/link_id (see the various *-links cascade nodes across the n8n
+// workflows), that quoted span renders as a real link instead of plain text.
+type EntityLink = { link_type: 'task' | 'deal' | 'event'; link_id: number; link_date?: string };
+
+function linkHref(link: EntityLink): string {
+  switch (link.link_type) {
+    case 'task':
+      return `/tasks?highlight=${link.link_id}`;
+    case 'deal':
+      return `/pipeline?highlight=${link.link_id}`;
+    case 'event':
+      return `/calendar?highlight=${link.link_id}${link.link_date ? `&date=${link.link_date}` : ''}`;
+  }
+}
+
+function renderAuditTitle(title: string, detail: Record<string, unknown> | null | undefined, onNavigate: (href: string) => void): ReactNode {
+  const link = detail as EntityLink | null | undefined;
+  if (!link?.link_type || !link.link_id) return title;
+
+  const match = title.match(/^(.*?)"([^"]+)"(.*)$/s);
+  if (!match) return title;
+  const [, before, name, after] = match;
+
+  return (
+    <>
+      {before}"
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onNavigate(linkHref(link));
+        }}
+        className="text-indigo-600 hover:underline font-medium"
+      >
+        {name}
+      </button>
+      "{after}
+    </>
+  );
+}
 
 const TAB_FILTERS: Record<ActivityTab, (category: TimelineItem['category']) => boolean> = {
   All: () => true,
@@ -36,7 +80,8 @@ interface TimelineItem {
   icon: string;
   iconColor: string;
   cardClass: string;
-  title: string;
+  title: string; // plain text — used for search filtering
+  titleNode?: ReactNode; // rendered in place of `title` when set (e.g. with a clickable linked-record name)
   subtitle?: string;
   body?: string;
   timestamp: string;
@@ -62,20 +107,26 @@ function emailToItem(log: EmailLog, i: number, onClick: (log: EmailLog) => void)
   };
 }
 
-function activityToItem(entry: ActivityLogEntry, onClick?: (entry: ActivityLogEntry) => void): TimelineItem {
+function activityToItem(
+  entry: ActivityLogEntry,
+  onClick: ((entry: ActivityLogEntry) => void) | undefined,
+  onNavigate: (href: string) => void
+): TimelineItem {
   const category = entry.category === 'call' ? 'call' : entry.category === 'meeting' ? 'meeting' : 'system_audit';
   const icon =
     (entry.subtype && SUBTYPE_ICONS[entry.subtype]) ||
     (category === 'call' ? 'fa-phone' : category === 'meeting' ? 'fa-calendar-days' : 'fa-clock-rotate-left');
   const iconColor = category === 'call' ? 'text-purple-500' : category === 'meeting' ? 'text-teal-600' : 'text-amber-600';
   const cardClass = category === 'call' ? 'bg-purple-50 border-purple-200' : category === 'meeting' ? 'bg-teal-50 border-teal-200' : 'bg-amber-50 border-amber-200';
+  const title = category === 'system_audit' ? humanizeAuditSummary(entry.summary) : entry.summary;
   return {
     key: `activity-${entry.id}`,
     category,
     icon,
     iconColor,
     cardClass,
-    title: category === 'system_audit' ? humanizeAuditSummary(entry.summary) : entry.summary,
+    title,
+    titleNode: category === 'system_audit' ? renderAuditTitle(title, entry.detail, onNavigate) : undefined,
     subtitle: entry.actor_name ? `By ${toTitleCase(entry.actor_name)}` : undefined,
     timestamp: entry.created_at,
     // Meeting/audit summaries get cut off by the card's single-line
@@ -91,20 +142,30 @@ interface Props {
   isLoading?: boolean;
   onEmailClick: (log: EmailLog) => void;
   onActivityClick?: (entry: ActivityLogEntry) => void;
+  // Closes the parent detail modal before navigating to a linked task/deal/
+  // event — same "close then navigate" pattern every other cross-page link
+  // in these modals already follows.
+  onClose?: () => void;
 }
 
 const PAGE_SIZE = 20;
 
-export default function ActivityTimeline({ emails = [], activity, isLoading, onEmailClick, onActivityClick }: Props) {
+export default function ActivityTimeline({ emails = [], activity, isLoading, onEmailClick, onActivityClick, onClose }: Props) {
+  const navigate = useNavigate();
   const [tab, setTab] = useState<ActivityTab>('All');
   const [search, setSearch] = useState('');
   // A long-lived account can accumulate hundreds of activity rows — render
   // them in pages instead of dumping every DOM node in at once.
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
+  function handleNavigate(href: string) {
+    onClose?.();
+    navigate(href);
+  }
+
   const items = useMemo(() => {
     const emailItems = emails.map((log, i) => emailToItem(log, i, onEmailClick));
-    const activityItems = activity.map((entry) => activityToItem(entry, onActivityClick));
+    const activityItems = activity.map((entry) => activityToItem(entry, onActivityClick, handleNavigate));
     return [...emailItems, ...activityItems].sort(
       (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     );
@@ -184,7 +245,7 @@ export default function ActivityTimeline({ emails = [], activity, isLoading, onE
               <div className="flex items-center justify-between text-xs font-medium">
                 <span className="flex items-center gap-1.5 text-slate-700 min-w-0">
                   <i className={`fa-solid ${item.icon} ${item.iconColor}`} />
-                  <span className="truncate">{item.title}</span>
+                  <span className="truncate">{item.titleNode ?? item.title}</span>
                 </span>
                 <span className="text-slate-400 text-[10px] shrink-0">
                   {item.timestamp ? new Date(item.timestamp).toLocaleDateString() : ''}

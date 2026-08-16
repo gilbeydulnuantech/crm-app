@@ -232,9 +232,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'contact', $1, 'system_audit', 'created', COALESCE((SELECT name FROM users WHERE id = $4), 'Someone') || ' created deal \"' || $2 || '\"', NULL::jsonb, $4, (SELECT name FROM users WHERE id = $4)\nWHERE $1 IS NOT NULL\nUNION ALL\nSELECT 'company', $3, 'system_audit', 'created', COALESCE((SELECT name FROM users WHERE id = $4), 'Someone') || ' created deal \"' || $2 || '\"', NULL::jsonb, $4, (SELECT name FROM users WHERE id = $4)\nWHERE $3 IS NOT NULL;",
+        "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'contact', $1, 'system_audit', 'created', COALESCE((SELECT name FROM users WHERE id = $4), 'Someone') || ' created deal \"' || $2 || '\"', jsonb_build_object('link_type', 'deal', 'link_id', $5), $4, (SELECT name FROM users WHERE id = $4)\nWHERE $1 IS NOT NULL\nUNION ALL\nSELECT 'company', $3, 'system_audit', 'created', COALESCE((SELECT name FROM users WHERE id = $4), 'Someone') || ' created deal \"' || $2 || '\"', jsonb_build_object('link_type', 'deal', 'link_id', $5), $4, (SELECT name FROM users WHERE id = $4)\nWHERE $3 IS NOT NULL;",
         "options": {
-          "queryReplacement": "={{ [ $json.contact_id, $json.name, $json.account_id, $('Webhook: add-opportunity').first().json.body.requester_id || null ] }}"
+          "queryReplacement": "={{ [ $json.contact_id, $json.name, $json.account_id, $('Webhook: add-opportunity').first().json.body.requester_id || null, $json.id ] }}"
         }
       },
       "id": "f6a7b8c9-d0e1-42f3-a4b5-c6d7e8f9a0b1",
@@ -1933,9 +1933,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'contact', $1, 'system_audit', 'archived', $4 || ' archived the linked deal \"' || $2 || '\"', NULL::jsonb, $5, $4\nWHERE $1 IS NOT NULL\nUNION ALL\nSELECT 'company', $3, 'system_audit', 'archived', $4 || ' archived the linked deal \"' || $2 || '\"', NULL::jsonb, $5, $4\nWHERE $3 IS NOT NULL;",
+        "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'contact', $1, 'system_audit', 'archived', $4 || ' archived the linked deal \"' || $2 || '\"', jsonb_build_object('link_type', 'deal', 'link_id', $6), $5, $4\nWHERE $1 IS NOT NULL\nUNION ALL\nSELECT 'company', $3, 'system_audit', 'archived', $4 || ' archived the linked deal \"' || $2 || '\"', jsonb_build_object('link_type', 'deal', 'link_id', $6), $5, $4\nWHERE $3 IS NOT NULL;",
         "options": {
-          "queryReplacement": "={{ [ $json.contact_id, $json.name, $json.account_id, $('Look Up Requester: archive-opportunities').first().json.name || 'Someone', $('Look Up Requester: archive-opportunities').first().json.id ] }}"
+          "queryReplacement": "={{ [ $json.contact_id, $json.name, $json.account_id, $('Look Up Requester: archive-opportunities').first().json.name || 'Someone', $('Look Up Requester: archive-opportunities').first().json.id, $json.id ] }}"
         }
       },
       "id": "a7b8c9d0-e1f2-43a4-b5c6-d7e8f9a0b1c2",
@@ -2112,9 +2112,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'contact', $1, 'system_audit', 'restored', $4 || ' restored the linked deal \"' || $2 || '\"', NULL::jsonb, $5, $4\nWHERE $1 IS NOT NULL\nUNION ALL\nSELECT 'company', $3, 'system_audit', 'restored', $4 || ' restored the linked deal \"' || $2 || '\"', NULL::jsonb, $5, $4\nWHERE $3 IS NOT NULL;",
+        "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'contact', $1, 'system_audit', 'restored', $4 || ' restored the linked deal \"' || $2 || '\"', jsonb_build_object('link_type', 'deal', 'link_id', $6), $5, $4\nWHERE $1 IS NOT NULL\nUNION ALL\nSELECT 'company', $3, 'system_audit', 'restored', $4 || ' restored the linked deal \"' || $2 || '\"', jsonb_build_object('link_type', 'deal', 'link_id', $6), $5, $4\nWHERE $3 IS NOT NULL;",
         "options": {
-          "queryReplacement": "={{ [ $json.contact_id, $json.name, $json.account_id, $('Look Up Requester: restore-opportunities').first().json.name || 'Someone', $('Look Up Requester: restore-opportunities').first().json.id ] }}"
+          "queryReplacement": "={{ [ $json.contact_id, $json.name, $json.account_id, $('Look Up Requester: restore-opportunities').first().json.name || 'Someone', $('Look Up Requester: restore-opportunities').first().json.id, $json.id ] }}"
         }
       },
       "id": "b8c9d0e1-f2a3-44b5-c6d7-e8f9a0b1c2d3",
