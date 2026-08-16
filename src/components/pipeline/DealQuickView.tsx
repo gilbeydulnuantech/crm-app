@@ -8,7 +8,7 @@ import { useCompanies } from '../../hooks/useCompanies';
 import { toTitleCase } from '../../utils/text';
 import { DEFAULT_USER_COLOR, hexToRgba } from '../../utils/userColor';
 import DealTagsInline from './DealTagsInline';
-import CompanyQuickView from '../companies/CompanyQuickView';
+import CompanyDetailModal from '../companies/CompanyDetailModal';
 
 interface Props {
   deal: Opportunity | null;
@@ -282,20 +282,29 @@ export default function DealQuickView({
         )}
       </div>
 
-      <CompanyQuickView
+      <CompanyDetailModal
         company={quickViewCompany}
-        onClose={() => setQuickViewCompanyId(null)}
+        // CompanyDetailModal's own internal nav actions (View Task, View
+        // Deal, parent company link, etc.) all call this same onClose right
+        // before navigating away — so this needs to close this quickview
+        // too, or it's left open (and stale) underneath whatever page we
+        // just navigated to.
+        onClose={() => {
+          setQuickViewCompanyId(null);
+          onClose();
+        }}
         onEdit={(company) => {
           setQuickViewCompanyId(null);
           onClose();
           navigate(`/companies?companyId=${company.id}`);
         }}
-        onOpenFullRecord={(company) => {
+        onContactClick={(contactId) => {
           setQuickViewCompanyId(null);
           onClose();
-          navigate(`/companies?companyId=${company.id}`);
+          navigate(`/contacts?contactId=${contactId}`);
         }}
-        canEdit={isAdmin || quickViewCompany?.owner_id === currentUserId}
+        isAdmin={isAdmin}
+        currentUserId={currentUserId}
       />
     </div>
   );
