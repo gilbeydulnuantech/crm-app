@@ -1,9 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toTitleCase } from '../utils/text';
-import { useUsers, useUpdateUserColor } from '../hooks/useContacts';
-import { DEFAULT_USER_COLOR } from '../utils/userColor';
-import UserColorPicker from '../components/calendar/UserColorPicker';
 
 interface NavItem {
   to: string;
@@ -42,9 +39,6 @@ interface Props {
 
 export default function Sidebar({ collapsed, onToggleCollapsed }: Props) {
   const { user, logout } = useAuth();
-  const { data: users = [] } = useUsers();
-  const updateUserColor = useUpdateUserColor();
-  const currentUser = users.find((u) => u.id === user?.id);
 
   if (collapsed) {
     return (
@@ -124,17 +118,9 @@ export default function Sidebar({ collapsed, onToggleCollapsed }: Props) {
           <span>Settings</span>
         </NavLink>
 
-        <div className="px-3 py-2 flex items-center gap-2 text-xs text-slate-500">
-          <span>
-            Signed in as{' '}
-            <span className="font-medium text-slate-700">{user?.name ? toTitleCase(user.name) : '--'}</span>
-          </span>
-          {currentUser && (
-            <UserColorPicker
-              color={currentUser.color || DEFAULT_USER_COLOR}
-              onChange={(hex) => updateUserColor.mutate({ userId: currentUser.id, color: hex })}
-            />
-          )}
+        <div className="px-3 py-2 text-xs text-slate-500">
+          Signed in as{' '}
+          <span className="font-medium text-slate-700">{user?.name ? toTitleCase(user.name) : '--'}</span>
         </div>
 
         <button

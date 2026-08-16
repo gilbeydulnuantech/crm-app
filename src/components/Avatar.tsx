@@ -28,13 +28,13 @@ function initialsFor(name: string): string {
 
 interface Props {
   name: string;
-  size?: 'xs' | 'sm';
+  size?: 'xs' | 'sm' | 'lg';
 }
 
 // Deterministic initials avatar — same name always renders the same color,
 // same approach as getTagColorClasses, no image upload/storage required.
 export default function Avatar({ name, size = 'sm' }: Props) {
-  const dims = size === 'xs' ? 'w-5 h-5 text-[9px]' : 'w-7 h-7 text-[11px]';
+  const dims = size === 'xs' ? 'w-5 h-5 text-[9px]' : size === 'lg' ? 'w-16 h-16 text-xl' : 'w-7 h-7 text-[11px]';
   return (
     <span
       className={`inline-flex items-center justify-center rounded-full font-semibold shrink-0 ${dims} ${colorFor(
