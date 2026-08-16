@@ -346,7 +346,10 @@ export default function Pipeline() {
 
       <PipelineTabs
         view={view}
-        onChange={setView}
+        onChange={(v) => {
+          setView(v);
+          setStatFilter(null);
+        }}
         users={users}
         currentUserId={user?.id}
         checkedUserIds={checkedUserIds}

@@ -545,7 +545,6 @@
     },
     {
       "parameters": {
-        "httpMethod": "POST",
         "path": "get-archived-tasks",
         "responseMode": "responseNode",
         "options": {}
@@ -583,8 +582,7 @@
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ $json }}",
+        "respondWith": "allIncomingItems",
         "options": {}
       },
       "id": "6d640e99-406c-4446-a074-d02d29ed11b2",

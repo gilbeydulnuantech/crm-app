@@ -9,7 +9,6 @@ import {
   useArchiveTasks,
   useDeleteTasks,
   useMoveTaskStatus,
-  useRestoreTasks,
   useTasks,
   useToggleTaskComplete,
   useUpdateTask,
@@ -20,6 +19,7 @@ import TasksStatsBar, { TaskStatFilter } from '../components/tasks/TasksStatsBar
 import TasksTabs from '../components/tasks/TasksTabs';
 import TasksTable, { TasksColumnsMenu } from '../components/tasks/TasksTable';
 import TasksKanbanBoard, { TaskColumnsManager } from '../components/tasks/TasksKanbanBoard';
+import ArchivedTasksList from '../components/tasks/ArchivedTasksList';
 import TasksBulkActionsMenu from '../components/tasks/TasksBulkActionsMenu';
 import TaskFormModal from '../components/tasks/TaskFormModal';
 import TaskEditModal from '../components/tasks/TaskEditModal';
@@ -79,7 +79,6 @@ export default function Tasks() {
   const completedStatusName = taskStatuses.find((s) => s.is_completed_status)?.name ?? 'Completed';
   const deleteTasks = useDeleteTasks();
   const archiveTasks = useArchiveTasks();
-  const restoreTasks = useRestoreTasks();
   const toggleComplete = useToggleTaskComplete();
   const moveTaskStatus = useMoveTaskStatus();
   const updateTask = useUpdateTask();
@@ -129,6 +128,7 @@ export default function Tasks() {
   function changeView(next: TasksView) {
     setView(next);
     setSelectedIds(new Set());
+    setStatFilter(null);
   }
 
   const taskById = useMemo(() => {
@@ -305,11 +305,6 @@ export default function Tasks() {
     archiveTasks.mutate(Array.from(selectedIds), { onSuccess: () => setSelectedIds(new Set()) });
   }
 
-  function handleRestoreSelected() {
-    if (selectedIds.size === 0) return;
-    restoreTasks.mutate(Array.from(selectedIds), { onSuccess: () => setSelectedIds(new Set()) });
-  }
-
   function handleDeleteSelected() {
     if (selectedIds.size === 0) return;
     if (!confirm(`Delete ${selectedIds.size} task(s)? This cannot be undone.`)) return;
@@ -370,24 +365,27 @@ export default function Tasks() {
                 List
               </button>
             </div>
-            {boardView === 'list' ? (
-              <TasksColumnsMenu
-                visibility={columnVisibility}
-                onToggle={(id) => setColumnVisibility((v) => ({ ...v, [id]: v[id] === false }))}
-              />
-            ) : (
-              <TaskColumnsManager
-                statuses={taskStatuses}
-                visibleStatusIds={visibleStatusIds}
-                onToggleVisibility={toggleStatusColumn}
-                isAdmin={isAdmin}
-              />
-            )}
+            {view !== 'archived' &&
+              (boardView === 'list' ? (
+                <TasksColumnsMenu
+                  visibility={columnVisibility}
+                  onToggle={(id) => setColumnVisibility((v) => ({ ...v, [id]: v[id] === false }))}
+                />
+              ) : (
+                <TaskColumnsManager
+                  statuses={taskStatuses}
+                  visibleStatusIds={visibleStatusIds}
+                  onToggleVisibility={toggleStatusColumn}
+                  isAdmin={isAdmin}
+                />
+              ))}
           </div>
         }
       />
 
-      {boardView === 'list' ? (
+      {view === 'archived' ? (
+        <ArchivedTasksList tasks={visibleTasks} isLoading={isLoadingArchived} />
+      ) : boardView === 'list' ? (
         <>
           <TasksTable
             tasks={visibleTasks}
@@ -395,7 +393,7 @@ export default function Tasks() {
             onToggleSelect={toggleSelect}
             onToggleSelectAll={toggleSelectAll}
             onRowClick={openQuickView}
-            isLoading={view === 'archived' ? isLoadingArchived : isLoading}
+            isLoading={isLoading}
             isAdmin={isAdmin}
             currentUserId={user?.id}
             columnVisibility={columnVisibility}
@@ -409,26 +407,16 @@ export default function Tasks() {
                   {selectedIds.size} selected
                 </span>
               )}
-              {view === 'archived' ? (
-                <button
-                  disabled={selectedIds.size === 0}
-                  onClick={handleRestoreSelected}
-                  className="text-xs font-semibold text-slate-600 hover:text-indigo-600 py-1.5 px-2.5 border border-slate-200 rounded-md bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                >
-                  Restore Selected
-                </button>
-              ) : (
-                <TasksBulkActionsMenu
-                  selectedCount={selectedIds.size}
-                  isAdmin={isAdmin}
-                  onCompleteSelected={handleCompleteSelected}
-                  onArchiveSelected={handleArchiveSelected}
-                  onDeleteSelected={handleDeleteSelected}
-                />
-              )}
+              <TasksBulkActionsMenu
+                selectedCount={selectedIds.size}
+                isAdmin={isAdmin}
+                onCompleteSelected={handleCompleteSelected}
+                onArchiveSelected={handleArchiveSelected}
+                onDeleteSelected={handleDeleteSelected}
+              />
             </div>
             <span className="text-xs text-slate-500">
-              Showing {visibleTasks.length} of {(view === 'archived' ? archivedTasks : allTasks).length} Tasks
+              Showing {visibleTasks.length} of {allTasks.length} Tasks
             </span>
           </div>
         </>
