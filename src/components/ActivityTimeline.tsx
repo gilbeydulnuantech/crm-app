@@ -38,7 +38,7 @@ function renderAuditTitle(title: string, detail: Record<string, unknown> | null 
           e.stopPropagation();
           onNavigate(linkHref(link));
         }}
-        className="text-indigo-600 hover:underline font-medium"
+        className="inline text-indigo-600 hover:underline font-medium"
       >
         {name}
       </button>
@@ -243,9 +243,9 @@ export default function ActivityTimeline({ emails = [], activity, isLoading, onE
               title={item.onClick ? 'Click to view' : undefined}
             >
               <div className="flex items-center justify-between text-xs font-medium">
-                <span className="flex items-center gap-1.5 text-slate-700 min-w-0">
-                  <i className={`fa-solid ${item.icon} ${item.iconColor}`} />
-                  <span className="truncate">{item.titleNode ?? item.title}</span>
+                <span className="flex items-start gap-1.5 text-slate-700 min-w-0">
+                  <i className={`fa-solid ${item.icon} ${item.iconColor} mt-0.5`} />
+                  <span className="line-clamp-2 break-words">{item.titleNode ?? item.title}</span>
                 </span>
                 <span className="text-slate-400 text-[10px] shrink-0">
                   {item.timestamp ? new Date(item.timestamp).toLocaleDateString() : ''}
