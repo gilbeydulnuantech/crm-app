@@ -28,7 +28,7 @@ export interface Pipeline {
 export interface Opportunity {
   id: number;
   name: string;
-  contact_id: number;
+  contact_id: number | null;
   contact_name?: string; // joined
   account_id?: number | null;
   company_name?: string; // joined
@@ -38,6 +38,9 @@ export interface Opportunity {
   assigned_user_name?: string; // joined
   assigned_user_color?: string; // joined from users.color
   created_by?: number | null;
+  // Write-only: the creating user's id, sent on add-opportunity so the
+  // backend can attribute the "created deal" system-audit entry.
+  requester_id?: number | null;
   deal_value?: number | null;
   probability?: number;
   status: 'Open' | 'Won' | 'Lost';

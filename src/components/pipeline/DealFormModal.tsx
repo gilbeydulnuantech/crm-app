@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { DEAL_PRIORITIES, DEAL_SOURCES, DealPriority, Opportunity } from '../../types/opportunity';
 import { useAddOpportunity, useUpdateOpportunity, usePipelines, useStages } from '../../hooks/useOpportunities';
 import { useContacts, useUsers } from '../../hooks/useContacts';
+import { useAuth } from '../../context/AuthContext';
 import { toTitleCase } from '../../utils/text';
 import CompanyPicker from '../contacts/CompanyPicker';
 import ContactPicker from './ContactPicker';
@@ -59,6 +60,7 @@ export default function DealFormModal({
   const [form, setForm] = useState(EMPTY);
   const [error, setError] = useState<string | null>(null);
   const qc = useQueryClient();
+  const { user } = useAuth();
 
   const isEdit = !!opportunity;
   // Locked to a single contact only when opened straight from that
@@ -174,7 +176,7 @@ export default function DealFormModal({
 
     const payload = {
       name: form.name,
-      contact_id: Number(form.contact_id),
+      contact_id: form.contact_id ? Number(form.contact_id) : null,
       account_id: form.account_id ? Number(form.account_id) : null,
       pipeline_id: Number(form.pipeline_id),
       stage_id: Number(form.stage_id),
@@ -185,6 +187,7 @@ export default function DealFormModal({
       description: form.description || null,
       source: form.source || null,
       priority: form.priority || null,
+      requester_id: user?.id ?? null,
     };
 
     // A deal can be created/moved under a different pipeline than the one

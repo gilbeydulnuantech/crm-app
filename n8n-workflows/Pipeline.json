@@ -232,7 +232,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'contact', $1, 'system_audit', 'created', COALESCE((SELECT name FROM users WHERE id = $4), 'Someone') || ' created deal \"' || $2 || '\"', jsonb_build_object('link_type', 'deal', 'link_id', $5), $4, (SELECT name FROM users WHERE id = $4)\nWHERE $1 IS NOT NULL\nUNION ALL\nSELECT 'company', $3, 'system_audit', 'created', COALESCE((SELECT name FROM users WHERE id = $4), 'Someone') || ' created deal \"' || $2 || '\"', jsonb_build_object('link_type', 'deal', 'link_id', $5), $4, (SELECT name FROM users WHERE id = $4)\nWHERE $3 IS NOT NULL;",
+        "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'contact', $1, 'system_audit', 'created', COALESCE((SELECT name FROM users WHERE id = $4::int), 'Someone') || ' created deal \"' || $2 || '\"', jsonb_build_object('link_type', 'deal', 'link_id', $5), $4::int, (SELECT name FROM users WHERE id = $4::int)\nWHERE $1 IS NOT NULL\nUNION ALL\nSELECT 'company', $3, 'system_audit', 'created', COALESCE((SELECT name FROM users WHERE id = $4::int), 'Someone') || ' created deal \"' || $2 || '\"', jsonb_build_object('link_type', 'deal', 'link_id', $5), $4::int, (SELECT name FROM users WHERE id = $4::int)\nWHERE $3 IS NOT NULL;",
         "options": {
           "queryReplacement": "={{ [ $json.contact_id, $json.name, $json.account_id, $('Webhook: add-opportunity').first().json.body.requester_id || null, $json.id ] }}"
         }
