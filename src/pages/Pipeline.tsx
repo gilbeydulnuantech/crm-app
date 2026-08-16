@@ -17,7 +17,7 @@ import { useTags, useUsers } from '../hooks/useContacts';
 import { useAddNote } from '../hooks/useNotes';
 import { useAddTask } from '../hooks/useTasks';
 import { useAuth } from '../context/AuthContext';
-import PipelineStatsBar from '../components/pipeline/PipelineStatsBar';
+import PipelineStatsBar, { PipelineStatFilter } from '../components/pipeline/PipelineStatsBar';
 import PipelineBoard, { PipelineBoardColumnsMenu } from '../components/pipeline/PipelineBoard';
 import PipelineListView, { PipelineColumnsMenu } from '../components/pipeline/PipelineListView';
 import PipelineSelector from '../components/pipeline/PipelineSelector';
@@ -63,6 +63,7 @@ export default function Pipeline() {
   const [noteDeal, setNoteDeal] = useState<Opportunity | null>(null);
   const [taskDeal, setTaskDeal] = useState<Opportunity | null>(null);
   const [lostDeal, setLostDeal] = useState<Opportunity | null>(null);
+  const [statFilter, setStatFilter] = useState<PipelineStatFilter | null>(null);
 
   // Keeps ?pipeline= in sync so the current board is bookmarkable/refreshable.
   function setPipelineId(id: number) {
@@ -183,8 +184,24 @@ export default function Pipeline() {
       );
     }
 
+    if (statFilter) {
+      const now = new Date();
+      const isThisMonth = (dateStr?: string | null) => {
+        if (!dateStr) return false;
+        const d = new Date(dateStr);
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      };
+      if (statFilter === 'open') list = list.filter((o) => o.status === 'Open');
+      else if (statFilter === 'wonMTD') list = list.filter((o) => o.status === 'Won' && isThisMonth(o.closed_at));
+      else if (statFilter === 'lostMTD') list = list.filter((o) => o.status === 'Lost' && isThisMonth(o.closed_at));
+    }
+
     return list;
-  }, [opportunities, archivedOpportunities, view, user, users, checkedUserIds, tagFilters, search]);
+  }, [opportunities, archivedOpportunities, view, user, users, checkedUserIds, tagFilters, search, statFilter]);
+
+  function selectStatFilter(filter: PipelineStatFilter) {
+    setStatFilter((prev) => (prev === filter ? null : filter));
+  }
 
   function toggleUser(id: number) {
     setCheckedUserIds((prev) => {
@@ -316,7 +333,7 @@ export default function Pipeline() {
           onCreated={handlePipelineCreated}
         />
         <div className="flex-1 flex justify-center min-w-0">
-          <PipelineStatsBar opportunities={opportunities} />
+          <PipelineStatsBar opportunities={opportunities} activeFilter={statFilter} onSelect={selectStatFilter} />
         </div>
         <button
           onClick={openAddModal}

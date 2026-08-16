@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import { Opportunity } from '../../types/opportunity';
 
+export type PipelineStatFilter = 'open' | 'wonMTD' | 'lostMTD';
+
 function formatCurrency(val: number) {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -10,7 +12,13 @@ function formatCurrency(val: number) {
   }).format(val);
 }
 
-export default function PipelineStatsBar({ opportunities }: { opportunities: Opportunity[] }) {
+interface Props {
+  opportunities: Opportunity[];
+  activeFilter: PipelineStatFilter | null;
+  onSelect: (filter: PipelineStatFilter) => void;
+}
+
+export default function PipelineStatsBar({ opportunities, activeFilter, onSelect }: Props) {
   const stats = useMemo(() => {
     const now = new Date();
     const currentMonth = now.getMonth();
@@ -43,25 +51,40 @@ export default function PipelineStatsBar({ opportunities }: { opportunities: Opp
     };
   }, [opportunities]);
 
-  const cards = [
-    { label: 'Open', value: stats.openCount },
+  const cards: { filter?: PipelineStatFilter; label: string; value: string | number; tone?: string }[] = [
+    { filter: 'open', label: 'Open', value: stats.openCount },
     { label: 'Pipeline', value: formatCurrency(stats.pipelineValue) },
-    { label: 'Won MTD', value: stats.wonThisMonth, tone: 'text-emerald-600' },
-    { label: 'Lost MTD', value: stats.lostThisMonth, tone: 'text-rose-600' },
+    { filter: 'wonMTD', label: 'Won MTD', value: stats.wonThisMonth, tone: 'text-emerald-600' },
+    { filter: 'lostMTD', label: 'Lost MTD', value: stats.lostThisMonth, tone: 'text-rose-600' },
     { label: 'Revenue', value: formatCurrency(stats.totalWonValue) },
   ];
 
   return (
-    <div className="flex items-center gap-2.5 min-w-0">
-      {cards.map((c, i) => (
-        <div key={c.label} className="flex items-center gap-2.5 shrink-0">
-          {i > 0 && <span className="w-px h-4 bg-slate-200 shrink-0" />}
-          <div className="flex items-baseline gap-1 whitespace-nowrap">
-            <span className={`text-xs font-bold ${c.tone ?? 'text-slate-800'}`}>{c.value}</span>
-            <span className="text-[9px] text-slate-400 uppercase tracking-wide">{c.label}</span>
-          </div>
-        </div>
-      ))}
+    <div className="flex items-center gap-1.5">
+      {cards.map((c) => {
+        const isActive = c.filter != null && activeFilter === c.filter;
+        const clickable = c.filter != null;
+        return (
+          <button
+            key={c.label}
+            onClick={clickable ? () => onSelect(c.filter!) : undefined}
+            disabled={!clickable}
+            title={clickable ? `Filter to ${c.label}` : undefined}
+            className={`flex items-center gap-1 px-2 py-1 rounded-full border text-[11px] font-medium transition-all ${
+              clickable ? 'cursor-pointer hover:shadow-sm' : 'cursor-default'
+            } ${
+              isActive
+                ? 'border-indigo-400 ring-1 ring-indigo-100 bg-indigo-50 text-indigo-700'
+                : `border-slate-200 text-slate-600 ${clickable ? 'hover:border-slate-300' : ''}`
+            }`}
+          >
+            <span className={`font-bold ${c.tone ?? (isActive ? 'text-indigo-700' : 'text-slate-800')}`}>
+              {c.value}
+            </span>
+            {c.label}
+          </button>
+        );
+      })}
     </div>
   );
 }

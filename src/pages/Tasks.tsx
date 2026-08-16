@@ -16,7 +16,7 @@ import {
 } from '../hooks/useTasks';
 import { useTaskStatuses } from '../hooks/useTaskStatuses';
 import { startDm, sendMessage } from '../api/chat';
-import TasksStatsBar from '../components/tasks/TasksStatsBar';
+import TasksStatsBar, { TaskStatFilter } from '../components/tasks/TasksStatsBar';
 import TasksTabs from '../components/tasks/TasksTabs';
 import TasksTable, { TasksColumnsMenu } from '../components/tasks/TasksTable';
 import TasksKanbanBoard, { TaskColumnsManager } from '../components/tasks/TasksKanbanBoard';
@@ -31,6 +31,16 @@ type BoardView = 'list' | 'board';
 
 function isOverdue(task: Task): boolean {
   return !task.is_completed && taskStatus(task) === 'Overdue';
+}
+
+function applyStatFilter(list: Task[], statFilter: TaskStatFilter | null): Task[] {
+  if (!statFilter) return list;
+  if (statFilter === 'open') return list.filter((t) => !t.is_completed);
+  if (statFilter === 'dueToday') return list.filter((t) => taskStatus(t) === 'Due Today');
+  if (statFilter === 'overdue') return list.filter(isOverdue);
+  const weekAgo = new Date();
+  weekAgo.setDate(weekAgo.getDate() - 7);
+  return list.filter((t) => t.is_completed && t.completed_at && new Date(t.completed_at) >= weekAgo);
 }
 
 export default function Tasks() {
@@ -60,6 +70,7 @@ export default function Tasks() {
   const [checkedUserIds, setCheckedUserIds] = useState<Set<number>>(new Set());
   const [usersInitialized, setUsersInitialized] = useState(false);
   const [priorityFilters, setPriorityFilters] = useState<Set<TaskPriority>>(new Set());
+  const [statFilter, setStatFilter] = useState<TaskStatFilter | null>(null);
 
   const { data: allTasks = [], isLoading } = useTasks();
   const { data: archivedTasks = [], isLoading: isLoadingArchived } = useArchivedTasks(view === 'archived');
@@ -198,8 +209,8 @@ export default function Tasks() {
       const q = search.trim().toLowerCase();
       list = list.filter((t) => t.subject.toLowerCase().includes(q));
     }
-    return list;
-  }, [allTasks, archivedTasks, view, user, search, users, checkedUserIds, priorityFilters]);
+    return applyStatFilter(list, statFilter);
+  }, [allTasks, archivedTasks, view, user, search, users, checkedUserIds, priorityFilters, statFilter]);
 
   // Same All/Mine/Completed/Overdue/Archived tabs as the List view, but
   // unlike visibleTasks this never auto-hides completed tasks under
@@ -222,8 +233,12 @@ export default function Tasks() {
       const q = search.trim().toLowerCase();
       list = list.filter((t) => t.subject.toLowerCase().includes(q));
     }
-    return list;
-  }, [allTasks, archivedTasks, view, user, users, checkedUserIds, priorityFilters, search]);
+    return applyStatFilter(list, statFilter);
+  }, [allTasks, archivedTasks, view, user, users, checkedUserIds, priorityFilters, search, statFilter]);
+
+  function selectStatFilter(filter: TaskStatFilter) {
+    setStatFilter((prev) => (prev === filter ? null : filter));
+  }
 
   function handleMoveTaskStatus(task: Task, status: TaskStatus, isCompletedStatus: boolean) {
     moveTaskStatus.mutate({ id: task.id, status, isCompletedStatus });
@@ -306,7 +321,7 @@ export default function Tasks() {
       <div className="px-4 py-3 flex items-center gap-4 shrink-0 border-b border-slate-200">
         <h1 className="text-lg font-bold text-slate-800 shrink-0">Tasks</h1>
         <div className="flex-1 flex justify-center min-w-0">
-          <TasksStatsBar tasks={allTasks} />
+          <TasksStatsBar tasks={allTasks} activeFilter={statFilter} onSelect={selectStatFilter} />
         </div>
         <button
           onClick={openAddModal}
@@ -336,17 +351,24 @@ export default function Tasks() {
         endExtra={
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1 border border-slate-200 rounded-md p-0.5 bg-slate-50">
-              {(['board', 'list'] as BoardView[]).map((v) => (
-                <button
-                  key={v}
-                  onClick={() => setBoardView(v)}
-                  className={`px-2.5 py-1 text-xs font-semibold rounded capitalize ${
-                    boardView === v ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500'
-                  }`}
-                >
-                  {v}
-                </button>
-              ))}
+              <button
+                onClick={() => setBoardView('board')}
+                className={`px-2.5 py-1 text-xs font-semibold rounded ${
+                  boardView === 'board' ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500'
+                }`}
+              >
+                <i className="fa-solid fa-table-columns text-[10px] mr-1" />
+                Board
+              </button>
+              <button
+                onClick={() => setBoardView('list')}
+                className={`px-2.5 py-1 text-xs font-semibold rounded ${
+                  boardView === 'list' ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500'
+                }`}
+              >
+                <i className="fa-solid fa-list text-[10px] mr-1" />
+                List
+              </button>
             </div>
             {boardView === 'list' ? (
               <TasksColumnsMenu
