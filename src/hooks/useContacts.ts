@@ -53,6 +53,14 @@ export function useUpdateUserColor() {
   });
 }
 
+export function useUploadAvatar() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) => api.uploadAvatar(file),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
+  });
+}
+
 export function useUpdateUserTheme() {
   return useMutation({
     mutationFn: ({ userId, theme }: { userId: number; theme: api.UserTheme }) =>
@@ -65,6 +73,36 @@ export function useUpdateNotificationPreferences() {
   return useMutation({
     mutationFn: (preferences: api.NotificationPreferences) => api.updateNotificationPreferences(preferences),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
+  });
+}
+
+export function useAllUsers(enabled: boolean) {
+  return useQuery({
+    queryKey: ['users', 'all'],
+    queryFn: api.fetchAllUsers,
+    enabled,
+  });
+}
+
+export function useUpdateUserRole() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, role }: { userId: number; role: 'admin' | 'user' }) => api.updateUserRole(userId, role),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['users'] });
+      qc.invalidateQueries({ queryKey: ['users', 'all'] });
+    },
+  });
+}
+
+export function useUpdateUserActive() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, active }: { userId: number; active: boolean }) => api.updateUserActive(userId, active),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['users'] });
+      qc.invalidateQueries({ queryKey: ['users', 'all'] });
+    },
   });
 }
 

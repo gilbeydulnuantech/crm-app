@@ -37,6 +37,7 @@ export interface Opportunity {
   assigned_user?: number | null;
   assigned_user_name?: string; // joined
   assigned_user_color?: string; // joined from users.color
+  assigned_user_avatar_url?: string | null; // joined from users.avatar_url
   created_by?: number | null;
   // Write-only: the creating user's id, sent on add-opportunity so the
   // backend can attribute the "created deal" system-audit entry.

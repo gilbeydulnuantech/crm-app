@@ -233,6 +233,114 @@
         1264,
         992
       ]
+    },
+    {
+      "parameters": {
+        "path": "get-global-audit-log",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "a1b2c3d4-0020-4a5a-9b1a-eal000000020",
+      "name": "Webhook: get-global-audit-log",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        1200
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "a1b2c3d4-0021-4a5a-9b1a-eal000000021",
+      "name": "Parse Token (Global Audit)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1264,
+        1200
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "a1b2c3d4-0022-4a5a-9b1a-eal000000022",
+      "name": "Look Up Requester Role (Global Audit)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1488,
+        1200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst query = $('Webhook: get-global-audit-log').first().json.query || {};\n\nconst actorId = query.actor_id ? parseInt(query.actor_id, 10) : null;\nconst entityType = ['contact', 'company'].includes(query.entity_type) ? query.entity_type : null;\nconst dateFrom = query.date_from || null;\nconst dateTo = query.date_to || null;\nconst page = Math.max(1, parseInt(query.page, 10) || 1);\nconst pageSize = 50;\nconst offset = (page - 1) * pageSize;\n\nreturn [{ json: { actorId, entityType, dateFrom, dateTo, limit: pageSize, offset } }];"
+      },
+      "id": "a1b2c3d4-0023-4a5a-9b1a-eal000000023",
+      "name": "Validate Admin & Filters",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1712,
+        1200
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, entity_type, entity_id,\n  CASE WHEN entity_type = 'contact' THEN (SELECT TRIM(CONCAT(first_name, ' ', last_name)) FROM contacts WHERE id = entity_id)\n       WHEN entity_type = 'company' THEN (SELECT name FROM companies WHERE id = entity_id) END AS entity_name,\n  category, subtype, summary, detail, actor_id, actor_name, created_at\nFROM entity_activity_log\nWHERE category = 'system_audit'\n  AND ($1::int IS NULL OR actor_id = $1)\n  AND ($2::text IS NULL OR entity_type = $2)\n  AND ($3::timestamptz IS NULL OR created_at >= $3::timestamptz)\n  AND ($4::timestamptz IS NULL OR created_at <= $4::timestamptz)\nORDER BY created_at DESC, id DESC\nLIMIT $5 OFFSET $6;",
+        "options": {
+          "queryReplacement": "={{ [ $json.actorId, $json.entityType, $json.dateFrom, $json.dateTo, $json.limit, $json.offset ] }}"
+        }
+      },
+      "id": "a1b2c3d4-0024-4a5a-9b1a-eal000000024",
+      "name": "Select Global Audit Log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1936,
+        1200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "allIncomingItems"
+      },
+      "id": "a1b2c3d4-0025-4a5a-9b1a-eal000000025",
+      "name": "Respond: get-global-audit-log",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2160,
+        1200
+      ]
     }
   ],
   "pinData": {},
@@ -340,6 +448,96 @@
         [
           {
             "node": "Respond: add-entity-activity",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: get-global-audit-log": {
+      "main": [
+        [
+          {
+            "node": "Parse Token (Global Audit)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token (Global Audit)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester Role (Global Audit)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester Role (Global Audit)": {
+      "main": [
+        [
+          {
+            "node": "Validate Admin & Filters",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Admin & Filters": {
+      "main": [
+        [
+          {
+            "node": "Select Global Audit Log",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Global Audit Log": {
+      "main": [
+        [
+          {
+            "node": "Respond: get-global-audit-log",
             "type": "main",
             "index": 0
           }

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { CalendarEvent, EVENT_TYPE_META } from '../../types/event';
 import { useDeleteEvent, useUpdateEvent } from '../../hooks/useEvents';
 import { toTitleCase } from '../../utils/text';
-import { DEFAULT_USER_COLOR, hexToRgba } from '../../utils/userColor';
+import OwnerBadge from '../OwnerBadge';
 
 interface Props {
   event: CalendarEvent | null;
@@ -101,23 +101,12 @@ export default function EventDetailModal({
           {event.location && <Field label="Location" value={event.location} />}
           <div>
             <label className="block text-[11px] font-medium text-slate-500 mb-1">Assigned To</label>
-            {event.assigned_user_name ? (
-              <span
-                className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium rounded-full"
-                style={{
-                  backgroundColor: hexToRgba(event.assigned_user_color || DEFAULT_USER_COLOR, 0.14),
-                  color: event.assigned_user_color || DEFAULT_USER_COLOR,
-                }}
-              >
-                <span
-                  className="w-1.5 h-1.5 rounded-full"
-                  style={{ backgroundColor: event.assigned_user_color || DEFAULT_USER_COLOR }}
-                />
-                {toTitleCase(event.assigned_user_name)}
-              </span>
-            ) : (
-              <p className="text-sm text-slate-700">--</p>
-            )}
+            <OwnerBadge
+              name={event.assigned_user_name}
+              color={event.assigned_user_color}
+              avatarUrl={event.assigned_user_avatar_url}
+              emptyLabel="--"
+            />
           </div>
 
           {event.company_name && (

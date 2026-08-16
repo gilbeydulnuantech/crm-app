@@ -6,9 +6,9 @@ import { useTasks } from '../../hooks/useTasks';
 import { useNotes } from '../../hooks/useNotes';
 import { useCompanies } from '../../hooks/useCompanies';
 import { toTitleCase } from '../../utils/text';
-import { DEFAULT_USER_COLOR, hexToRgba } from '../../utils/userColor';
 import DealTagsInline from './DealTagsInline';
 import CompanyDetailModal from '../companies/CompanyDetailModal';
+import OwnerBadge from '../OwnerBadge';
 
 interface Props {
   deal: Opportunity | null;
@@ -196,19 +196,11 @@ export default function DealQuickView({
             <div className="flex items-baseline gap-1.5 text-sm">
               <span className="text-slate-400 shrink-0">•</span>
               <span className="text-slate-500 shrink-0">Owner:</span>
-              {(() => {
-                const ownerColor = deal.assigned_user ? deal.assigned_user_color || DEFAULT_USER_COLOR : undefined;
-                return (
-                  <span
-                    style={ownerColor ? { backgroundColor: hexToRgba(ownerColor, 0.18), color: ownerColor } : undefined}
-                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold truncate ${
-                      ownerColor ? '' : 'bg-slate-100 text-slate-500'
-                    }`}
-                  >
-                    {deal.assigned_user_name ? toTitleCase(deal.assigned_user_name) : 'Unassigned'}
-                  </span>
-                );
-              })()}
+              <OwnerBadge
+                name={deal.assigned_user_name}
+                color={deal.assigned_user_color}
+                avatarUrl={deal.assigned_user_avatar_url}
+              />
             </div>
           </div>
 

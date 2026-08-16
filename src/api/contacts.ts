@@ -167,16 +167,61 @@ export interface TeamUser {
   color?: string;
   role?: 'admin' | 'user';
   notification_preferences?: NotificationPreferences;
+  avatar_url?: string | null;
 }
 
 export function fetchUsers() {
   return apiFetch<TeamUser[]>('/webhook/get-users');
 }
 
+export interface ManagedUser extends TeamUser {
+  active: boolean;
+  created_at: string;
+}
+
+// Admin-only, unlike fetchUsers() — includes inactive accounts too, for the
+// Settings > User Management table.
+export function fetchAllUsers() {
+  return apiFetch<ManagedUser[]>('/webhook/get-all-users');
+}
+
+export function updateUserRole(userId: number, role: 'admin' | 'user') {
+  return apiFetch<{ success: boolean; user?: TeamUser; error?: string }>('/webhook/update-user-role', {
+    method: 'POST',
+    body: JSON.stringify({ user_id: userId, role }),
+  });
+}
+
+export function updateUserActive(userId: number, active: boolean) {
+  return apiFetch<{ success: boolean; user?: TeamUser; error?: string }>('/webhook/update-user-active', {
+    method: 'POST',
+    body: JSON.stringify({ user_id: userId, active }),
+  });
+}
+
 export function updateUserColor(userId: number, color: string) {
   return apiFetch<{ success: boolean; user?: TeamUser; error?: string }>('/webhook/update-user-color', {
     method: 'POST',
     body: JSON.stringify({ user_id: userId, color }),
+  });
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+// Backend resolves the target user from the session token, same as
+// updateNotificationPreferences — you can only ever upload your own avatar.
+export async function uploadAvatar(file: File) {
+  const url = await readFileAsDataUrl(file);
+  return apiFetch<{ success: boolean; user?: TeamUser; error?: string }>('/webhook/upload-avatar', {
+    method: 'POST',
+    body: JSON.stringify({ photo: { name: file.name, url } }),
   });
 }
 

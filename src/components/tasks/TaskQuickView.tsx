@@ -8,9 +8,9 @@ import { useSetTaskSubtasks, useUpdateTask } from '../../hooks/useTasks';
 import { useTaskStatuses } from '../../hooks/useTaskStatuses';
 import { useUsers } from '../../hooks/useContacts';
 import { useCompanies } from '../../hooks/useCompanies';
-import { DEFAULT_USER_COLOR, hexToRgba } from '../../utils/userColor';
 import { startDm, sendMessage } from '../../api/chat';
 import CompanyDetailModal from '../companies/CompanyDetailModal';
+import OwnerBadge from '../OwnerBadge';
 
 interface Props {
   task: Task | null;
@@ -59,8 +59,6 @@ export default function TaskQuickView({ task, canEdit, onClose, onEdit, onOpenFu
   const subtasks = useMemo(() => task?.subtasks ?? [], [task]);
 
   if (!task) return null;
-
-  const ownerColor = task.assigned_user_name ? task.assigned_user_color || DEFAULT_USER_COLOR : undefined;
 
   function persistSubtasks(next: { title: string; is_completed: boolean }[]) {
     setSubtasks.mutate({ taskId: task!.id, subtasks: next, requesterId: user?.id });
@@ -301,17 +299,11 @@ export default function TaskQuickView({ task, canEdit, onClose, onEdit, onOpenFu
                 </Field>
               )}
               <Field label="Owner">
-                {task.assigned_user_name ? (
-                  <span
-                    className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium rounded-full"
-                    style={{ backgroundColor: hexToRgba(ownerColor!, 0.14), color: ownerColor }}
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: ownerColor }} />
-                    {toTitleCase(task.assigned_user_name)}
-                  </span>
-                ) : (
-                  <p className="text-sm text-slate-700">Unassigned</p>
-                )}
+                <OwnerBadge
+                  name={task.assigned_user_name}
+                  color={task.assigned_user_color}
+                  avatarUrl={task.assigned_user_avatar_url}
+                />
               </Field>
               {(task.account_name || task.company_name) && (
                 <Field label="Account">

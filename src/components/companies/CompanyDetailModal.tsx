@@ -14,8 +14,8 @@ import { useTasks } from '../../hooks/useTasks';
 import { useEvents } from '../../hooks/useEvents';
 import * as chatApi from '../../api/chat';
 import { toTitleCase, formatPhone } from '../../utils/text';
-import { DEFAULT_USER_COLOR, hexToRgba } from '../../utils/userColor';
 import { COMPANY_HEALTH_DISPLAY } from '../../utils/companyHealth';
+import Avatar from '../Avatar';
 import DealFormModal from '../pipeline/DealFormModal';
 import AddContactModal from '../contacts/AddContactModal';
 import TaskFormModal from '../tasks/TaskFormModal';
@@ -25,6 +25,7 @@ import ComposeEmailPopover from '../contacts/ComposeEmailPopover';
 import ActivityTimeline from '../ActivityTimeline';
 import ActivityLogModal from '../ActivityLogModal';
 import ConfirmDialog from '../ConfirmDialog';
+import OwnerBadge from '../OwnerBadge';
 
 const ACCOUNT_STATUS_COLORS: Record<string, string> = {
   Prospect: 'bg-slate-100 text-slate-700',
@@ -355,22 +356,13 @@ export default function CompanyDetailModal({
                 <span className="relative flex items-center gap-1.5">
                   Owner:
                   {(() => {
-                    const label = company.owner_name ? (
-                      <span
-                        className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium rounded-full"
-                        style={{
-                          backgroundColor: hexToRgba(company.owner_color || DEFAULT_USER_COLOR, 0.14),
-                          color: company.owner_color || DEFAULT_USER_COLOR,
-                        }}
-                      >
-                        <span
-                          className="w-1.5 h-1.5 rounded-full"
-                          style={{ backgroundColor: company.owner_color || DEFAULT_USER_COLOR }}
-                        />
-                        {toTitleCase(company.owner_name)}
-                      </span>
-                    ) : (
-                      <span className="text-slate-500">Unassigned</span>
+                    const ownerAvatarUrl = teamUsers.find((u) => u.id === company.owner_id)?.avatar_url;
+                    const label = (
+                      <OwnerBadge
+                        name={company.owner_name}
+                        color={company.owner_color}
+                        avatarUrl={ownerAvatarUrl}
+                      />
                     );
 
                     // Owner reassignment (including initial assignment of an
@@ -404,11 +396,12 @@ export default function CompanyDetailModal({
                                       updateCompany.mutate({ id: company.id, payload: { owner_id: u.id } });
                                     }
                                   }}
-                                  className={`w-full text-left px-3 py-1.5 hover:bg-slate-50 truncate ${
+                                  className={`w-full flex items-center gap-1.5 text-left px-3 py-1.5 hover:bg-slate-50 truncate ${
                                     u.id === company.owner_id ? 'font-semibold text-slate-800' : 'text-slate-600'
                                   }`}
                                 >
-                                  {toTitleCase(u.name)}
+                                  <Avatar name={u.name} size="xs" avatarUrl={u.avatar_url} />
+                                  <span className="truncate">{toTitleCase(u.name)}</span>
                                 </button>
                               ))}
                             </div>
@@ -750,11 +743,19 @@ export default function CompanyDetailModal({
                               <span className="text-[10px] font-semibold text-slate-500 shrink-0">{t.priority}</span>
                             )}
                           </div>
-                          <p className="text-xs text-slate-500">
-                            {t.assigned_user_name ? `Owner: ${toTitleCase(t.assigned_user_name)}` : 'Unassigned'}
-                            {t.due_at &&
-                              ` · Due ${new Date(t.due_at).toLocaleDateString(undefined, { month: 'short', day: '2-digit' })}`}
-                          </p>
+                          <div className="flex items-center gap-1.5">
+                            <OwnerBadge
+                              name={t.assigned_user_name}
+                              color={t.assigned_user_color}
+                              avatarUrl={t.assigned_user_avatar_url}
+                              size="xs"
+                            />
+                            {t.due_at && (
+                              <span className="text-xs text-slate-500">
+                                Due {new Date(t.due_at).toLocaleDateString(undefined, { month: 'short', day: '2-digit' })}
+                              </span>
+                            )}
+                          </div>
                           <button
                             onClick={() => openTaskView(t.id)}
                             className="w-full mt-1.5 text-xs font-semibold text-indigo-600 border border-indigo-200 rounded-lg py-1.5 hover:bg-indigo-50"
@@ -787,10 +788,19 @@ export default function CompanyDetailModal({
                           <p className={`text-sm font-medium truncate ${e.is_completed ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
                             {toTitleCase(e.subject)}
                           </p>
-                          <p className="text-xs text-slate-500">
-                            {new Date(e.due_at).toLocaleDateString(undefined, { month: 'short', day: '2-digit', year: 'numeric' })}
-                            {e.assigned_user_name ? ` · ${toTitleCase(e.assigned_user_name)}` : ''}
-                          </p>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs text-slate-500">
+                              {new Date(e.due_at).toLocaleDateString(undefined, { month: 'short', day: '2-digit', year: 'numeric' })}
+                            </span>
+                            {e.assigned_user_name && (
+                              <OwnerBadge
+                                name={e.assigned_user_name}
+                                color={e.assigned_user_color}
+                                avatarUrl={e.assigned_user_avatar_url}
+                                size="xs"
+                              />
+                            )}
+                          </div>
                           <button
                             onClick={() => openEventView(e)}
                             className="w-full mt-1.5 text-xs font-semibold text-indigo-600 border border-indigo-200 rounded-lg py-1.5 hover:bg-indigo-50"
@@ -989,9 +999,18 @@ export default function CompanyDetailModal({
                   label="Owner"
                   name={company.owner_name}
                   color={company.owner_color}
+                  avatarUrl={teamUsers.find((u) => u.id === company.owner_id)?.avatar_url}
                 />
-                <TeamMemberRow label="SE" name={company.se_user_name} />
-                <TeamMemberRow label="CS Rep" name={company.csm_user_name} />
+                <TeamMemberRow
+                  label="SE"
+                  name={company.se_user_name}
+                  avatarUrl={teamUsers.find((u) => u.id === company.se_user_id)?.avatar_url}
+                />
+                <TeamMemberRow
+                  label="CS Rep"
+                  name={company.csm_user_name}
+                  avatarUrl={teamUsers.find((u) => u.id === company.csm_user_id)?.avatar_url}
+                />
               </div>
             </div>
           </div>
@@ -1073,24 +1092,21 @@ function DetailField({ label, value }: { label: string; value?: string }) {
   );
 }
 
-function TeamMemberRow({ label, name, color }: { label: string; name?: string; color?: string }) {
+function TeamMemberRow({
+  label,
+  name,
+  color,
+  avatarUrl,
+}: {
+  label: string;
+  name?: string;
+  color?: string;
+  avatarUrl?: string | null;
+}) {
   return (
     <div className="flex items-center justify-between text-xs">
       <span className="text-slate-500">{label}:</span>
-      {name ? (
-        <span
-          className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded-full"
-          style={{
-            backgroundColor: hexToRgba(color || DEFAULT_USER_COLOR, 0.14),
-            color: color || DEFAULT_USER_COLOR,
-          }}
-        >
-          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color || DEFAULT_USER_COLOR }} />
-          {toTitleCase(name)}
-        </span>
-      ) : (
-        <span className="text-slate-400 text-[11px]">Unassigned</span>
-      )}
+      <OwnerBadge name={name} color={color} avatarUrl={avatarUrl} size="xs" />
     </div>
   );
 }

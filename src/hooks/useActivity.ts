@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as api from '../api/activity';
+import { GlobalAuditLogFilters } from '../api/activity';
 
 export function useEntityActivity(entityType: string, entityId: number | null) {
   return useQuery({
@@ -15,5 +16,13 @@ export function useLogCallActivity(entityType: string, entityId: number | null) 
     mutationFn: ({ summary, detail }: { summary: string; detail?: Record<string, unknown> }) =>
       api.logCallActivity(entityType, entityId!, summary, detail),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['entity-activity', entityType, entityId] }),
+  });
+}
+
+export function useGlobalAuditLog(filters: GlobalAuditLogFilters, enabled: boolean) {
+  return useQuery({
+    queryKey: ['global-audit-log', filters],
+    queryFn: () => api.fetchGlobalAuditLog(filters),
+    enabled,
   });
 }

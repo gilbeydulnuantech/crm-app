@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Contact } from '../../types/contact';
 import { useAssignOwner, useUsers } from '../../hooks/useContacts';
 import { toTitleCase } from '../../utils/text';
+import Avatar from '../Avatar';
 
 interface Props {
   contact: Contact;
@@ -13,6 +14,7 @@ export default function OwnerDropdown({ contact, disabled }: Props) {
   const [error, setError] = useState<string | null>(null);
   const { data: users = [] } = useUsers();
   const assignOwner = useAssignOwner();
+  const ownerAvatarUrl = users.find((u) => u.id === contact.owner_id)?.avatar_url;
 
   function handleSelect(ownerId: number | null) {
     setError(null);
@@ -27,9 +29,12 @@ export default function OwnerDropdown({ contact, disabled }: Props) {
     return (
       <div>
         <label className="block text-[11px] font-medium text-slate-500 mb-1 text-right">Owner</label>
-        <p className="text-xs text-slate-700 text-right">
-          {contact.owner_name ? toTitleCase(contact.owner_name) : 'Unassigned'}
-        </p>
+        <div className="flex items-center justify-end gap-1.5">
+          {contact.owner_name && <Avatar name={contact.owner_name} size="xs" avatarUrl={ownerAvatarUrl} />}
+          <p className="text-xs text-slate-700">
+            {contact.owner_name ? toTitleCase(contact.owner_name) : 'Unassigned'}
+          </p>
+        </div>
       </div>
     );
   }
@@ -41,14 +46,15 @@ export default function OwnerDropdown({ contact, disabled }: Props) {
         <button
           onClick={() => !disabled && setOpen((v) => !v)}
           disabled={disabled}
-          className={`w-full flex items-center justify-between px-2 py-1 text-xs border border-slate-200 rounded-lg ${
+          className={`w-full flex items-center justify-between gap-1.5 px-2 py-1 text-xs border border-slate-200 rounded-lg ${
             disabled ? 'bg-slate-50 cursor-not-allowed' : 'hover:border-slate-300'
           }`}
         >
-          <span className={contact.owner_name ? 'text-slate-700' : 'text-slate-400'}>
-            {contact.owner_name ? toTitleCase(contact.owner_name) : 'Unassigned'}
+          <span className={`flex items-center gap-1.5 min-w-0 ${contact.owner_name ? 'text-slate-700' : 'text-slate-400'}`}>
+            {contact.owner_name && <Avatar name={contact.owner_name} size="xs" avatarUrl={ownerAvatarUrl} />}
+            <span className="truncate">{contact.owner_name ? toTitleCase(contact.owner_name) : 'Unassigned'}</span>
           </span>
-          {!disabled && <i className="fa-solid fa-chevron-down text-[10px] text-slate-400" />}
+          {!disabled && <i className="fa-solid fa-chevron-down text-[10px] text-slate-400 shrink-0" />}
         </button>
 
         {open && !disabled && (
@@ -75,7 +81,8 @@ export default function OwnerDropdown({ contact, disabled }: Props) {
                     onChange={() => handleSelect(u.id)}
                     className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
                   />
-                  <span className="text-slate-700">{toTitleCase(u.name)}</span>
+                  <Avatar name={u.name} size="xs" avatarUrl={u.avatar_url} />
+                  <span className="text-slate-700 truncate">{toTitleCase(u.name)}</span>
                 </label>
               ))}
             </div>

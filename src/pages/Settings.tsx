@@ -3,12 +3,16 @@ import { useAuth } from '../context/AuthContext';
 import ThemeModal from '../components/settings/ThemeModal';
 import MyProfileModal from '../components/settings/MyProfileModal';
 import NotificationPreferencesModal from '../components/settings/NotificationPreferencesModal';
+import AuditLogModal from '../components/settings/AuditLogModal';
+import UserManagementModal from '../components/settings/UserManagementModal';
 
 export default function Settings() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [themeOpen, setThemeOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [auditLogOpen, setAuditLogOpen] = useState(false);
+  const [userMgmtOpen, setUserMgmtOpen] = useState(false);
 
   return (
     <div className="flex-1 overflow-y-auto p-6">
@@ -66,9 +70,52 @@ export default function Settings() {
         </div>
       </div>
 
+      {isAdmin && (
+        <>
+          <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mt-6 mb-2">Admin</h2>
+          <div className="max-w-xl bg-white border border-slate-200 rounded-xl divide-y divide-slate-100">
+            <div className="p-5 flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-800">User Management</h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Manage teammate roles and deactivate accounts.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setUserMgmtOpen(true)}
+                className="shrink-0 px-4 py-2 text-sm font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg flex items-center gap-2"
+              >
+                <i className="fa-solid fa-users-gear text-[var(--theme-accent)]" />
+                Users
+              </button>
+            </div>
+
+            <div className="p-5 flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-800">Audit Log</h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  See who created, archived, or restored records across every contact and company.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAuditLogOpen(true)}
+                className="shrink-0 px-4 py-2 text-sm font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg flex items-center gap-2"
+              >
+                <i className="fa-solid fa-clock-rotate-left text-[var(--theme-accent)]" />
+                Audit Log
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
       <MyProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
       <ThemeModal open={themeOpen} onClose={() => setThemeOpen(false)} />
       <NotificationPreferencesModal open={notificationsOpen} onClose={() => setNotificationsOpen(false)} />
+      <AuditLogModal open={auditLogOpen} onClose={() => setAuditLogOpen(false)} />
+      <UserManagementModal open={userMgmtOpen} onClose={() => setUserMgmtOpen(false)} />
     </div>
   );
 }

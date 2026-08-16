@@ -74,6 +74,7 @@ export interface Task {
   user_id?: number | null;
   assigned_user_name?: string; // joined
   assigned_user_color?: string; // joined from users.color
+  assigned_user_avatar_url?: string | null; // joined from users.avatar_url
   type: 'task';
   subject: string;
   body?: string;

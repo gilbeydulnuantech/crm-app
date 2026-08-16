@@ -56,11 +56,15 @@ export async function apiFetch<T = unknown>(
 ): Promise<T> {
   const token = getAuthToken();
 
+  // FormData needs the browser to set its own multipart Content-Type
+  // (with boundary) — forcing application/json here would break uploads.
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
+
   const res = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers: {
       'ngrok-skip-browser-warning': 'true',
-      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(options.body && !isFormData ? { 'Content-Type': 'application/json' } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },

@@ -37,7 +37,7 @@ interface Props {
   onDelete: (contact: Contact) => void;
   isLoading: boolean;
   density?: 'comfortable' | 'compact';
-  users: { id: number; name: string }[];
+  users: { id: number; name: string; avatar_url?: string | null }[];
 }
 
 const columnHelper = createColumnHelper<Contact>();
@@ -117,16 +117,17 @@ function OwnerCell({
   editable,
 }: {
   contact: Contact;
-  users: { id: number; name: string }[];
+  users: { id: number; name: string; avatar_url?: string | null }[];
   editable: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const assignOwner = useAssignOwner();
   const name = toTitleCase(contact.owner_name);
+  const ownerAvatarUrl = users.find((u) => u.id === contact.owner_id)?.avatar_url;
 
   const label = name ? (
     <div className="flex items-center gap-1.5 min-w-0">
-      <Avatar name={name} size="xs" />
+      <Avatar name={name} size="xs" avatarUrl={ownerAvatarUrl} />
       <span className="truncate">{name}</span>
     </div>
   ) : (
@@ -164,11 +165,12 @@ function OwnerCell({
                     assignOwner.mutate({ contactId: contact.id, ownerId: u.id });
                   }
                 }}
-                className={`w-full text-left px-3 py-1.5 hover:bg-slate-50 truncate ${
+                className={`w-full flex items-center gap-1.5 text-left px-3 py-1.5 hover:bg-slate-50 truncate ${
                   u.id === contact.owner_id ? 'font-semibold text-slate-800' : 'text-slate-600'
                 }`}
               >
-                {toTitleCase(u.name)}
+                <Avatar name={u.name} size="xs" avatarUrl={u.avatar_url} />
+                <span className="truncate">{toTitleCase(u.name)}</span>
               </button>
             ))}
           </div>

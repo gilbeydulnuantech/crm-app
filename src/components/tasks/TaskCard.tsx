@@ -1,7 +1,8 @@
 import { useDraggable } from '@dnd-kit/core';
 import { Task, TaskStatus, TaskStatusRow, taskStatus } from '../../types/task';
 import { toTitleCase } from '../../utils/text';
-import { DEFAULT_USER_COLOR, hexToRgba } from '../../utils/userColor';
+import { hexToRgba } from '../../utils/userColor';
+import OwnerBadge from '../OwnerBadge';
 import TaskCardMenu from './TaskCardMenu';
 
 interface Props {
@@ -52,7 +53,6 @@ export default function TaskCard({
   const status = taskStatus(task);
   const isOverdue = status === 'Overdue';
   const borderColor = task.priority ? PRIORITY_BORDER[task.priority] : '#E2E8F0';
-  const ownerColor = task.user_id ? task.assigned_user_color || DEFAULT_USER_COLOR : undefined;
   const accountName = task.account_name || task.company_name;
   const subtaskTotal = task.subtask_total ?? 0;
   const attachmentCount = task.attachments?.length ?? 0;
@@ -164,15 +164,13 @@ export default function TaskCard({
           <span />
         )}
 
-        <span
-          style={ownerColor ? { backgroundColor: hexToRgba(ownerColor, 0.18), color: ownerColor } : undefined}
-          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold truncate max-w-[65%] ${
-            ownerColor ? '' : 'bg-slate-100 text-slate-500'
-          }`}
-        >
-          <i className="fa-solid fa-user text-[9px]" />
-          <span className="truncate">{task.assigned_user_name ? toTitleCase(task.assigned_user_name) : 'Unassigned'}</span>
-        </span>
+        <OwnerBadge
+          name={task.assigned_user_name}
+          color={task.assigned_user_color}
+          avatarUrl={task.assigned_user_avatar_url}
+          size="xs"
+          className="max-w-[65%]"
+        />
       </div>
     </div>
   );

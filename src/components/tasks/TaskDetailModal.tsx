@@ -4,7 +4,7 @@ import { Task, TaskStatus, taskDisplayId, taskKanbanStatus } from '../../types/t
 import { toTitleCase } from '../../utils/text';
 import { useNotes, useAddNote } from '../../hooks/useNotes';
 import { startDm, sendMessage } from '../../api/chat';
-import { DEFAULT_USER_COLOR, hexToRgba } from '../../utils/userColor';
+import OwnerBadge from '../OwnerBadge';
 import {
   useAddTask,
   useArchiveTasks,
@@ -474,23 +474,11 @@ export default function TaskDetailModal({ task, isAdmin, currentUserId, onClose,
               <div className="space-y-1.5 text-sm">
                 <p className="flex items-center gap-1.5">
                   <span className="text-slate-500">Assigned To: </span>
-                  {task.assigned_user_name ? (
-                    <span
-                      className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium rounded-full"
-                      style={{
-                        backgroundColor: hexToRgba(task.assigned_user_color || DEFAULT_USER_COLOR, 0.14),
-                        color: task.assigned_user_color || DEFAULT_USER_COLOR,
-                      }}
-                    >
-                      <span
-                        className="w-1.5 h-1.5 rounded-full"
-                        style={{ backgroundColor: task.assigned_user_color || DEFAULT_USER_COLOR }}
-                      />
-                      {toTitleCase(task.assigned_user_name)}
-                    </span>
-                  ) : (
-                    <span className="font-medium text-slate-800">Unassigned</span>
-                  )}
+                  <OwnerBadge
+                    name={task.assigned_user_name}
+                    color={task.assigned_user_color}
+                    avatarUrl={task.assigned_user_avatar_url}
+                  />
                 </p>
                 <p>
                   <span className="text-slate-500">Priority: </span>

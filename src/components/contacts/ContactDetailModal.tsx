@@ -31,6 +31,7 @@ import EventFormModal from '../calendar/EventFormModal';
 import ActivityTimeline from '../ActivityTimeline';
 import ActivityLogModal from '../ActivityLogModal';
 import LogCallModal from '../LogCallModal';
+import OwnerBadge from '../OwnerBadge';
 import { toTitleCase } from '../../utils/text';
 import { parseEmailLogs } from '../../utils/emailLogs';
 import { CalendarEvent } from '../../types/event';
@@ -691,9 +692,12 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                                 {d.status === 'Lost' && d.lost_reason && (
                                   <p className="text-xs text-rose-600">Lost Reason: {d.lost_reason}</p>
                                 )}
-                                <p className="text-xs text-slate-500">
-                                  {d.assigned_user_name ? `Owner: ${toTitleCase(d.assigned_user_name)}` : 'Unassigned'}
-                                </p>
+                                <OwnerBadge
+                                  name={d.assigned_user_name}
+                                  color={d.assigned_user_color}
+                                  avatarUrl={d.assigned_user_avatar_url}
+                                  size="xs"
+                                />
                                 {(isClosed ? closedDate : d.created_at) && (
                                   <p className="text-[11px] text-slate-400">
                                     {isClosed ? 'Closed: ' : 'Created: '}
@@ -746,11 +750,19 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                               <span className="text-[10px] font-semibold text-slate-500 shrink-0">{t.priority}</span>
                             )}
                           </div>
-                          <p className="text-xs text-slate-500">
-                            {t.assigned_user_name ? `Owner: ${toTitleCase(t.assigned_user_name)}` : 'Unassigned'}
-                            {t.due_at &&
-                              ` · Due ${new Date(t.due_at).toLocaleDateString(undefined, { month: 'short', day: '2-digit' })}`}
-                          </p>
+                          <div className="flex items-center gap-1.5">
+                            <OwnerBadge
+                              name={t.assigned_user_name}
+                              color={t.assigned_user_color}
+                              avatarUrl={t.assigned_user_avatar_url}
+                              size="xs"
+                            />
+                            {t.due_at && (
+                              <span className="text-xs text-slate-500">
+                                Due {new Date(t.due_at).toLocaleDateString(undefined, { month: 'short', day: '2-digit' })}
+                              </span>
+                            )}
+                          </div>
                           <button
                             onClick={() => openTaskView(t.id)}
                             className="w-full mt-1.5 text-xs font-semibold text-indigo-600 border border-indigo-200 rounded-lg py-1.5 hover:bg-indigo-50"

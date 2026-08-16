@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { CalendarEvent } from '../../types/event';
 import { useDeleteEvent } from '../../hooks/useEvents';
 import { toTitleCase } from '../../utils/text';
-import { DEFAULT_USER_COLOR, hexToRgba } from '../../utils/userColor';
+import OwnerBadge from '../OwnerBadge';
 
 interface Props {
   event: CalendarEvent | null;
@@ -111,19 +111,11 @@ export default function EventQuickView({ event, onClose, onViewFullDetails, onEd
           )}
           {event.assigned_user_name && (
             <Row icon="fa-user-tie">
-              <span
-                className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium rounded-full"
-                style={{
-                  backgroundColor: hexToRgba(event.assigned_user_color || DEFAULT_USER_COLOR, 0.14),
-                  color: event.assigned_user_color || DEFAULT_USER_COLOR,
-                }}
-              >
-                <span
-                  className="w-1.5 h-1.5 rounded-full"
-                  style={{ backgroundColor: event.assigned_user_color || DEFAULT_USER_COLOR }}
-                />
-                {toTitleCase(event.assigned_user_name)}
-              </span>
+              <OwnerBadge
+                name={event.assigned_user_name}
+                color={event.assigned_user_color}
+                avatarUrl={event.assigned_user_avatar_url}
+              />
             </Row>
           )}
           {event.resources && event.resources.length > 0 && (

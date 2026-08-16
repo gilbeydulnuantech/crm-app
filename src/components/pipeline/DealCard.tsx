@@ -5,6 +5,7 @@ import { toTitleCase } from '../../utils/text';
 import { DEFAULT_USER_COLOR, hexToRgba } from '../../utils/userColor';
 import { getTagColorClasses } from '../../utils/tagColors';
 import { useTasks } from '../../hooks/useTasks';
+import OwnerBadge from '../OwnerBadge';
 import DealCardMenu from './DealCardMenu';
 
 interface Props {
@@ -198,15 +199,13 @@ export default function DealCard({
           is easy to let go stale, so this stays visible without opening
           the card. */}
       <div className="mt-2.5 pt-2 border-t border-slate-50 space-y-1">
-        <span
-          style={ownerColor ? { backgroundColor: hexToRgba(ownerColor, 0.18), color: ownerColor } : undefined}
-          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold truncate max-w-full ${
-            ownerColor ? '' : 'bg-slate-100 text-slate-500'
-          }`}
-        >
-          <i className="fa-solid fa-user text-[9px]" />
-          <span className="truncate">{opportunity.assigned_user_name ? toTitleCase(opportunity.assigned_user_name) : 'Unassigned'}</span>
-        </span>
+        <OwnerBadge
+          name={opportunity.assigned_user_name}
+          color={opportunity.assigned_user_color}
+          avatarUrl={opportunity.assigned_user_avatar_url}
+          size="xs"
+          className="max-w-full"
+        />
 
         <div className="flex items-center justify-between gap-2">
           {opportunity.expected_close ? (
