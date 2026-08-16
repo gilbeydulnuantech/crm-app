@@ -119,7 +119,8 @@ export default function DealQuickView({
   }
 
   return (
-    <div className="fixed inset-0 bg-slate-900/40 z-[95] flex items-center justify-center p-4" onClick={onClose}>
+    <>
+      <div className="fixed inset-0 bg-slate-900/40 z-[95] flex items-center justify-center p-4" onClick={onClose}>
       <div
         className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
@@ -281,6 +282,7 @@ export default function DealQuickView({
           </div>
         )}
       </div>
+      </div>
 
       <CompanyDetailModal
         company={quickViewCompany}
@@ -288,7 +290,10 @@ export default function DealQuickView({
         // Deal, parent company link, etc.) all call this same onClose right
         // before navigating away — so this needs to close this quickview
         // too, or it's left open (and stale) underneath whatever page we
-        // just navigated to.
+        // just navigated to. Rendered as a sibling of (not nested inside)
+        // the backdrop div above — nesting it meant every click inside the
+        // company modal bubbled up to that backdrop's onClick={onClose} and
+        // closed this quickview out from under it.
         onClose={() => {
           setQuickViewCompanyId(null);
           onClose();
@@ -306,6 +311,6 @@ export default function DealQuickView({
         isAdmin={isAdmin}
         currentUserId={currentUserId}
       />
-    </div>
+    </>
   );
 }
