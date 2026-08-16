@@ -254,12 +254,11 @@ export default function Calendar() {
     return list;
   }, [overlayFilteredEvents, search, statFilter, cursorDate]);
 
-  // Deep link from ContactDetailModal's "View Event" — ?highlight=<eventId>
-  // jumps to Month view on the event's own month (?date= carries that,
-  // since get-events is range-scoped and we can't know the date without
-  // fetching first) and rings the card once it's actually on screen.
-  // selectAllUsers() overrides the default "just my schedule" overlay so a
-  // colleague's event isn't silently hidden by the sidebar filter.
+  // Deep link from ContactDetailModal's/CompanyDetailModal's "View Event" —
+  // ?highlight=<eventId> jumps to Month view on the event's own month
+  // (?date= carries that, since get-events is range-scoped and we can't
+  // know the date without fetching first) and rings the card once it's
+  // actually on screen.
   useEffect(() => {
     const highlightParam = searchParams.get('highlight');
     if (!highlightParam) return;
@@ -267,7 +266,6 @@ export default function Calendar() {
     setMode('events');
     setViewMode('month');
     if (dateParam) setCursorDate(new Date(dateParam));
-    selectAllUsers();
     setHighlightEventId(Number(highlightParam));
     const next = new URLSearchParams(searchParams);
     next.delete('highlight');
@@ -275,6 +273,20 @@ export default function Calendar() {
     setSearchParams(next, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
+
+  // Overrides the default "just my schedule" sidebar overlay so a
+  // colleague's event isn't silently hidden while a highlight is pending.
+  // Split out from the effect above because selectAllUsers() reads `users`
+  // from its closure — calling it there would run before useUsers() has
+  // resolved on first mount (users still []), locking in an EMPTY checked
+  // set that hides every assigned event until the sidebar is toggled by
+  // hand. Depending on `users` here lets it fire once the team list is
+  // actually loaded, however long that takes.
+  useEffect(() => {
+    if (highlightEventId == null || users.length === 0) return;
+    selectAllUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [highlightEventId, users]);
 
   useEffect(() => {
     if (highlightEventId == null) return;

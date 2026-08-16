@@ -20,7 +20,6 @@ import DealFormModal from '../pipeline/DealFormModal';
 import AddContactModal from '../contacts/AddContactModal';
 import TaskFormModal from '../tasks/TaskFormModal';
 import EventFormModal from '../calendar/EventFormModal';
-import EventQuickView from '../calendar/EventQuickView';
 import LogCallModal from '../LogCallModal';
 import ComposeEmailPopover from '../contacts/ComposeEmailPopover';
 import ActivityTimeline from '../ActivityTimeline';
@@ -117,7 +116,6 @@ export default function CompanyDetailModal({
   const [taskFormOpen, setTaskFormOpen] = useState(false);
   const [eventFormOpen, setEventFormOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
-  const [quickViewEvent, setQuickViewEvent] = useState<CalendarEvent | null>(null);
   const [relatedTab, setRelatedTab] = useState<'opportunities' | 'tasks' | 'events'>('tasks');
 
   // A read-only company otherwise dead-ends the rep — no path forward
@@ -264,6 +262,16 @@ export default function CompanyDetailModal({
   function openTaskView(taskId: number) {
     onClose();
     navigate(`/tasks?highlight=${taskId}`);
+  }
+
+  // Lands on Calendar with the event highlighted instead of a quick-view
+  // popup — seeing an event's surrounding schedule (conflicts, what's
+  // before/after) is the point, which an isolated popup can't show.
+  function openEventView(event: CalendarEvent) {
+    onClose();
+    const d = new Date(event.due_at);
+    const eventDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    navigate(`/calendar?highlight=${event.id}&date=${eventDate}`);
   }
 
   function openParentCompany() {
@@ -784,7 +792,7 @@ export default function CompanyDetailModal({
                             {e.assigned_user_name ? ` · ${toTitleCase(e.assigned_user_name)}` : ''}
                           </p>
                           <button
-                            onClick={() => setQuickViewEvent(e)}
+                            onClick={() => openEventView(e)}
                             className="w-full mt-1.5 text-xs font-semibold text-indigo-600 border border-indigo-200 rounded-lg py-1.5 hover:bg-indigo-50"
                           >
                             View Event
@@ -1021,23 +1029,6 @@ export default function CompanyDetailModal({
           setEventFormOpen(false);
           setEditingEvent(null);
         }}
-      />
-      <EventQuickView
-        event={quickViewEvent}
-        onClose={() => setQuickViewEvent(null)}
-        onViewFullDetails={(event) => {
-          setQuickViewEvent(null);
-          onClose();
-          const eventDate = event.due_at.slice(0, 10);
-          navigate(`/calendar?highlight=${event.id}&date=${eventDate}`);
-        }}
-        onEdit={(event) => {
-          setQuickViewEvent(null);
-          setEditingEvent(event);
-          setEventFormOpen(true);
-        }}
-        isAdmin={isAdmin}
-        currentUserId={currentUserId}
       />
       <LogCallModal
         open={logCallOpen}

@@ -44,8 +44,13 @@ const EMPTY = {
   edit_reason: '',
 };
 
-function toDateInput(iso: string) {
-  return iso.slice(0, 10);
+// Accepts either an ISO timestamp or a plain Date and reads its LOCAL
+// calendar date. `iso.slice(0, 10)` — the previous approach — reads the
+// UTC calendar date instead: for any timezone ahead of UTC (e.g. UTC+8),
+// local midnight on a given day is still the *previous* day in UTC.
+function toDateInput(value: string | Date) {
+  const d = typeof value === 'string' ? new Date(value) : value;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 function toTimeInput(iso: string) {
   const d = new Date(iso);

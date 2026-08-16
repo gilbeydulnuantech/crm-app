@@ -10,7 +10,7 @@ import { useUsers } from '../../hooks/useContacts';
 import { useCompanies } from '../../hooks/useCompanies';
 import { DEFAULT_USER_COLOR, hexToRgba } from '../../utils/userColor';
 import { startDm, sendMessage } from '../../api/chat';
-import CompanyQuickView from '../companies/CompanyQuickView';
+import CompanyDetailModal from '../companies/CompanyDetailModal';
 
 interface Props {
   task: Task | null;
@@ -417,20 +417,32 @@ export default function TaskQuickView({ task, canEdit, onClose, onEdit, onOpenFu
         </div>
       </div>
 
-      <CompanyQuickView
+      <CompanyDetailModal
         company={quickViewCompany}
-        onClose={() => setQuickViewCompanyId(null)}
+        // CompanyDetailModal's own internal nav actions (View Task, View
+        // Deal, parent company link, etc.) all call this same onClose right
+        // before navigating away — so this needs to close this quickview
+        // too, or it's left open (and stale) underneath whatever page we
+        // just navigated to. The bare "X" close button uses this same prop,
+        // so dismissing the company modal also returns to the board instead
+        // of back to this task popup — an acceptable simplification given
+        // the alternative is duplicate/stale popups after navigating.
+        onClose={() => {
+          setQuickViewCompanyId(null);
+          onClose();
+        }}
         onEdit={(company) => {
           setQuickViewCompanyId(null);
           onClose();
           navigate(`/companies?companyId=${company.id}`);
         }}
-        onOpenFullRecord={(company) => {
+        onContactClick={(contactId) => {
           setQuickViewCompanyId(null);
           onClose();
-          navigate(`/companies?companyId=${company.id}`);
+          navigate(`/contacts?contactId=${contactId}`);
         }}
-        canEdit={isAdmin || quickViewCompany?.owner_id === user?.id}
+        isAdmin={isAdmin}
+        currentUserId={user?.id}
       />
     </>
   );

@@ -35,8 +35,15 @@ const EMPTY = {
   sendConfirmation: true,
 };
 
-function toDateInput(iso: string) {
-  return iso.slice(0, 10);
+// Accepts either an ISO timestamp (from a stored due_at) or a plain Date
+// (e.g. from a Month view day-click) and reads its LOCAL calendar date.
+// `iso.slice(0, 10)` — the previous approach — reads the UTC calendar date
+// instead: for any timezone ahead of UTC (e.g. UTC+8), local midnight on a
+// given day is still the *previous* day in UTC, so clicking "Aug 23" ended
+// up pre-filling the form with "Aug 22".
+function toDateInput(value: string | Date) {
+  const d = typeof value === 'string' ? new Date(value) : value;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 function toTimeInput(iso: string) {
   const d = new Date(iso);
@@ -142,7 +149,7 @@ export default function EventFormModal({
             ? String(defaultAccountId)
             : '',
         company_name: defaultContact?.company_name ?? defaultCompanyName ?? '',
-        date: toDateInput(base.toISOString()),
+        date: toDateInput(base),
         startTime: '09:00',
         assigned_user: user ? String(user.id) : '',
       });
