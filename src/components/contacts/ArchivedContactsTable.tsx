@@ -13,6 +13,7 @@ interface Props {
   selectedIds: Set<number>;
   onToggleSelect: (id: number) => void;
   onToggleSelectAll: () => void;
+  onRestore: (contact: ArchivedContact) => void;
   isLoading: boolean;
 }
 
@@ -23,6 +24,7 @@ export default function ArchivedContactsTable({
   selectedIds,
   onToggleSelect,
   onToggleSelectAll,
+  onRestore,
   isLoading,
 }: Props) {
   const allSelected = contacts.length > 0 && contacts.every((c) => selectedIds.has(c.id));
@@ -80,8 +82,23 @@ export default function ArchivedContactsTable({
         header: 'Reason',
         cell: (info) => info.getValue() || '--',
       }),
+      columnHelper.display({
+        id: 'actions',
+        header: '',
+        cell: ({ row }) => (
+          <div className="flex items-center justify-end">
+            <button
+              onClick={() => onRestore(row.original)}
+              className="text-slate-400 hover:text-emerald-600"
+              title="Restore"
+            >
+              <i className="fa-solid fa-clock-rotate-left text-xs" />
+            </button>
+          </div>
+        ),
+      }),
     ],
-    [selectedIds, allSelected]
+    [selectedIds, allSelected, onRestore]
   );
 
   const table = useReactTable({

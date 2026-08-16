@@ -316,6 +316,7 @@ export default function CompaniesTable({
             <input
               type="checkbox"
               checked={selectedIds.has(row.original.id)}
+              onClick={(e) => e.stopPropagation()}
               onChange={() => onToggleSelect(row.original.id)}
               className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
             />

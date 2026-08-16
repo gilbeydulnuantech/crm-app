@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Contact, ContactsView, LEAD_STATUS_OPTIONS } from '../types/contact';
+import { ArchivedContact, Contact, ContactsView, LEAD_STATUS_OPTIONS } from '../types/contact';
 import { useAuth } from '../context/AuthContext';
 import {
   useArchivedContacts,
@@ -319,6 +319,10 @@ export default function Contacts() {
     restoreContacts.mutate(Array.from(selectedIds), { onSuccess: () => setSelectedIds(new Set()) });
   }
 
+  function handleRestoreOne(contact: ArchivedContact) {
+    restoreContacts.mutate([contact.id]);
+  }
+
   function handleDeletePermanently() {
     if (selectedIds.size === 0) return;
     if (!confirm(`PERMANENT DELETE: Remove ${selectedIds.size} contact(s) forever?`)) return;
@@ -399,6 +403,7 @@ export default function Contacts() {
           selectedIds={selectedIds}
           onToggleSelect={toggleSelect}
           onToggleSelectAll={toggleSelectAll}
+          onRestore={handleRestoreOne}
           isLoading={isLoadingArchived}
         />
       )}
