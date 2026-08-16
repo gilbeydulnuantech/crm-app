@@ -19,17 +19,22 @@ import { useAddNote, useDeleteNote, useNotes, useUpdateNote } from '../../hooks/
 import { useEntityActivity } from '../../hooks/useActivity';
 import { useAuth } from '../../context/AuthContext';
 import { useAllOpportunities, useAllStages, usePipelines } from '../../hooks/useOpportunities';
+import { useTasks } from '../../hooks/useTasks';
+import { useEvents } from '../../hooks/useEvents';
 import TagsDropdown from './TagsDropdown';
 import OwnerDropdown from './OwnerDropdown';
 import AddContactModal from './AddContactModal';
 import ComposeEmailPopover from './ComposeEmailPopover';
 import DealFormModal from '../pipeline/DealFormModal';
 import TaskFormModal from '../tasks/TaskFormModal';
+import EventFormModal from '../calendar/EventFormModal';
+import EventQuickView from '../calendar/EventQuickView';
 import ActivityTimeline from '../ActivityTimeline';
 import ActivityLogModal from '../ActivityLogModal';
 import LogCallModal from '../LogCallModal';
 import { toTitleCase } from '../../utils/text';
 import { parseEmailLogs } from '../../utils/emailLogs';
+import { CalendarEvent } from '../../types/event';
 
 const STATUS_COLORS: Record<string, string> = {
   New: 'bg-slate-100 text-slate-800',
@@ -130,6 +135,9 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
   const [composeOpen, setComposeOpen] = useState(false);
   const [dealFormOpen, setDealFormOpen] = useState(false);
   const [taskFormOpen, setTaskFormOpen] = useState(false);
+  const [eventFormOpen, setEventFormOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
+  const [quickViewEvent, setQuickViewEvent] = useState<CalendarEvent | null>(null);
   const [logCallOpen, setLogCallOpen] = useState(false);
   const [selectedLog, setSelectedLog] = useState<EmailLog | null>(null);
   const [selectedActivity, setSelectedActivity] = useState<ActivityLogEntry | null>(null);
@@ -156,6 +164,21 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
   const pipelineIds = useMemo(() => pipelines.map((p) => p.id), [pipelines]);
   const { data: allOpportunities = [] } = useAllOpportunities(pipelineIds);
   const { data: allStages = [] } = useAllStages(pipelineIds);
+  const { data: allTasks = [] } = useTasks();
+  // get-events is date-range scoped (no "all events for a contact" endpoint
+  // exists) — a wide ±1 year window is a pragmatic stand-in so this section
+  // still shows the contact's near-term history without a backend change.
+  const eventsRangeStart = useMemo(() => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - 1);
+    return d.toISOString().slice(0, 10);
+  }, []);
+  const eventsRangeEnd = useMemo(() => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() + 1);
+    return d.toISOString().slice(0, 10);
+  }, []);
+  const { data: allEvents = [] } = useEvents(eventsRangeStart, eventsRangeEnd, !!contact);
   const { data: notes = [], isLoading: notesLoading } = useNotes('contact', contact?.id ?? null);
   const addNote = useAddNote('contact', contact?.id ?? null);
   const updateNote = useUpdateNote('contact', contact?.id ?? null);
@@ -174,13 +197,18 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
   // active account's DOM from ballooning without needing real pagination.
   const NOTES_PAGE_SIZE = 10;
   const DEALS_PAGE_SIZE = 5;
+  const LINKED_PAGE_SIZE = 5;
   const [visibleNotesCount, setVisibleNotesCount] = useState(NOTES_PAGE_SIZE);
   const [visibleDealsCount, setVisibleDealsCount] = useState<Record<string, number>>({});
+  const [visibleTasksCount, setVisibleTasksCount] = useState(LINKED_PAGE_SIZE);
+  const [visibleEventsCount, setVisibleEventsCount] = useState(LINKED_PAGE_SIZE);
   useEffect(() => {
     setActivityEverLoaded(false);
     setRequestSentConversationId(null);
     setVisibleNotesCount(NOTES_PAGE_SIZE);
     setVisibleDealsCount({});
+    setVisibleTasksCount(LINKED_PAGE_SIZE);
+    setVisibleEventsCount(LINKED_PAGE_SIZE);
     setMergeTarget(null);
     setMergeError(null);
     setDeleteNoteTargetId(null);
@@ -233,6 +261,10 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
 
   const logs = parseEmailLogs(contact.email_logs).slice().reverse();
   const contactDeals = allOpportunities.filter((o) => o.contact_id === contact.id);
+  const contactTasks = allTasks.filter((t) => t.contact_id === contact.id);
+  const contactEvents = allEvents
+    .filter((e) => e.contact_id === contact.id)
+    .sort((a, b) => new Date(b.due_at).getTime() - new Date(a.due_at).getTime());
   // Grouped into sections (Active, Closed Won, Closed Lost) instead of one
   // flat list, so closed deals are easy to spot separately from open ones.
   const dealSections = [
@@ -258,6 +290,11 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
     onClose();
     const pid = dealPipelineId ?? defaultPipelineId;
     navigate(`/pipeline?pipeline=${pid}&highlight=${dealId}`);
+  }
+
+  function openTaskView(taskId: number) {
+    onClose();
+    navigate(`/tasks?highlight=${taskId}`);
   }
 
   function openCompanyView() {
@@ -497,6 +534,18 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                   label="Tasks"
                   onClick={!isReadOnly ? () => setTaskFormOpen(true) : undefined}
                 />
+                <ActionButton
+                  icon="fa-calendar-plus"
+                  label="Event"
+                  onClick={
+                    !isReadOnly
+                      ? () => {
+                          setEditingEvent(null);
+                          setEventFormOpen(true);
+                        }
+                      : undefined
+                  }
+                />
               </div>
             </div>
 
@@ -621,6 +670,113 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                     );
                   })}
                 </div>
+              )}
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                  Tasks ({contactTasks.length})
+                </h3>
+                {!isReadOnly && (
+                  <button
+                    onClick={() => setTaskFormOpen(true)}
+                    className="text-xs font-semibold text-indigo-600 hover:underline"
+                  >
+                    + New Task
+                  </button>
+                )}
+              </div>
+              {contactTasks.length === 0 ? (
+                <p className="text-xs text-slate-400">No tasks linked to this contact yet.</p>
+              ) : (
+                <>
+                  <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg">
+                    {contactTasks.slice(0, visibleTasksCount).map((t) => (
+                      <div key={t.id} className="px-3 py-2.5 space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className={`text-sm font-medium truncate ${t.is_completed ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
+                            {toTitleCase(t.subject)}
+                          </p>
+                          {t.priority && (
+                            <span className="text-[10px] font-semibold text-slate-500 shrink-0">{t.priority}</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500">
+                          {t.assigned_user_name ? `Owner: ${toTitleCase(t.assigned_user_name)}` : 'Unassigned'}
+                          {t.due_at &&
+                            ` · Due ${new Date(t.due_at).toLocaleDateString(undefined, { month: 'short', day: '2-digit' })}`}
+                        </p>
+                        <button
+                          onClick={() => openTaskView(t.id)}
+                          className="w-full mt-1.5 text-xs font-semibold text-indigo-600 border border-indigo-200 rounded-lg py-1.5 hover:bg-indigo-50"
+                        >
+                          View Task
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  {contactTasks.length > visibleTasksCount && (
+                    <button
+                      onClick={() => setVisibleTasksCount((c) => c + LINKED_PAGE_SIZE)}
+                      className="w-full mt-1.5 text-xs font-semibold text-[var(--theme-accent)] hover:underline py-1"
+                    >
+                      Show {Math.min(contactTasks.length - visibleTasksCount, LINKED_PAGE_SIZE)} more (
+                      {contactTasks.length - visibleTasksCount} remaining)
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                  Events ({contactEvents.length})
+                </h3>
+                {!isReadOnly && (
+                  <button
+                    onClick={() => {
+                      setEditingEvent(null);
+                      setEventFormOpen(true);
+                    }}
+                    className="text-xs font-semibold text-indigo-600 hover:underline"
+                  >
+                    + New Event
+                  </button>
+                )}
+              </div>
+              {contactEvents.length === 0 ? (
+                <p className="text-xs text-slate-400">No events linked to this contact yet.</p>
+              ) : (
+                <>
+                  <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg">
+                    {contactEvents.slice(0, visibleEventsCount).map((e) => (
+                      <div key={e.id} className="px-3 py-2.5 space-y-1">
+                        <p className="text-sm font-medium text-slate-800 truncate">{toTitleCase(e.subject)}</p>
+                        <p className="text-xs text-slate-500">
+                          {new Date(e.due_at).toLocaleDateString(undefined, { month: 'short', day: '2-digit', year: 'numeric' })}
+                          {e.assigned_user_name ? ` · ${toTitleCase(e.assigned_user_name)}` : ''}
+                        </p>
+                        <button
+                          onClick={() => setQuickViewEvent(e)}
+                          className="w-full mt-1.5 text-xs font-semibold text-indigo-600 border border-indigo-200 rounded-lg py-1.5 hover:bg-indigo-50"
+                        >
+                          View Event
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  {contactEvents.length > visibleEventsCount && (
+                    <button
+                      onClick={() => setVisibleEventsCount((c) => c + LINKED_PAGE_SIZE)}
+                      className="w-full mt-1.5 text-xs font-semibold text-[var(--theme-accent)] hover:underline py-1"
+                    >
+                      Show {Math.min(contactEvents.length - visibleEventsCount, LINKED_PAGE_SIZE)} more (
+                      {contactEvents.length - visibleEventsCount} remaining)
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -838,6 +994,32 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
         open={taskFormOpen}
         defaultContactId={contact.id}
         onClose={() => setTaskFormOpen(false)}
+      />
+      <EventFormModal
+        open={eventFormOpen}
+        event={editingEvent}
+        defaultContactId={contact.id}
+        onClose={() => {
+          setEventFormOpen(false);
+          setEditingEvent(null);
+        }}
+      />
+      <EventQuickView
+        event={quickViewEvent}
+        onClose={() => setQuickViewEvent(null)}
+        onViewFullDetails={(event) => {
+          setQuickViewEvent(null);
+          onClose();
+          const eventDate = event.due_at.slice(0, 10);
+          navigate(`/calendar?highlight=${event.id}&date=${eventDate}`);
+        }}
+        onEdit={(event) => {
+          setQuickViewEvent(null);
+          setEditingEvent(event);
+          setEventFormOpen(true);
+        }}
+        isAdmin={isAdmin}
+        currentUserId={user?.id}
       />
       <LogCallModal
         open={logCallOpen}

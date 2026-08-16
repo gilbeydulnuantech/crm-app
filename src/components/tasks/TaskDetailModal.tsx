@@ -4,6 +4,7 @@ import { Task, TaskStatus, taskDisplayId, taskKanbanStatus } from '../../types/t
 import { toTitleCase } from '../../utils/text';
 import { useNotes, useAddNote } from '../../hooks/useNotes';
 import { startDm, sendMessage } from '../../api/chat';
+import { DEFAULT_USER_COLOR, hexToRgba } from '../../utils/userColor';
 import {
   useAddTask,
   useArchiveTasks,
@@ -471,11 +472,25 @@ export default function TaskDetailModal({ task, isAdmin, currentUserId, onClose,
             <div>
               <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Task Metadata</h3>
               <div className="space-y-1.5 text-sm">
-                <p>
+                <p className="flex items-center gap-1.5">
                   <span className="text-slate-500">Assigned To: </span>
-                  <span className="font-medium text-slate-800">
-                    {task.assigned_user_name ? toTitleCase(task.assigned_user_name) : 'Unassigned'}
-                  </span>
+                  {task.assigned_user_name ? (
+                    <span
+                      className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium rounded-full"
+                      style={{
+                        backgroundColor: hexToRgba(task.assigned_user_color || DEFAULT_USER_COLOR, 0.14),
+                        color: task.assigned_user_color || DEFAULT_USER_COLOR,
+                      }}
+                    >
+                      <span
+                        className="w-1.5 h-1.5 rounded-full"
+                        style={{ backgroundColor: task.assigned_user_color || DEFAULT_USER_COLOR }}
+                      />
+                      {toTitleCase(task.assigned_user_name)}
+                    </span>
+                  ) : (
+                    <span className="font-medium text-slate-800">Unassigned</span>
+                  )}
                 </p>
                 <p>
                   <span className="text-slate-500">Priority: </span>

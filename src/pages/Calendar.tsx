@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CalendarEvent, CalendarViewMode, EVENT_TYPES, EventType } from '../types/event';
 import { Opportunity } from '../types/opportunity';
 import { useEvents } from '../hooks/useEvents';
@@ -19,7 +19,7 @@ import { EventListView } from '../components/calendar/EventListView';
 import DealMonthView from '../components/calendar/DealMonthView';
 import DealWeekView from '../components/calendar/DealWeekView';
 import DealListView from '../components/calendar/DealListView';
-import EventDetailPanel from '../components/calendar/EventDetailPanel';
+import EventDetailModal from '../components/calendar/EventDetailModal';
 import EventQuickView from '../components/calendar/EventQuickView';
 import EventFormModal from '../components/calendar/EventFormModal';
 import DealQuickView from '../components/pipeline/DealQuickView';
@@ -56,6 +56,7 @@ const DEFAULT_RESOURCE_COLOR = '#CBD5E1';
 
 export default function Calendar() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, isAdmin } = useAuth();
   const [mode, setMode] = useState<CalendarMode>('events');
   const [viewMode, setViewMode] = useState<CalendarViewMode>('week');
@@ -66,6 +67,7 @@ export default function Calendar() {
   const [activeEvent, setActiveEvent] = useState<CalendarEvent | null>(null);
   const [quickViewEvent, setQuickViewEvent] = useState<CalendarEvent | null>(null);
   const [addDefaultDate, setAddDefaultDate] = useState<Date | null>(null);
+  const [highlightEventId, setHighlightEventId] = useState<number | null>(null);
 
   const [quickViewDeal, setQuickViewDeal] = useState<Opportunity | null>(null);
   const [detailDeal, setDetailDeal] = useState<Opportunity | null>(null);
@@ -251,6 +253,38 @@ export default function Calendar() {
 
     return list;
   }, [overlayFilteredEvents, search, statFilter, cursorDate]);
+
+  // Deep link from ContactDetailModal's "View Event" — ?highlight=<eventId>
+  // jumps to Month view on the event's own month (?date= carries that,
+  // since get-events is range-scoped and we can't know the date without
+  // fetching first) and rings the card once it's actually on screen.
+  // selectAllUsers() overrides the default "just my schedule" overlay so a
+  // colleague's event isn't silently hidden by the sidebar filter.
+  useEffect(() => {
+    const highlightParam = searchParams.get('highlight');
+    if (!highlightParam) return;
+    const dateParam = searchParams.get('date');
+    setMode('events');
+    setViewMode('month');
+    if (dateParam) setCursorDate(new Date(dateParam));
+    selectAllUsers();
+    setHighlightEventId(Number(highlightParam));
+    const next = new URLSearchParams(searchParams);
+    next.delete('highlight');
+    next.delete('date');
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (highlightEventId == null) return;
+    if (!visibleEvents.some((e) => e.id === highlightEventId)) return;
+    document
+      .getElementById(`event-card-${highlightEventId}`)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const t = setTimeout(() => setHighlightEventId(null), 3000);
+    return () => clearTimeout(t);
+  }, [highlightEventId, visibleEvents]);
 
   const weekEvents = useMemo(() => {
     const start = startOfWeek(cursorDate);
@@ -507,6 +541,7 @@ export default function Calendar() {
               resourceColorById={resourceColorById}
               onEventClick={setQuickViewEvent}
               onDayClick={(date) => openAddModal(date)}
+              highlightEventId={highlightEventId}
             />
           )}
           {viewMode === 'week' && (
@@ -579,20 +614,34 @@ export default function Calendar() {
       <EventQuickView
         event={quickViewEvent}
         onClose={() => setQuickViewEvent(null)}
-        onEdit={(event) => {
+        onViewFullDetails={(event) => {
           setQuickViewEvent(null);
           setActiveEvent(event);
+        }}
+        onEdit={(event) => {
+          setQuickViewEvent(null);
+          openEditModal(event);
         }}
         isAdmin={isAdmin}
         currentUserId={user?.id}
       />
 
-      <EventDetailPanel
+      <EventDetailModal
         event={activeEvent}
         onClose={() => setActiveEvent(null)}
         onEdit={openEditModal}
-        onOpenContact={() => navigate('/contacts')}
-        onOpenOpportunity={() => navigate('/pipeline')}
+        onOpenContact={(contactId) => {
+          setActiveEvent(null);
+          navigate(`/contacts?contactId=${contactId}`);
+        }}
+        onOpenCompany={(companyId) => {
+          setActiveEvent(null);
+          navigate(`/companies?companyId=${companyId}`);
+        }}
+        onOpenOpportunity={(opportunityId) => {
+          setActiveEvent(null);
+          navigate(`/pipeline?highlight=${opportunityId}`);
+        }}
         isAdmin={isAdmin}
         currentUserId={user?.id}
       />

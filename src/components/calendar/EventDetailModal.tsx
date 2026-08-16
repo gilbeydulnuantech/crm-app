@@ -2,23 +2,25 @@ import { useState } from 'react';
 import { CalendarEvent, EVENT_TYPE_META } from '../../types/event';
 import { useDeleteEvent, useUpdateEvent } from '../../hooks/useEvents';
 import { toTitleCase } from '../../utils/text';
+import { DEFAULT_USER_COLOR, hexToRgba } from '../../utils/userColor';
 
 interface Props {
   event: CalendarEvent | null;
   onClose: () => void;
   onEdit: (event: CalendarEvent) => void;
   onOpenContact?: (contactId: number) => void;
-  onOpenCompany?: (opportunityId: number) => void;
+  onOpenCompany?: (companyId: number) => void;
   onOpenOpportunity?: (opportunityId: number) => void;
   isAdmin: boolean;
   currentUserId?: number;
 }
 
-export default function EventDetailPanel({
+export default function EventDetailModal({
   event,
   onClose,
   onEdit,
   onOpenContact,
+  onOpenCompany,
   onOpenOpportunity,
   isAdmin,
   currentUserId,
@@ -58,9 +60,14 @@ export default function EventDetailPanel({
   }
 
   return (
-    <>
-      <div className="fixed inset-0 bg-slate-900/40 z-[90]" onClick={onClose} />
-      <div className="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-[100] flex flex-col">
+    <div
+      className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 shrink-0">
           <div>
             <h2 className="text-base font-bold text-slate-800">{event.subject}</h2>
@@ -92,16 +99,35 @@ export default function EventDetailPanel({
             />
           )}
           {event.location && <Field label="Location" value={event.location} />}
-          <Field label="Assigned To" value={event.assigned_user_name ? toTitleCase(event.assigned_user_name) : undefined} />
+          <div>
+            <label className="block text-[11px] font-medium text-slate-500 mb-1">Assigned To</label>
+            {event.assigned_user_name ? (
+              <span
+                className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium rounded-full"
+                style={{
+                  backgroundColor: hexToRgba(event.assigned_user_color || DEFAULT_USER_COLOR, 0.14),
+                  color: event.assigned_user_color || DEFAULT_USER_COLOR,
+                }}
+              >
+                <span
+                  className="w-1.5 h-1.5 rounded-full"
+                  style={{ backgroundColor: event.assigned_user_color || DEFAULT_USER_COLOR }}
+                />
+                {toTitleCase(event.assigned_user_name)}
+              </span>
+            ) : (
+              <p className="text-sm text-slate-700">--</p>
+            )}
+          </div>
 
           {event.company_name && (
             <div>
               <label className="block text-[11px] font-medium text-slate-500 mb-1">Company</label>
               <button
-                onClick={() => event.opportunity_id && onOpenOpportunity?.(event.opportunity_id)}
+                onClick={() => event.company_id && onOpenCompany?.(event.company_id)}
                 className="text-sm text-indigo-600 hover:underline"
               >
-                {event.company_name}
+                {toTitleCase(event.company_name)}
               </button>
             </div>
           )}
@@ -224,7 +250,7 @@ export default function EventDetailPanel({
           </div>
         )}
       </div>
-    </>
+    </div>
   );
 }
 

@@ -11,6 +11,7 @@ interface Props {
   open: boolean;
   event: CalendarEvent | null; // null = add mode
   defaultDate?: Date | null;
+  defaultContactId?: number | null;
   onClose: () => void;
 }
 
@@ -83,7 +84,7 @@ function TypeSelect({ value, onChange }: { value: EventType; onChange: (t: Event
   );
 }
 
-export default function EventFormModal({ open, event, defaultDate, onClose }: Props) {
+export default function EventFormModal({ open, event, defaultDate, defaultContactId, onClose }: Props) {
   const { user } = useAuth();
   const { data: users = [] } = useUsers();
   const { data: contacts = [] } = useContacts();
@@ -117,15 +118,20 @@ export default function EventFormModal({ open, event, defaultDate, onClose }: Pr
       });
     } else {
       const base = defaultDate ?? new Date();
+      const defaultContact = defaultContactId ? contacts.find((c) => c.id === defaultContactId) : undefined;
       setForm({
         ...EMPTY,
+        contact_id: defaultContactId ? String(defaultContactId) : '',
+        contact_name: defaultContact ? `${defaultContact.first_name} ${defaultContact.last_name}`.trim() : '',
+        company_name: defaultContact?.company_name ?? '',
         date: toDateInput(base.toISOString()),
         startTime: '09:00',
         assigned_user: user ? String(user.id) : '',
       });
     }
     setError(null);
-  }, [event, open, defaultDate, user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event, open, defaultDate, defaultContactId, user]);
 
   // Which resources are already booked by another event overlapping this
   // date/time — informational, not a hard block on selecting them anyway.
