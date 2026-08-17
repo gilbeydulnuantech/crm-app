@@ -1,0 +1,955 @@
+{
+  "name": "Nurture Sequences",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-nurture-sequences",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "ns1f0001-1111-4a5a-9b1a-nurseq00000001",
+      "name": "Webhook - Get Nurture Sequences",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        480
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "ns1f0002-2222-4a5a-9b1a-nurseq00000002",
+      "name": "Parse Token (Get)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        480
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "ns1f0003-3333-4a5a-9b1a-nurseq00000003",
+      "name": "Look Up Requester Role (Get)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1408,
+        480
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\nreturn [{ json: {} }];"
+      },
+      "id": "ns1f0004-4444-4a5a-9b1a-nurseq00000004",
+      "name": "Validate Admin (Get)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        480
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT ns.id, ns.name, ns.trigger_inactive_days, ns.exit_on_reply, ns.exit_lead_status, ns.is_active, ns.created_at,\n  (SELECT COUNT(*) FROM nurture_enrollments ne WHERE ne.sequence_id = ns.id AND ne.status = 'active') AS active_enrollments,\n  (SELECT COALESCE(json_agg(json_build_object('id', s.id, 'step_number', s.step_number, 'delay_days', s.delay_days, 'email_subject', s.email_subject, 'email_body', s.email_body) ORDER BY s.step_number), '[]'::json)\n   FROM nurture_sequence_steps s WHERE s.sequence_id = ns.id) AS steps\nFROM nurture_sequences ns\nORDER BY ns.created_at DESC;",
+        "options": {}
+      },
+      "id": "ns1f0005-5555-4a5a-9b1a-nurseq00000005",
+      "name": "Select Nurture Sequences",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1856,
+        480
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "ns1f0006-6666-4a5a-9b1a-nurseq00000006",
+      "name": "Respond - Get Nurture Sequences",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2080,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "save-nurture-sequence",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "ns1f0007-7777-4a5a-9b1a-nurseq00000007",
+      "name": "Webhook - Save Nurture Sequence",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        704
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "ns1f0008-8888-4a5a-9b1a-nurseq00000008",
+      "name": "Parse Token (Save)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        704
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "ns1f0009-9999-4a5a-9b1a-nurseq00000009",
+      "name": "Look Up Requester Role (Save)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1408,
+        704
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Save Nurture Sequence').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst id = body.id ? parseInt(body.id, 10) : null;\nconst name = (body.name || '').toString().trim();\nconst triggerInactiveDays = parseInt(body.trigger_inactive_days, 10);\nconst exitOnReply = body.exit_on_reply !== false;\nconst exitLeadStatus = (body.exit_lead_status || '').toString().trim() || null;\nconst steps = Array.isArray(body.steps) ? body.steps : [];\n\nif (!name) throw new Error('\"name\" is required.');\nif (!Number.isInteger(triggerInactiveDays) || triggerInactiveDays < 1) throw new Error('\"trigger_inactive_days\" must be a positive integer.');\nif (steps.length === 0) throw new Error('At least one email step is required.');\n\nconst cleanSteps = steps.map((s, i) => {\n  const delayDays = parseInt(s.delay_days, 10);\n  const subject = (s.email_subject || '').toString().trim();\n  const emailBody = (s.email_body || '').toString();\n  if (!Number.isInteger(delayDays) || delayDays < 0) throw new Error(`Step ${i + 1}: \"delay_days\" must be a non-negative integer.`);\n  if (!subject) throw new Error(`Step ${i + 1}: subject is required.`);\n  if (!emailBody.trim()) throw new Error(`Step ${i + 1}: email body is required.`);\n  return { stepNumber: i + 1, delayDays, subject, emailBody };\n});\n\nreturn [{ json: { id, name, triggerInactiveDays, exitOnReply, exitLeadStatus, steps: cleanSteps, requesterId: requester.id } }];"
+      },
+      "id": "ns1f0010-1010-4a5a-9b1a-nurseq00000010",
+      "name": "Validate Admin & Payload (Save)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        704
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO nurture_sequences (id, name, trigger_inactive_days, exit_on_reply, exit_lead_status, is_active, created_by, created_at, updated_at)\nVALUES (COALESCE($1, nextval(pg_get_serial_sequence('nurture_sequences', 'id'))), $2, $3, $4, $5, true, $6, now(), now())\nON CONFLICT (id) DO UPDATE SET\n  name = EXCLUDED.name,\n  trigger_inactive_days = EXCLUDED.trigger_inactive_days,\n  exit_on_reply = EXCLUDED.exit_on_reply,\n  exit_lead_status = EXCLUDED.exit_lead_status,\n  updated_at = now()\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id, $json.name, $json.triggerInactiveDays, $json.exitOnReply, $json.exitLeadStatus, $json.requesterId ] }}"
+        }
+      },
+      "id": "ns1f0011-1111-4a5a-9b1a-nurseq00000011",
+      "name": "Upsert Sequence",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1856,
+        704
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH deleted AS (\n  DELETE FROM nurture_sequence_steps WHERE sequence_id = $1 RETURNING id\n)\nSELECT $1 AS sequence_id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id ] }}"
+        }
+      },
+      "id": "ns1f0012-1212-4a5a-9b1a-nurseq00000012",
+      "name": "Clear Old Steps",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2080,
+        704
+      ],
+      "notes": "Full-replace edit pattern: every save clears and re-inserts all steps rather than diffing \u2014 simplest correct approach for a small, admin-edited step list."
+    },
+    {
+      "parameters": {
+        "jsCode": "const sequenceId = $('Upsert Sequence').first().json.id;\nconst steps = $('Validate Admin & Payload (Save)').first().json.steps;\nreturn steps.map((s) => ({ json: { sequenceId, ...s } }));"
+      },
+      "id": "ns1f0013-1313-4a5a-9b1a-nurseq00000013",
+      "name": "Expand Steps",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2304,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO nurture_sequence_steps (sequence_id, step_number, delay_days, email_subject, email_body) VALUES ($1, $2, $3, $4, $5);",
+        "options": {
+          "queryReplacement": "={{ [ $json.sequenceId, $json.stepNumber, $json.delayDays, $json.subject, $json.emailBody ] }}"
+        }
+      },
+      "id": "ns1f0014-1414-4a5a-9b1a-nurseq00000014",
+      "name": "Insert Step",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2528,
+        704
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true } }}",
+        "options": {}
+      },
+      "id": "ns1f0015-1515-4a5a-9b1a-nurseq00000015",
+      "name": "Respond - Save Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2752,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "update-nurture-sequence-active",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "ns1f0016-1616-4a5a-9b1a-nurseq00000016",
+      "name": "Webhook - Update Sequence Active",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        928
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "ns1f0017-1717-4a5a-9b1a-nurseq00000017",
+      "name": "Parse Token (Toggle)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        928
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "ns1f0018-1818-4a5a-9b1a-nurseq00000018",
+      "name": "Look Up Requester Role (Toggle)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1408,
+        928
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Update Sequence Active').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" must be an integer.');\nif (typeof body.is_active !== 'boolean') throw new Error('\"is_active\" must be true or false.');\n\nreturn [{ json: { id, isActive: body.is_active } }];"
+      },
+      "id": "ns1f0019-1919-4a5a-9b1a-nurseq00000019",
+      "name": "Validate Admin & Payload (Toggle)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        928
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE nurture_sequences SET is_active = $1, updated_at = now() WHERE id = $2 RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.isActive, $json.id ] }}"
+        }
+      },
+      "id": "ns1f0020-2020-4a5a-9b1a-nurseq00000020",
+      "name": "Update Sequence Active",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1856,
+        928
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) throw new Error('Sequence not found.');\nreturn [{ json: { success: true } }];"
+      },
+      "id": "ns1f0021-2121-4a5a-9b1a-nurseq00000021",
+      "name": "Check Toggle Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        928
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "ns1f0022-2222-4a5a-9b1a-nurseq00000022",
+      "name": "Respond - Toggle Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2304,
+        928
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "delete-nurture-sequence",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "ns1f0023-2323-4a5a-9b1a-nurseq00000023",
+      "name": "Webhook - Delete Sequence",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        1152
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "ns1f0024-2424-4a5a-9b1a-nurseq00000024",
+      "name": "Parse Token (Delete)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        1152
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "ns1f0025-2525-4a5a-9b1a-nurseq00000025",
+      "name": "Look Up Requester Role (Delete)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1408,
+        1152
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Delete Sequence').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" must be an integer.');\n\nreturn [{ json: { id } }];"
+      },
+      "id": "ns1f0026-2626-4a5a-9b1a-nurseq00000026",
+      "name": "Validate Admin & Payload (Delete)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        1152
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM nurture_sequences WHERE id = $1 RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id ] }}"
+        }
+      },
+      "id": "ns1f0027-2727-4a5a-9b1a-nurseq00000027",
+      "name": "Delete Sequence",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1856,
+        1152
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "notes": "Steps and enrollments cascade-delete via their FK ON DELETE CASCADE."
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) throw new Error('Sequence not found.');\nreturn [{ json: { success: true } }];"
+      },
+      "id": "ns1f0028-2828-4a5a-9b1a-nurseq00000028",
+      "name": "Check Delete Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        1152
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "ns1f0029-2929-4a5a-9b1a-nurseq00000029",
+      "name": "Respond - Delete Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2304,
+        1152
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "ns1f0030-3030-4a5a-9b1a-nurseq00000030",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1408,
+        1376
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook - Get Nurture Sequences": {
+      "main": [
+        [
+          {
+            "node": "Parse Token (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token (Get)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester Role (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester Role (Get)": {
+      "main": [
+        [
+          {
+            "node": "Validate Admin (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Admin (Get)": {
+      "main": [
+        [
+          {
+            "node": "Select Nurture Sequences",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Nurture Sequences": {
+      "main": [
+        [
+          {
+            "node": "Respond - Get Nurture Sequences",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Save Nurture Sequence": {
+      "main": [
+        [
+          {
+            "node": "Parse Token (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token (Save)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester Role (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester Role (Save)": {
+      "main": [
+        [
+          {
+            "node": "Validate Admin & Payload (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Admin & Payload (Save)": {
+      "main": [
+        [
+          {
+            "node": "Upsert Sequence",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Sequence": {
+      "main": [
+        [
+          {
+            "node": "Clear Old Steps",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clear Old Steps": {
+      "main": [
+        [
+          {
+            "node": "Expand Steps",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Expand Steps": {
+      "main": [
+        [
+          {
+            "node": "Insert Step",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Step": {
+      "main": [
+        [
+          {
+            "node": "Respond - Save Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Update Sequence Active": {
+      "main": [
+        [
+          {
+            "node": "Parse Token (Toggle)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token (Toggle)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester Role (Toggle)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester Role (Toggle)": {
+      "main": [
+        [
+          {
+            "node": "Validate Admin & Payload (Toggle)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Admin & Payload (Toggle)": {
+      "main": [
+        [
+          {
+            "node": "Update Sequence Active",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Sequence Active": {
+      "main": [
+        [
+          {
+            "node": "Check Toggle Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Toggle Result": {
+      "main": [
+        [
+          {
+            "node": "Respond - Toggle Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Delete Sequence": {
+      "main": [
+        [
+          {
+            "node": "Parse Token (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester Role (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester Role (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Validate Admin & Payload (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Admin & Payload (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Delete Sequence",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Sequence": {
+      "main": [
+        [
+          {
+            "node": "Check Delete Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Delete Result": {
+      "main": [
+        [
+          {
+            "node": "Respond - Delete Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

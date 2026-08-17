@@ -7,6 +7,7 @@ import AuditLogModal from '../components/settings/AuditLogModal';
 import UserManagementModal from '../components/settings/UserManagementModal';
 import CalendarIntegrationsModal from '../components/settings/CalendarIntegrationsModal';
 import IntegrationsModal from '../components/settings/IntegrationsModal';
+import NurtureSequencesModal from '../components/settings/NurtureSequencesModal';
 
 export default function Settings() {
   const { user, isAdmin } = useAuth();
@@ -17,6 +18,7 @@ export default function Settings() {
   const [userMgmtOpen, setUserMgmtOpen] = useState(false);
   const [calendarIntegrationsOpen, setCalendarIntegrationsOpen] = useState(false);
   const [integrationsOpen, setIntegrationsOpen] = useState(false);
+  const [nurtureSequencesOpen, setNurtureSequencesOpen] = useState(false);
 
   return (
     <div className="flex-1 overflow-y-auto p-6">
@@ -145,6 +147,23 @@ export default function Settings() {
                 Integrations
               </button>
             </div>
+
+            <div className="p-5 flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-800">Email Nurture</h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Multi-step drip sequences for contacts who've gone quiet — stops automatically on reply.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setNurtureSequencesOpen(true)}
+                className="shrink-0 px-4 py-2 text-sm font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg flex items-center gap-2"
+              >
+                <i className="fa-solid fa-seedling text-[var(--theme-accent)]" />
+                Sequences
+              </button>
+            </div>
           </div>
         </>
       )}
@@ -156,6 +175,7 @@ export default function Settings() {
       <UserManagementModal open={userMgmtOpen} onClose={() => setUserMgmtOpen(false)} />
       <CalendarIntegrationsModal open={calendarIntegrationsOpen} onClose={() => setCalendarIntegrationsOpen(false)} />
       <IntegrationsModal open={integrationsOpen} onClose={() => setIntegrationsOpen(false)} />
+      <NurtureSequencesModal open={nurtureSequencesOpen} onClose={() => setNurtureSequencesOpen(false)} />
     </div>
   );
 }

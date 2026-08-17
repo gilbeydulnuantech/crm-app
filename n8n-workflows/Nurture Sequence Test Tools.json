@@ -1,0 +1,362 @@
+{
+  "name": "Nurture Sequence Test Tools",
+  "nodes": [
+    {
+      "parameters": { "httpMethod": "POST", "path": "test-nurture-step", "responseMode": "responseNode", "options": {} },
+      "id": "tt1h0001-1111-4a5a-9b1a-nurtest0000001",
+      "name": "Webhook - Test Nurture Step",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [960, 400],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "tt1h0002-2222-4a5a-9b1a-nurtest0000002",
+      "name": "Parse Token (Test)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1184, 400],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": { "queryReplacement": "={{ [ $json.requesterId ] }}" }
+      },
+      "id": "tt1h0003-3333-4a5a-9b1a-nurtest0000003",
+      "name": "Look Up Requester Role (Test)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1408, 400],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Test Nurture Step').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst testEmail = (body.test_email || '').toString().trim();\nconst subject = (body.email_subject || '').toString().trim();\nconst emailBody = (body.email_body || '').toString();\n\nif (!testEmail) throw new Error('\"test_email\" is required.');\nif (!subject) throw new Error('\"email_subject\" is required.');\nif (!emailBody.trim()) throw new Error('\"email_body\" is required.');\n\nfunction fill(template) {\n  return template\n    .replace(/{{\\s*first_name\\s*}}/gi, 'Test')\n    .replace(/{{\\s*last_name\\s*}}/gi, 'Contact');\n}\n\nreturn [{ json: { testEmail, subject: '[TEST] ' + fill(subject), body: fill(emailBody) } }];"
+      },
+      "id": "tt1h0004-4444-4a5a-9b1a-nurtest0000004",
+      "name": "Validate Admin & Payload (Test)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1632, 400],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.testEmail }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.body }}",
+        "options": {}
+      },
+      "id": "tt1h0005-5555-4a5a-9b1a-nurtest0000005",
+      "name": "Send Test Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [1856, 400],
+      "credentials": { "gmailOAuth2": { "id": "VKDbMYV2U0WoSc16", "name": "n8n072826" } },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ { success: true } }}", "options": {} },
+      "id": "tt1h0006-6666-4a5a-9b1a-nurtest0000006",
+      "name": "Respond - Test Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [2080, 400]
+    },
+
+    {
+      "parameters": { "httpMethod": "POST", "path": "force-run-nurture-sequence", "responseMode": "responseNode", "options": {} },
+      "id": "tt1h0007-7777-4a5a-9b1a-nurtest0000007",
+      "name": "Webhook - Force Run Sequence",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [960, 704],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst body = $input.first().json.body || {};\nconst sequenceId = parseInt(body.sequence_id, 10);\nif (!Number.isInteger(sequenceId)) throw new Error('\"sequence_id\" must be an integer.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10), sequenceId } }];"
+      },
+      "id": "tt1h0008-8888-4a5a-9b1a-nurtest0000008",
+      "name": "Parse Token & Payload (Force)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1184, 704],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": { "queryReplacement": "={{ [ $json.requesterId ] }}" }
+      },
+      "id": "tt1h0009-9999-4a5a-9b1a-nurtest0000009",
+      "name": "Look Up Requester Role (Force)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1408, 704],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\nreturn [{ json: { sequenceId: $('Parse Token & Payload (Force)').item.json.sequenceId } }];"
+      },
+      "id": "tt1h0010-1010-4a5a-9b1a-nurtest0000010",
+      "name": "Validate Admin (Force)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1632, 704],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, trigger_inactive_days FROM nurture_sequences WHERE id = $1 AND is_active = true;",
+        "options": { "queryReplacement": "={{ [ $json.sequenceId ] }}" }
+      },
+      "id": "tt1h0011-1111-4a5a-9b1a-nurtest0000011",
+      "name": "Look Up Sequence (Force)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1856, 704],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO nurture_enrollments (sequence_id, contact_id, current_step, status, enrolled_at)\nSELECT $1, c.id, 0, 'active', now()\nFROM contacts c\nWHERE c.is_archived = false\n  AND c.email IS NOT NULL AND c.email <> ''\n  AND GREATEST(c.updated_at, COALESCE((SELECT MAX(created_at) FROM entity_activity_log WHERE entity_type = 'contact' AND entity_id = c.id), c.created_at)) <= now() - ($2 || ' days')::interval\n  AND NOT EXISTS (SELECT 1 FROM nurture_enrollments ne WHERE ne.sequence_id = $1 AND ne.contact_id = c.id)\nON CONFLICT (sequence_id, contact_id) DO NOTHING;",
+        "options": { "queryReplacement": "={{ [ $json.id, $json.trigger_inactive_days ] }}" }
+      },
+      "id": "tt1h0012-1212-4a5a-9b1a-nurtest0000012",
+      "name": "Auto-Enroll Eligible Contacts (Force)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2080, 704],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "notes": "Same eligibility rule as the hourly engine — this only pulls in contacts already inactive long enough. It does not lower or skip the inactivity trigger itself, only the per-step day delays between emails."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT ne.id AS enrollment_id, ne.sequence_id, ne.contact_id, ne.current_step, ne.enrolled_at, ne.last_step_sent_at,\n  ns.exit_on_reply, ns.exit_lead_status,\n  c.email, c.first_name, c.last_name, c.email_logs,\n  (SELECT COUNT(*) FROM nurture_sequence_steps WHERE sequence_id = ns.id) AS total_steps\nFROM nurture_enrollments ne\nJOIN nurture_sequences ns ON ns.id = ne.sequence_id\nJOIN contacts c ON c.id = ne.contact_id AND c.is_archived = false\nWHERE ne.status = 'active' AND ne.sequence_id = $1;",
+        "options": { "queryReplacement": "={{ [ $('Validate Admin (Force)').item.json.sequenceId ] }}" }
+      },
+      "id": "tt1h0013-1313-4a5a-9b1a-nurtest0000013",
+      "name": "Select Active Enrollments (Force)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2304, 704],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { processed: $input.all().length } }];"
+      },
+      "id": "tt1h0014-1414-4a5a-9b1a-nurtest0000014",
+      "name": "Count Processed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2528, 608]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ { success: true, processed: $json.processed } }}", "options": {} },
+      "id": "tt1h0015-1515-4a5a-9b1a-nurtest0000015",
+      "name": "Respond - Force Run Started",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [2752, 608]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Same reply-check as the hourly engine — a force run still respects\n// \"stop on reply,\" it only skips the day-delay wait between sends.\nconst row = $input.item.json;\nconst emailLogs = row.email_logs || [];\nconst referenceTime = new Date(row.last_step_sent_at || row.enrolled_at).getTime();\n\nconst replied = emailLogs.some(\n  (log) => log && log.type === 'received' && new Date(log.sent_at).getTime() > referenceTime\n);\n\nif (replied && row.exit_on_reply) {\n  return [{ json: { ...row, action: 'exit_reply' } }];\n}\n\nconst nextStep = row.current_step + 1;\nif (nextStep > row.total_steps) {\n  return [{ json: { ...row, action: 'complete' } }];\n}\n\nreturn [{ json: { ...row, action: 'send', nextStep } }];"
+      },
+      "id": "tt1h0016-1616-4a5a-9b1a-nurtest0000016",
+      "name": "Check Reply & Determine Action (Force)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2528, 800]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "tt1h0017-1111-4a5a-9b1a-nurtest0000017",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "exit_reply",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "tt1h0017-1717-4a5a-9b1a-nurtest0000017",
+      "name": "Is Exit Reply? (Force)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2752, 800]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH exit_update AS (\n  UPDATE nurture_enrollments SET status = 'exited_reply', exited_at = now(), exit_reason = 'Contact replied'\n  WHERE id = $1\n  RETURNING contact_id\n),\nstatus_update AS (\n  UPDATE contacts SET lead_status = $2, updated_at = now()\n  WHERE id = (SELECT contact_id FROM exit_update) AND $2::text IS NOT NULL\n  RETURNING id\n)\nINSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'contact', contact_id, 'system_audit', 'created',\n  'Nurture sequence stopped — contact replied' || CASE WHEN $2::text IS NOT NULL THEN '; status set to ' || $2 ELSE '' END,\n  NULL::jsonb, NULL, 'Automation'\nFROM exit_update\nRETURNING id;",
+        "options": { "queryReplacement": "={{ [ $json.enrollment_id, $json.exit_lead_status ] }}" }
+      },
+      "id": "tt1h0018-1818-4a5a-9b1a-nurtest0000018",
+      "name": "Exit Enrollment (Force)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2976, 704],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "tt1h0019-1111-4a5a-9b1a-nurtest0000019",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "complete",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "tt1h0019-1919-4a5a-9b1a-nurtest0000019",
+      "name": "Is Complete? (Force)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2976, 896]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE nurture_enrollments SET status = 'completed', exited_at = now(), exit_reason = 'Sequence finished' WHERE id = $1;",
+        "options": { "queryReplacement": "={{ [ $json.enrollment_id ] }}" }
+      },
+      "id": "tt1h0020-2020-4a5a-9b1a-nurtest0000020",
+      "name": "Mark Completed (Force)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [3200, 832],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT delay_days, email_subject, email_body FROM nurture_sequence_steps WHERE sequence_id = $1 AND step_number = $2;",
+        "options": { "queryReplacement": "={{ [ $json.sequence_id, $json.nextStep ] }}" }
+      },
+      "id": "tt1h0021-2121-4a5a-9b1a-nurtest0000021",
+      "name": "Look Up Next Step (Force)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [3200, 960],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// No due-date check here on purpose — this is the whole point of \"force\n// run,\" skip the day-delay wait and send whatever step is next right now.\nconst step = $input.item.json;\nconst enrollment = $('Check Reply & Determine Action (Force)').item.json;\n\nfunction fill(template) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, enrollment.first_name || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, enrollment.last_name || '');\n}\n\nreturn [{\n  json: {\n    enrollmentId: enrollment.enrollment_id,\n    nextStep: enrollment.nextStep,\n    to: enrollment.email,\n    subject: fill(step.email_subject),\n    body: fill(step.email_body),\n  },\n}];"
+      },
+      "id": "tt1h0022-2222-4a5a-9b1a-nurtest0000022",
+      "name": "Personalize (Force)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3424, 960]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.body }}",
+        "options": {}
+      },
+      "id": "tt1h0023-2323-4a5a-9b1a-nurtest0000023",
+      "name": "Send Step Email (Force)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [3648, 960],
+      "credentials": { "gmailOAuth2": { "id": "VKDbMYV2U0WoSc16", "name": "n8n072826" } },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH updated AS (\n  UPDATE nurture_enrollments SET current_step = $1, last_step_sent_at = now() WHERE id = $2 RETURNING contact_id\n)\nINSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'contact', contact_id, 'system_audit', 'created', 'Nurture email sent (forced): \"' || $3 || '\"', NULL::jsonb, NULL, 'Automation'\nFROM updated\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $('Personalize (Force)').item.json.nextStep, $('Personalize (Force)').item.json.enrollmentId, $('Personalize (Force)').item.json.subject ] }}"
+        }
+      },
+      "id": "tt1h0024-2424-4a5a-9b1a-nurtest0000024",
+      "name": "Advance Enrollment & Log (Force)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [3872, 960],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "options": { "responseCode": 400 }
+      },
+      "id": "tt1h0025-2525-4a5a-9b1a-nurtest0000025",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1408, 1152]
+    }
+  ],
+  "connections": {
+    "Webhook - Test Nurture Step": { "main": [[{ "node": "Parse Token (Test)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Parse Token (Test)": { "main": [[{ "node": "Look Up Requester Role (Test)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Look Up Requester Role (Test)": { "main": [[{ "node": "Validate Admin & Payload (Test)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Validate Admin & Payload (Test)": { "main": [[{ "node": "Send Test Email", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Send Test Email": { "main": [[{ "node": "Respond - Test Success", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+
+    "Webhook - Force Run Sequence": { "main": [[{ "node": "Parse Token & Payload (Force)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Parse Token & Payload (Force)": { "main": [[{ "node": "Look Up Requester Role (Force)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Look Up Requester Role (Force)": { "main": [[{ "node": "Validate Admin (Force)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Validate Admin (Force)": { "main": [[{ "node": "Look Up Sequence (Force)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Look Up Sequence (Force)": { "main": [[{ "node": "Auto-Enroll Eligible Contacts (Force)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Auto-Enroll Eligible Contacts (Force)": { "main": [[{ "node": "Select Active Enrollments (Force)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Select Active Enrollments (Force)": {
+      "main": [[
+        { "node": "Count Processed", "type": "main", "index": 0 },
+        { "node": "Check Reply & Determine Action (Force)", "type": "main", "index": 0 }
+      ]]
+    },
+    "Count Processed": { "main": [[{ "node": "Respond - Force Run Started", "type": "main", "index": 0 }]] },
+
+    "Check Reply & Determine Action (Force)": { "main": [[{ "node": "Is Exit Reply? (Force)", "type": "main", "index": 0 }]] },
+    "Is Exit Reply? (Force)": {
+      "main": [
+        [{ "node": "Exit Enrollment (Force)", "type": "main", "index": 0 }],
+        [{ "node": "Is Complete? (Force)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Is Complete? (Force)": {
+      "main": [
+        [{ "node": "Mark Completed (Force)", "type": "main", "index": 0 }],
+        [{ "node": "Look Up Next Step (Force)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Look Up Next Step (Force)": { "main": [[{ "node": "Personalize (Force)", "type": "main", "index": 0 }]] },
+    "Personalize (Force)": { "main": [[{ "node": "Send Step Email (Force)", "type": "main", "index": 0 }]] },
+    "Send Step Email (Force)": { "main": [[{ "node": "Advance Enrollment & Log (Force)", "type": "main", "index": 0 }], []] }
+  }
+}
