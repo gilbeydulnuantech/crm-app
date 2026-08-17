@@ -1,0 +1,129 @@
+{
+  "name": "Vapi Outbound Call",
+  "nodes": [
+    {
+      "parameters": { "httpMethod": "POST", "path": "trigger-vapi-call", "responseMode": "responseNode", "options": {} },
+      "id": "va1b0001-1111-4a5a-9b1a-vapicall000001",
+      "name": "Webhook - Trigger Vapi Call",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [960, 480],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst body = $input.first().json.body || {};\nconst contactId = parseInt(body.contact_id, 10);\nif (!Number.isInteger(contactId)) throw new Error('\"contact_id\" must be an integer.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10), contactId } }];"
+      },
+      "id": "va1b0002-2222-4a5a-9b1a-vapicall000002",
+      "name": "Parse Token & Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1184, 480],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": { "queryReplacement": "={{ [ $json.requesterId ] }}" }
+      },
+      "id": "va1b0003-3333-4a5a-9b1a-vapicall000003",
+      "name": "Look Up Requester",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1408, 480],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT phone, first_name, last_name FROM contacts WHERE id = $1 AND is_archived = false LIMIT 1;",
+        "options": { "queryReplacement": "={{ [ $('Parse Token & Payload').item.json.contactId ] }}" }
+      },
+      "id": "va1b0004-4444-4a5a-9b1a-vapicall000004",
+      "name": "Look Up Contact",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1632, 480],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT pgp_sym_decrypt(api_key_encrypted, $1) AS api_key, config FROM integrations WHERE provider = 'vapi' AND is_active = true AND api_key_encrypted IS NOT NULL LIMIT 1;",
+        "options": { "queryReplacement": "={{ [ $env.INTEGRATIONS_ENCRYPTION_KEY ] }}" }
+      },
+      "id": "va1b0005-5555-4a5a-9b1a-vapicall000005",
+      "name": "Look Up Vapi Integration",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1856, 480],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "onError": "continueErrorOutput",
+      "notes": "Requires INTEGRATIONS_ENCRYPTION_KEY set as an n8n environment variable — same value used by Integrations.json when the key was saved."
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst contact = $('Look Up Contact').first().json;\nif (!contact || !contact.phone) throw new Error('This contact has no phone number on file.');\n\nconst integration = $input.first().json;\nif (!integration.api_key) throw new Error('Vapi is not connected — add an API key in Settings \\u2192 Integrations.');\n\nconst config = integration.config || {};\nif (!config.assistant_id || !config.phone_number_id) {\n  throw new Error('Vapi is connected but missing Assistant ID / Phone Number ID \\u2014 fill those in under Settings \\u2192 Integrations.');\n}\n\nreturn [{\n  json: {\n    apiKey: integration.api_key,\n    bodyJson: JSON.stringify({\n      assistantId: config.assistant_id,\n      phoneNumberId: config.phone_number_id,\n      customer: {\n        number: contact.phone,\n        name: [contact.first_name, contact.last_name].filter(Boolean).join(' ') || undefined,\n      },\n    }),\n  },\n}];"
+      },
+      "id": "va1b0006-6666-4a5a-9b1a-vapicall000006",
+      "name": "Build Vapi Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2080, 480],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.vapi.ai/call",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Authorization", "value": "={{ 'Bearer ' + $json.apiKey }}" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.bodyJson }}",
+        "options": {}
+      },
+      "id": "va1b0007-7777-4a5a-9b1a-vapicall000007",
+      "name": "Call Vapi API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2304, 480],
+      "onError": "continueErrorOutput",
+      "notes": "Verify this endpoint/body shape against Vapi's current docs before relying on it — built from general knowledge of their API, not a live doc check."
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ { success: true, call: $json } }}", "options": {} },
+      "id": "va1b0008-8888-4a5a-9b1a-vapicall000008",
+      "name": "Respond - Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [2528, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "options": { "responseCode": 400 }
+      },
+      "id": "va1b0009-9999-4a5a-9b1a-vapicall000009",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1408, 704]
+    }
+  ],
+  "connections": {
+    "Webhook - Trigger Vapi Call": { "main": [[{ "node": "Parse Token & Payload", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Parse Token & Payload": { "main": [[{ "node": "Look Up Requester", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Look Up Requester": { "main": [[{ "node": "Look Up Contact", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Look Up Contact": { "main": [[{ "node": "Look Up Vapi Integration", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Look Up Vapi Integration": { "main": [[{ "node": "Build Vapi Request", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Build Vapi Request": { "main": [[{ "node": "Call Vapi API", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Call Vapi API": { "main": [[{ "node": "Respond - Success", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] }
+  }
+}

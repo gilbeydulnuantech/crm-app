@@ -20,7 +20,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT a.id, a.contact_id, TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS contact_name, a.opportunity_id, o.name AS opportunity_name, co.id AS company_id, co.name AS company_name, a.user_id, u.name AS assigned_user_name, u.color AS assigned_user_color, u.avatar_url AS assigned_user_avatar_url, a.type, a.subject, a.body, a.is_completed, a.due_at, a.end_at, a.location, a.is_all_day, a.completed_at, a.created_at,\n  (SELECT COALESCE(json_agg(json_build_object('id', r.id, 'name', r.name)), '[]'::json)\n   FROM activity_resources ar JOIN resources r ON r.id = ar.resource_id\n   WHERE ar.activity_id = a.id) AS resources\nFROM activities a LEFT JOIN contacts c ON c.id = a.contact_id LEFT JOIN opportunities o ON o.id = a.opportunity_id LEFT JOIN companies co ON co.id = COALESCE(a.account_id, o.account_id, c.account_id) LEFT JOIN users u ON u.id = a.user_id WHERE a.due_at IS NOT NULL AND a.due_at >= $1::date AND a.due_at <= ($2::date + interval '1 day') ORDER BY a.due_at ASC;",
+        "query": "SELECT a.id, a.contact_id, TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS contact_name, a.opportunity_id, o.name AS opportunity_name, co.id AS company_id, co.name AS company_name, a.user_id, u.name AS assigned_user_name, u.color AS assigned_user_color, u.avatar_url AS assigned_user_avatar_url, a.type, a.subject, a.body, a.is_completed, a.due_at, a.end_at, a.location, a.is_all_day, a.completed_at, a.created_at, a.google_event_id,\n  (SELECT COALESCE(json_agg(json_build_object('id', r.id, 'name', r.name)), '[]'::json)\n   FROM activity_resources ar JOIN resources r ON r.id = ar.resource_id\n   WHERE ar.activity_id = a.id) AS resources\nFROM activities a LEFT JOIN contacts c ON c.id = a.contact_id LEFT JOIN opportunities o ON o.id = a.opportunity_id LEFT JOIN companies co ON co.id = COALESCE(a.account_id, o.account_id, c.account_id) LEFT JOIN users u ON u.id = a.user_id WHERE a.due_at IS NOT NULL AND a.due_at >= $1::date AND a.due_at <= ($2::date + interval '1 day') ORDER BY a.due_at ASC;",
         "options": {
           "queryReplacement": "={{ [$('Webhook: get-events').first().json.query.start, $('Webhook: get-events').first().json.query.end] }}"
         }
@@ -91,7 +91,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO activities (contact_id, account_id, opportunity_id, user_id, type, subject, body, due_at, end_at, location, is_all_day) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id, subject, due_at, created_at;",
+        "query": "INSERT INTO activities (contact_id, account_id, opportunity_id, user_id, type, subject, body, due_at, end_at, location, is_all_day) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id, subject, due_at, end_at, user_id, contact_id, body, created_at;",
         "options": {
           "queryReplacement": "={{ [$('Webhook: add-event').first().json.body.contact_id || null, $('Webhook: add-event').first().json.body.account_id || null, $('Webhook: add-event').first().json.body.opportunity_id || null, $('Webhook: add-event').first().json.body.user_id || $('Webhook: add-event').first().json.body.requester_id || null, $('Webhook: add-event').first().json.body.type || 'meeting', $('Webhook: add-event').first().json.body.subject, $('Webhook: add-event').first().json.body.body || null, $('Webhook: add-event').first().json.body.due_at, $('Webhook: add-event').first().json.body.end_at || null, $('Webhook: add-event').first().json.body.location || null, $('Webhook: add-event').first().json.body.is_all_day === true || $('Webhook: add-event').first().json.body.is_all_day === 'true'] }}"
         }
@@ -209,7 +209,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE activities SET subject = COALESCE($1, subject), body = COALESCE($2, body), type = COALESCE($3, type), contact_id = COALESCE($4, contact_id), opportunity_id = COALESCE($5, opportunity_id), user_id = COALESCE($6, user_id), due_at = COALESCE($7, due_at), is_completed = COALESCE($8, is_completed), completed_at = CASE WHEN $9::text IS NOT NULL THEN $9::timestamptz ELSE completed_at END, end_at = COALESCE($10, end_at), location = COALESCE($11, location), is_all_day = COALESCE($12, is_all_day), account_id = COALESCE($13, account_id) WHERE id = $14 AND ($15 = 'admin' OR user_id = $16) RETURNING id;",
+        "query": "UPDATE activities SET subject = COALESCE($1, subject), body = COALESCE($2, body), type = COALESCE($3, type), contact_id = COALESCE($4, contact_id), opportunity_id = COALESCE($5, opportunity_id), user_id = COALESCE($6, user_id), due_at = COALESCE($7, due_at), is_completed = COALESCE($8, is_completed), completed_at = CASE WHEN $9::text IS NOT NULL THEN $9::timestamptz ELSE completed_at END, end_at = COALESCE($10, end_at), location = COALESCE($11, location), is_all_day = COALESCE($12, is_all_day), account_id = COALESCE($13, account_id) WHERE id = $14 AND ($15 = 'admin' OR user_id = $16) RETURNING id, google_event_id, user_id, contact_id, subject, due_at, end_at, body;",
         "options": {
           "queryReplacement": "={{ [$('Webhook: update-event').first().json.body.subject || null, $('Webhook: update-event').first().json.body.body || null, $('Webhook: update-event').first().json.body.type || null, $('Webhook: update-event').first().json.body.contact_id || null, $('Webhook: update-event').first().json.body.opportunity_id || null, $('Webhook: update-event').first().json.body.user_id || null, $('Webhook: update-event').first().json.body.due_at || null, $('Webhook: update-event').first().json.body.is_completed !== undefined ? $('Webhook: update-event').first().json.body.is_completed : null, $('Webhook: update-event').first().json.body.completed_at || null, $('Webhook: update-event').first().json.body.end_at || null, $('Webhook: update-event').first().json.body.location || null, $('Webhook: update-event').first().json.body.is_all_day !== undefined ? ($('Webhook: update-event').first().json.body.is_all_day === true || $('Webhook: update-event').first().json.body.is_all_day === 'true') : null, $('Webhook: update-event').first().json.body.account_id || null, $('Webhook: update-event').first().json.body.id, $('Look Up Requester: update-event').first().json.role, $('Look Up Requester: update-event').first().json.id ] }}"
         }
@@ -282,7 +282,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "DELETE FROM activities WHERE id = ANY($1::int[]) AND ($2 = 'admin' OR user_id = $3) RETURNING id;",
+        "query": "DELETE FROM activities WHERE id = ANY($1::int[]) AND ($2 = 'admin' OR user_id = $3) RETURNING id, google_event_id, user_id;",
         "options": {
           "queryReplacement": "={{ [ $('Webhook: delete-event').first().json.body.ids, $('Look Up Requester: delete-event').first().json.role, $('Look Up Requester: delete-event').first().json.id ] }}"
         }
@@ -935,6 +935,401 @@
         300
       ],
       "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT ci.calendar_id, c.email AS contact_email, TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS contact_name\nFROM calendar_integrations ci\nLEFT JOIN contacts c ON c.id = $2\nWHERE ci.owner_user_id = $1 AND ci.is_active = true\nLIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.user_id, $json.contact_id ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        448,
+        480
+      ],
+      "id": "f1a2b901-1111-4a5a-9b1a-pushevt000001",
+      "name": "Look Up Push Target (Add)",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "notes": "No calendar_integrations row for this rep yet = no target to push to. Doesn't block event creation either way \u2014 outbound push is best-effort."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "f1a2b902-2222-4a5a-9b1a-pushevt000002",
+              "leftValue": "={{ $json.calendar_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        672,
+        480
+      ],
+      "id": "f1a2b903-3333-4a5a-9b1a-pushevt000003",
+      "name": "Has Target Calendar? (Add)"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE activities SET google_event_id = $1 WHERE id = $2;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id, $('Build Google Event Payload (Add)').item.json.activityId ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1120,
+        480
+      ],
+      "id": "f1a2b905-5555-4a5a-9b1a-pushevt000005",
+      "name": "Save Google Event Id (Add)",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT ci.calendar_id, c.email AS contact_email, TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS contact_name\nFROM calendar_integrations ci\nLEFT JOIN contacts c ON c.id = $2\nWHERE ci.owner_user_id = $1 AND ci.is_active = true\nLIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.user_id, $json.contact_id ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        448,
+        640
+      ],
+      "id": "f1a2b906-6666-4a5a-9b1a-pushevt000006",
+      "name": "Look Up Push Target (Update)",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "notes": "No calendar_integrations row for this rep yet = no target to push to. Doesn't block the update either way \u2014 outbound push is best-effort."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "f1a2b907-7777-4a5a-9b1a-pushevt000007",
+              "leftValue": "={{ $json.calendar_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        672,
+        640
+      ],
+      "id": "f1a2b908-8888-4a5a-9b1a-pushevt000008",
+      "name": "Has Target Calendar? (Update)"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE activities SET google_event_id = $1 WHERE id = $2;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id, $('Build Google Event Payload (Update)').item.json.activityId ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1344,
+        640
+      ],
+      "id": "f1a2b912-1212-4a5a-9b1a-pushevt000012",
+      "name": "Save Google Event Id (Update)",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT calendar_id FROM calendar_integrations WHERE owner_user_id = $1 AND is_active = true LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.user_id ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        448,
+        800
+      ],
+      "id": "f1a2b913-1313-4a5a-9b1a-pushevt000013",
+      "name": "Look Up Calendar For Delete",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "notes": "No calendar_integrations row for this rep = nothing to cancel on Google's side. Doesn't block the CRM delete either way."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "f1a2b914-1414-4a5a-9b1a-pushevt000014",
+              "leftValue": "={{ $json.calendar_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "f1a2b915-1515-4a5a-9b1a-pushevt000015",
+              "leftValue": "={{ $('Postgres: Delete Event').item.json.google_event_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        672,
+        800
+      ],
+      "id": "f1a2b916-1616-4a5a-9b1a-pushevt000016",
+      "name": "Has Calendar & Google Event? (Delete)"
+    },
+    {
+      "parameters": {
+        "jsCode": "const target = $input.first().json;\nconst event = $('Postgres: Insert Event').first().json;\n\nconst body = {\n  summary: event.subject || 'CRM Event',\n  start: { dateTime: event.due_at },\n  end: { dateTime: event.end_at || event.due_at },\n};\nif (event.body) body.description = event.body;\nif (target.contact_email) {\n  body.attendees = [{ email: target.contact_email, displayName: target.contact_name || undefined }];\n}\n\nreturn [{\n  json: {\n    activityId: event.id,\n    url: `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(target.calendar_id)}/events`,\n    bodyJson: JSON.stringify(body),\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        440
+      ],
+      "id": "g1a2b901-0001-4a5a-9b1a-httpevt000001",
+      "name": "Build Google Event Payload (Add)"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.url }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleCalendarOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.bodyJson }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        440
+      ],
+      "id": "g1a2b902-0002-4a5a-9b1a-httpevt000002",
+      "name": "Push To Google Calendar (Add)",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "GHh5WnpZKV3DPZJd",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const target = $input.first().json;\nconst event = $('Postgres: Update Event').first().json;\n\nconst body = {\n  summary: event.subject || 'CRM Event',\n  start: { dateTime: event.due_at },\n  end: { dateTime: event.end_at || event.due_at },\n};\nif (event.body) body.description = event.body;\nif (target.contact_email) {\n  body.attendees = [{ email: target.contact_email, displayName: target.contact_name || undefined }];\n}\n\nconst hasExisting = !!event.google_event_id;\nconst url = hasExisting\n  ? `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(target.calendar_id)}/events/${encodeURIComponent(event.google_event_id)}`\n  : `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(target.calendar_id)}/events`;\n\nreturn [{\n  json: {\n    activityId: event.id,\n    hasExisting,\n    url,\n    bodyJson: JSON.stringify(body),\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        640
+      ],
+      "id": "g1a2b903-0003-4a5a-9b1a-httpevt000003",
+      "name": "Build Google Event Payload (Update)"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "g1a2b904-0004-4a5a-9b1a-httpevt000004",
+              "leftValue": "={{ $json.hasExisting }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        640
+      ],
+      "id": "g1a2b905-0005-4a5a-9b1a-httpevt000005",
+      "name": "Has Existing Google Event? (Update)"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $json.url }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleCalendarOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.bodyJson }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1344,
+        560
+      ],
+      "id": "g1a2b906-0006-4a5a-9b1a-httpevt000006",
+      "name": "Push To Google Calendar - Patch (Update)",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "GHh5WnpZKV3DPZJd",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.url }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleCalendarOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.bodyJson }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1344,
+        720
+      ],
+      "id": "g1a2b907-0007-4a5a-9b1a-httpevt000007",
+      "name": "Push To Google Calendar - Create (Update)",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "GHh5WnpZKV3DPZJd",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "={{ 'https://www.googleapis.com/calendar/v3/calendars/' + encodeURIComponent($json.calendar_id) + '/events/' + encodeURIComponent($('Postgres: Delete Event').item.json.google_event_id) }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleCalendarOAuth2Api",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        896,
+        800
+      ],
+      "id": "g1a2b908-0008-4a5a-9b1a-httpevt000008",
+      "name": "Cancel On Google Calendar",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "GHh5WnpZKV3DPZJd",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "notes": "Best-effort \u2014 already-deleted-on-Google's-side (404) or any other failure is fine to ignore here since the CRM-side delete already succeeded."
     }
   ],
   "pinData": {},
@@ -989,6 +1384,11 @@
             "node": "Postgres: Log System Audit (created-event-links)",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Look Up Push Target (Add)",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -1009,6 +1409,11 @@
         [
           {
             "node": "Check Result: update-event",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Look Up Push Target (Update)",
             "type": "main",
             "index": 0
           }
@@ -1038,6 +1443,11 @@
         [
           {
             "node": "Respond: delete-event",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Look Up Calendar For Delete",
             "type": "main",
             "index": 0
           }
@@ -1333,6 +1743,151 @@
             "index": 0
           }
         ]
+      ]
+    },
+    "Look Up Push Target (Add)": {
+      "main": [
+        [
+          {
+            "node": "Has Target Calendar? (Add)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Target Calendar? (Add)": {
+      "main": [
+        [
+          {
+            "node": "Build Google Event Payload (Add)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Look Up Push Target (Update)": {
+      "main": [
+        [
+          {
+            "node": "Has Target Calendar? (Update)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Target Calendar? (Update)": {
+      "main": [
+        [
+          {
+            "node": "Build Google Event Payload (Update)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Look Up Calendar For Delete": {
+      "main": [
+        [
+          {
+            "node": "Has Calendar & Google Event? (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Calendar & Google Event? (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Cancel On Google Calendar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Build Google Event Payload (Add)": {
+      "main": [
+        [
+          {
+            "node": "Push To Google Calendar (Add)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Push To Google Calendar (Add)": {
+      "main": [
+        [
+          {
+            "node": "Save Google Event Id (Add)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Build Google Event Payload (Update)": {
+      "main": [
+        [
+          {
+            "node": "Has Existing Google Event? (Update)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Existing Google Event? (Update)": {
+      "main": [
+        [
+          {
+            "node": "Push To Google Calendar - Patch (Update)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Push To Google Calendar - Create (Update)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Push To Google Calendar - Patch (Update)": {
+      "main": [
+        [],
+        []
+      ]
+    },
+    "Push To Google Calendar - Create (Update)": {
+      "main": [
+        [
+          {
+            "node": "Save Google Event Id (Update)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Cancel On Google Calendar": {
+      "main": [
+        [],
+        []
       ]
     }
   },

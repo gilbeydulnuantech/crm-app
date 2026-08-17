@@ -1,0 +1,263 @@
+{
+  "name": "Integrations",
+  "nodes": [
+    {
+      "parameters": { "httpMethod": "GET", "path": "get-integrations", "responseMode": "responseNode", "options": {} },
+      "id": "ia1b0001-1111-4a5a-9b1a-intgrt0000001",
+      "name": "Webhook - Get Integrations",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [960, 480],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "ia1b0002-2222-4a5a-9b1a-intgrt0000002",
+      "name": "Parse Token (Get)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1184, 480],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": { "queryReplacement": "={{ [ $json.requesterId ] }}" }
+      },
+      "id": "ia1b0003-3333-4a5a-9b1a-intgrt0000003",
+      "name": "Look Up Requester Role (Get)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1408, 480],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\nreturn [{ json: {} }];"
+      },
+      "id": "ia1b0004-4444-4a5a-9b1a-intgrt0000004",
+      "name": "Validate Admin (Get)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1632, 480],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, provider, label, config, is_active, (api_key_encrypted IS NOT NULL) AS has_key, created_at, updated_at FROM integrations ORDER BY provider ASC;",
+        "options": {}
+      },
+      "id": "ia1b0005-5555-4a5a-9b1a-intgrt0000005",
+      "name": "Select Integrations",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1856, 480],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "notes": "Never selects the decrypted key itself — only whether one is set (has_key). The frontend never needs the raw value back."
+    },
+    {
+      "parameters": { "respondWith": "allIncomingItems", "options": {} },
+      "id": "ia1b0006-6666-4a5a-9b1a-intgrt0000006",
+      "name": "Respond - Get Integrations",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [2080, 480]
+    },
+    {
+      "parameters": { "httpMethod": "POST", "path": "save-integration", "responseMode": "responseNode", "options": {} },
+      "id": "ia1b0007-7777-4a5a-9b1a-intgrt0000007",
+      "name": "Webhook - Save Integration",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [960, 704],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "ia1b0008-8888-4a5a-9b1a-intgrt0000008",
+      "name": "Parse Token (Save)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1184, 704],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": { "queryReplacement": "={{ [ $json.requesterId ] }}" }
+      },
+      "id": "ia1b0009-9999-4a5a-9b1a-intgrt0000009",
+      "name": "Look Up Requester Role (Save)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1408, 704],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Save Integration').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst provider = (body.provider || '').toString().trim().toLowerCase();\nif (!['vapi', 'retell'].includes(provider)) throw new Error('\"provider\" must be \"vapi\" or \"retell\".');\n\nconst label = (body.label || '').toString().trim() || null;\nconst apiKey = (body.api_key || '').toString().trim() || null;\nconst config = body.config && typeof body.config === 'object' ? JSON.stringify(body.config) : '{}';\nconst requesterId = requester.id;\n\nreturn [{ json: { provider, label, apiKey, config, requesterId } }];"
+      },
+      "id": "ia1b0010-1010-4a5a-9b1a-intgrt0000010",
+      "name": "Validate Admin & Payload (Save)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1632, 704],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO integrations (provider, label, api_key_encrypted, config, is_active, created_by, created_at, updated_at)\nVALUES ($1, $2, CASE WHEN $3::text IS NOT NULL THEN pgp_sym_encrypt($3, $5) ELSE NULL END, $4::jsonb, true, $6, now(), now())\nON CONFLICT (provider) DO UPDATE SET\n  label = EXCLUDED.label,\n  api_key_encrypted = COALESCE(EXCLUDED.api_key_encrypted, integrations.api_key_encrypted),\n  config = EXCLUDED.config,\n  is_active = true,\n  updated_at = now()\nRETURNING id, provider, label, is_active;",
+        "options": {
+          "queryReplacement": "={{ [ $json.provider, $json.label, $json.apiKey, $json.config, $env.INTEGRATIONS_ENCRYPTION_KEY, $json.requesterId ] }}"
+        }
+      },
+      "id": "ia1b0011-1111-4a5a-9b1a-intgrt0000011",
+      "name": "Upsert Integration",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1856, 704],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "notes": "Requires the INTEGRATIONS_ENCRYPTION_KEY environment variable to be set on this n8n instance, and the pgcrypto extension enabled on the database. Leaving api_key blank on an edit keeps the existing stored key (only label/config change)."
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) throw new Error('Failed to save integration.');\nreturn [{ json: { success: true, integration: result.json } }];"
+      },
+      "id": "ia1b0012-1212-4a5a-9b1a-intgrt0000012",
+      "name": "Check Save Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2080, 704],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ $json }}", "options": {} },
+      "id": "ia1b0013-1313-4a5a-9b1a-intgrt0000013",
+      "name": "Respond - Save Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [2304, 704]
+    },
+    {
+      "parameters": { "httpMethod": "POST", "path": "delete-integration", "responseMode": "responseNode", "options": {} },
+      "id": "ia1b0014-1414-4a5a-9b1a-intgrt0000014",
+      "name": "Webhook - Delete Integration",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [960, 928],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "ia1b0015-1515-4a5a-9b1a-intgrt0000015",
+      "name": "Parse Token (Delete)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1184, 928],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": { "queryReplacement": "={{ [ $json.requesterId ] }}" }
+      },
+      "id": "ia1b0016-1616-4a5a-9b1a-intgrt0000016",
+      "name": "Look Up Requester Role (Delete)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1408, 928],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Delete Integration').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" must be an integer.');\n\nreturn [{ json: { id } }];"
+      },
+      "id": "ia1b0017-1717-4a5a-9b1a-intgrt0000017",
+      "name": "Validate Admin & Payload (Delete)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1632, 928],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM integrations WHERE id = $1 RETURNING id;",
+        "options": { "queryReplacement": "={{ [ $json.id ] }}" }
+      },
+      "id": "ia1b0018-1818-4a5a-9b1a-intgrt0000018",
+      "name": "Delete Integration",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1856, 928],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) throw new Error('Integration not found.');\nreturn [{ json: { success: true } }];"
+      },
+      "id": "ia1b0019-1919-4a5a-9b1a-intgrt0000019",
+      "name": "Check Delete Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2080, 928],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ $json }}", "options": {} },
+      "id": "ia1b0020-2020-4a5a-9b1a-intgrt0000020",
+      "name": "Respond - Delete Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [2304, 928]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "options": { "responseCode": 400 }
+      },
+      "id": "ia1b0021-2121-4a5a-9b1a-intgrt0000021",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1408, 1152]
+    }
+  ],
+  "connections": {
+    "Webhook - Get Integrations": { "main": [[{ "node": "Parse Token (Get)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Parse Token (Get)": { "main": [[{ "node": "Look Up Requester Role (Get)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Look Up Requester Role (Get)": { "main": [[{ "node": "Validate Admin (Get)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Validate Admin (Get)": { "main": [[{ "node": "Select Integrations", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Select Integrations": { "main": [[{ "node": "Respond - Get Integrations", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+
+    "Webhook - Save Integration": { "main": [[{ "node": "Parse Token (Save)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Parse Token (Save)": { "main": [[{ "node": "Look Up Requester Role (Save)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Look Up Requester Role (Save)": { "main": [[{ "node": "Validate Admin & Payload (Save)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Validate Admin & Payload (Save)": { "main": [[{ "node": "Upsert Integration", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Upsert Integration": { "main": [[{ "node": "Check Save Result", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Check Save Result": { "main": [[{ "node": "Respond - Save Success", "type": "main", "index": 0 }]] },
+
+    "Webhook - Delete Integration": { "main": [[{ "node": "Parse Token (Delete)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Parse Token (Delete)": { "main": [[{ "node": "Look Up Requester Role (Delete)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Look Up Requester Role (Delete)": { "main": [[{ "node": "Validate Admin & Payload (Delete)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Validate Admin & Payload (Delete)": { "main": [[{ "node": "Delete Integration", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Delete Integration": { "main": [[{ "node": "Check Delete Result", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Check Delete Result": { "main": [[{ "node": "Respond - Delete Success", "type": "main", "index": 0 }]] }
+  }
+}

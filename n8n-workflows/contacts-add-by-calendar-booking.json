@@ -36,60 +36,80 @@
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "bd0e0a2a-661c-41e4-9bff-76850e76d0e4",
-              "name": "status",
-              "value": "={{ $json.status }}",
-              "type": "string"
-            },
-            {
-              "id": "adc018ee-db00-4545-a8f5-9265ea30a670",
-              "name": "start",
-              "value": "={{ $json.start.dateTime.toDateTime().format('yyyy-MM-dd | hh:mm:ss a') }}",
-              "type": "string"
-            },
-            {
-              "id": "9a08a5ea-c4c3-44d6-a826-59175eb8a0a5",
-              "name": "attendees[1].email",
-              "value": "={{ $json.attendees[1].email }}",
-              "type": "string"
-            },
-            {
-              "id": "399c3402-e93c-4f3a-838f-2b9312f68068",
-              "name": "summary",
-              "value": "={{ $json.summary.split('(')[1].replace(')', '').toTitleCase() }}",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
+        "jsCode": "// Replaces the old \"Edit Fields\" + \"format data\" pair \u2014 extracts once,\n// correctly, instead of extracting the name twice (the second pass ran on\n// the already-extracted name, not the raw event) and instead of trusting\n// attendees[0]/[1] positionally (Google doesn't guarantee attendee order,\n// so that could silently pick the organizer instead of the lead).\nconst results = [];\n\nfor (const item of items) {\n  const ev = item.json;\n  if (!ev.id || ev.status === 'cancelled') continue;\n\n  const start = ev.start && (ev.start.dateTime || ev.start.date);\n  const end = ev.end && (ev.end.dateTime || ev.end.date);\n  if (!start) continue;\n\n  const attendees = ev.attendees || [];\n  const lead = attendees.find((a) => a && a.email && !a.organizer && !a.resource) || attendees.find((a) => a && a.email);\n  const email = lead && lead.email;\n  if (!email) continue;\n\n  const summary = ev.summary || '';\n  const parenMatch = summary.match(/\\(([^)]+)\\)/);\n  const rawName = parenMatch ? parenMatch[1] : (lead.displayName || email.split('@')[0]);\n  const cleanName = rawName\n    .trim()\n    .split(/\\s+/)\n    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())\n    .join(' ');\n  const nameParts = cleanName.split(' ');\n  const firstName = nameParts[0] || 'Unknown';\n  const lastName = nameParts.slice(1).join(' ') || '-';\n\n  results.push({\n    json: {\n      googleEventId: ev.id,\n      subject: summary || 'Booked Meeting',\n      dueAt: start,\n      endAt: end || null,\n      displayStart: new Date(start).toLocaleString(undefined, {\n        dateStyle: 'medium',\n        timeStyle: 'short',\n      }),\n      email,\n      name: cleanName,\n      firstName,\n      lastName,\n    },\n  });\n}\n\nreturn results;"
       },
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         272,
         -176
       ],
-      "id": "dc71f8c7-48db-4361-ac64-05c9097bef79",
-      "name": "Edit Fields"
+      "id": "e2a7b901-1111-4a5a-9b1a-calbook000001",
+      "name": "Extract Lead Info"
     },
     {
       "parameters": {
-        "sendTo": "={{ $json.Email }}",
+        "operation": "executeQuery",
+        "query": "SELECT id FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ 'gilbeydulnuan@gmail.com' ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        496,
+        -176
+      ],
+      "id": "e2a7b902-2222-4a5a-9b1a-calbook000002",
+      "name": "Look Up Owner By Email",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "notes": "Hardcoded to the calendar's own rep \u2014 change the email here if this workflow is ever reused for a different rep's calendar."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH existing_activity AS (\n  SELECT id FROM activities WHERE google_event_id = $1\n),\nfound_contact AS (\n  SELECT id FROM contacts WHERE LOWER(email) = LOWER($6) AND is_archived = false LIMIT 1\n),\nnew_contact AS (\n  INSERT INTO contacts (first_name, last_name, email, lead_source, owner_id, created_at, updated_at)\n  SELECT $7, $8, $6, 'Calendar Booking', $5, now(), now()\n  WHERE NOT EXISTS (SELECT 1 FROM existing_activity)\n    AND NOT EXISTS (SELECT 1 FROM found_contact)\n  RETURNING id\n),\nresolved_contact AS (\n  SELECT id FROM found_contact\n  UNION ALL\n  SELECT id FROM new_contact\n  LIMIT 1\n)\nINSERT INTO activities (contact_id, user_id, type, subject, due_at, end_at, google_event_id, created_at)\nSELECT rc.id, $5, 'meeting', $2, $3::timestamptz, $4::timestamptz, $1, now()\nFROM resolved_contact rc\nWHERE NOT EXISTS (SELECT 1 FROM existing_activity)\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $('Extract Lead Info').item.json.googleEventId, $('Extract Lead Info').item.json.subject, $('Extract Lead Info').item.json.dueAt, $('Extract Lead Info').item.json.endAt, $json.id, $('Extract Lead Info').item.json.email, $('Extract Lead Info').item.json.firstName, $('Extract Lead Info').item.json.lastName ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        720,
+        -176
+      ],
+      "id": "e2a7b903-3333-4a5a-9b1a-calbook000003",
+      "name": "Upsert Contact & Insert Activity",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "notes": "Same idempotent find-or-create pattern as Google Calendar Sync.json \u2014 safe to run twice on the same event, matches contacts by email instead of the old (non-functional) id-based matchingColumns."
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
         "subject": "Confirmed: Your AI Automation Discovery Call",
-        "message": "=<br><br><br><br>\n\nHi <strong>{{ $json.Name }}</strong>,<br><br>\n\nThanks for scheduling a discovery call! <br><br>I’m looking forward to diving into your workflow and exploring how we can build<br>custom AI automations to save you time and scale your operations.<br><br>\n\n<strong>Meeting Details:</strong><br>\n\nDate & Time: {{ $json.start }}<br><br>\n\n<strong>Location:</strong><br> Google Meet (link in calendar invite)<br><br>\n\n<strong>To help us make the most of our time:</strong><br>\nIf you have any specific tools (like your CRM, webhooks, or current manual pipelines) <br>you’d like us to focus on, feel free to reply directly to this email with a brief overview.<br><br>\n\nSee you then!<br><br>\n\nBest regards,<br><br>\n\nGilbert Dulnuan<br>\nAI Automation & CRM Specialist",
+        "message": "=<br><br><br><br>\n\nHi <strong>{{ $json.name }}</strong>,<br><br>\n\nThanks for scheduling a discovery call! <br><br>I\u2019m looking forward to diving into your workflow and exploring how we can build<br>custom AI automations to save you time and scale your operations.<br><br>\n\n<strong>Meeting Details:</strong><br>\n\nDate & Time: {{ $json.displayStart }}<br><br>\n\n<strong>Location:</strong><br> Google Meet (link in calendar invite)<br><br>\n\n<strong>To help us make the most of our time:</strong><br>\nIf you have any specific tools (like your CRM, webhooks, or current manual pipelines) <br>you\u2019d like us to focus on, feel free to reply directly to this email with a brief overview.<br><br>\n\nSee you then!<br><br>\n\nBest regards,<br><br>\n\nGilbert Dulnuan<br>\nAI Automation & CRM Specialist",
         "options": {}
       },
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        864,
+        496,
         -368
       ],
       "id": "f8a9d7c0-2c15-4d2a-b8c2-dc2b6539e296",
-      "name": "Send a message",
+      "name": "Send Confirmation Email",
       "webhookId": "af192893-b019-48bc-b2f3-2b28f81d0c2a",
       "credentials": {
         "gmailOAuth2": {
@@ -100,196 +120,60 @@
     },
     {
       "parameters": {
-        "schema": {
-          "__rl": true,
-          "mode": "list",
-          "value": "public"
-        },
-        "table": {
-          "__rl": true,
-          "value": "contacts",
-          "mode": "list",
-          "cachedResultName": "contacts"
-        },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "email": "={{ $('format data').item.json.Email }}",
-            "first_name": "={{ $json.Name.split(' ')[0] }}",
-            "last_name": "={{ $json.Name.split(' ')[1] }}"
-          },
-          "matchingColumns": [
-            "id"
-          ],
-          "schema": [
-            {
-              "id": "id",
-              "displayName": "id",
-              "required": false,
-              "defaultMatch": true,
-              "display": true,
-              "type": "number",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "first_name",
-              "displayName": "first_name",
-              "required": true,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            },
-            {
-              "id": "company",
-              "displayName": "company",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
-            },
-            {
-              "id": "email",
-              "displayName": "email",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
-            },
-            {
-              "id": "phone",
-              "displayName": "phone",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
-            },
-            {
-              "id": "lead_status",
-              "displayName": "lead_status",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            },
-            {
-              "id": "created_at",
-              "displayName": "created_at",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "dateTime",
-              "canBeUsedToMatch": true
-            },
-            {
-              "id": "updated_at",
-              "displayName": "updated_at",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "dateTime",
-              "canBeUsedToMatch": true
-            },
-            {
-              "id": "last_name",
-              "displayName": "last_name",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            },
-            {
-              "id": "lead_source",
-              "displayName": "lead_source",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            },
-            {
-              "id": "city",
-              "displayName": "city",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            },
-            {
-              "id": "state",
-              "displayName": "state",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            },
-            {
-              "id": "zip_code",
-              "displayName": "zip_code",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            },
-            {
-              "id": "country",
-              "displayName": "country",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": false
-        },
-        "options": {}
+        "operation": "executeQuery",
+        "query": "SELECT EXISTS(SELECT 1 FROM activities WHERE google_event_id = $1) AS already_exists;",
+        "options": {
+          "queryReplacement": "={{ [ $json.googleEventId ] }}"
+        }
       },
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
+      "typeVersion": 2.5,
       "position": [
-        864,
-        -176
+        272,
+        -352
       ],
-      "id": "3b2aa0ea-17c4-44f7-b8dd-af1aa49fef2f",
-      "name": "Insert rows in a table",
+      "id": "e2a7b904-4444-4a5a-9b1a-calbook000004",
+      "name": "Check Already Imported",
       "credentials": {
         "postgres": {
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "notes": "Guards against events the CRM itself pushed to Google (outbound sync) looping back in here and getting mistaken for a brand-new lead booking."
     },
     {
       "parameters": {
-        "jsCode": "for (const item of items) {\n  const summary = item.json.summary || \"\";\n  const attendees = item.json.attendees || [];\n  \n  // 1. EXTRACT AND CLEAN NAME\n  // This looks for text inside (parentheses). If not found, it uses the whole summary.\n  let extractedName = summary;\n  const nameMatch = summary.match(/\\(([^)]+)\\)/);\n  \n  if (nameMatch) {\n    extractedName = nameMatch[1];\n  }\n\n  // Clean up: Remove extra spaces and convert to Title Case (e.g. \"babushka bey\" -> \"Babushka Bey\")\n  extractedName = extractedName.trim().split(' ')\n    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())\n    .join(' ');\n\n  // 2. EXTRACT EMAIL\n  // This filters out 'null' items and finds the first valid email address\n  const guest = attendees.find(a => a && a.email);\n  const extractedEmail = guest ? guest.email : \"No email found\";\n\n  // 3. ADD TO OUTPUT\n  item.json.Name = extractedName;\n  item.json.Email = extractedEmail;\n}\n\nreturn items;"
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "e2a7b905-1111-4a5a-9b1a-calbook000005",
+              "leftValue": "={{ $json.already_exists }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
-      "type": "n8n-nodes-base.code",
+      "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        464,
-        -176
+        496,
+        -352
       ],
-      "id": "e7aac008-edfb-4b09-bc04-0b24216e995a",
-      "name": "format data"
+      "id": "e2a7b906-2222-4a5a-9b1a-calbook000006",
+      "name": "Already In CRM?"
     }
   ],
   "pinData": {},
@@ -298,44 +182,57 @@
       "main": [
         [
           {
-            "node": "Edit Fields",
+            "node": "Extract Lead Info",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Edit Fields": {
+    "Extract Lead Info": {
       "main": [
         [
           {
-            "node": "format data",
+            "node": "Check Already Imported",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Send a message": {
-      "main": [
-        []
-      ]
-    },
-    "Insert rows in a table": {
-      "main": [
-        []
-      ]
-    },
-    "format data": {
+    "Look Up Owner By Email": {
       "main": [
         [
           {
-            "node": "Send a message",
+            "node": "Upsert Contact & Insert Activity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Already Imported": {
+      "main": [
+        [
+          {
+            "node": "Already In CRM?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Already In CRM?": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Look Up Owner By Email",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Insert rows in a table",
+            "node": "Send Confirmation Email",
             "type": "main",
             "index": 0
           }

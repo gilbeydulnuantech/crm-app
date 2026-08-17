@@ -1,0 +1,196 @@
+{
+  "name": "Google Calendar Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "d4e5f001-1111-4a5a-9b1a-gcalsync00001",
+      "name": "Schedule Trigger: every 5 minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, calendar_id, owner_user_id, last_synced_at FROM calendar_integrations WHERE is_active = true;",
+        "options": {}
+      },
+      "id": "d4e5f002-2222-4a5a-9b1a-gcalsync00002",
+      "name": "Select Active Integrations",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        464,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Fetches new/updated events for every active calendar integration and\n// flattens them into a single item list. Runs the Google Calendar API call\n// here (via the credential attached to this node) rather than the native\n// Google Calendar node, so we can attach owner_user_id/integration context\n// onto each event ourselves instead of relying on implicit item-pairing\n// through a native node's fan-out.\n// Defensive: normalizes calendar_id even if it was stored as a raw\n// embed URL (e.g. from an older/unimported version of the add-calendar\n// endpoint) instead of the already-extracted address \u2014 same src=\n// extraction logic as Calendar Integrations.json's parser.\nfunction extractCalendarId(raw) {\n  try {\n    const url = new URL(raw);\n    const src = url.searchParams.get('src');\n    if (src) return src;\n  } catch {\n    // Not a URL \u2014 already a plain calendar ID/email.\n  }\n  return raw;\n}\n\nconst items = $input.all();\nconst results = [];\nconst successfulIntegrationIds = new Set();\n\nfor (const item of items) {\n  const integration = item.json;\n  const calendarId = extractCalendarId(integration.calendar_id);\n  const updatedMin = integration.last_synced_at || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();\n\n  const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`\n    + `?updatedMin=${encodeURIComponent(updatedMin)}&singleEvents=true&orderBy=updated&maxResults=50`;\n\n  let response;\n  try {\n    response = await this.helpers.httpRequestWithAuthentication.call(this, 'googleCalendarOAuth2Api', {\n      method: 'GET',\n      url,\n      json: true,\n    });\n  } catch (err) {\n    // One calendar failing (revoked access, bad ID) shouldn't block the\n    // others \u2014 and we deliberately don't mark it synced below, so the next\n    // run retries the same window instead of silently skipping it.\n    continue;\n  }\n\n  successfulIntegrationIds.add(integration.id);\n\n  const events = (response && response.items) || [];\n  for (const ev of events) {\n    if (!ev.id || ev.status === 'cancelled') continue;\n\n    const start = ev.start && (ev.start.dateTime || ev.start.date);\n    const end = ev.end && (ev.end.dateTime || ev.end.date);\n    if (!start) continue;\n\n    // Prefer the first attendee who isn't the organizer/a resource \u2014 that's\n    // the lead who booked the slot, not the rep's own calendar entry.\n    const attendees = ev.attendees || [];\n    const lead = attendees.find((a) => !a.organizer && !a.resource) || attendees[0];\n    const attendeeEmail = (lead && lead.email) || '';\n    if (!attendeeEmail) continue;\n\n    const attendeeName = (lead && lead.displayName) || attendeeEmail.split('@')[0];\n    const nameParts = attendeeName.trim().split(/\\s+/);\n    const firstName = nameParts[0] || 'Unknown';\n    const lastName = nameParts.slice(1).join(' ') || '-';\n\n    results.push({\n      json: {\n        type: 'event',\n        googleEventId: ev.id,\n        subject: ev.summary || 'Booked Meeting',\n        dueAt: start,\n        endAt: end || null,\n        ownerUserId: integration.owner_user_id,\n        attendeeEmail,\n        firstName,\n        lastName,\n      },\n    });\n  }\n}\n\nfor (const id of successfulIntegrationIds) {\n  results.push({ json: { type: 'synced_integration', integrationId: id } });\n}\n\nreturn results;"
+      },
+      "id": "d4e5f003-3333-4a5a-9b1a-gcalsync00003",
+      "name": "Fetch New Events From Google",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        688,
+        400
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "GHh5WnpZKV3DPZJd",
+          "name": "n8n072826"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "e5f6a001-1111-4a5a-9b1a-gcalsync10001",
+              "leftValue": "={{ $json.type }}",
+              "rightValue": "event",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d4e5f004-4444-4a5a-9b1a-gcalsync00004",
+      "name": "Is Event Item?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        912,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH existing_activity AS (\n  SELECT id FROM activities WHERE google_event_id = $1\n),\nfound_contact AS (\n  SELECT id FROM contacts WHERE LOWER(email) = LOWER($6) AND is_archived = false LIMIT 1\n),\nnew_contact AS (\n  INSERT INTO contacts (first_name, last_name, email, lead_source, owner_id, created_at, updated_at)\n  SELECT $7, $8, $6, 'Calendar Booking', $5, now(), now()\n  WHERE NOT EXISTS (SELECT 1 FROM existing_activity)\n    AND NOT EXISTS (SELECT 1 FROM found_contact)\n  RETURNING id\n),\nresolved_contact AS (\n  SELECT id FROM found_contact\n  UNION ALL\n  SELECT id FROM new_contact\n  LIMIT 1\n)\nINSERT INTO activities (contact_id, user_id, type, subject, due_at, end_at, google_event_id, created_at)\nSELECT rc.id, $5, 'meeting', $2, $3::timestamptz, $4::timestamptz, $1, now()\nFROM resolved_contact rc\nWHERE NOT EXISTS (SELECT 1 FROM existing_activity)\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.googleEventId, $json.subject, $json.dueAt, $json.endAt, $json.ownerUserId, $json.attendeeEmail, $json.firstName, $json.lastName ] }}"
+        }
+      },
+      "id": "d4e5f005-5555-4a5a-9b1a-gcalsync00005",
+      "name": "Upsert Contact & Insert Activity",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1136,
+        304
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE calendar_integrations SET last_synced_at = now(), updated_at = now() WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.integrationId ] }}"
+        }
+      },
+      "id": "d4e5f006-6666-4a5a-9b1a-gcalsync00006",
+      "name": "Update Last Synced",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1136,
+        520
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger: every 5 minutes": {
+      "main": [
+        [
+          {
+            "node": "Select Active Integrations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Active Integrations": {
+      "main": [
+        [
+          {
+            "node": "Fetch New Events From Google",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch New Events From Google": {
+      "main": [
+        [
+          {
+            "node": "Is Event Item?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Event Item?": {
+      "main": [
+        [
+          {
+            "node": "Upsert Contact & Insert Activity",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Last Synced",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

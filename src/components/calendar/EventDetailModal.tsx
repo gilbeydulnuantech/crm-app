@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CalendarEvent, EVENT_TYPE_META } from '../../types/event';
 import { useDeleteEvent, useUpdateEvent } from '../../hooks/useEvents';
 import { toTitleCase } from '../../utils/text';
@@ -29,6 +29,18 @@ export default function EventDetailModal({
   const deleteEvent = useDeleteEvent();
   const [rescheduling, setRescheduling] = useState(false);
   const [newDate, setNewDate] = useState('');
+  const [rescheduleError, setRescheduleError] = useState<string | null>(null);
+  const reschedulePanelRef = useRef<HTMLDivElement>(null);
+
+  // The reschedule panel renders at the bottom of a scrollable content area,
+  // below Date/Location/Assigned To/Company/Contact/Deal/Resources/Notes/
+  // Attachments — on a long event it opens off-screen with nothing to
+  // scroll you to it, which just looks like the button did nothing.
+  useEffect(() => {
+    if (rescheduling) {
+      reschedulePanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [rescheduling]);
 
   if (!event) return null;
 
@@ -46,11 +58,31 @@ export default function EventDetailModal({
     });
   }
 
+  // Local getters, not .toISOString() — reading the UTC date/time here would
+  // silently shift the prefilled value for any timezone ahead of UTC.
+  function toDateTimeLocalInput(d: Date) {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function openReschedule() {
+    setNewDate(toDateTimeLocalInput(new Date(event!.due_at)));
+    setRescheduleError(null);
+    setRescheduling(true);
+  }
+
   function handleReschedule() {
-    if (!newDate) return;
+    if (!newDate) {
+      setRescheduleError('Pick a date and time first.');
+      return;
+    }
+    setRescheduleError(null);
     updateEvent.mutate(
       { id: event!.id, payload: { due_at: new Date(newDate).toISOString() } },
-      { onSuccess: () => setRescheduling(false) }
+      {
+        onSuccess: () => setRescheduling(false),
+        onError: (err) => setRescheduleError(err instanceof Error ? err.message : 'Failed to reschedule.'),
+      }
     );
   }
 
@@ -172,7 +204,7 @@ export default function EventDetailModal({
           </div>
 
           {rescheduling && (
-            <div className="pt-2 border-t border-slate-100">
+            <div ref={reschedulePanelRef} className="pt-2 border-t border-slate-100">
               <label className="block text-[11px] font-medium text-slate-500 mb-1">New Date &amp; Time</label>
               <input
                 type="datetime-local"
@@ -180,16 +212,23 @@ export default function EventDetailModal({
                 onChange={(e) => setNewDate(e.target.value)}
                 className="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg mb-2"
               />
+              {rescheduleError && (
+                <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-md px-2 py-1 mb-2">
+                  {rescheduleError}
+                </p>
+              )}
               <div className="flex gap-2">
                 <button
                   onClick={handleReschedule}
-                  className="flex-1 bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] text-white text-xs font-semibold py-1.5 rounded-lg"
+                  disabled={updateEvent.isPending}
+                  className="flex-1 bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] text-white text-xs font-semibold py-1.5 rounded-lg disabled:opacity-50"
                 >
-                  Save New Time
+                  {updateEvent.isPending ? 'Saving...' : 'Save New Time'}
                 </button>
                 <button
                   onClick={() => setRescheduling(false)}
-                  className="flex-1 border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-medium py-1.5 rounded-lg"
+                  disabled={updateEvent.isPending}
+                  className="flex-1 border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-medium py-1.5 rounded-lg disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -208,7 +247,7 @@ export default function EventDetailModal({
                 Edit
               </button>
               <button
-                onClick={() => setRescheduling(true)}
+                onClick={openReschedule}
                 className="flex-1 border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-medium py-2 rounded-lg"
               >
                 Reschedule

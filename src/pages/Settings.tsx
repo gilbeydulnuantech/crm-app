@@ -5,6 +5,8 @@ import MyProfileModal from '../components/settings/MyProfileModal';
 import NotificationPreferencesModal from '../components/settings/NotificationPreferencesModal';
 import AuditLogModal from '../components/settings/AuditLogModal';
 import UserManagementModal from '../components/settings/UserManagementModal';
+import CalendarIntegrationsModal from '../components/settings/CalendarIntegrationsModal';
+import IntegrationsModal from '../components/settings/IntegrationsModal';
 
 export default function Settings() {
   const { user, isAdmin } = useAuth();
@@ -13,6 +15,8 @@ export default function Settings() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [auditLogOpen, setAuditLogOpen] = useState(false);
   const [userMgmtOpen, setUserMgmtOpen] = useState(false);
+  const [calendarIntegrationsOpen, setCalendarIntegrationsOpen] = useState(false);
+  const [integrationsOpen, setIntegrationsOpen] = useState(false);
 
   return (
     <div className="flex-1 overflow-y-auto p-6">
@@ -107,6 +111,40 @@ export default function Settings() {
                 Audit Log
               </button>
             </div>
+
+            <div className="p-5 flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-800">Calendar Integrations</h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Connect a rep's Google Calendar so booked leads sync into the CRM automatically.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCalendarIntegrationsOpen(true)}
+                className="shrink-0 px-4 py-2 text-sm font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg flex items-center gap-2"
+              >
+                <i className="fa-solid fa-calendar-days text-[var(--theme-accent)]" />
+                Calendars
+              </button>
+            </div>
+
+            <div className="p-5 flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-800">Integrations</h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Connect third-party apps like Vapi or Retell with an API key.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIntegrationsOpen(true)}
+                className="shrink-0 px-4 py-2 text-sm font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg flex items-center gap-2"
+              >
+                <i className="fa-solid fa-plug text-[var(--theme-accent)]" />
+                Integrations
+              </button>
+            </div>
           </div>
         </>
       )}
@@ -116,6 +154,8 @@ export default function Settings() {
       <NotificationPreferencesModal open={notificationsOpen} onClose={() => setNotificationsOpen(false)} />
       <AuditLogModal open={auditLogOpen} onClose={() => setAuditLogOpen(false)} />
       <UserManagementModal open={userMgmtOpen} onClose={() => setUserMgmtOpen(false)} />
+      <CalendarIntegrationsModal open={calendarIntegrationsOpen} onClose={() => setCalendarIntegrationsOpen(false)} />
+      <IntegrationsModal open={integrationsOpen} onClose={() => setIntegrationsOpen(false)} />
     </div>
   );
 }

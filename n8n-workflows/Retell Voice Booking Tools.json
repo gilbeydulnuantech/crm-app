@@ -1,0 +1,419 @@
+{
+  "name": "Retell Voice Booking Tools",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "retell-check-availability",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "rb1c0001-0001-4a5a-9b1a-retellbook00001",
+      "name": "Webhook - Retell Check Availability",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        320
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Retell's custom-function payload is generally flatter than Vapi's:\n// { name, args, call }. Verify against what your Retell dashboard\n// actually sends once the tool is configured, and adjust here if not.\nconst headers = $input.first().json.headers || {};\nconst secret = process.env.VOICE_TOOL_SECRET;\nif (secret && headers['x-tool-secret'] !== secret) {\n  throw new Error('Invalid tool secret.');\n}\n\nconst body = $input.first().json.body || {};\nconst args = body.args || body.parameters || {};\n\nconst date = (args.date || '').toString().trim();\nif (!date) throw new Error('\"date\" argument is required (YYYY-MM-DD).');\n\nreturn [{ json: { date } }];"
+      },
+      "id": "rb1c0002-0002-4a5a-9b1a-retellbook00002",
+      "name": "Parse Availability Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        320
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT a.due_at, a.end_at\nFROM calendar_integrations ci\nLEFT JOIN activities a ON a.user_id = ci.owner_user_id AND a.due_at::date = $1::date\nWHERE ci.is_active = true\nORDER BY ci.created_at ASC\nLIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.date ] }}"
+        }
+      },
+      "id": "rb1c0003-0003-4a5a-9b1a-retellbook00003",
+      "name": "Look Up Bookings For Date",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1408,
+        320
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "notes": "Single-rep assumption \u2014 picks the first active calendar_integrations row."
+    },
+    {
+      "parameters": {
+        "jsCode": "const BUSINESS_START = 9;\nconst BUSINESS_END = 17;\nconst SLOT_MINUTES = 60;\n\nconst rows = $input.all().map((i) => i.json).filter((r) => r.due_at);\nconst busy = rows.map((r) => ({\n  start: new Date(r.due_at).getTime(),\n  end: new Date(r.end_at || r.due_at).getTime(),\n}));\n\nconst { date } = $('Parse Availability Request').first().json;\nconst available = [];\n\nfor (let hour = BUSINESS_START; hour < BUSINESS_END; hour += SLOT_MINUTES / 60) {\n  const slotStart = new Date(`${date}T${String(Math.floor(hour)).padStart(2, '0')}:${hour % 1 ? '30' : '00'}:00`);\n  const slotEnd = new Date(slotStart.getTime() + SLOT_MINUTES * 60000);\n  const overlaps = busy.some((b) => slotStart.getTime() < b.end && slotEnd.getTime() > b.start);\n  if (!overlaps) {\n    available.push(slotStart.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }));\n  }\n}\n\nconst result = available.length\n  ? `Available times on ${date}: ${available.join(', ')}.`\n  : `No open slots on ${date}.`;\n\nreturn [{ json: { result } }];"
+      },
+      "id": "rb1c0004-0004-4a5a-9b1a-retellbook00004",
+      "name": "Compute Available Slots",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        320
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { result: $json.result } }}",
+        "options": {}
+      },
+      "id": "rb1c0005-0005-4a5a-9b1a-retellbook00005",
+      "name": "Respond - Availability",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1856,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "retell-book-appointment",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "rb1c0006-0006-4a5a-9b1a-retellbook00006",
+      "name": "Webhook - Retell Book Appointment",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        640
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst secret = process.env.VOICE_TOOL_SECRET;\nif (secret && headers['x-tool-secret'] !== secret) {\n  throw new Error('Invalid tool secret.');\n}\n\nconst body = $input.first().json.body || {};\nconst args = body.args || body.parameters || {};\n\nconst date = (args.date || '').toString().trim();\nconst time = (args.time || '').toString().trim();\nconst name = (args.name || '').toString().trim();\nconst phone = (args.phone || '').toString().trim();\nconst email = (args.email || '').toString().trim();\nconst durationMinutes = parseInt(args.duration_minutes, 10) || 60;\nconst reason = (args.reason || 'Phone booking').toString().trim();\n\nif (!date || !time) throw new Error('\"date\" and \"time\" are required.');\nif (!name || (!phone && !email)) throw new Error('\"name\" and either \"phone\" or \"email\" are required.');\n\nconst dueAt = new Date(`${date}T${time}`);\nif (isNaN(dueAt.getTime())) throw new Error('Could not parse the requested date/time.');\nconst endAt = new Date(dueAt.getTime() + durationMinutes * 60000);\n\nconst nameParts = name.split(/\\s+/);\nreturn [{\n  json: {\n    firstName: nameParts[0] || 'Unknown',\n    lastName: nameParts.slice(1).join(' ') || '-',\n    phone: phone || null,\n    email: email || null,\n    dueAt: dueAt.toISOString(),\n    endAt: endAt.toISOString(),\n    subject: reason,\n    displayDate: dueAt.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }),\n  },\n}];"
+      },
+      "id": "rb1c0007-0007-4a5a-9b1a-retellbook00007",
+      "name": "Parse Booking Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        640
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT owner_user_id, calendar_id FROM calendar_integrations WHERE is_active = true ORDER BY created_at ASC LIMIT 1;",
+        "options": {}
+      },
+      "id": "rb1c0008-0008-4a5a-9b1a-retellbook00008",
+      "name": "Look Up Push Target",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1408,
+        640
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "notes": "Same single-rep assumption as the availability check."
+    },
+    {
+      "parameters": {
+        "jsCode": "const target = $input.first().json;\nif (!target || !target.calendar_id) {\n  throw new Error('No calendar connected yet \u2014 add one in Settings \\u2192 Calendar Integrations first.');\n}\nconst booking = $('Parse Booking Request').first().json;\n\nconst gBody = {\n  summary: booking.subject,\n  start: { dateTime: booking.dueAt },\n  end: { dateTime: booking.endAt },\n};\nif (booking.email) gBody.attendees = [{ email: booking.email, displayName: booking.firstName + ' ' + booking.lastName }];\n\nreturn [{\n  json: {\n    ownerUserId: target.owner_user_id,\n    calendarId: target.calendar_id,\n    url: `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(target.calendar_id)}/events`,\n    bodyJson: JSON.stringify(gBody),\n  },\n}];"
+      },
+      "id": "rb1c0009-0009-4a5a-9b1a-retellbook00009",
+      "name": "Build Google Event Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        640
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.url }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleCalendarOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.bodyJson }}",
+        "options": {}
+      },
+      "id": "rb1c0010-0010-4a5a-9b1a-retellbook00010",
+      "name": "Push To Google Calendar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1856,
+        640
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "GHh5WnpZKV3DPZJd",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH found_contact AS (\n  SELECT id FROM contacts WHERE ($1::text IS NOT NULL AND phone = $1) OR ($2::text IS NOT NULL AND LOWER(email) = LOWER($2)) LIMIT 1\n),\nnew_contact AS (\n  INSERT INTO contacts (first_name, last_name, phone, email, lead_source, owner_id, created_at, updated_at)\n  SELECT $3, $4, $1, $2, 'Phone Booking', $5, now(), now()\n  WHERE NOT EXISTS (SELECT 1 FROM found_contact)\n  RETURNING id\n),\nresolved_contact AS (\n  SELECT id FROM found_contact UNION ALL SELECT id FROM new_contact LIMIT 1\n)\nINSERT INTO activities (contact_id, user_id, type, subject, due_at, end_at, google_event_id, created_at)\nSELECT rc.id, $5, 'meeting', $6, $7::timestamptz, $8::timestamptz, $9, now()\nFROM resolved_contact rc\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $('Parse Booking Request').item.json.phone, $('Parse Booking Request').item.json.email, $('Parse Booking Request').item.json.firstName, $('Parse Booking Request').item.json.lastName, $('Build Google Event Payload').item.json.ownerUserId, $('Parse Booking Request').item.json.subject, $('Parse Booking Request').item.json.dueAt, $('Parse Booking Request').item.json.endAt, $json.id ] }}"
+        }
+      },
+      "id": "rb1c0011-0011-4a5a-9b1a-retellbook00011",
+      "name": "Create Contact & Activity",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2080,
+        640
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "notes": "$json.id here is the Google Calendar API response's event id, from the HTTP node directly upstream \u2014 this insert only runs after the Google push succeeds, so a failed push never creates an orphaned CRM-only booking."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { result: 'Booked for ' + $('Parse Booking Request').item.json.displayDate + '.' } }}",
+        "options": {}
+      },
+      "id": "rb1c0012-0012-4a5a-9b1a-retellbook00012",
+      "name": "Respond - Booking Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2304,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { result: 'Sorry, I could not complete that: ' + ($json.error?.message || $json.message || 'unknown error') } }}",
+        "options": {}
+      },
+      "id": "rb1c0013-0013-4a5a-9b1a-retellbook00013",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1408,
+        960
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook - Retell Check Availability": {
+      "main": [
+        [
+          {
+            "node": "Parse Availability Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Availability Request": {
+      "main": [
+        [
+          {
+            "node": "Look Up Bookings For Date",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Bookings For Date": {
+      "main": [
+        [
+          {
+            "node": "Compute Available Slots",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Available Slots": {
+      "main": [
+        [
+          {
+            "node": "Respond - Availability",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Retell Book Appointment": {
+      "main": [
+        [
+          {
+            "node": "Parse Booking Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Booking Request": {
+      "main": [
+        [
+          {
+            "node": "Look Up Push Target",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Push Target": {
+      "main": [
+        [
+          {
+            "node": "Build Google Event Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Google Event Payload": {
+      "main": [
+        [
+          {
+            "node": "Push To Google Calendar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Push To Google Calendar": {
+      "main": [
+        [
+          {
+            "node": "Create Contact & Activity",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Contact & Activity": {
+      "main": [
+        [
+          {
+            "node": "Respond - Booking Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

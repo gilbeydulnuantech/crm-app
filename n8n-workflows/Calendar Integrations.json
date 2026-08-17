@@ -1,0 +1,888 @@
+{
+  "name": "Calendar Integrations",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-calendar-integrations",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "cb1a0001-1111-4a5a-9b1a-calint0000001",
+      "name": "Webhook - Get Calendar Integrations",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        480
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "cb1a0002-2222-4a5a-9b1a-calint0000002",
+      "name": "Parse Token (Get)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        480
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "cb1a0003-3333-4a5a-9b1a-calint0000003",
+      "name": "Look Up Requester Role (Get)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1408,
+        480
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\nreturn [{ json: {} }];"
+      },
+      "id": "cb1a0004-4444-4a5a-9b1a-calint0000004",
+      "name": "Validate Admin (Get)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        480
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT ci.id, ci.label, ci.calendar_link, ci.calendar_id, ci.owner_user_id, u.name AS owner_name, ci.is_active, ci.last_synced_at, ci.created_at FROM calendar_integrations ci LEFT JOIN users u ON u.id = ci.owner_user_id ORDER BY ci.created_at DESC;",
+        "options": {}
+      },
+      "id": "cb1a0005-5555-4a5a-9b1a-calint0000005",
+      "name": "Select Calendar Integrations",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1856,
+        480
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "cb1a0006-6666-4a5a-9b1a-calint0000006",
+      "name": "Respond - Get Calendar Integrations",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2080,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "add-calendar-integration",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "cb1a0007-7777-4a5a-9b1a-calint0000007",
+      "name": "Webhook - Add Calendar Integration",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        704
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "cb1a0008-8888-4a5a-9b1a-calint0000008",
+      "name": "Parse Token (Add)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        704
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "cb1a0009-9999-4a5a-9b1a-calint0000009",
+      "name": "Look Up Requester Role (Add)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1408,
+        704
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Add Calendar Integration').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst rawLink = (body.calendar_link || '').toString().trim();\nif (!rawLink) throw new Error('\"calendar_link\" is required.');\n\n// calendar.app.google/xxx links are Appointment Schedule *booking pages* \u2014\n// opaque short links Google resolves server-side, not calendar IDs. The\n// Calendar API can't read events off them directly. Bookings made through\n// one of these land on the rep's own regular calendar instead, so that's\n// what we actually need here.\nif (/calendar\\.app\\.google/i.test(rawLink)) {\n  throw new Error(\n    'That looks like a booking-page link (calendar.app.google/...), not a calendar ID. ' +\n    'Paste the rep\\'s calendar ID instead \u2014 usually their Gmail address, or \"primary\" for their default calendar. ' +\n    'Find it in Google Calendar under Settings > [calendar name] > \"Integrate calendar\" > Calendar ID. ' +\n    'That calendar must also be shared with the Google account this integration is authorized as.'\n  );\n}\n\n// Accepts either a raw calendar ID/email (xxx@group.calendar.google.com),\n// or a full \"Share this calendar\" / embed URL like\n// https://calendar.google.com/calendar/embed?src=xxx%40group.calendar.google.com&ctz=...\n// \u2014 extracts the src= param when present, otherwise uses the pasted value\n// as-is so a plain calendar ID (or \"primary\") also works.\nlet calendarId = rawLink;\ntry {\n  const url = new URL(rawLink);\n  const src = url.searchParams.get('src');\n  if (src) calendarId = src;\n} catch {\n  // Not a URL \u2014 treat the whole pasted value as the calendar ID.\n}\n\nconst ownerUserId = parseInt(body.owner_user_id, 10);\nif (!Number.isInteger(ownerUserId)) throw new Error('\"owner_user_id\" must be an integer.');\n\nconst label = (body.label || '').toString().trim() || null;\n\nreturn [{ json: { label, calendarLink: rawLink, calendarId, ownerUserId, requesterId: requester.id } }];"
+      },
+      "id": "cb1a0010-1010-4a5a-9b1a-calint0000010",
+      "name": "Validate Admin & Parse Link",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        704
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO calendar_integrations (label, calendar_link, calendar_id, owner_user_id, is_active, created_by, created_at, updated_at) VALUES ($1, $2, $3, $4, true, $5, now(), now()) RETURNING id, label, calendar_link, calendar_id, owner_user_id, is_active, created_at;",
+        "options": {
+          "queryReplacement": "={{ [ $json.label, $json.calendarLink, $json.calendarId, $json.ownerUserId, $json.requesterId ] }}"
+        }
+      },
+      "id": "cb1a0011-1111-4a5a-9b1a-calint0000011",
+      "name": "Insert Calendar Integration",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1856,
+        704
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) throw new Error('Failed to save calendar integration.');\nreturn [{ json: { success: true, integration: result.json } }];"
+      },
+      "id": "cb1a0012-1212-4a5a-9b1a-calint0000012",
+      "name": "Check Add Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        704
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "cb1a0013-1313-4a5a-9b1a-calint0000013",
+      "name": "Respond - Add Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2304,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "update-calendar-integration",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "cb1a0014-1414-4a5a-9b1a-calint0000014",
+      "name": "Webhook - Update Calendar Integration",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        928
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "cb1a0015-1515-4a5a-9b1a-calint0000015",
+      "name": "Parse Token (Update)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        928
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "cb1a0016-1616-4a5a-9b1a-calint0000016",
+      "name": "Look Up Requester Role (Update)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1408,
+        928
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Update Calendar Integration').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" must be an integer.');\n\nif (typeof body.is_active !== 'boolean') throw new Error('\"is_active\" must be true or false.');\n\nreturn [{ json: { id, isActive: body.is_active } }];"
+      },
+      "id": "cb1a0017-1717-4a5a-9b1a-calint0000017",
+      "name": "Validate Admin & Payload (Update)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        928
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE calendar_integrations SET is_active = $1, updated_at = now() WHERE id = $2 RETURNING id, is_active;",
+        "options": {
+          "queryReplacement": "={{ [ $json.isActive, $json.id ] }}"
+        }
+      },
+      "id": "cb1a0018-1818-4a5a-9b1a-calint0000018",
+      "name": "Update Calendar Integration",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1856,
+        928
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) throw new Error('Calendar integration not found.');\nreturn [{ json: { success: true, integration: result.json } }];"
+      },
+      "id": "cb1a0019-1919-4a5a-9b1a-calint0000019",
+      "name": "Check Update Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        928
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "cb1a0020-2020-4a5a-9b1a-calint0000020",
+      "name": "Respond - Update Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2304,
+        928
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "delete-calendar-integration",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "cb1a0021-2121-4a5a-9b1a-calint0000021",
+      "name": "Webhook - Delete Calendar Integration",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        1152
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "cb1a0022-2222-4a5a-9b1a-calint0000022",
+      "name": "Parse Token (Delete)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        1152
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "cb1a0023-2323-4a5a-9b1a-calint0000023",
+      "name": "Look Up Requester Role (Delete)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1408,
+        1152
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Delete Calendar Integration').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" must be an integer.');\n\nreturn [{ json: { id } }];"
+      },
+      "id": "cb1a0024-2424-4a5a-9b1a-calint0000024",
+      "name": "Validate Admin & Payload (Delete)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        1152
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM calendar_integrations WHERE id = $1 RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id ] }}"
+        }
+      },
+      "id": "cb1a0025-2525-4a5a-9b1a-calint0000025",
+      "name": "Delete Calendar Integration",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1856,
+        1152
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) throw new Error('Calendar integration not found.');\nreturn [{ json: { success: true } }];"
+      },
+      "id": "cb1a0026-2626-4a5a-9b1a-calint0000026",
+      "name": "Check Delete Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        1152
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "cb1a0027-2727-4a5a-9b1a-calint0000027",
+      "name": "Respond - Delete Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2304,
+        1152
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "cb1a0028-2828-4a5a-9b1a-calint0000028",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1408,
+        1360
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook - Get Calendar Integrations": {
+      "main": [
+        [
+          {
+            "node": "Parse Token (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token (Get)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester Role (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester Role (Get)": {
+      "main": [
+        [
+          {
+            "node": "Validate Admin (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Admin (Get)": {
+      "main": [
+        [
+          {
+            "node": "Select Calendar Integrations",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Calendar Integrations": {
+      "main": [
+        [
+          {
+            "node": "Respond - Get Calendar Integrations",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Add Calendar Integration": {
+      "main": [
+        [
+          {
+            "node": "Parse Token (Add)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token (Add)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester Role (Add)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester Role (Add)": {
+      "main": [
+        [
+          {
+            "node": "Validate Admin & Parse Link",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Admin & Parse Link": {
+      "main": [
+        [
+          {
+            "node": "Insert Calendar Integration",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Calendar Integration": {
+      "main": [
+        [
+          {
+            "node": "Check Add Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Add Result": {
+      "main": [
+        [
+          {
+            "node": "Respond - Add Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Update Calendar Integration": {
+      "main": [
+        [
+          {
+            "node": "Parse Token (Update)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token (Update)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester Role (Update)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester Role (Update)": {
+      "main": [
+        [
+          {
+            "node": "Validate Admin & Payload (Update)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Admin & Payload (Update)": {
+      "main": [
+        [
+          {
+            "node": "Update Calendar Integration",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Calendar Integration": {
+      "main": [
+        [
+          {
+            "node": "Check Update Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Update Result": {
+      "main": [
+        [
+          {
+            "node": "Respond - Update Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Delete Calendar Integration": {
+      "main": [
+        [
+          {
+            "node": "Parse Token (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester Role (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester Role (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Validate Admin & Payload (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Admin & Payload (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Delete Calendar Integration",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Calendar Integration": {
+      "main": [
+        [
+          {
+            "node": "Check Delete Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Delete Result": {
+      "main": [
+        [
+          {
+            "node": "Respond - Delete Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

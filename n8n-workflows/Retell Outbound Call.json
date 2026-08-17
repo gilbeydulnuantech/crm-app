@@ -1,0 +1,129 @@
+{
+  "name": "Retell Outbound Call",
+  "nodes": [
+    {
+      "parameters": { "httpMethod": "POST", "path": "trigger-retell-call", "responseMode": "responseNode", "options": {} },
+      "id": "rt1b0001-1111-4a5a-9b1a-retellcall00001",
+      "name": "Webhook - Trigger Retell Call",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [960, 480],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst body = $input.first().json.body || {};\nconst contactId = parseInt(body.contact_id, 10);\nif (!Number.isInteger(contactId)) throw new Error('\"contact_id\" must be an integer.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10), contactId } }];"
+      },
+      "id": "rt1b0002-2222-4a5a-9b1a-retellcall00002",
+      "name": "Parse Token & Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1184, 480],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": { "queryReplacement": "={{ [ $json.requesterId ] }}" }
+      },
+      "id": "rt1b0003-3333-4a5a-9b1a-retellcall00003",
+      "name": "Look Up Requester",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1408, 480],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT phone, first_name, last_name FROM contacts WHERE id = $1 AND is_archived = false LIMIT 1;",
+        "options": { "queryReplacement": "={{ [ $('Parse Token & Payload').item.json.contactId ] }}" }
+      },
+      "id": "rt1b0004-4444-4a5a-9b1a-retellcall00004",
+      "name": "Look Up Contact",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1632, 480],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT pgp_sym_decrypt(api_key_encrypted, $1) AS api_key, config FROM integrations WHERE provider = 'retell' AND is_active = true AND api_key_encrypted IS NOT NULL LIMIT 1;",
+        "options": { "queryReplacement": "={{ [ $env.INTEGRATIONS_ENCRYPTION_KEY ] }}" }
+      },
+      "id": "rt1b0005-5555-4a5a-9b1a-retellcall00005",
+      "name": "Look Up Retell Integration",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1856, 480],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "onError": "continueErrorOutput",
+      "notes": "Requires INTEGRATIONS_ENCRYPTION_KEY set as an n8n environment variable — same value used by Integrations.json when the key was saved."
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst contact = $('Look Up Contact').first().json;\nif (!contact || !contact.phone) throw new Error('This contact has no phone number on file.');\n\nconst integration = $input.first().json;\nif (!integration.api_key) throw new Error('Retell is not connected — add an API key in Settings \\u2192 Integrations.');\n\nconst config = integration.config || {};\nif (!config.from_number) {\n  throw new Error('Retell is connected but missing the From Number \\u2014 fill it in under Settings \\u2192 Integrations.');\n}\n\nconst body = { from_number: config.from_number, to_number: contact.phone };\nif (config.agent_id) body.override_agent_id = config.agent_id;\n\nreturn [{ json: { apiKey: integration.api_key, bodyJson: JSON.stringify(body) } }];"
+      },
+      "id": "rt1b0006-6666-4a5a-9b1a-retellcall00006",
+      "name": "Build Retell Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2080, 480],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.retellai.com/v2/create-phone-call",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Authorization", "value": "={{ 'Bearer ' + $json.apiKey }}" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.bodyJson }}",
+        "options": {}
+      },
+      "id": "rt1b0007-7777-4a5a-9b1a-retellcall00007",
+      "name": "Call Retell API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2304, 480],
+      "onError": "continueErrorOutput",
+      "notes": "Verify this endpoint/body shape against Retell's current docs before relying on it — built from general knowledge of their API, not a live doc check."
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ { success: true, call: $json } }}", "options": {} },
+      "id": "rt1b0008-8888-4a5a-9b1a-retellcall00008",
+      "name": "Respond - Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [2528, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "options": { "responseCode": 400 }
+      },
+      "id": "rt1b0009-9999-4a5a-9b1a-retellcall00009",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1408, 704]
+    }
+  ],
+  "connections": {
+    "Webhook - Trigger Retell Call": { "main": [[{ "node": "Parse Token & Payload", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Parse Token & Payload": { "main": [[{ "node": "Look Up Requester", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Look Up Requester": { "main": [[{ "node": "Look Up Contact", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Look Up Contact": { "main": [[{ "node": "Look Up Retell Integration", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Look Up Retell Integration": { "main": [[{ "node": "Build Retell Request", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Build Retell Request": { "main": [[{ "node": "Call Retell API", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Call Retell API": { "main": [[{ "node": "Respond - Success", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] }
+  }
+}
