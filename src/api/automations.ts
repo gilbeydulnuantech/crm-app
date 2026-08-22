@@ -1,7 +1,8 @@
 import { apiFetch } from './client';
 
 export type TriggerType = 'contact' | 'company' | 'task' | 'calendar' | 'pipeline';
-export type ActionType = 'add_tag' | 'send_email' | 'send_team_notification' | 'send_sms';
+export type ActionType = 'add_tag' | 'send_email' | 'send_team_notification' | 'send_sms' | 'wait';
+export type WaitUnit = 'minutes' | 'hours' | 'days' | 'months';
 export type Branch = 'true' | 'false' | 'default';
 
 export type ConditionOperator =

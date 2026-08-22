@@ -1,8 +1,8 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAutomations, useSetAutomationActive, useDeleteAutomation } from '../hooks/useAutomations';
-import { Automation, TriggerType } from '../api/automations';
+import { TriggerType } from '../api/automations';
 import ConfirmDialog from '../components/ConfirmDialog';
-import CreateAutomationModal from '../components/automations/CreateAutomationModal';
 
 const TRIGGER_LABELS: Record<TriggerType, string> = {
   contact: 'Contact',
@@ -21,11 +21,11 @@ const TRIGGER_BADGE_CLASS: Record<TriggerType, string> = {
 };
 
 export default function Automations() {
+  const navigate = useNavigate();
   const { data: automations = [], isLoading } = useAutomations();
   const setActive = useSetAutomationActive();
   const deleteAutomation = useDeleteAutomation();
 
-  const [modalAutomation, setModalAutomation] = useState<Automation | 'new' | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -45,7 +45,7 @@ export default function Automations() {
           <h1 className="text-lg font-bold text-slate-800">Automations</h1>
           <button
             type="button"
-            onClick={() => setModalAutomation('new')}
+            onClick={() => navigate('/automations/new')}
             className="px-4 py-2 text-sm font-semibold text-white bg-[var(--theme-accent)] hover:opacity-90 rounded-lg"
           >
             + Create
@@ -84,7 +84,7 @@ export default function Automations() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setModalAutomation(a)}
+                    onClick={() => navigate(`/automations/${a.id}/edit`)}
                     title="Edit"
                     className="shrink-0 text-slate-400 hover:text-[var(--theme-accent)]"
                   >
@@ -107,8 +107,6 @@ export default function Automations() {
           </div>
         )}
       </div>
-
-      <CreateAutomationModal automation={modalAutomation} onClose={() => setModalAutomation(null)} />
 
       <ConfirmDialog
         open={confirmDeleteId != null}

@@ -24,7 +24,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT a.id, a.trigger_type, a.trigger_config, a.condition_tree,\n  COALESCE(\n    json_agg(\n      json_build_object('id', ac.id, 'branch', ac.branch, 'action_type', ac.action_type, 'action_config', ac.action_config)\n    ) FILTER (WHERE ac.id IS NOT NULL),\n    '[]'::json\n  ) AS actions\nFROM automations a\nJOIN automation_actions ac ON ac.automation_id = a.id\nWHERE a.is_active = true\nGROUP BY a.id;",
+        "query": "SELECT a.id, a.trigger_type, a.trigger_config, a.condition_tree, a.created_by,\n  COALESCE(\n    json_agg(\n      json_build_object('id', ac.id, 'branch', ac.branch, 'action_type', ac.action_type, 'action_config', ac.action_config)\n    ) FILTER (WHERE ac.id IS NOT NULL),\n    '[]'::json\n  ) AS actions\nFROM automations a\nJOIN automation_actions ac ON ac.automation_id = a.id\nWHERE a.is_active = true\nGROUP BY a.id;",
         "options": {}
       },
       "id": "auteng002-0000-4a5a-9b1a-automationeng2",
@@ -44,7 +44,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// One query per automation, scoped by trigger_type, anti-joined against\n// automation_runs so an entity that already SUCCEEDED for this\n// automation is never reconsidered. A row with status = 'error' does\n// NOT block \u2014 a transient failure (e.g. gmail hiccup) gets retried on\n// the next poll. status = 'unsupported' DOES block, same as success \u2014\n// retrying an action with no executor (send_team_notification/send_sms)\n// would just re-log 'unsupported' forever with no chance of succeeding.\n// Automation metadata (trigger_config/condition_tree) travels along as\n// a jsonb literal column rather than relying on cross-node pairedItem\n// lookups, since automationId here is our own integer PK (not user\n// input) it's safe to inline into the query text. `actions` is\n// DELIBERATELY excluded from this literal \u2014 it holds the raw,\n// not-yet-personalized email templates (e.g. \"Hi {{first_name}}\"), and\n// this literal flows through Run Candidate Query's Query field, which\n// is an n8n expression template (`={{ $json.sqlQuery }}`). n8n's\n// expression engine treats ANY \"{{ }}\" it finds as ITS OWN syntax, so a\n// merge token embedded in that string gets misread as an (invalid) n8n\n// expression and silently renders as \"undefined\" \u2014 this is exactly the\n// bug that caused live sends to say \"Hi undefined\". Evaluate & Expand\n// Actions re-attaches the real `actions` (with intact merge tokens) by\n// reading Select Active Automations' own output directly \u2014 plain data\n// access in a Code node, never passed through an expression field.\n// Task and Calendar both read from `activities` (see src/types/event.ts)\n// \u2014 there is no separate calendar_events table in this schema.\nconst row = $input.item.json; // { id, trigger_type, trigger_config, condition_tree, actions }\nconst meta = JSON.stringify({\n  automationId: row.id,\n  entityType: row.trigger_type,\n  triggerConfig: row.trigger_config,\n  conditionTree: row.condition_tree,\n});\nconst metaLiteral = `'${meta.replace(/'/g, \"''\")}'::jsonb`;\nconst id = row.id;\n\n// owner_name resolves the {{owner_name}} merge token \u2014 contacts/companies\n// use their own owner_id, opportunities use assigned_user, and\n// tasks/calendar events (both `activities` rows) use the assigned user_id.\nconst queries = {\n  contact: `SELECT c.id, c.first_name, c.last_name, c.email, c.lead_status, c.birthdate, c.city, c.state, c.country, ow.name AS owner_name,\n      (SELECT COALESCE(json_agg(t.name), '[]'::json) FROM tags t JOIN taggables tg ON tg.tag_id = t.id WHERE tg.entity_type = 'contact' AND tg.entity_id = c.id) AS tags,\n      ${metaLiteral} AS automation_meta\n    FROM contacts c\n    LEFT JOIN users ow ON ow.id = c.owner_id\n    WHERE c.is_archived = false\n      AND NOT EXISTS (SELECT 1 FROM automation_runs r WHERE r.automation_id = ${id} AND r.entity_type = 'contact' AND r.entity_id = c.id AND r.status <> 'error');`,\n  company: `SELECT co.id, co.name, NULL::text AS first_name, NULL::text AS last_name, NULL::text AS email, ow.name AS owner_name,\n      co.account_status, co.city, co.state, co.country, co.annual_revenue, co.employee_count,\n      (SELECT COALESCE(json_agg(t.name), '[]'::json) FROM tags t JOIN taggables tg ON tg.tag_id = t.id WHERE tg.entity_type = 'company' AND tg.entity_id = co.id) AS tags,\n      ${metaLiteral} AS automation_meta\n    FROM companies co\n    LEFT JOIN users ow ON ow.id = co.owner_id\n    WHERE co.is_archived = false\n      AND NOT EXISTS (SELECT 1 FROM automation_runs r WHERE r.automation_id = ${id} AND r.entity_type = 'company' AND r.entity_id = co.id AND r.status <> 'error');`,\n  task: `SELECT act.id, act.subject AS name, ct.first_name, ct.last_name, ct.email, ow.name AS owner_name, act.is_completed, act.due_at,\n      ${metaLiteral} AS automation_meta\n    FROM activities act\n    LEFT JOIN contacts ct ON ct.id = act.contact_id\n    LEFT JOIN users ow ON ow.id = act.user_id\n    WHERE act.due_at IS NOT NULL\n      AND NOT EXISTS (SELECT 1 FROM automation_runs r WHERE r.automation_id = ${id} AND r.entity_type = 'task' AND r.entity_id = act.id AND r.status <> 'error');`,\n  calendar: `SELECT act.id, act.subject AS name, ct.first_name, ct.last_name, ct.email, ow.name AS owner_name, act.type, act.due_at, act.is_completed,\n      ${metaLiteral} AS automation_meta\n    FROM activities act\n    LEFT JOIN contacts ct ON ct.id = act.contact_id\n    LEFT JOIN users ow ON ow.id = act.user_id\n    WHERE act.due_at IS NOT NULL\n      AND NOT EXISTS (SELECT 1 FROM automation_runs r WHERE r.automation_id = ${id} AND r.entity_type = 'calendar' AND r.entity_id = act.id AND r.status <> 'error');`,\n  pipeline: `SELECT o.id, o.name, o.account_id, ct.first_name, ct.last_name, ct.email, ct.phone AS contact_phone, co.name AS company_name, ow.name AS owner_name, ow.email AS owner_email, ow.phone AS owner_phone, o.pipeline_id, o.stage_id, prop.public_token AS proposal_token,\n      ${metaLiteral} AS automation_meta\n    FROM opportunities o\n    LEFT JOIN contacts ct ON ct.id = o.contact_id\n    LEFT JOIN companies co ON co.id = o.account_id\n    LEFT JOIN users ow ON ow.id = o.assigned_user\n    LEFT JOIN LATERAL (\n      SELECT p.public_token FROM proposals p WHERE p.opportunity_id = o.id ORDER BY p.created_at DESC LIMIT 1\n    ) prop ON true\n    WHERE o.is_archived = false\n      AND NOT EXISTS (SELECT 1 FROM automation_runs r WHERE r.automation_id = ${id} AND r.entity_type = 'pipeline' AND r.entity_id = o.id AND r.status <> 'error');`,\n};\n\nconst sqlQuery = queries[row.trigger_type];\nif (!sqlQuery) return [];\nreturn [{ json: { sqlQuery } }];"
+        "jsCode": "// One query per automation, scoped by trigger_type. Deliberately does NOT\n// exclude entities that already have automation_runs history \u2014 the \"wait\"\n// action type needs an entity to be reconsidered on a LATER poll after a\n// wait step has been logged, so per-entity dedup can no longer happen at\n// the SQL level (a one-shot \"seen before? skip forever\" anti-join). All\n// dedup/wait-elapsed logic now lives in Evaluate & Expand Actions instead,\n// using the sibling Look Up Existing Runs node's data. This does mean\n// every matching entity gets re-evaluated every poll even once fully\n// done \u2014 acceptable at this app's data volume; automation_runs itself is\n// still the source of truth for \"has this exact action already run\".\n//\n// Automation metadata (trigger_config/condition_tree) travels along as a\n// jsonb literal column rather than relying on cross-node pairedItem\n// lookups, since automationId here is our own integer PK (not user\n// input) it's safe to inline into the query text. `actions` is\n// DELIBERATELY excluded from this literal \u2014 it holds the raw,\n// not-yet-personalized email templates (e.g. \"Hi {{first_name}}\"), and\n// this literal flows through Run Candidate Query's Query field, which\n// is an n8n expression template (`={{ $json.sqlQuery }}`). n8n's\n// expression engine treats ANY \"{{ }}\" it finds as ITS OWN syntax, so a\n// merge token embedded in that string gets misread as an (invalid) n8n\n// expression and silently renders as \"undefined\" \u2014 this is exactly the\n// bug that caused live sends to say \"Hi undefined\". Evaluate & Expand\n// Actions re-attaches the real `actions` (with intact merge tokens) by\n// reading Select Active Automations' own output directly \u2014 plain data\n// access in a Code node, never passed through an expression field.\n// Task and Calendar both read from `activities` (see src/types/event.ts)\n// \u2014 there is no separate calendar_events table in this schema.\n//\n// Every branch selects a consistent set of merge-token columns\n// (phone/job_title/lead_status/city/state/country/company_name/owner_*)\n// so the same AUTOMATION_DYNAMIC_FIELDS token set works regardless of\n// trigger type \u2014 a token whose column doesn't apply to a given branch\n// (e.g. {{deal_value}} on a Contact trigger) just comes back NULL and\n// fill() renders it as an empty string, same fallback every other\n// inapplicable token already had. stage_entered_at/last_contacted_at\n// back the days_since_stage_entered/days_since_last_activity trigger\n// fields (computed in getFieldValue, not here).\nconst row = $input.item.json; // { id, trigger_type, trigger_config, condition_tree, actions }\nconst meta = JSON.stringify({\n  automationId: row.id,\n  entityType: row.trigger_type,\n  triggerConfig: row.trigger_config,\n  conditionTree: row.condition_tree,\n});\nconst metaLiteral = `'${meta.replace(/'/g, \"''\")}'::jsonb`;\nconst id = row.id;\n\n// owner_name/owner_email/owner_phone resolve the {{owner_*}} merge tokens\n// \u2014 contacts/companies use their own owner_id, opportunities use\n// assigned_user, and tasks/calendar events (both `activities` rows) use\n// the assigned user_id.\nconst queries = {\n  contact: `SELECT c.id, c.first_name, c.last_name, c.email, c.phone, c.job_title, c.lead_status, c.birthdate, c.city, c.state, c.country, c.last_contacted_at,\n      comp.name AS company_name,\n      ow.name AS owner_name, ow.email AS owner_email, ow.phone AS owner_phone,\n      (SELECT COALESCE(json_agg(t.name), '[]'::json) FROM tags t JOIN taggables tg ON tg.tag_id = t.id WHERE tg.entity_type = 'contact' AND tg.entity_id = c.id) AS tags,\n      ${metaLiteral} AS automation_meta\n    FROM contacts c\n    LEFT JOIN companies comp ON comp.id = c.account_id\n    LEFT JOIN users ow ON ow.id = c.owner_id\n    WHERE c.is_archived = false;`,\n  company: `SELECT co.id, co.name, NULL::text AS first_name, NULL::text AS last_name, NULL::text AS email, NULL::text AS phone, NULL::text AS job_title, NULL::text AS lead_status,\n      co.name AS company_name, co.industry, co.website,\n      ow.name AS owner_name, ow.email AS owner_email, ow.phone AS owner_phone,\n      co.account_status, co.city, co.state, co.country, co.annual_revenue, co.employee_count,\n      (SELECT COALESCE(json_agg(t.name), '[]'::json) FROM tags t JOIN taggables tg ON tg.tag_id = t.id WHERE tg.entity_type = 'company' AND tg.entity_id = co.id) AS tags,\n      ${metaLiteral} AS automation_meta\n    FROM companies co\n    LEFT JOIN users ow ON ow.id = co.owner_id\n    WHERE co.is_archived = false;`,\n  task: `SELECT act.id, act.subject AS name, ct.first_name, ct.last_name, ct.email, ct.phone, ct.job_title, ct.lead_status,\n      comp.name AS company_name,\n      ow.name AS owner_name, ow.email AS owner_email, ow.phone AS owner_phone,\n      act.is_completed, act.due_at, act.type AS event_type,\n      ${metaLiteral} AS automation_meta\n    FROM activities act\n    LEFT JOIN contacts ct ON ct.id = act.contact_id\n    LEFT JOIN companies comp ON comp.id = ct.account_id\n    LEFT JOIN users ow ON ow.id = act.user_id\n    WHERE act.due_at IS NOT NULL;`,\n  calendar: `SELECT act.id, act.subject AS name, ct.first_name, ct.last_name, ct.email, ct.phone, ct.job_title, ct.lead_status,\n      comp.name AS company_name,\n      ow.name AS owner_name, ow.email AS owner_email, ow.phone AS owner_phone,\n      act.type AS event_type, act.due_at, act.is_completed,\n      ${metaLiteral} AS automation_meta\n    FROM activities act\n    LEFT JOIN contacts ct ON ct.id = act.contact_id\n    LEFT JOIN companies comp ON comp.id = ct.account_id\n    LEFT JOIN users ow ON ow.id = act.user_id\n    WHERE act.due_at IS NOT NULL;`,\n  pipeline: `SELECT o.id, o.name, o.account_id, o.deal_value, o.expected_close, o.source, o.priority, o.stage_entered_at,\n      ct.first_name, ct.last_name, ct.email, ct.phone, ct.job_title, ct.lead_status, ct.city, ct.state, ct.country,\n      co.name AS company_name, co.industry, co.website,\n      ow.name AS owner_name, ow.email AS owner_email, ow.phone AS owner_phone,\n      o.pipeline_id, o.stage_id, st.name AS stage_name, pl.name AS pipeline_name,\n      prop.public_token AS proposal_token, contr.public_token AS contract_token,\n      ${metaLiteral} AS automation_meta\n    FROM opportunities o\n    LEFT JOIN contacts ct ON ct.id = o.contact_id\n    LEFT JOIN companies co ON co.id = o.account_id\n    LEFT JOIN users ow ON ow.id = o.assigned_user\n    LEFT JOIN stages st ON st.id = o.stage_id\n    LEFT JOIN pipelines pl ON pl.id = o.pipeline_id\n    LEFT JOIN LATERAL (\n      SELECT p.public_token FROM proposals p WHERE p.opportunity_id = o.id ORDER BY p.created_at DESC LIMIT 1\n    ) prop ON true\n    LEFT JOIN LATERAL (\n      SELECT c2.public_token FROM contracts c2 WHERE c2.opportunity_id = o.id ORDER BY c2.created_at DESC LIMIT 1\n    ) contr ON true\n    WHERE o.is_archived = false;`,\n};\n\nconst sqlQuery = queries[row.trigger_type];\nif (!sqlQuery) return [];\nreturn [{ json: { sqlQuery, automationId: id } }];"
       },
       "id": "auteng003-0000-4a5a-9b1a-automationeng3",
       "name": "Build Candidate Query",
@@ -79,7 +79,7 @@
     },
     {
       "parameters": {
-        "jsCode": "function getFieldValue(row, field) {\n  if (field === 'age') {\n    if (!row.birthdate) return null;\n    const ms = Date.now() - new Date(row.birthdate).getTime();\n    return Math.floor(ms / (365.25 * 24 * 3600 * 1000));\n  }\n  if (field === 'overdue') {\n    return !row.is_completed && row.due_at && new Date(row.due_at) < new Date();\n  }\n  if (field === 'location') {\n    return [row.city, row.state, row.country].filter(Boolean).join(', ');\n  }\n  return row[field];\n}\n\nfunction evalCondition(row, cond) {\n  if (!cond || !cond.field) return true;\n  const actual = getFieldValue(row, cond.field);\n  const expected = cond.value;\n  switch (cond.operator) {\n    case 'equals': return Array.isArray(actual) ? actual.includes(expected) : String(actual) === String(expected);\n    case 'not_equals': return Array.isArray(actual) ? !actual.includes(expected) : String(actual) !== String(expected);\n    case 'contains': return String(actual || '').toLowerCase().includes(String(expected).toLowerCase());\n    case 'greater_than': { const n = Number(actual); return Number.isFinite(n) ? n > Number(expected) : new Date(actual) > new Date(expected); }\n    case 'less_than': { const n = Number(actual); return Number.isFinite(n) ? n < Number(expected) : new Date(actual) < new Date(expected); }\n    case 'is_true': return Boolean(actual) === true;\n    case 'is_false': return Boolean(actual) === false;\n    default: return false;\n  }\n}\n\n// Fans one input row out into zero or more action-items \u2014 a manual\n// many-to-many reshape. Without an explicit `pairedItem` on each\n// constructed item, n8n's automatic pairedItem inference for this kind\n// of fan-out is unreliable once more than one row/action is in flight,\n// which breaks every downstream $('Evaluate & Expand Actions').item\n// lookup (Log Tag Result / Log Email Success / Log Unsupported) \u2014\n// they'd log the WRONG entity_id into automation_runs, so the real\n// entity never gets deduped and re-fires on the next poll. Setting\n// pairedItem explicitly here is what keeps that lineage correct.\n// actions come from Select Active Automations' own output (plain data\n// access, not a `={{ }}` expression field) rather than from the SQL\n// literal, so raw merge tokens like {{first_name}} survive intact \u2014\n// see the comment on Build Candidate Query for why.\nconst actionsByAutomationId = {};\nfor (const it of $('Select Active Automations').all()) {\n  actionsByAutomationId[it.json.id] = it.json.actions;\n}\n\nconst output = [];\n$input.all().forEach((item, itemIndex) => {\n  const row = item.json;\n  const meta = row.automation_meta;\n  if (!meta) return;\n  if (!evalCondition(row, meta.triggerConfig)) return;\n  const branch = meta.conditionTree ? (evalCondition(row, meta.conditionTree) ? 'true' : 'false') : 'default';\n  const actions = actionsByAutomationId[meta.automationId] || [];\n  const actionsForBranch = actions.filter((a) => a.branch === branch);\n  for (const action of actionsForBranch) {\n    output.push({\n      json: {\n        automationId: meta.automationId,\n        actionId: action.id,\n        entityType: meta.entityType,\n        entityId: row.id,\n        branch,\n        action,\n        row,\n      },\n      pairedItem: { item: itemIndex },\n    });\n  }\n});\nreturn output;"
+        "jsCode": "function getFieldValue(row, field) {\n  if (field === 'age') {\n    if (!row.birthdate) return null;\n    const ms = Date.now() - new Date(row.birthdate).getTime();\n    return Math.floor(ms / (365.25 * 24 * 3600 * 1000));\n  }\n  if (field === 'overdue') {\n    return !row.is_completed && row.due_at && new Date(row.due_at) < new Date();\n  }\n  if (field === 'location') {\n    return [row.city, row.state, row.country].filter(Boolean).join(', ');\n  }\n  if (field === 'days_since_stage_entered') {\n    if (!row.stage_entered_at) return null;\n    return Math.floor((Date.now() - new Date(row.stage_entered_at).getTime()) / 86400000);\n  }\n  if (field === 'days_since_last_activity') {\n    if (!row.last_contacted_at) return null;\n    return Math.floor((Date.now() - new Date(row.last_contacted_at).getTime()) / 86400000);\n  }\n  return row[field];\n}\n\nfunction evalCondition(row, cond) {\n  if (!cond || !cond.field) return true;\n  const actual = getFieldValue(row, cond.field);\n  const expected = cond.value;\n  switch (cond.operator) {\n    case 'equals': return Array.isArray(actual) ? actual.includes(expected) : String(actual) === String(expected);\n    case 'not_equals': return Array.isArray(actual) ? !actual.includes(expected) : String(actual) !== String(expected);\n    case 'contains': return String(actual || '').toLowerCase().includes(String(expected).toLowerCase());\n    case 'greater_than': { const n = Number(actual); return Number.isFinite(n) ? n > Number(expected) : new Date(actual) > new Date(expected); }\n    case 'less_than': { const n = Number(actual); return Number.isFinite(n) ? n < Number(expected) : new Date(actual) < new Date(expected); }\n    case 'is_true': return Boolean(actual) === true;\n    case 'is_false': return Boolean(actual) === false;\n    default: return false;\n  }\n}\n\n// A \"wait\" action's duration, in milliseconds.\nfunction waitMs(config) {\n  const amount = Number(config?.amount) || 0;\n  const perUnit = { minutes: 60 * 1000, hours: 3600 * 1000, days: 86400 * 1000, months: 30 * 86400 * 1000 };\n  return amount * (perUnit[config?.unit] || perUnit.days);\n}\n\n// Fans one input row out into zero or more action-items \u2014 a manual\n// many-to-many reshape. Without an explicit `pairedItem` on each\n// constructed item, n8n's automatic pairedItem inference for this kind\n// of fan-out is unreliable once more than one row/action is in flight,\n// which breaks every downstream $('Evaluate & Expand Actions').item\n// lookup (Log Tag Result / Log Email Success / Log Unsupported) \u2014\n// they'd log the WRONG entity_id into automation_runs, so the real\n// entity never gets deduped and re-fires on the next poll. Setting\n// pairedItem explicitly here is what keeps that lineage correct.\n// actions come from Select Active Automations' own output (plain data\n// access, not a `={{ }}` expression field) rather than from the SQL\n// literal, so raw merge tokens like {{first_name}} survive intact \u2014\n// see the comment on Build Candidate Query for why.\n//\n// Dedup/sequencing now happens entirely here (not in SQL, see Build\n// Candidate Query's comment): each branch's actions run in sort_order.\n// An action already logged with status success/unsupported is skipped\n// (never re-run). A \"wait\" action, the first time it's reached, is\n// logged now (recording its start time) and blocks every action after\n// it in the SAME branch for THIS poll. On a later poll, once enough\n// time has passed since that logged ran_at, the wait is considered\n// satisfied and processing continues to the next action \u2014 this is what\n// makes a multi-day wait actually span multiple 30-minute poll cycles\n// instead of firing everything at once.\nconst actionsByAutomationId = {};\nconst createdByAutomationId = {};\nfor (const it of $('Select Active Automations').all()) {\n  actionsByAutomationId[it.json.id] = it.json.actions;\n  createdByAutomationId[it.json.id] = it.json.created_by;\n}\n\nconst runsByKey = {};\nfor (const it of $('Look Up Existing Runs').all()) {\n  const r = it.json;\n  runsByKey[`${r.action_id}|${r.entity_type}|${r.entity_id}`] = r;\n}\n\nconst output = [];\n$input.all().forEach((item, itemIndex) => {\n  const row = item.json;\n  const meta = row.automation_meta;\n  if (!meta) return;\n  if (!evalCondition(row, meta.triggerConfig)) return;\n  const branch = meta.conditionTree ? (evalCondition(row, meta.conditionTree) ? 'true' : 'false') : 'default';\n  const actions = (actionsByAutomationId[meta.automationId] || [])\n    .filter((a) => a.branch === branch)\n    .slice()\n    .sort((a, b) => a.sort_order - b.sort_order);\n\n  for (const action of actions) {\n    const key = `${action.id}|${meta.entityType}|${row.id}`;\n    const existingRun = runsByKey[key];\n\n    if (existingRun && existingRun.status !== 'error') {\n      if (action.action_type === 'wait') {\n        const elapsed = Date.now() - new Date(existingRun.ran_at).getTime();\n        if (elapsed < waitMs(action.action_config)) break; // still waiting \u2014 stop here this poll\n        continue; // wait satisfied \u2014 move on to the next action\n      }\n      continue; // already ran (tag/email/etc.) \u2014 never re-run, move on\n    }\n\n    // Not yet logged \u2014 this is the next thing to do for this entity.\n    output.push({\n      json: {\n        automationId: meta.automationId,\n        actionId: action.id,\n        entityType: meta.entityType,\n        entityId: row.id,\n        branch,\n        action,\n        row,\n        createdBy: createdByAutomationId[meta.automationId],\n      },\n      pairedItem: { item: itemIndex },\n    });\n\n    // A freshly-started wait blocks everything after it THIS pass \u2014 the\n    // next action only becomes eligible once the wait's logged ran_at is\n    // old enough, which can only be checked on a subsequent poll.\n    if (action.action_type === 'wait') break;\n  }\n});\nreturn output;"
       },
       "id": "auteng005-0000-4a5a-9b1a-automationeng5",
       "name": "Evaluate & Expand Actions",
@@ -233,7 +233,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// $env access can be blocked entirely by the n8n instance's own security settings (N8N_BLOCK_ENV_ACCESS_IN_NODE) \u2014 reading a blocked var THROWS rather than returning undefined, so a bare `$env.X || ''` never gets a chance to fall back.\nfunction safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\nconst meta = $input.item.json;\nconst row = meta.row;\nif (!row.email) {\n  return [{ json: { automationId: meta.automationId, actionId: meta.actionId, entityType: meta.entityType, entityId: meta.entityId, branch: meta.branch, status: 'error', detail: 'No email address available for this record.', hasEmail: false } }];\n}\n\n// Data arrives however a rep typed it (or a CSV import had it) \u2014\n// mirrors src/utils/text.ts's toTitleCase so merge fields don't send\n// 'Hi pretty' for a name stored all-lowercase.\nfunction toTitleCase(s) {\n  return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' ');\n}\n\n// proposal_link only resolves for Pipeline triggers (row.proposal_token\n// comes from a LATERAL join to that opportunity's most recent proposal\n// in Build Candidate Query) \u2014 null for every other trigger_type.\nconst proposalLink = row.proposal_token ? `${safeEnv('FRONTEND_BASE_URL')}/documents/proposal/${row.proposal_token}` : '';\n\nfunction fill(template) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, toTitleCase(row.last_name))\n    .replace(/{{\\s*deal_name\\s*}}/gi, row.name || '')\n    .replace(/{{\\s*owner_name\\s*}}/gi, toTitleCase(row.owner_name) || 'your account team')\n    .replace(/{{\\s*proposal_link\\s*}}/gi, proposalLink)\n    // Safety net: any OTHER \"{{ ... }}\" left over (a typo, a stray token\n    // pasted in from an inserted Email Template's own content, etc.) must\n    // be stripped here \u2014 Send Email's subject/message fields below are\n    // n8n expression fields (`={{ $json.subject }}`), and n8n's own\n    // expression engine will try to evaluate any \"{{ }}\" it finds in the\n    // final string as ITS OWN syntax, silently rendering an unresolvable\n    // one as the literal word \"undefined\" \u2014 the exact bug this app hit\n    // before. Stripping here, before that field ever sees the text, is\n    // what prevents a repeat for any token this function doesn't know.\n    .replace(/{{[^{}]*}}/g, '');\n}\n\nreturn [{\n  json: {\n    automationId: meta.automationId, actionId: meta.actionId, entityType: meta.entityType, entityId: meta.entityId, branch: meta.branch,\n    hasEmail: true, to: row.email, subject: fill(meta.action.action_config.subject), body: fill(meta.action.action_config.body),\n  },\n}];"
+        "jsCode": "// $env access can be blocked entirely by the n8n instance's own security settings (N8N_BLOCK_ENV_ACCESS_IN_NODE) \u2014 reading a blocked var THROWS rather than returning undefined, so a bare `$env.X || ''` never gets a chance to fall back.\nfunction safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\nconst meta = $input.item.json;\nconst row = meta.row;\nif (!row.email) {\n  return [{ json: { automationId: meta.automationId, actionId: meta.actionId, entityType: meta.entityType, entityId: meta.entityId, branch: meta.branch, status: 'error', detail: 'No email address available for this record.', hasEmail: false } }];\n}\n\n// Data arrives however a rep typed it (or a CSV import had it) \u2014\n// mirrors src/utils/text.ts's toTitleCase so merge fields don't send\n// 'Hi pretty' for a name stored all-lowercase.\nfunction toTitleCase(s) {\n  return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' ');\n}\nfunction money(n) {\n  return n != null && n !== '' ? '$' + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';\n}\nfunction dateStr(d) {\n  return d ? new Date(d).toLocaleDateString() : '';\n}\n\n// proposal_link only resolves for Pipeline triggers (row.proposal_token\n// comes from a LATERAL join to that opportunity's most recent proposal\n// in Build Candidate Query) \u2014 null for every other trigger_type.\nconst proposalLink = row.proposal_token ? `${safeEnv('FRONTEND_BASE_URL')}/documents/proposal/${row.proposal_token}` : '';\nconst contractLink = row.contract_token ? `${safeEnv('FRONTEND_BASE_URL')}/documents/contract/${row.contract_token}` : '';\n\nfunction fill(template) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, toTitleCase(row.last_name))\n    .replace(/{{\\s*deal_name\\s*}}/gi, row.name || '')\n    .replace(/{{\\s*owner_name\\s*}}/gi, toTitleCase(row.owner_name) || 'your account team')\n    .replace(/{{\\s*proposal_link\\s*}}/gi, proposalLink)\n    .replace(/{{\\s*email\\s*}}/gi, row.email || '')\n    .replace(/{{\\s*phone\\s*}}/gi, row.phone || '')\n    .replace(/{{\\s*job_title\\s*}}/gi, row.job_title || '')\n    .replace(/{{\\s*lead_status\\s*}}/gi, row.lead_status || '')\n    .replace(/{{\\s*city\\s*}}/gi, row.city || '')\n    .replace(/{{\\s*state\\s*}}/gi, row.state || '')\n    .replace(/{{\\s*country\\s*}}/gi, row.country || '')\n    .replace(/{{\\s*company_name\\s*}}/gi, row.company_name || '')\n    .replace(/{{\\s*industry\\s*}}/gi, row.industry || '')\n    .replace(/{{\\s*website\\s*}}/gi, row.website || '')\n    .replace(/{{\\s*deal_value\\s*}}/gi, money(row.deal_value))\n    .replace(/{{\\s*deal_stage\\s*}}/gi, row.stage_name || '')\n    .replace(/{{\\s*pipeline_name\\s*}}/gi, row.pipeline_name || '')\n    .replace(/{{\\s*expected_close\\s*}}/gi, dateStr(row.expected_close))\n    .replace(/{{\\s*task_name\\s*}}/gi, row.name || '')\n    .replace(/{{\\s*due_date\\s*}}/gi, dateStr(row.due_at))\n    .replace(/{{\\s*event_type\\s*}}/gi, row.event_type || '')\n    .replace(/{{\\s*owner_email\\s*}}/gi, row.owner_email || '')\n    .replace(/{{\\s*owner_phone\\s*}}/gi, row.owner_phone || '')\n    .replace(/{{\\s*contract_link\\s*}}/gi, contractLink)\n    .replace(/{{\\s*today\\s*}}/gi, dateStr(new Date()))\n    // Safety net: any OTHER \"{{ ... }}\" left over (a typo, a stray token\n    // pasted in from an inserted Email Template's own content, etc.) must\n    // be stripped here \u2014 Send Email's subject/message fields below are\n    // n8n expression fields (`={{ $json.subject }}`), and n8n's own\n    // expression engine will try to evaluate any \"{{ }}\" it finds in the\n    // final string as ITS OWN syntax, silently rendering an unresolvable\n    // one as the literal word \"undefined\" \u2014 the exact bug this app hit\n    // before. Stripping here, before that field ever sees the text, is\n    // what prevents a repeat for any token this function doesn't know.\n    .replace(/{{[^{}]*}}/g, '');\n}\n\nreturn [{\n  json: {\n    automationId: meta.automationId, actionId: meta.actionId, entityType: meta.entityType, entityId: meta.entityId, branch: meta.branch,\n    hasEmail: true, to: row.email, subject: fill(meta.action.action_config.subject), body: fill(meta.action.action_config.body),\n  },\n}];"
       },
       "id": "auteng011-0000-4a5a-9b1a-automationeng11",
       "name": "Prepare Email",
@@ -444,7 +444,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// $env access can be blocked entirely by the n8n instance's own security settings (N8N_BLOCK_ENV_ACCESS_IN_NODE) \u2014 reading a blocked var THROWS rather than returning undefined, so a bare `$env.X || ''` never gets a chance to fall back.\nfunction safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\n// Same merge-token handling as Prepare Email, plus resolving the\n// {{contract_template:ID}} token (already validated present) into the\n// real link for the contract just generated for this deal.\nconst meta = $('Detect Contract Template Token').item.json;\nconst row = meta.row;\nconst contract = $input.item.json;\nconst contractLink = `${safeEnv('FRONTEND_BASE_URL')}/documents/contract/${contract.public_token}`;\n\nfunction toTitleCase(s) {\n  return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' ');\n}\n\nconst proposalLink = row.proposal_token ? `${safeEnv('FRONTEND_BASE_URL')}/documents/proposal/${row.proposal_token}` : '';\n\nfunction fill(template) {\n  return (template || '')\n    .replace(/\\{\\{\\s*contract_template:\\d+\\s*\\}\\}/gi, contractLink)\n    .replace(/\\{\\{\\s*first_name\\s*\\}\\}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/\\{\\{\\s*last_name\\s*\\}\\}/gi, toTitleCase(row.last_name))\n    .replace(/\\{\\{\\s*deal_name\\s*\\}\\}/gi, row.name || '')\n    .replace(/\\{\\{\\s*owner_name\\s*\\}\\}/gi, toTitleCase(row.owner_name) || 'your account team')\n    .replace(/\\{\\{\\s*proposal_link\\s*\\}\\}/gi, proposalLink)\n    .replace(/\\{\\{[^{}]*\\}\\}/g, '');\n}\n\nif (!row.email) {\n  return [{ json: { automationId: meta.automationId, actionId: meta.actionId, entityType: meta.entityType, entityId: meta.entityId, branch: meta.branch, status: 'error', detail: 'No email address available for this record.', hasEmail: false } }];\n}\n\nreturn [{\n  json: {\n    automationId: meta.automationId, actionId: meta.actionId, entityType: meta.entityType, entityId: meta.entityId, branch: meta.branch,\n    hasEmail: true, to: row.email, subject: fill(meta.action.action_config.subject), body: fill(meta.action.action_config.body),\n  },\n}];\n"
+        "jsCode": "// $env access can be blocked entirely by the n8n instance's own security settings (N8N_BLOCK_ENV_ACCESS_IN_NODE) \u2014 reading a blocked var THROWS rather than returning undefined, so a bare `$env.X || ''` never gets a chance to fall back.\nfunction safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\n// Same merge-token handling as Prepare Email, plus resolving the\n// {{contract_template:ID}} token (already validated present) into the\n// real link for the contract just generated for this deal.\nconst meta = $('Detect Contract Template Token').item.json;\nconst row = meta.row;\nconst contract = $input.item.json;\nconst contractLink = `${safeEnv('FRONTEND_BASE_URL')}/documents/contract/${contract.public_token}`;\n\nfunction toTitleCase(s) {\n  return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' ');\n}\nfunction money(n) {\n  return n != null && n !== '' ? '$' + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';\n}\nfunction dateStr(d) {\n  return d ? new Date(d).toLocaleDateString() : '';\n}\n\nconst proposalLink = row.proposal_token ? `${safeEnv('FRONTEND_BASE_URL')}/documents/proposal/${row.proposal_token}` : '';\n\nfunction fill(template) {\n  return (template || '')\n    .replace(/\\{\\{\\s*contract_template:\\d+\\s*\\}\\}/gi, contractLink)\n    .replace(/\\{\\{\\s*first_name\\s*\\}\\}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/\\{\\{\\s*last_name\\s*\\}\\}/gi, toTitleCase(row.last_name))\n    .replace(/\\{\\{\\s*deal_name\\s*\\}\\}/gi, row.name || '')\n    .replace(/\\{\\{\\s*owner_name\\s*\\}\\}/gi, toTitleCase(row.owner_name) || 'your account team')\n    .replace(/\\{\\{\\s*proposal_link\\s*\\}\\}/gi, proposalLink)\n    .replace(/{{\\s*email\\s*}}/gi, row.email || '')\n    .replace(/{{\\s*phone\\s*}}/gi, row.phone || '')\n    .replace(/{{\\s*job_title\\s*}}/gi, row.job_title || '')\n    .replace(/{{\\s*lead_status\\s*}}/gi, row.lead_status || '')\n    .replace(/{{\\s*city\\s*}}/gi, row.city || '')\n    .replace(/{{\\s*state\\s*}}/gi, row.state || '')\n    .replace(/{{\\s*country\\s*}}/gi, row.country || '')\n    .replace(/{{\\s*company_name\\s*}}/gi, row.company_name || '')\n    .replace(/{{\\s*industry\\s*}}/gi, row.industry || '')\n    .replace(/{{\\s*website\\s*}}/gi, row.website || '')\n    .replace(/{{\\s*deal_value\\s*}}/gi, money(row.deal_value))\n    .replace(/{{\\s*deal_stage\\s*}}/gi, row.stage_name || '')\n    .replace(/{{\\s*pipeline_name\\s*}}/gi, row.pipeline_name || '')\n    .replace(/{{\\s*expected_close\\s*}}/gi, dateStr(row.expected_close))\n    .replace(/{{\\s*task_name\\s*}}/gi, row.name || '')\n    .replace(/{{\\s*due_date\\s*}}/gi, dateStr(row.due_at))\n    .replace(/{{\\s*event_type\\s*}}/gi, row.event_type || '')\n    .replace(/{{\\s*owner_email\\s*}}/gi, row.owner_email || '')\n    .replace(/{{\\s*owner_phone\\s*}}/gi, row.owner_phone || '')\n    .replace(/{{\\s*contract_link\\s*}}/gi, contractLink)\n    .replace(/{{\\s*today\\s*}}/gi, dateStr(new Date()))\n    .replace(/\\{\\{[^{}]*\\}\\}/g, '');\n}\n\nif (!row.email) {\n  return [{ json: { automationId: meta.automationId, actionId: meta.actionId, entityType: meta.entityType, entityId: meta.entityId, branch: meta.branch, status: 'error', detail: 'No email address available for this record.', hasEmail: false } }];\n}\n\nreturn [{\n  json: {\n    automationId: meta.automationId, actionId: meta.actionId, entityType: meta.entityType, entityId: meta.entityId, branch: meta.branch,\n    hasEmail: true, to: row.email, subject: fill(meta.action.action_config.subject), body: fill(meta.action.action_config.body),\n  },\n}];\n"
       },
       "id": "auteng021-0000-4a5a-9b1a-automationeng21",
       "name": "Substitute Contract Link & Prepare Email",
@@ -559,6 +559,213 @@
         2640,
         672
       ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT action_id, entity_type, entity_id, status, ran_at FROM automation_runs WHERE automation_id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.automationId ] }}"
+        }
+      },
+      "id": "auteng004-1111-4a5a-9b1a-automationeng41",
+      "name": "Look Up Existing Runs",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1072,
+        560
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "auteng006wait",
+              "leftValue": "={{ $json.action.action_type }}",
+              "rightValue": "wait",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "auteng006w-0000-4a5a-9b1a-automationengw",
+      "name": "Is Wait?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Reached from Is Wait?'s true branch \u2014 logging IS the wait step's\n// only side effect: it records ran_at as the wait's start time, and\n// Evaluate & Expand Actions compares against that on later polls to\n// decide whether the wait is over yet.\nconst meta = $input.item.json;\nreturn [{ json: { automationId: meta.automationId, actionId: meta.actionId, entityType: meta.entityType, entityId: meta.entityId, branch: meta.branch, status: 'success', detail: `Wait started: ${meta.action.action_config.amount} ${meta.action.action_config.unit}.` } }];"
+      },
+      "id": "auteng006x-0000-4a5a-9b1a-automationengx",
+      "name": "Log Wait Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1744,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// $env access can be blocked entirely by the n8n instance's own security settings (N8N_BLOCK_ENV_ACCESS_IN_NODE) \u2014 reading a blocked var THROWS rather than returning undefined, so a bare `$env.X || ''` never gets a chance to fall back.\nfunction safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\nconst meta = $input.item.json;\nconst row = meta.row;\n\nif (!meta.action.action_config.channel_id) {\n  return [{ json: { automationId: meta.automationId, actionId: meta.actionId, entityType: meta.entityType, entityId: meta.entityId, branch: meta.branch, status: 'error', detail: 'No Team Chat channel configured for this action.' } }];\n}\nif (!meta.createdBy) {\n  return [{ json: { automationId: meta.automationId, actionId: meta.actionId, entityType: meta.entityType, entityId: meta.entityId, branch: meta.branch, status: 'error', detail: 'This automation has no creator to post the message as.' } }];\n}\n\n// Same merge-token set as Prepare Email \u2014 see that node's comment for the\n// full list. A team notification is plain text (posted into Team Chat,\n// not an email), so no `to`/subject handling here, just the message body.\nfunction toTitleCase(s) {\n  return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' ');\n}\nfunction money(n) {\n  return n != null && n !== '' ? '$' + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';\n}\nfunction dateStr(d) {\n  return d ? new Date(d).toLocaleDateString() : '';\n}\nconst proposalLink = row.proposal_token ? `${safeEnv('FRONTEND_BASE_URL')}/documents/proposal/${row.proposal_token}` : '';\nconst contractLink = row.contract_token ? `${safeEnv('FRONTEND_BASE_URL')}/documents/contract/${row.contract_token}` : '';\n\nfunction fill(template) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, toTitleCase(row.last_name))\n    .replace(/{{\\s*deal_name\\s*}}/gi, row.name || '')\n    .replace(/{{\\s*owner_name\\s*}}/gi, toTitleCase(row.owner_name) || 'your account team')\n    .replace(/{{\\s*proposal_link\\s*}}/gi, proposalLink)\n    .replace(/{{\\s*email\\s*}}/gi, row.email || '')\n    .replace(/{{\\s*phone\\s*}}/gi, row.phone || '')\n    .replace(/{{\\s*job_title\\s*}}/gi, row.job_title || '')\n    .replace(/{{\\s*lead_status\\s*}}/gi, row.lead_status || '')\n    .replace(/{{\\s*city\\s*}}/gi, row.city || '')\n    .replace(/{{\\s*state\\s*}}/gi, row.state || '')\n    .replace(/{{\\s*country\\s*}}/gi, row.country || '')\n    .replace(/{{\\s*company_name\\s*}}/gi, row.company_name || '')\n    .replace(/{{\\s*industry\\s*}}/gi, row.industry || '')\n    .replace(/{{\\s*website\\s*}}/gi, row.website || '')\n    .replace(/{{\\s*deal_value\\s*}}/gi, money(row.deal_value))\n    .replace(/{{\\s*deal_stage\\s*}}/gi, row.stage_name || '')\n    .replace(/{{\\s*pipeline_name\\s*}}/gi, row.pipeline_name || '')\n    .replace(/{{\\s*expected_close\\s*}}/gi, dateStr(row.expected_close))\n    .replace(/{{\\s*task_name\\s*}}/gi, row.name || '')\n    .replace(/{{\\s*due_date\\s*}}/gi, dateStr(row.due_at))\n    .replace(/{{\\s*event_type\\s*}}/gi, row.event_type || '')\n    .replace(/{{\\s*owner_email\\s*}}/gi, row.owner_email || '')\n    .replace(/{{\\s*owner_phone\\s*}}/gi, row.owner_phone || '')\n    .replace(/{{\\s*contract_link\\s*}}/gi, contractLink)\n    .replace(/{{\\s*today\\s*}}/gi, dateStr(new Date()))\n    .replace(/{{[^{}]*}}/g, '');\n}\n\nreturn [{\n  json: {\n    automationId: meta.automationId, actionId: meta.actionId, entityType: meta.entityType, entityId: meta.entityId, branch: meta.branch,\n    channelId: Number(meta.action.action_config.channel_id), senderId: meta.createdBy, text: fill(meta.action.action_config.message),\n  },\n}];"
+      },
+      "id": "auteng007a-0000-4a5a-9b1a-automationeng7a",
+      "name": "Prepare Team Notification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1744,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "auteng007hasch",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "error",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "auteng007b-0000-4a5a-9b1a-automationeng7b",
+      "name": "Has Channel & Sender?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1968,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO conversation_members (conversation_id, user_id, joined_at, last_read_at)\nVALUES ($1, $2, now(), now())\nON CONFLICT (conversation_id, user_id) DO UPDATE SET last_read_at = now();",
+        "options": {
+          "queryReplacement": "={{ [ $json.channelId, $json.senderId ] }}"
+        }
+      },
+      "id": "auteng007c-0000-4a5a-9b1a-automationeng7c",
+      "name": "Ensure Team Chat Membership",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2192,
+        680
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO messages (conversation_id, sender_id, body) VALUES ($1, $2, $3) RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $('Prepare Team Notification').item.json.channelId, $('Prepare Team Notification').item.json.senderId, $('Prepare Team Notification').item.json.text ] }}"
+        }
+      },
+      "id": "auteng007d-0000-4a5a-9b1a-automationeng7d",
+      "name": "Insert Team Message",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2416,
+        680
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const meta = \\$('Prepare Team Notification').item.json;\nreturn [{ json: { automationId: meta.automationId, actionId: meta.actionId, entityType: meta.entityType, entityId: meta.entityId, branch: meta.branch, status: 'success', detail: null } }];"
+      },
+      "id": "auteng007e-0000-4a5a-9b1a-automationeng7e",
+      "name": "Log Team Notification Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        680
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "auteng007teamnotif",
+              "leftValue": "={{ $json.action.action_type }}",
+              "rightValue": "send_team_notification",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "auteng007-0000-4a5a-9b1a-automationeng70",
+      "name": "Is Team Notification?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        720
+      ]
     }
   ],
   "connections": {
@@ -589,6 +796,11 @@
         [
           {
             "node": "Run Candidate Query",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Look Up Existing Runs",
             "type": "main",
             "index": 0
           }
@@ -628,7 +840,7 @@
         ],
         [
           {
-            "node": "Is Send Email?",
+            "node": "Is Wait?",
             "type": "main",
             "index": 0
           }
@@ -866,6 +1078,117 @@
         [
           {
             "node": "Detect Contract Template Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Wait?": {
+      "main": [
+        [
+          {
+            "node": "Log Wait Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is Team Notification?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Wait Result": {
+      "main": [
+        [
+          {
+            "node": "Log Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Team Notification?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Team Notification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is Send Email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Team Notification": {
+      "main": [
+        [
+          {
+            "node": "Has Channel & Sender?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Channel & Sender?": {
+      "main": [
+        [
+          {
+            "node": "Ensure Team Chat Membership",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ensure Team Chat Membership": {
+      "main": [
+        [
+          {
+            "node": "Insert Team Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Insert Team Message": {
+      "main": [
+        [
+          {
+            "node": "Log Team Notification Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Log Team Notification Result": {
+      "main": [
+        [
+          {
+            "node": "Log Run",
             "type": "main",
             "index": 0
           }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useUnreadChatCount } from '../hooks/useChat';
 import { toTitleCase } from '../utils/text';
 
 interface NavItem {
@@ -50,6 +51,7 @@ export default function Sidebar({ collapsed, onToggleCollapsed }: Props) {
   const location = useLocation();
   const documentsActive = location.pathname.startsWith('/documents');
   const [documentsOpen, setDocumentsOpen] = useState(documentsActive);
+  const chatUnreadCount = useUnreadChatCount();
 
   if (collapsed) {
     return (
@@ -70,9 +72,12 @@ export default function Sidebar({ collapsed, onToggleCollapsed }: Props) {
             key={item.to}
             to={item.to}
             title={item.label}
-            className={({ isActive }) => collapsedNavLinkClasses(isActive)}
+            className={({ isActive }) => `relative ${collapsedNavLinkClasses(isActive)}`}
           >
             <i className={`${item.icon} text-xs`} />
+            {item.to === '/team-chat' && chatUnreadCount > 0 && (
+              <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-rose-500" />
+            )}
           </NavLink>
         ))}
         <NavLink
@@ -127,7 +132,12 @@ export default function Sidebar({ collapsed, onToggleCollapsed }: Props) {
                 className={({ isActive }) => navLinkClasses(isActive)}
               >
                 <i className={`${item.icon} w-5`} />
-                <span>{item.label}</span>
+                <span className="flex-1">{item.label}</span>
+                {item.to === '/team-chat' && chatUnreadCount > 0 && (
+                  <span className="shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center leading-none">
+                    {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
+                  </span>
+                )}
               </NavLink>
             ))}
 

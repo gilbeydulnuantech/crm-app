@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import ThemeModal from '../components/settings/ThemeModal';
 import MyProfileModal from '../components/settings/MyProfileModal';
@@ -14,6 +15,7 @@ import CompanyProfileModal from '../components/settings/CompanyProfileModal';
 
 export default function Settings() {
   const { user, isAdmin } = useAuth();
+  const navigate = useNavigate();
   const [themeOpen, setThemeOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -220,6 +222,23 @@ export default function Settings() {
               >
                 <i className="fa-solid fa-building text-[var(--theme-accent)]" />
                 Profile
+              </button>
+            </div>
+
+            <div className="p-5 flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-800">Observability Dashboard</h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Live health of every n8n workflow — status, execution times, errors, success rate, and server load.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate('/observability')}
+                className="shrink-0 px-4 py-2 text-sm font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg flex items-center gap-2"
+              >
+                <i className="fa-solid fa-gauge-high text-[var(--theme-accent)]" />
+                Dashboard
               </button>
             </div>
           </div>

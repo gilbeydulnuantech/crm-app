@@ -22,7 +22,9 @@ import ContractEditorPage from './pages/ContractEditorPage';
 import PagesListPage from './pages/PagesListPage';
 import PageEditorPage from './pages/PageEditorPage';
 import Automations from './pages/Automations';
+import AutomationEditorPage from './pages/AutomationEditorPage';
 import Settings from './pages/Settings';
+import ObservabilityDashboard from './pages/ObservabilityDashboard';
 import PublicProposalPage from './pages/PublicProposalPage';
 import PublicContractPage from './pages/PublicContractPage';
 import PrintContractPage from './pages/PrintContractPage';
@@ -72,7 +74,10 @@ export default function App() {
             <Route path="/documents/pages/new" element={<PageEditorPage />} />
             <Route path="/documents/pages/:id/edit" element={<PageEditorPage />} />
             <Route path="/automations" element={<Automations />} />
+            <Route path="/automations/new" element={<AutomationEditorPage />} />
+            <Route path="/automations/:id/edit" element={<AutomationEditorPage />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/observability" element={<ObservabilityDashboard />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
           </Route>
 

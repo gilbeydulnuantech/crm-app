@@ -1,0 +1,109 @@
+{
+  "name": "Observability Dashboard",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "observability-dashboard",
+        "responseMode": "responseNode",
+        "options": {},
+        "httpMethod": "GET"
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000001",
+      "name": "Webhook: observability-dashboard",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 160],
+      "webhookId": "a1b2c3d4-0001-4001-8000-000000000001"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
+      },
+      "id": "a1b2c3d4-0002-4000-8000-000000000002",
+      "name": "Parse Token",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 160]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "a1b2c3d4-0003-4000-8000-000000000003",
+      "name": "Look Up Requester",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [640, 160],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\nreturn [{ json: {} }];"
+      },
+      "id": "a1b2c3d4-0004-4000-8000-000000000004",
+      "name": "Check Admin",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [840, 160]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5681/dashboard",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "a1b2c3d4-0005-4000-8000-000000000005",
+      "name": "Fetch Dashboard Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1040, 160]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0006-4000-8000-000000000006",
+      "name": "Respond: observability-dashboard",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1240, 160]
+    }
+  ],
+  "connections": {
+    "Webhook: observability-dashboard": {
+      "main": [[{ "node": "Parse Token", "type": "main", "index": 0 }]]
+    },
+    "Parse Token": {
+      "main": [[{ "node": "Look Up Requester", "type": "main", "index": 0 }]]
+    },
+    "Look Up Requester": {
+      "main": [[{ "node": "Check Admin", "type": "main", "index": 0 }]]
+    },
+    "Check Admin": {
+      "main": [[{ "node": "Fetch Dashboard Data", "type": "main", "index": 0 }]]
+    },
+    "Fetch Dashboard Data": {
+      "main": [[{ "node": "Respond: observability-dashboard", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  }
+}

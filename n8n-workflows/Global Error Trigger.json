@@ -1,0 +1,116 @@
+{
+  "name": "Global Error Trigger",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        144,
+        80
+      ],
+      "id": "0a3a5208-39be-43c3-ae50-f832b76009d8",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "content": "Runs when error occurred then send alert message to Slack",
+        "height": 480,
+        "width": 720,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "a8240c11-f0cf-4d7f-a353-fe2a051c5744",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "sendTo": "imageandmotionphotography@gmail.com",
+        "subject": "ALERT N8N ERROR",
+        "emailType": "text",
+        "message": "=Workflow:  {{ $json.workflow.name }}\n\nURL: {{ $json.execution.url }}\n\nMessage: {{ $json.execution.error.message }}\n\nNode with error: {{ $json.execution.lastNodeExecuted }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        368,
+        288
+      ],
+      "id": "d58659eb-1e5f-4598-b3ad-05b0c7334c0a",
+      "name": "Send a message",
+      "webhookId": "a3ab1169-103d-4aa3-bdfb-6a5e1d5f9461",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Cpk86SaIr4A0A88p",
+          "name": "jobscraper07072026"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0ANHTFK939",
+          "mode": "list",
+          "cachedResultName": "urgent"
+        },
+        "text": "=Alert:\n\nMessage: {{ $json.execution.error.message }}\nWorkflow: {{ $json.workflow.name }}\nID: {{ $json.workflow.id }}\nNode: {{ $json.execution.lastNodeExecuted }}\nUrl: {{ $json.execution.url }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        368,
+        80
+      ],
+      "id": "e77839c0-61a9-4468-8fe9-044d33e7fa11",
+      "name": "Send a message1",
+      "webhookId": "29363d75-2f79-4d08-bb7d-a550f3ea8db3",
+      "credentials": {
+        "slackApi": {
+          "id": "JEnNAd5h6SUEwVdd",
+          "name": "hitl"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "d746445e-7a02-4f72-9f09-862ad3968eae",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6a773e6041cc88fd4a5b60f3e46f2119d58608faafd09936499001d589f5c1af"
+  },
+  "id": "U7jX0H3oE5a25GrV",
+  "tags": []
+}

@@ -15,6 +15,11 @@ export default function TopBar() {
   // same full-page-editor condition as the hidden main nav.
   const hideSearch = /^\/documents\/(proposals|contracts|pages)\/(new|\d+\/edit)$/.test(location.pathname);
   const [bellOpen, setBellOpen] = useState(false);
+  // The count last "seen" (bell opened at that count) — the red bubble only
+  // shows the delta above this, so opening the bell clears it immediately
+  // instead of it staying stuck on-screen until every individual row is
+  // clicked through one by one.
+  const [seenUnreadCount, setSeenUnreadCount] = useState(0);
   const [globalSearch, setGlobalSearch] = useState('');
 
   const { data: users = [] } = useUsers();
@@ -40,6 +45,15 @@ export default function TopBar() {
     : [];
 
   const unreadCount = emailUnreadCount + chatUnreadCount + tasksDueToday.length;
+  const badgeCount = Math.max(unreadCount - seenUnreadCount, 0);
+
+  function toggleBell() {
+    setBellOpen((v) => {
+      const next = !v;
+      if (next) setSeenUnreadCount(unreadCount); // opening the bell clears the bubble
+      return next;
+    });
+  }
 
   function openContact(contactId: number) {
     setBellOpen(false);
@@ -110,7 +124,7 @@ export default function TopBar() {
       <div className="flex items-center gap-4 shrink-0">
         <div className="relative">
           <button
-            onClick={() => setBellOpen((v) => !v)}
+            onClick={toggleBell}
             title={
               unreadCount > 0
                 ? `${emailUnreadCount} unread email${emailUnreadCount === 1 ? '' : 's'} · ${chatUnreadCount} unread message${chatUnreadCount === 1 ? '' : 's'}`
@@ -119,9 +133,9 @@ export default function TopBar() {
             className="text-slate-500 hover:text-slate-700 relative"
           >
             <i className="fa-solid fa-bell" />
-            {unreadCount > 0 && (
+            {badgeCount > 0 && (
               <span className="absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center leading-none">
-                {unreadCount > 99 ? '99+' : unreadCount}
+                {badgeCount > 99 ? '99+' : badgeCount}
               </span>
             )}
           </button>
