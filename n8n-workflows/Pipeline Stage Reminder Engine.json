@@ -1,0 +1,193 @@
+{
+  "name": "Pipeline Stage Reminder Engine",
+  "nodes": [
+    {
+      "parameters": { "rule": { "interval": [{ "field": "minutes", "minutesInterval": 30 }] } },
+      "id": "psreng0001-1111-4a5a-9b1a-pstreng000001",
+      "name": "Schedule Trigger: every 30 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  o.id AS opportunity_id, o.name AS opportunity_name, o.stage_id,\n  st.id AS step_id, st.offset_hours, st.email_subject, st.email_body,\n  a.id AS activity_id, a.due_at,\n  c.email, c.first_name, c.last_name\nFROM pipeline_stage_reminders r\nJOIN pipeline_stage_reminder_steps st ON st.rule_id = r.id\nJOIN opportunities o ON o.stage_id = r.stage_id AND o.is_archived = false AND o.status = 'Open'\nJOIN contacts c ON c.id = o.contact_id AND c.is_archived = false AND c.email IS NOT NULL AND c.email <> ''\nJOIN LATERAL (\n  SELECT a2.id, a2.due_at FROM activities a2\n  WHERE a2.opportunity_id = o.id AND a2.type = 'meeting' AND a2.due_at IS NOT NULL\n  ORDER BY a2.due_at DESC LIMIT 1\n) a ON true\nLEFT JOIN pipeline_stage_reminder_sends snt ON snt.step_id = st.id AND snt.opportunity_id = o.id AND snt.activity_id = a.id\nWHERE r.is_active = true AND snt.id IS NULL;",
+        "options": {}
+      },
+      "id": "psreng0002-2222-4a5a-9b1a-pstreng000002",
+      "name": "Select Due Candidates",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [464, 400],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "notes": "If the target stage has no open deals (is_empty = true), this simply returns 0 rows and nothing downstream runs — same effect as an explicit is_empty check, done in one query. LEFT JOIN...IS NULL against the sends log excludes anything already reminded for this exact (step, deal, appointment) combo."
+    },
+    {
+      "parameters": {
+        "jsCode": "// offset_hours > 0 = reminder fires that many hours BEFORE the appointment\n// (e.g. 24 = day-before, 2 = hours-before). offset_hours <= 0 = fires\n// |offset_hours| AFTER the appointment time (no-show follow-up).\nconst row = $input.item.json;\nconst dueAt = new Date(row.due_at).getTime() - row.offset_hours * 3600000;\nconst now = Date.now();\nconst catchWindowMs = 6 * 3600000; // tolerate up to 6h of engine downtime without skipping a reminder\nconst due = now >= dueAt && now < dueAt + catchWindowMs;\n\nfunction fill(template) {\n  const apptDate = new Date(row.due_at).toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' });\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, row.first_name || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, row.last_name || '')\n    .replace(/{{\\s*appointment_date\\s*}}/gi, apptDate)\n    .replace(/{{\\s*deal_name\\s*}}/gi, row.opportunity_name || '');\n}\n\nreturn [{\n  json: {\n    due,\n    stepId: row.step_id,\n    opportunityId: row.opportunity_id,\n    activityId: row.activity_id,\n    to: row.email,\n    subject: fill(row.email_subject),\n    body: fill(row.email_body),\n  },\n}];"
+      },
+      "id": "psreng0003-3333-4a5a-9b1a-pstreng000003",
+      "name": "Check Due & Personalize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [688, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "psreng0004-1111-4a5a-9b1a-pstreng000004",
+              "leftValue": "={{ $json.due }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "psreng0004-4444-4a5a-9b1a-pstreng000004",
+      "name": "Is Due?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [912, 400]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.body }}",
+        "options": {}
+      },
+      "id": "psreng0005-5555-4a5a-9b1a-pstreng000005",
+      "name": "Send Reminder Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [1136, 336],
+      "credentials": { "gmailOAuth2": { "id": "VKDbMYV2U0WoSc16", "name": "n8n072826" } },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH inserted AS (\n  INSERT INTO pipeline_stage_reminder_sends (step_id, opportunity_id, activity_id, sent_at)\n  VALUES ($1, $2, $3, now())\n  ON CONFLICT (step_id, opportunity_id, activity_id) DO NOTHING\n  RETURNING id\n)\nINSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'opportunity', $2, 'system_audit', 'created', 'Stage reminder sent: \"' || $4 || '\"', NULL::jsonb, NULL, 'Automation'\nWHERE EXISTS (SELECT 1 FROM inserted)\nRETURNING id;",
+        "options": { "queryReplacement": "={{ [ $json.stepId, $json.opportunityId, $json.activityId, $json.subject ] }}" }
+      },
+      "id": "psreng0006-6666-4a5a-9b1a-pstreng000006",
+      "name": "Record Send & Log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1360, 336],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "notes": "Only records the send after Gmail succeeds — a failed send (error branch) leaves no row, so it's retried on the next 30-minute run within the catch window instead of being silently skipped."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  o.id AS opportunity_id, o.name AS opportunity_name,\n  r.id AS rule_id, r.on_complete_advance_stage_id, r.on_complete_email_subject, r.on_complete_email_body,\n  a.id AS activity_id,\n  c.id AS contact_id, c.email, c.first_name, c.last_name\nFROM pipeline_stage_reminders r\nJOIN opportunities o ON o.stage_id = r.stage_id AND o.is_archived = false AND o.status = 'Open'\nJOIN contacts c ON c.id = o.contact_id AND c.is_archived = false\nJOIN LATERAL (\n  SELECT a2.id FROM activities a2\n  WHERE a2.opportunity_id = o.id AND a2.type = 'meeting' AND a2.is_completed = true\n  ORDER BY a2.completed_at DESC NULLS LAST, a2.due_at DESC LIMIT 1\n) a ON true\nLEFT JOIN pipeline_stage_reminder_completions cmp ON cmp.rule_id = r.id AND cmp.opportunity_id = o.id AND cmp.activity_id = a.id\nWHERE r.is_active = true\n  AND (r.on_complete_advance_stage_id IS NOT NULL OR COALESCE(r.on_complete_email_subject, '') <> '')\n  AND cmp.id IS NULL;",
+        "options": {}
+      },
+      "id": "psreng0007-7777-4a5a-9b1a-pstreng000007",
+      "name": "Select Completion Candidates",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [464, 592],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "notes": "Fires once per (rule, deal, completed meeting) the first time a rep marks the linked inspection appointment complete — independent of the reminder branch above, off the same schedule trigger."
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.item.json;\n\nfunction fill(template) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, row.first_name || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, row.last_name || '')\n    .replace(/{{\\s*deal_name\\s*}}/gi, row.opportunity_name || '');\n}\n\nreturn [{\n  json: {\n    hasEmail: !!(row.on_complete_email_subject && row.on_complete_email_subject.trim()),\n    to: row.email,\n    subject: fill(row.on_complete_email_subject),\n    body: fill(row.on_complete_email_body),\n    onCompleteAdvanceStageId: row.on_complete_advance_stage_id,\n    opportunityId: row.opportunity_id,\n    ruleId: row.rule_id,\n    activityId: row.activity_id,\n    contactId: row.contact_id,\n  },\n}];"
+      },
+      "id": "psreng0008-8888-4a5a-9b1a-pstreng000008",
+      "name": "Prepare Completion Actions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [688, 592]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "psreng0009-1111-4a5a-9b1a-pstreng000009",
+              "leftValue": "={{ $json.hasEmail }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "psreng0009-9999-4a5a-9b1a-pstreng000009",
+      "name": "Has Email Content?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [912, 592]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.body }}",
+        "options": {}
+      },
+      "id": "psreng0010-1010-4a5a-9b1a-pstreng000010",
+      "name": "Send Completion Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [1136, 528],
+      "credentials": { "gmailOAuth2": { "id": "VKDbMYV2U0WoSc16", "name": "n8n072826" } },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH moved AS (\n  UPDATE opportunities SET stage_id = COALESCE($1::int, stage_id), updated_at = now()\n  WHERE id = $2\n  RETURNING id\n),\nrecorded AS (\n  INSERT INTO pipeline_stage_reminder_completions (rule_id, opportunity_id, activity_id)\n  VALUES ($3, $2, $4)\n  ON CONFLICT (rule_id, opportunity_id, activity_id) DO NOTHING\n  RETURNING id\n)\nINSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'contact', $5, 'system_audit', 'created',\n  'Inspection completed' || CASE WHEN $1::int IS NOT NULL THEN ' — deal moved to next stage' ELSE '' END,\n  NULL::jsonb, NULL, 'Automation'\nFROM moved\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $('Prepare Completion Actions').item.json.onCompleteAdvanceStageId, $('Prepare Completion Actions').item.json.opportunityId, $('Prepare Completion Actions').item.json.ruleId, $('Prepare Completion Actions').item.json.activityId, $('Prepare Completion Actions').item.json.contactId ] }}"
+        }
+      },
+      "id": "psreng0011-1111-4a5a-9b1a-pstreng000011",
+      "name": "Advance Stage & Record",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1360, 592],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "notes": "Referencing the Code node directly (not $json) keeps this correct on both branches: the no-email path feeds in unchanged, and the emailed path passes through Gmail first, which preserves paired-item lineage since it's a 1:1 passthrough."
+    }
+  ],
+  "connections": {
+    "Schedule Trigger: every 30 min": {
+      "main": [[
+        { "node": "Select Due Candidates", "type": "main", "index": 0 },
+        { "node": "Select Completion Candidates", "type": "main", "index": 0 }
+      ]]
+    },
+    "Select Due Candidates": { "main": [[{ "node": "Check Due & Personalize", "type": "main", "index": 0 }]] },
+    "Check Due & Personalize": { "main": [[{ "node": "Is Due?", "type": "main", "index": 0 }]] },
+    "Is Due?": {
+      "main": [
+        [{ "node": "Send Reminder Email", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Send Reminder Email": { "main": [[{ "node": "Record Send & Log", "type": "main", "index": 0 }], []] },
+    "Select Completion Candidates": { "main": [[{ "node": "Prepare Completion Actions", "type": "main", "index": 0 }]] },
+    "Prepare Completion Actions": { "main": [[{ "node": "Has Email Content?", "type": "main", "index": 0 }]] },
+    "Has Email Content?": {
+      "main": [
+        [{ "node": "Send Completion Email", "type": "main", "index": 0 }],
+        [{ "node": "Advance Stage & Record", "type": "main", "index": 0 }]
+      ]
+    },
+    "Send Completion Email": { "main": [[{ "node": "Advance Stage & Record", "type": "main", "index": 0 }], []] }
+  }
+}

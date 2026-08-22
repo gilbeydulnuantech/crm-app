@@ -1,6 +1,6 @@
-import { ChangeEvent, useRef, useState } from 'react';
+import { ChangeEvent, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { useUsers, useUpdateUserColor, useUploadAvatar } from '../../hooks/useContacts';
+import { useUsers, useUpdateUserColor, useUpdateUserPhone, useUploadAvatar } from '../../hooks/useContacts';
 import { toTitleCase } from '../../utils/text';
 import { DEFAULT_USER_COLOR } from '../../utils/userColor';
 import Avatar from '../Avatar';
@@ -19,14 +19,25 @@ export default function MyProfileModal({ open, onClose }: Props) {
   const { user } = useAuth();
   const { data: users = [] } = useUsers();
   const updateUserColor = useUpdateUserColor();
+  const updateUserPhone = useUpdateUserPhone();
   const uploadAvatar = useUploadAvatar();
   const currentUser = users.find((u) => u.id === user?.id);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [phone, setPhone] = useState('');
+
+  useEffect(() => {
+    setPhone(currentUser?.phone || '');
+  }, [currentUser?.phone]);
 
   if (!open) return null;
+
+  function handlePhoneBlur() {
+    if (!user || phone.trim() === (currentUser?.phone || '')) return;
+    updateUserPhone.mutate({ userId: user.id, phone: phone.trim() });
+  }
 
   const fullName = user?.name ? toTitleCase(user.name) : '--';
   const roleLabel = user?.role === 'admin' ? 'Admin' : 'User';
@@ -117,6 +128,19 @@ export default function MyProfileModal({ open, onClose }: Props) {
             {photoError}
           </p>
         )}
+
+        <div className="pt-4 mt-4 border-t border-slate-100">
+          <label className="block text-xs font-medium text-slate-500 mb-1">Phone</label>
+          <input
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            onBlur={handlePhoneBlur}
+            placeholder="e.g. (555) 123-4567"
+            className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
+          />
+          <p className="text-[11px] text-slate-400 mt-1">Shown as the deal owner's phone when creating proposals.</p>
+        </div>
 
         <div className="pt-4 mt-4 border-t border-slate-100">
           <button

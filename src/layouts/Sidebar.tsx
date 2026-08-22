@@ -1,4 +1,5 @@
-import { NavLink } from 'react-router-dom';
+import { useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toTitleCase } from '../utils/text';
 
@@ -17,6 +18,13 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/calendar', label: 'Calendar', icon: 'fa-solid fa-calendar-days' },
   { to: '/reports', label: 'Reports', icon: 'fa-solid fa-chart-line' },
   { to: '/team-chat', label: 'Team Chat', icon: 'fa-solid fa-comments' },
+];
+
+const DOCUMENTS_SUB_ITEMS = [
+  { to: '/documents/proposals', label: 'Proposals', icon: 'fa-solid fa-file-lines' },
+  { to: '/documents/contracts', label: 'Contracts', icon: 'fa-solid fa-file-signature' },
+  { to: '/documents/pages', label: 'Pages', icon: 'fa-solid fa-window-maximize' },
+  { to: '/documents', label: 'Email Templates', icon: 'fa-solid fa-envelope' },
 ];
 
 const navLinkClasses = (isActive: boolean) =>
@@ -39,6 +47,9 @@ interface Props {
 
 export default function Sidebar({ collapsed, onToggleCollapsed }: Props) {
   const { user, logout } = useAuth();
+  const location = useLocation();
+  const documentsActive = location.pathname.startsWith('/documents');
+  const [documentsOpen, setDocumentsOpen] = useState(documentsActive);
 
   if (collapsed) {
     return (
@@ -64,6 +75,20 @@ export default function Sidebar({ collapsed, onToggleCollapsed }: Props) {
             <i className={`${item.icon} text-xs`} />
           </NavLink>
         ))}
+        <NavLink
+          to="/documents/proposals"
+          title="Documents"
+          className={collapsedNavLinkClasses(documentsActive)}
+        >
+          <i className="fa-solid fa-file-signature text-xs" />
+        </NavLink>
+        <NavLink
+          to="/automations"
+          title="Automation"
+          className={({ isActive }) => collapsedNavLinkClasses(isActive)}
+        >
+          <i className="fa-solid fa-bolt text-xs" />
+        </NavLink>
         <div className="w-full border-t border-slate-100 my-1" />
         <NavLink
           to="/settings"
@@ -105,6 +130,36 @@ export default function Sidebar({ collapsed, onToggleCollapsed }: Props) {
                 <span>{item.label}</span>
               </NavLink>
             ))}
+
+            <button
+              type="button"
+              onClick={() => setDocumentsOpen((o) => !o)}
+              className={`w-full ${navLinkClasses(documentsActive && !documentsOpen)}`}
+            >
+              <i className="fa-solid fa-file-signature w-5" />
+              <span className="flex-1 text-left">Documents</span>
+              <i className={`fa-solid fa-chevron-${documentsOpen ? 'up' : 'down'} text-[10px] text-slate-400`} />
+            </button>
+            {documentsOpen && (
+              <div className="pl-6 space-y-0.5">
+                {DOCUMENTS_SUB_ITEMS.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.to === '/documents'}
+                    className={({ isActive }) => navLinkClasses(isActive)}
+                  >
+                    <i className={`${item.icon} w-5 text-xs`} />
+                    <span>{item.label}</span>
+                  </NavLink>
+                ))}
+              </div>
+            )}
+
+            <NavLink to="/automations" className={({ isActive }) => navLinkClasses(isActive)}>
+              <i className="fa-solid fa-bolt w-5" />
+              <span>Automation</span>
+            </NavLink>
           </nav>
         </div>
       </div>

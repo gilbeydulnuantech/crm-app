@@ -1,0 +1,277 @@
+{
+  "name": "Deal Document Flow Engine",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "ddfe0001-1111-4a5a-9b1a-docengine00001",
+      "name": "Schedule Trigger: every 30 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT DISTINCT ON (o.id)\n  o.id AS opportunity_id, o.name AS deal_name,\n  p.id AS proposal_id, p.public_token, p.email_subject, p.email_body,\n  c.email, c.first_name, c.last_name,\n  u.name AS owner_name, u.email AS owner_email, u.phone AS owner_phone\nFROM deal_document_flows f\nJOIN opportunities o ON o.stage_id = f.trigger_stage_id AND o.is_archived = false AND o.status = 'Open'\nJOIN contacts c ON c.id = o.contact_id AND c.is_archived = false AND c.email IS NOT NULL AND c.email <> ''\nJOIN proposals p ON p.opportunity_id = o.id AND p.emailed_at IS NULL\nLEFT JOIN users u ON u.id = o.assigned_user\nWHERE f.is_active = true\n  AND o.stage_entered_at <= now() - (f.delay_hours || ' hours')::interval\nORDER BY o.id, p.created_at DESC;",
+        "options": {}
+      },
+      "id": "ddfe0002-2222-4a5a-9b1a-docengine00002",
+      "name": "Select Proposals Due To Send",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        464,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "notes": "Only fires for deals that already have a draft proposal waiting (a rep must create one first) \u2014 if none exists yet, this simply returns 0 rows and nothing sends until one is created. DISTINCT ON picks the newest un-emailed proposal per deal, so re-creating a proposal supersedes an older unsent one."
+    },
+    {
+      "parameters": {
+        "jsCode": "// FRONTEND_BASE_URL must be set as an n8n environment variable (the origin\n// the React app is served from) \u2014 same idea as the ngrok backend URL, just\n// for the other direction (links n8n emails point back INTO the app).\nconst row = $input.item.json;\n// $env access can be blocked entirely by the n8n instance's own security settings (N8N_BLOCK_ENV_ACCESS_IN_NODE) \u2014 reading a blocked var THROWS rather than returning undefined, so the `|| ''` fallback never gets a chance to run without this try/catch.\nlet base = '';\ntry { base = $env.FRONTEND_BASE_URL || ''; } catch (e) { base = ''; }\nconst link = `${base}/documents/proposal/${row.public_token}`;\n\nfunction fill(template) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, row.first_name || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, row.last_name || '')\n    .replace(/{{\\s*deal_name\\s*}}/gi, row.deal_name || '')\n    .replace(/{{\\s*owner_name\\s*}}/gi, row.owner_name || 'your account team')\n    .replace(/{{\\s*owner_email\\s*}}/gi, row.owner_email || '')\n    .replace(/{{\\s*owner_phone\\s*}}/gi, row.owner_phone || '')\n    .replace(/{{\\s*proposal_link\\s*}}/gi, link);\n}\n\nreturn [{\n  json: {\n    proposalId: row.proposal_id,\n    to: row.email,\n    subject: fill(row.email_subject),\n    body: fill(row.email_body),\n  },\n}];"
+      },
+      "id": "ddfe0003-3333-4a5a-9b1a-docengine00003",
+      "name": "Personalize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        688,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.body }}",
+        "options": {}
+      },
+      "id": "ddfe0004-4444-4a5a-9b1a-docengine00004",
+      "name": "Send Proposal Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        912,
+        400
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE proposals SET status = 'emailed', emailed_at = now(), updated_at = now() WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Personalize').item.json.proposalId ] }}"
+        }
+      },
+      "id": "ddfe0005-5555-4a5a-9b1a-docengine00005",
+      "name": "Mark Emailed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1136,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "notes": "Only runs after Gmail succeeds \u2014 a failed send leaves emailed_at null, so it's retried on the next 30-minute tick instead of being silently skipped."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT p.id AS proposal_id, p.public_token, f.proposal_reminder_email_subject, f.proposal_reminder_email_body,\n  c.email, c.first_name, c.last_name, o.name AS deal_name\nFROM deal_document_flows f\nJOIN proposals p ON p.flow_id = f.id AND p.status = 'viewed'\nJOIN opportunities o ON o.id = p.opportunity_id AND o.is_archived = false AND o.status = 'Open'\nJOIN contacts c ON c.id = o.contact_id AND c.is_archived = false AND c.email IS NOT NULL AND c.email <> ''\nWHERE f.is_active = true\n  AND f.proposal_reminder_delay_hours IS NOT NULL\n  AND p.viewed_at IS NOT NULL\n  AND p.viewed_at <= now() - (f.proposal_reminder_delay_hours || ' hours')::interval\n  AND p.reminder_sent_at IS NULL;",
+        "options": {}
+      },
+      "id": "ddfe0006-6666-4a5a-9b1a-docengine00006",
+      "name": "Select Proposals Due For Reminder",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        464,
+        624
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "notes": "One-shot \u2014 reminder_sent_at gates it so a proposal only ever gets nudged once, regardless of how many more 30-minute ticks pass while it stays 'viewed'."
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.item.json;\n// $env access can be blocked entirely by the n8n instance's own security settings (N8N_BLOCK_ENV_ACCESS_IN_NODE) \u2014 reading a blocked var THROWS rather than returning undefined, so the `|| ''` fallback never gets a chance to run without this try/catch.\nlet base = '';\ntry { base = $env.FRONTEND_BASE_URL || ''; } catch (e) { base = ''; }\nconst link = `${base}/documents/proposal/${row.public_token}`;\n\nfunction fill(template) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, row.first_name || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, row.last_name || '')\n    .replace(/{{\\s*deal_name\\s*}}/gi, row.deal_name || '')\n    .replace(/{{\\s*proposal_link\\s*}}/gi, link);\n}\n\nreturn [{\n  json: {\n    proposalId: row.proposal_id,\n    to: row.email,\n    subject: fill(row.proposal_reminder_email_subject),\n    body: fill(row.proposal_reminder_email_body),\n  },\n}];\n"
+      },
+      "id": "ddfe0007-7777-4a5a-9b1a-docengine00007",
+      "name": "Personalize Reminder",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        688,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.body }}",
+        "options": {}
+      },
+      "id": "ddfe0008-8888-4a5a-9b1a-docengine00008",
+      "name": "Send Reminder Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        912,
+        624
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE proposals SET reminder_sent_at = now() WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Personalize Reminder').item.json.proposalId ] }}"
+        }
+      },
+      "id": "ddfe0009-9999-4a5a-9b1a-docengine00009",
+      "name": "Mark Reminder Sent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1136,
+        624
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "notes": "Only runs after Gmail succeeds, same retry-on-failure pattern as Mark Emailed."
+    }
+  ],
+  "connections": {
+    "Schedule Trigger: every 30 min": {
+      "main": [
+        [
+          {
+            "node": "Select Proposals Due To Send",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Select Proposals Due For Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Proposals Due To Send": {
+      "main": [
+        [
+          {
+            "node": "Personalize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Personalize": {
+      "main": [
+        [
+          {
+            "node": "Send Proposal Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Proposal Email": {
+      "main": [
+        [
+          {
+            "node": "Mark Emailed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Select Proposals Due For Reminder": {
+      "main": [
+        [
+          {
+            "node": "Personalize Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Personalize Reminder": {
+      "main": [
+        [
+          {
+            "node": "Send Reminder Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Reminder Email": {
+      "main": [
+        [
+          {
+            "node": "Mark Reminder Sent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  }
+}

@@ -1,0 +1,333 @@
+{
+  "name": "Stage Reminder Test Tools",
+  "nodes": [
+    {
+      "parameters": { "httpMethod": "POST", "path": "test-stage-reminder-step", "responseMode": "responseNode", "options": {} },
+      "id": "srtt0001-1111-4a5a-9b1a-strtest0000001",
+      "name": "Webhook - Test Stage Reminder Step",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [960, 400],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "srtt0002-2222-4a5a-9b1a-strtest0000002",
+      "name": "Parse Token (Test)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1184, 400],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": { "queryReplacement": "={{ [ $json.requesterId ] }}" }
+      },
+      "id": "srtt0003-3333-4a5a-9b1a-strtest0000003",
+      "name": "Look Up Requester Role (Test)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1408, 400],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Test Stage Reminder Step').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst testEmail = (body.test_email || '').toString().trim();\nconst subject = (body.email_subject || '').toString().trim();\nconst emailBody = (body.email_body || '').toString();\n\nif (!testEmail) throw new Error('\"test_email\" is required.');\nif (!subject) throw new Error('\"email_subject\" is required.');\nif (!emailBody.trim()) throw new Error('\"email_body\" is required.');\n\nconst sampleDate = new Date(Date.now() + 24 * 3600000).toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' });\n\nfunction fill(template) {\n  return template\n    .replace(/{{\\s*first_name\\s*}}/gi, 'Test')\n    .replace(/{{\\s*last_name\\s*}}/gi, 'Contact')\n    .replace(/{{\\s*deal_name\\s*}}/gi, 'Sample Deal')\n    .replace(/{{\\s*appointment_date\\s*}}/gi, sampleDate);\n}\n\nreturn [{ json: { testEmail, subject: '[TEST] ' + fill(subject), body: fill(emailBody) } }];"
+      },
+      "id": "srtt0004-4444-4a5a-9b1a-strtest0000004",
+      "name": "Validate Admin & Payload (Test)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1632, 400],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.testEmail }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.body }}",
+        "options": {}
+      },
+      "id": "srtt0005-5555-4a5a-9b1a-strtest0000005",
+      "name": "Send Test Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [1856, 400],
+      "credentials": { "gmailOAuth2": { "id": "VKDbMYV2U0WoSc16", "name": "n8n072826" } },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ { success: true } }}", "options": {} },
+      "id": "srtt0006-6666-4a5a-9b1a-strtest0000006",
+      "name": "Respond - Test Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [2080, 400]
+    },
+
+    {
+      "parameters": { "httpMethod": "POST", "path": "force-run-stage-reminder", "responseMode": "responseNode", "options": {} },
+      "id": "srtt0007-7777-4a5a-9b1a-strtest0000007",
+      "name": "Webhook - Force Run Stage Reminder",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [960, 704],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst body = $input.first().json.body || {};\nconst ruleId = parseInt(body.rule_id, 10);\nif (!Number.isInteger(ruleId)) throw new Error('\"rule_id\" must be an integer.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10), ruleId } }];"
+      },
+      "id": "srtt0008-8888-4a5a-9b1a-strtest0000008",
+      "name": "Parse Token & Payload (Force)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1184, 704],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": { "queryReplacement": "={{ [ $json.requesterId ] }}" }
+      },
+      "id": "srtt0009-9999-4a5a-9b1a-strtest0000009",
+      "name": "Look Up Requester Role (Force)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1408, 704],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\nreturn [{ json: { ruleId: $('Parse Token & Payload (Force)').item.json.ruleId } }];"
+      },
+      "id": "srtt0010-1010-4a5a-9b1a-strtest0000010",
+      "name": "Validate Admin (Force)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1632, 704],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, stage_id FROM pipeline_stage_reminders WHERE id = $1 AND is_active = true;",
+        "options": { "queryReplacement": "={{ [ $json.ruleId ] }}" }
+      },
+      "id": "srtt0011-1111-4a5a-9b1a-strtest0000011",
+      "name": "Look Up Rule (Force)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1856, 704],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  (SELECT COUNT(*) FROM pipeline_stage_reminders r\n   JOIN pipeline_stage_reminder_steps st ON st.rule_id = r.id\n   JOIN opportunities o ON o.stage_id = r.stage_id AND o.is_archived = false AND o.status = 'Open'\n   JOIN contacts c ON c.id = o.contact_id AND c.is_archived = false AND c.email IS NOT NULL AND c.email <> ''\n   JOIN LATERAL (SELECT a2.id FROM activities a2 WHERE a2.opportunity_id = o.id AND a2.type = 'meeting' AND a2.due_at IS NOT NULL ORDER BY a2.due_at DESC LIMIT 1) a ON true\n   LEFT JOIN pipeline_stage_reminder_sends snt ON snt.step_id = st.id AND snt.opportunity_id = o.id AND snt.activity_id = a.id\n   WHERE r.id = $1 AND snt.id IS NULL)\n  +\n  (SELECT COUNT(*) FROM pipeline_stage_reminders r\n   JOIN opportunities o ON o.stage_id = r.stage_id AND o.is_archived = false AND o.status = 'Open'\n   JOIN contacts c ON c.id = o.contact_id AND c.is_archived = false\n   JOIN LATERAL (SELECT a2.id FROM activities a2 WHERE a2.opportunity_id = o.id AND a2.type = 'meeting' AND a2.is_completed = true ORDER BY a2.completed_at DESC NULLS LAST, a2.due_at DESC LIMIT 1) a ON true\n   LEFT JOIN pipeline_stage_reminder_completions cmp ON cmp.rule_id = r.id AND cmp.opportunity_id = o.id AND cmp.activity_id = a.id\n   WHERE r.id = $1 AND (r.on_complete_advance_stage_id IS NOT NULL OR COALESCE(r.on_complete_email_subject, '') <> '') AND cmp.id IS NULL)\n  AS processed;",
+        "options": { "queryReplacement": "={{ [ $('Validate Admin (Force)').item.json.ruleId ] }}" }
+      },
+      "id": "srtt0012-1212-4a5a-9b1a-strtest0000012",
+      "name": "Count Processed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2080, 592],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "notes": "Counts what the two branches below are about to process, so the response can report a number immediately while the real sends continue in the background."
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ { success: true, processed: Number($json.processed) } }}", "options": {} },
+      "id": "srtt0013-1313-4a5a-9b1a-strtest0000013",
+      "name": "Respond - Force Run Started",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [2304, 592]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  o.id AS opportunity_id, o.name AS opportunity_name, o.stage_id,\n  st.id AS step_id, st.offset_hours, st.email_subject, st.email_body,\n  a.id AS activity_id, a.due_at,\n  c.email, c.first_name, c.last_name\nFROM pipeline_stage_reminders r\nJOIN pipeline_stage_reminder_steps st ON st.rule_id = r.id\nJOIN opportunities o ON o.stage_id = r.stage_id AND o.is_archived = false AND o.status = 'Open'\nJOIN contacts c ON c.id = o.contact_id AND c.is_archived = false AND c.email IS NOT NULL AND c.email <> ''\nJOIN LATERAL (\n  SELECT a2.id, a2.due_at FROM activities a2\n  WHERE a2.opportunity_id = o.id AND a2.type = 'meeting' AND a2.due_at IS NOT NULL\n  ORDER BY a2.due_at DESC LIMIT 1\n) a ON true\nLEFT JOIN pipeline_stage_reminder_sends snt ON snt.step_id = st.id AND snt.opportunity_id = o.id AND snt.activity_id = a.id\nWHERE r.id = $1 AND snt.id IS NULL;",
+        "options": { "queryReplacement": "={{ [ $('Validate Admin (Force)').item.json.ruleId ] }}" }
+      },
+      "id": "srtt0014-1414-4a5a-9b1a-strtest0000014",
+      "name": "Select Due Candidates (Force)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2080, 720],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "notes": "No due-window check here on purpose — force run sends every not-yet-sent step for this rule right now, regardless of its hours-before/after timing."
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.item.json;\n\nfunction fill(template) {\n  const apptDate = new Date(row.due_at).toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' });\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, row.first_name || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, row.last_name || '')\n    .replace(/{{\\s*appointment_date\\s*}}/gi, apptDate)\n    .replace(/{{\\s*deal_name\\s*}}/gi, row.opportunity_name || '');\n}\n\nreturn [{\n  json: {\n    stepId: row.step_id,\n    opportunityId: row.opportunity_id,\n    activityId: row.activity_id,\n    to: row.email,\n    subject: fill(row.email_subject),\n    body: fill(row.email_body),\n  },\n}];"
+      },
+      "id": "srtt0015-1515-4a5a-9b1a-strtest0000015",
+      "name": "Personalize (Force)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2304, 720]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.body }}",
+        "options": {}
+      },
+      "id": "srtt0016-1616-4a5a-9b1a-strtest0000016",
+      "name": "Send Reminder Email (Force)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [2528, 720],
+      "credentials": { "gmailOAuth2": { "id": "VKDbMYV2U0WoSc16", "name": "n8n072826" } },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH inserted AS (\n  INSERT INTO pipeline_stage_reminder_sends (step_id, opportunity_id, activity_id, sent_at)\n  VALUES ($1, $2, $3, now())\n  ON CONFLICT (step_id, opportunity_id, activity_id) DO NOTHING\n  RETURNING id\n)\nINSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'opportunity', $2, 'system_audit', 'created', 'Stage reminder sent (forced): \"' || $4 || '\"', NULL::jsonb, NULL, 'Automation'\nWHERE EXISTS (SELECT 1 FROM inserted)\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $('Personalize (Force)').item.json.stepId, $('Personalize (Force)').item.json.opportunityId, $('Personalize (Force)').item.json.activityId, $('Personalize (Force)').item.json.subject ] }}"
+        }
+      },
+      "id": "srtt0017-1717-4a5a-9b1a-strtest0000017",
+      "name": "Record Send & Log (Force)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2752, 720],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  o.id AS opportunity_id, o.name AS opportunity_name,\n  r.id AS rule_id, r.on_complete_advance_stage_id, r.on_complete_email_subject, r.on_complete_email_body,\n  a.id AS activity_id,\n  c.id AS contact_id, c.email, c.first_name, c.last_name\nFROM pipeline_stage_reminders r\nJOIN opportunities o ON o.stage_id = r.stage_id AND o.is_archived = false AND o.status = 'Open'\nJOIN contacts c ON c.id = o.contact_id AND c.is_archived = false\nJOIN LATERAL (\n  SELECT a2.id FROM activities a2\n  WHERE a2.opportunity_id = o.id AND a2.type = 'meeting' AND a2.is_completed = true\n  ORDER BY a2.completed_at DESC NULLS LAST, a2.due_at DESC LIMIT 1\n) a ON true\nLEFT JOIN pipeline_stage_reminder_completions cmp ON cmp.rule_id = r.id AND cmp.opportunity_id = o.id AND cmp.activity_id = a.id\nWHERE r.id = $1\n  AND (r.on_complete_advance_stage_id IS NOT NULL OR COALESCE(r.on_complete_email_subject, '') <> '')\n  AND cmp.id IS NULL;",
+        "options": { "queryReplacement": "={{ [ $('Validate Admin (Force)').item.json.ruleId ] }}" }
+      },
+      "id": "srtt0018-1818-4a5a-9b1a-strtest0000018",
+      "name": "Select Completion Candidates (Force)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2080, 880],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "notes": "Processes any deal in this rule's stage whose linked meeting is already marked complete but hasn't triggered the on-complete action yet — force run just skips the up-to-30-minute wait for the next scheduled tick."
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.item.json;\n\nfunction fill(template) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, row.first_name || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, row.last_name || '')\n    .replace(/{{\\s*deal_name\\s*}}/gi, row.opportunity_name || '');\n}\n\nreturn [{\n  json: {\n    hasEmail: !!(row.on_complete_email_subject && row.on_complete_email_subject.trim()),\n    to: row.email,\n    subject: fill(row.on_complete_email_subject),\n    body: fill(row.on_complete_email_body),\n    onCompleteAdvanceStageId: row.on_complete_advance_stage_id,\n    opportunityId: row.opportunity_id,\n    ruleId: row.rule_id,\n    activityId: row.activity_id,\n    contactId: row.contact_id,\n  },\n}];"
+      },
+      "id": "srtt0019-1919-4a5a-9b1a-strtest0000019",
+      "name": "Prepare Completion Actions (Force)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2304, 880]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "srtt0020-1111-4a5a-9b1a-strtest0000020",
+              "leftValue": "={{ $json.hasEmail }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "srtt0020-2020-4a5a-9b1a-strtest0000020",
+      "name": "Has Email Content? (Force)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2528, 880]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.body }}",
+        "options": {}
+      },
+      "id": "srtt0021-2121-4a5a-9b1a-strtest0000021",
+      "name": "Send Completion Email (Force)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [2752, 816],
+      "credentials": { "gmailOAuth2": { "id": "VKDbMYV2U0WoSc16", "name": "n8n072826" } },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH moved AS (\n  UPDATE opportunities SET stage_id = COALESCE($1::int, stage_id), updated_at = now()\n  WHERE id = $2\n  RETURNING id\n),\nrecorded AS (\n  INSERT INTO pipeline_stage_reminder_completions (rule_id, opportunity_id, activity_id)\n  VALUES ($3, $2, $4)\n  ON CONFLICT (rule_id, opportunity_id, activity_id) DO NOTHING\n  RETURNING id\n)\nINSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'contact', $5, 'system_audit', 'created',\n  'Inspection completed (forced)' || CASE WHEN $1::int IS NOT NULL THEN ' — deal moved to next stage' ELSE '' END,\n  NULL::jsonb, NULL, 'Automation'\nFROM moved\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $('Prepare Completion Actions (Force)').item.json.onCompleteAdvanceStageId, $('Prepare Completion Actions (Force)').item.json.opportunityId, $('Prepare Completion Actions (Force)').item.json.ruleId, $('Prepare Completion Actions (Force)').item.json.activityId, $('Prepare Completion Actions (Force)').item.json.contactId ] }}"
+        }
+      },
+      "id": "srtt0022-2222-4a5a-9b1a-strtest0000022",
+      "name": "Advance Stage & Record (Force)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2976, 880],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "options": { "responseCode": 400 }
+      },
+      "id": "srtt0023-2323-4a5a-9b1a-strtest0000023",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1408, 1152]
+    }
+  ],
+  "connections": {
+    "Webhook - Test Stage Reminder Step": { "main": [[{ "node": "Parse Token (Test)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Parse Token (Test)": { "main": [[{ "node": "Look Up Requester Role (Test)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Look Up Requester Role (Test)": { "main": [[{ "node": "Validate Admin & Payload (Test)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Validate Admin & Payload (Test)": { "main": [[{ "node": "Send Test Email", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Send Test Email": { "main": [[{ "node": "Respond - Test Success", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+
+    "Webhook - Force Run Stage Reminder": { "main": [[{ "node": "Parse Token & Payload (Force)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Parse Token & Payload (Force)": { "main": [[{ "node": "Look Up Requester Role (Force)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Look Up Requester Role (Force)": { "main": [[{ "node": "Validate Admin (Force)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Validate Admin (Force)": { "main": [[{ "node": "Look Up Rule (Force)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
+    "Look Up Rule (Force)": {
+      "main": [[
+        { "node": "Count Processed", "type": "main", "index": 0 },
+        { "node": "Select Due Candidates (Force)", "type": "main", "index": 0 },
+        { "node": "Select Completion Candidates (Force)", "type": "main", "index": 0 }
+      ]]
+    },
+    "Count Processed": { "main": [[{ "node": "Respond - Force Run Started", "type": "main", "index": 0 }]] },
+
+    "Select Due Candidates (Force)": { "main": [[{ "node": "Personalize (Force)", "type": "main", "index": 0 }]] },
+    "Personalize (Force)": { "main": [[{ "node": "Send Reminder Email (Force)", "type": "main", "index": 0 }]] },
+    "Send Reminder Email (Force)": { "main": [[{ "node": "Record Send & Log (Force)", "type": "main", "index": 0 }], []] },
+
+    "Select Completion Candidates (Force)": { "main": [[{ "node": "Prepare Completion Actions (Force)", "type": "main", "index": 0 }]] },
+    "Prepare Completion Actions (Force)": { "main": [[{ "node": "Has Email Content? (Force)", "type": "main", "index": 0 }]] },
+    "Has Email Content? (Force)": {
+      "main": [
+        [{ "node": "Send Completion Email (Force)", "type": "main", "index": 0 }],
+        [{ "node": "Advance Stage & Record (Force)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Send Completion Email (Force)": { "main": [[{ "node": "Advance Stage & Record (Force)", "type": "main", "index": 0 }], []] }
+  }
+}

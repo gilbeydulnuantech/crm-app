@@ -11,6 +11,8 @@ interface Props {
   onEditDeal: (opportunity: Opportunity) => void;
   onAddNote: (opportunity: Opportunity) => void;
   onCreateTask: (opportunity: Opportunity) => void;
+  onCreateProposal: (opportunity: Opportunity) => void;
+  onCreateContract: (opportunity: Opportunity) => void;
   onMoveStage: (opportunity: Opportunity, stageId: number) => void;
   onMarkWon: (opportunity: Opportunity) => void;
   onMarkLost: (opportunity: Opportunity) => void;
@@ -40,6 +42,8 @@ export default function PipelineColumn({
   onEditDeal,
   onAddNote,
   onCreateTask,
+  onCreateProposal,
+  onCreateContract,
   onMoveStage,
   onMarkWon,
   onMarkLost,
@@ -110,6 +114,8 @@ export default function PipelineColumn({
             onEdit={() => onEditDeal(o)}
             onAddNote={() => onAddNote(o)}
             onCreateTask={() => onCreateTask(o)}
+            onCreateProposal={() => onCreateProposal(o)}
+            onCreateContract={() => onCreateContract(o)}
             onMoveStage={(stageId) => onMoveStage(o, stageId)}
             onMarkWon={() => onMarkWon(o)}
             onMarkLost={() => onMarkLost(o)}

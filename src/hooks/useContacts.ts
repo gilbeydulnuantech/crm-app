@@ -60,6 +60,14 @@ export function useUpdateUserColor() {
   });
 }
 
+export function useUpdateUserPhone() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, phone }: { userId: number; phone: string }) => api.updateUserPhone(userId, phone),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
+  });
+}
+
 export function useUploadAvatar() {
   const qc = useQueryClient();
   return useMutation({

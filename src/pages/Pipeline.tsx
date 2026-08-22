@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { VisibilityState } from '@tanstack/react-table';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Opportunity, PipelineViewMode } from '../types/opportunity';
 import { NewPipelineResult } from '../api/opportunities';
 import {
@@ -29,6 +29,7 @@ import DealDetailModal from '../components/pipeline/DealDetailModal';
 import AddDealNoteModal from '../components/pipeline/AddDealNoteModal';
 import MarkLostModal, { MarkLostResult } from '../components/pipeline/MarkLostModal';
 import TaskFormModal from '../components/tasks/TaskFormModal';
+import CreateContractModal from '../components/pipeline/CreateContractModal';
 import SearchToolbar from '../components/SearchToolbar';
 
 const CLOSED_LOST_STAGE = /lost/i;
@@ -39,6 +40,7 @@ function isDealOverdue(o: Opportunity): boolean {
 
 export default function Pipeline() {
   const { user, isAdmin } = useAuth();
+  const navigate = useNavigate();
   const { data: pipelines = [] } = usePipelines();
   const [searchParams, setSearchParams] = useSearchParams();
   const urlPipelineId = searchParams.get('pipeline');
@@ -62,6 +64,7 @@ export default function Pipeline() {
   const [toast, setToast] = useState<string | null>(null);
   const [noteDeal, setNoteDeal] = useState<Opportunity | null>(null);
   const [taskDeal, setTaskDeal] = useState<Opportunity | null>(null);
+  const [contractDeal, setContractDeal] = useState<Opportunity | null>(null);
   const [lostDeal, setLostDeal] = useState<Opportunity | null>(null);
   const [statFilter, setStatFilter] = useState<PipelineStatFilter | null>(null);
 
@@ -416,6 +419,8 @@ export default function Pipeline() {
           onEditDeal={openEditModal}
           onAddNote={setNoteDeal}
           onCreateTask={setTaskDeal}
+          onCreateProposal={() => navigate('/documents/proposals/new')}
+          onCreateContract={setContractDeal}
           onMarkWon={handleMarkWon}
           onMarkLost={setLostDeal}
           onArchive={handleArchive}
@@ -501,6 +506,8 @@ export default function Pipeline() {
         defaultOpportunity={taskDeal}
         onClose={() => setTaskDeal(null)}
       />
+
+      <CreateContractModal opportunity={contractDeal} onClose={() => setContractDeal(null)} />
 
       <MarkLostModal
         open={!!lostDeal}

@@ -1,0 +1,1429 @@
+{
+  "name": "Automations",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-automations",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "aut1w0001-0000-4a5a-9b1a-automation001",
+      "name": "Webhook - Get Automations",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        80
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "aut1c0002-0000-4a5a-9b1a-automation002",
+      "name": "Parse Token (Get)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        80
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "aut1p0003-0000-4a5a-9b1a-automation003",
+      "name": "Look Up Requester (Get)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1408,
+        80
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nreturn [{ json: {} }];"
+      },
+      "id": "aut1c0004-0000-4a5a-9b1a-automation004",
+      "name": "Validate Session (Get)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        80
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT a.id, a.name, a.trigger_type, a.trigger_config, a.condition_tree, a.is_active, a.created_at,\n  (SELECT MAX(r.ran_at) FROM automation_runs r WHERE r.automation_id = a.id) AS last_run_at,\n  (SELECT COUNT(*) FROM automation_runs r WHERE r.automation_id = a.id AND r.status = 'success') AS run_count,\n  COALESCE(\n    json_agg(\n      json_build_object('id', ac.id, 'branch', ac.branch, 'action_type', ac.action_type, 'action_config', ac.action_config, 'sort_order', ac.sort_order)\n      ORDER BY ac.sort_order\n    ) FILTER (WHERE ac.id IS NOT NULL),\n    '[]'::json\n  ) AS actions\nFROM automations a\nLEFT JOIN automation_actions ac ON ac.automation_id = a.id\nGROUP BY a.id\nORDER BY a.created_at DESC;",
+        "options": {}
+      },
+      "id": "aut1p0005-0000-4a5a-9b1a-automation005",
+      "name": "Select Automations",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1856,
+        80
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "aut1r0006-0000-4a5a-9b1a-automation006",
+      "name": "Respond - Get Automations",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2080,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "save-automation",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "aut2w0001-0000-4a5a-9b1a-automation101",
+      "name": "Webhook - Save Automation",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        320
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "aut2c0002-0000-4a5a-9b1a-automation102",
+      "name": "Parse Token (Save)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        320
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "aut2p0003-0000-4a5a-9b1a-automation103",
+      "name": "Look Up Requester (Save)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1408,
+        320
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Save Automation').first().json.body || {};\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst VALID_TRIGGER_TYPES = ['contact', 'company', 'task', 'calendar', 'pipeline'];\nconst VALID_ACTION_TYPES = ['add_tag', 'send_email', 'send_team_notification', 'send_sms'];\n\nconst id = body.id ? parseInt(body.id, 10) : null;\nconst name = (body.name || '').toString().trim();\nconst triggerType = (body.trigger_type || '').toString();\nif (!name) throw new Error('\"name\" is required.');\nif (!VALID_TRIGGER_TYPES.includes(triggerType)) throw new Error('\"trigger_type\" is invalid.');\n\nconst triggerConfig = body.trigger_config;\nif (!triggerConfig || !triggerConfig.field || !triggerConfig.operator || triggerConfig.value === undefined || triggerConfig.value === '') {\n  throw new Error('A fully configured trigger is required.');\n}\n\nconst conditionTree = (body.condition_tree && body.condition_tree.field) ? body.condition_tree : null;\n\nconst rawActions = Array.isArray(body.actions) ? body.actions : [];\nif (rawActions.length === 0) throw new Error('At least one action is required.');\nconst actions = rawActions.map((a, i) => {\n  if (!VALID_ACTION_TYPES.includes(a.action_type)) throw new Error(`Action ${i + 1}: invalid action_type.`);\n  return {\n    branch: (a.branch || 'default').toString(),\n    action_type: a.action_type,\n    action_config: a.action_config || {},\n    sort_order: i,\n  };\n});\n\nreturn [{ json: { id, name, triggerType, triggerConfig, conditionTree, actions, requesterId: requester.id } }];"
+      },
+      "id": "aut2c0004-0000-4a5a-9b1a-automation104",
+      "name": "Validate & Payload (Save)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        320
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO automations (id, name, trigger_type, trigger_config, condition_tree, is_active, created_by, created_at, updated_at)\nVALUES (COALESCE($1, nextval(pg_get_serial_sequence('automations', 'id'))), $2, $3, $4::jsonb, $5::jsonb, true, $6, now(), now())\nON CONFLICT (id) DO UPDATE SET\n  name = EXCLUDED.name,\n  trigger_type = EXCLUDED.trigger_type,\n  trigger_config = EXCLUDED.trigger_config,\n  condition_tree = EXCLUDED.condition_tree,\n  updated_at = now()\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id, $json.name, $json.triggerType, JSON.stringify($json.triggerConfig), $json.conditionTree ? JSON.stringify($json.conditionTree) : null, $json.requesterId ] }}"
+        }
+      },
+      "id": "aut2p0005-0000-4a5a-9b1a-automation105",
+      "name": "Upsert Automation",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1856,
+        320
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH deleted AS (\n  DELETE FROM automation_actions WHERE automation_id = $1 RETURNING id\n)\nSELECT $1 AS automation_id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id ] }}"
+        }
+      },
+      "id": "aut2p0006-0000-4a5a-9b1a-automation106",
+      "name": "Clear Old Actions",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2080,
+        320
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const automationId = $('Upsert Automation').first().json.id;\nconst actions = $('Validate & Payload (Save)').first().json.actions;\nreturn actions.map((a) => ({ json: { automationId, ...a } }));"
+      },
+      "id": "aut2c0007-0000-4a5a-9b1a-automation107",
+      "name": "Expand Actions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2304,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO automation_actions (automation_id, branch, action_type, action_config, sort_order)\nVALUES ($1, $2, $3, $4::jsonb, $5);",
+        "options": {
+          "queryReplacement": "={{ [ $json.automationId, $json.branch, $json.action_type, JSON.stringify($json.action_config), $json.sort_order ] }}"
+        }
+      },
+      "id": "aut2p0008-0000-4a5a-9b1a-automation108",
+      "name": "Insert Action",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2528,
+        320
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, id: $('Upsert Automation').first().json.id } }}",
+        "options": {}
+      },
+      "id": "aut2r0009-0000-4a5a-9b1a-automation109",
+      "name": "Respond - Save Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2752,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "update-automation-active",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "aut3w0001-0000-4a5a-9b1a-automation201",
+      "name": "Webhook - Update Automation Active",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        560
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "aut3c0002-0000-4a5a-9b1a-automation202",
+      "name": "Parse Token (Toggle)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        560
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "aut3p0003-0000-4a5a-9b1a-automation203",
+      "name": "Look Up Requester (Toggle)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1408,
+        560
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Update Automation Active').first().json.body || {};\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" must be an integer.');\nif (typeof body.is_active !== 'boolean') throw new Error('\"is_active\" must be true or false.');\nreturn [{ json: { id, isActive: body.is_active } }];"
+      },
+      "id": "aut3c0004-0000-4a5a-9b1a-automation204",
+      "name": "Validate & Payload (Toggle)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        560
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE automations SET is_active = $1, updated_at = now() WHERE id = $2 RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.isActive, $json.id ] }}"
+        }
+      },
+      "id": "aut3p0005-0000-4a5a-9b1a-automation205",
+      "name": "Update Automation Active",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1856,
+        560
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) throw new Error('Automation not found.');\nreturn [{ json: { success: true } }];"
+      },
+      "id": "aut3c0006-0000-4a5a-9b1a-automation206",
+      "name": "Check Toggle Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        560
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "aut3r0007-0000-4a5a-9b1a-automation207",
+      "name": "Respond - Toggle Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2304,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "delete-automation",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "aut4w0001-0000-4a5a-9b1a-automation301",
+      "name": "Webhook - Delete Automation",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        800
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "aut4c0002-0000-4a5a-9b1a-automation302",
+      "name": "Parse Token (Delete)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        800
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "aut4p0003-0000-4a5a-9b1a-automation303",
+      "name": "Look Up Requester (Delete)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1408,
+        800
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Delete Automation').first().json.body || {};\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" must be an integer.');\nreturn [{ json: { id } }];"
+      },
+      "id": "aut4c0004-0000-4a5a-9b1a-automation304",
+      "name": "Validate & Payload (Delete)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        800
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM automations WHERE id = $1 RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id ] }}"
+        }
+      },
+      "id": "aut4p0005-0000-4a5a-9b1a-automation305",
+      "name": "Delete Automation",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1856,
+        800
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) throw new Error('Automation not found.');\nreturn [{ json: { success: true } }];"
+      },
+      "id": "aut4c0006-0000-4a5a-9b1a-automation306",
+      "name": "Check Delete Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        800
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "aut4r0007-0000-4a5a-9b1a-automation307",
+      "name": "Respond - Delete Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2304,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "test-automation",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "aut5w0001-0000-4a5a-9b1a-automation401",
+      "name": "Webhook - Test Automation",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        1040
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "aut5c0002-0000-4a5a-9b1a-automation402",
+      "name": "Parse Token (Test)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        1040
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "aut5p0003-0000-4a5a-9b1a-automation403",
+      "name": "Look Up Requester (Test)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1408,
+        1040
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Test Automation').first().json.body || {};\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst VALID_TRIGGER_TYPES = ['contact', 'company', 'task', 'calendar', 'pipeline'];\nconst VALID_ACTION_TYPES = ['add_tag', 'send_email', 'send_team_notification', 'send_sms'];\n\nconst id = body.id ? parseInt(body.id, 10) : null;\nconst name = (body.name || '').toString().trim();\nconst triggerType = (body.trigger_type || '').toString();\nif (!name) throw new Error('\"name\" is required.');\nif (!VALID_TRIGGER_TYPES.includes(triggerType)) throw new Error('\"trigger_type\" is invalid.');\n\nconst triggerConfig = body.trigger_config;\nif (!triggerConfig || !triggerConfig.field || !triggerConfig.operator || triggerConfig.value === undefined || triggerConfig.value === '') {\n  throw new Error('A fully configured trigger is required.');\n}\n\nconst conditionTree = (body.condition_tree && body.condition_tree.field) ? body.condition_tree : null;\n\nconst rawActions = Array.isArray(body.actions) ? body.actions : [];\nif (rawActions.length === 0) throw new Error('At least one action is required.');\nconst actions = rawActions.map((a, i) => {\n  if (!VALID_ACTION_TYPES.includes(a.action_type)) throw new Error(`Action ${i + 1}: invalid action_type.`);\n  return {\n    branch: (a.branch || 'default').toString(),\n    action_type: a.action_type,\n    action_config: a.action_config || {},\n    sort_order: i,\n  };\n});\n\nconst testEmail = (body.test_email || '').toString().trim() || null;\nreturn [{ json: { id, name, triggerType, triggerConfig, conditionTree, actions, testEmail, requesterId: requester.id } }];"
+      },
+      "id": "aut5c0004-0000-4a5a-9b1a-automation404",
+      "name": "Validate & Payload (Test)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        1040
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Dry run: samples live rows for the chosen trigger_type and evaluates\n// the condition tree in JS (Evaluate & Respond node) rather than\n// executing any action. The sample is NOT filtered by the trigger\n// condition in SQL (conditions are evaluated generically in JS, same as\n// the Engine), so the LIMIT here has to be generous \u2014 a tight LIMIT\n// combined with `ORDER BY id DESC` would silently miss the one record\n// an admin is actually testing against if it isn't among the newest\n// rows. This runs only when a human clicks Test, not on a poll, so a\n// few hundred rows is an acceptable cost. Task/Calendar/Pipeline all\n// join back to `contacts` for first_name/last_name/email so merge\n// fields resolve the same way they do in Automation Engine.json's\n// Build Candidate Query \u2014 Company triggers have no single associated\n// contact, so those stay null. Task and Calendar both read from\n// `activities` (see src/types/event.ts) \u2014 there is no separate\n// calendar_events table in this schema.\nconst p = $input.first().json;\nconst SAMPLE_LIMIT = 200;\n// owner_name resolves the {{owner_name}} merge token, same columns as\n// Automation Engine.json's Build Candidate Query.\nconst queries = {\n  contact: `SELECT c.id, c.first_name, c.last_name, c.email, c.lead_status, c.birthdate, c.city, c.state, c.country, ow.name AS owner_name,\n      (SELECT COALESCE(json_agg(t.name), '[]'::json) FROM tags t JOIN taggables tg ON tg.tag_id = t.id WHERE tg.entity_type = 'contact' AND tg.entity_id = c.id) AS tags\n    FROM contacts c LEFT JOIN users ow ON ow.id = c.owner_id WHERE c.is_archived = false ORDER BY c.id DESC LIMIT ${SAMPLE_LIMIT};`,\n  company: `SELECT co.id, co.name, NULL::text AS first_name, NULL::text AS last_name, NULL::text AS email, ow.name AS owner_name,\n      co.account_status, co.city, co.state, co.country, co.annual_revenue, co.employee_count,\n      (SELECT COALESCE(json_agg(t.name), '[]'::json) FROM tags t JOIN taggables tg ON tg.tag_id = t.id WHERE tg.entity_type = 'company' AND tg.entity_id = co.id) AS tags\n    FROM companies co LEFT JOIN users ow ON ow.id = co.owner_id WHERE co.is_archived = false ORDER BY co.id DESC LIMIT ${SAMPLE_LIMIT};`,\n  task: `SELECT act.id, act.subject AS name, ct.first_name, ct.last_name, ct.email, ow.name AS owner_name, act.is_completed, act.due_at\n    FROM activities act\n    LEFT JOIN contacts ct ON ct.id = act.contact_id\n    LEFT JOIN users ow ON ow.id = act.user_id\n    WHERE act.due_at IS NOT NULL ORDER BY act.id DESC LIMIT ${SAMPLE_LIMIT};`,\n  calendar: `SELECT act.id, act.subject AS name, ct.first_name, ct.last_name, ct.email, ow.name AS owner_name, act.type, act.due_at, act.is_completed\n    FROM activities act\n    LEFT JOIN contacts ct ON ct.id = act.contact_id\n    LEFT JOIN users ow ON ow.id = act.user_id\n    WHERE act.due_at IS NOT NULL ORDER BY act.id DESC LIMIT ${SAMPLE_LIMIT};`,\n  pipeline: `SELECT o.id, o.name, ct.first_name, ct.last_name, ct.email, ow.name AS owner_name, o.pipeline_id, o.stage_id, prop.public_token AS proposal_token\n    FROM opportunities o\n    LEFT JOIN contacts ct ON ct.id = o.contact_id\n    LEFT JOIN users ow ON ow.id = o.assigned_user\n    LEFT JOIN LATERAL (\n      SELECT p.public_token FROM proposals p WHERE p.opportunity_id = o.id ORDER BY p.created_at DESC LIMIT 1\n    ) prop ON true\n    WHERE o.is_archived = false ORDER BY o.id DESC LIMIT ${SAMPLE_LIMIT};`,\n};\nconst sqlQuery = queries[p.triggerType];\nif (!sqlQuery) throw new Error('Unsupported trigger_type.');\nreturn [{ json: { sqlQuery, queryParams: [] } }];"
+      },
+      "id": "aut5c0005-0000-4a5a-9b1a-automation405",
+      "name": "Build Sample Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1856,
+        1040
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sqlQuery }}",
+        "options": {
+          "queryReplacement": "={{ $json.queryParams }}"
+        }
+      },
+      "id": "aut5p0006-0000-4a5a-9b1a-automation406",
+      "name": "Run Sample Query",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2080,
+        1040
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map((i) => i.json);\nconst p = $('Validate & Payload (Test)').first().json;\nconst trigger = p.triggerConfig;\nconst condition = p.conditionTree;\nconst actions = p.actions;\n\nfunction getFieldValue(row, field) {\n  if (field === 'age') {\n    if (!row.birthdate) return null;\n    const ms = Date.now() - new Date(row.birthdate).getTime();\n    return Math.floor(ms / (365.25 * 24 * 3600 * 1000));\n  }\n  if (field === 'overdue') {\n    return !row.is_completed && row.due_at && new Date(row.due_at) < new Date();\n  }\n  if (field === 'location') {\n    return [row.city, row.state, row.country].filter(Boolean).join(', ');\n  }\n  return row[field];\n}\n\nfunction evalCondition(row, cond) {\n  if (!cond || !cond.field) return true;\n  const actual = getFieldValue(row, cond.field);\n  const expected = cond.value;\n  switch (cond.operator) {\n    case 'equals': return Array.isArray(actual) ? actual.includes(expected) : String(actual) === String(expected);\n    case 'not_equals': return Array.isArray(actual) ? !actual.includes(expected) : String(actual) !== String(expected);\n    case 'contains': return String(actual || '').toLowerCase().includes(String(expected).toLowerCase());\n    case 'greater_than': { const n = Number(actual); return Number.isFinite(n) ? n > Number(expected) : new Date(actual) > new Date(expected); }\n    case 'less_than': { const n = Number(actual); return Number.isFinite(n) ? n < Number(expected) : new Date(actual) < new Date(expected); }\n    case 'is_true': return Boolean(actual) === true;\n    case 'is_false': return Boolean(actual) === false;\n    default: return false;\n  }\n}\n\nlet matched = null;\nlet branch = null;\nfor (const row of rows) {\n  if (!evalCondition(row, trigger)) continue;\n  matched = row;\n  branch = condition ? (evalCondition(row, condition) ? 'true' : 'false') : 'default';\n  break;\n}\n\nconst actionsWouldRun = matched\n  ? actions.filter((a) => a.branch === branch).map((a) => ({\n      action_type: a.action_type,\n      status: (a.action_type === 'send_team_notification' || a.action_type === 'send_sms') ? 'unsupported' : 'would_run',\n    }))\n  : [];\n\nconst emailAction = matched ? (actions.filter((a) => a.branch === branch).find((a) => a.action_type === 'send_email') || null) : null;\n\nreturn [{\n  json: {\n    matched: !!matched,\n    branch,\n    sample_entity: matched\n      ? { id: matched.id, label: matched.name || [matched.first_name, matched.last_name].filter(Boolean).join(' ') || `#${matched.id}` }\n      : null,\n    actions_would_run: actionsWouldRun,\n    test_email_sent: false,\n    _shouldSendTestEmail: Boolean(p.testEmail) && Boolean(emailAction),\n    _testEmail: p.testEmail || null,\n    _matchedRow: matched,\n    _emailAction: emailAction,\n  },\n}];"
+      },
+      "id": "aut5c0007-0000-4a5a-9b1a-automation407",
+      "name": "Evaluate & Respond",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2304,
+        1040
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "aut5i0009a",
+              "leftValue": "={{ $json._shouldSendTestEmail }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "aut5i0009-0000-4a5a-9b1a-automation409",
+      "name": "Should Send Test Email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2304,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const meta = $('Evaluate & Respond').item.json;\nconst row = meta._matchedRow || {};\n// Mirrors src/utils/text.ts's toTitleCase so a test send previews the\n// same casing a real send would use, regardless of how the name is\n// actually capitalized in the database.\nfunction toTitleCase(s) {\n  return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' ');\n}\nfunction fill(template) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, toTitleCase(row.last_name))\n    .replace(/{{\\s*deal_name\\s*}}/gi, row.name || 'Sample Deal')\n    .replace(/{{\\s*owner_name\\s*}}/gi, toTitleCase(row.owner_name) || 'your account team')\n    .replace(/{{\\s*proposal_link\\s*}}/gi, row.proposal_token ? `#proposal-${row.proposal_token}` : '#')\n    // A real send clones the referenced template into an actual DB row via\n    // Automation Engine.json \u2014 a Test send deliberately does NOT (this whole\n    // flow is a dry run with no side effects), so these can't resolve to a\n    // real link here. Show a clearly-labeled placeholder instead of silently\n    // deleting the token via the generic {{ }} strip below, which is what\n    // made proposal/contract links vanish from test sends entirely.\n    .replace(/{{\\s*proposal_template:\\d+\\s*}}/gi, '[TEST \u2014 a real, unique proposal link appears here on an actual send]')\n    .replace(/{{\\s*contract_template:\\d+\\s*}}/gi, '[TEST \u2014 a real, unique contract link appears here on an actual send]')\n    // Safety net matching Automation Engine.json's Prepare Email \u2014 strips\n    // any OTHER unresolved \"{{ }}\" so a real send's preview matches what\n    // actually goes out instead of risking the \"undefined\" corruption\n    // n8n's own expression engine causes downstream on Send Test Email's\n    // `={{ $json.body }}` field.\n    .replace(/{{[^{}]*}}/g, '');\n}\nreturn [{ json: { to: meta._testEmail, subject: '[TEST] ' + fill(meta._emailAction.action_config.subject), body: fill(meta._emailAction.action_config.body) } }];"
+      },
+      "id": "aut5c0010-0000-4a5a-9b1a-automation410",
+      "name": "Prepare Test Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2528,
+        1120
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.body }}",
+        "options": {}
+      },
+      "id": "aut5g0011-0000-4a5a-9b1a-automation411",
+      "name": "Send Test Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2752,
+        1120
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const original = $('Evaluate & Respond').item.json;\nreturn [{ json: { ...original, test_email_sent: true } }];"
+      },
+      "id": "aut5c0012-0000-4a5a-9b1a-automation412",
+      "name": "Finalize With Email Sent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2976,
+        1120
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: $('Evaluate & Respond').item.json }];"
+      },
+      "id": "aut5c0013-0000-4a5a-9b1a-automation413",
+      "name": "Finalize Without Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2528,
+        1280
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { matched: $json.matched, branch: $json.branch, sample_entity: $json.sample_entity, actions_would_run: $json.actions_would_run, test_email_sent: $json.test_email_sent } }}",
+        "options": {}
+      },
+      "id": "aut5r0008-0000-4a5a-9b1a-automation408",
+      "name": "Respond - Test",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        3200,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "aut0e0000-0000-4a5a-9b1a-automation000",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1632,
+        1280
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook - Get Automations": {
+      "main": [
+        [
+          {
+            "node": "Parse Token (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token (Get)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester (Get)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (Get)": {
+      "main": [
+        [
+          {
+            "node": "Select Automations",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Automations": {
+      "main": [
+        [
+          {
+            "node": "Respond - Get Automations",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Save Automation": {
+      "main": [
+        [
+          {
+            "node": "Parse Token (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token (Save)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester (Save)": {
+      "main": [
+        [
+          {
+            "node": "Validate & Payload (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Payload (Save)": {
+      "main": [
+        [
+          {
+            "node": "Upsert Automation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Automation": {
+      "main": [
+        [
+          {
+            "node": "Clear Old Actions",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clear Old Actions": {
+      "main": [
+        [
+          {
+            "node": "Expand Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Expand Actions": {
+      "main": [
+        [
+          {
+            "node": "Insert Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Action": {
+      "main": [
+        [
+          {
+            "node": "Respond - Save Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Update Automation Active": {
+      "main": [
+        [
+          {
+            "node": "Parse Token (Toggle)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token (Toggle)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester (Toggle)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester (Toggle)": {
+      "main": [
+        [
+          {
+            "node": "Validate & Payload (Toggle)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Payload (Toggle)": {
+      "main": [
+        [
+          {
+            "node": "Update Automation Active",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Automation Active": {
+      "main": [
+        [
+          {
+            "node": "Check Toggle Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Toggle Result": {
+      "main": [
+        [
+          {
+            "node": "Respond - Toggle Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Delete Automation": {
+      "main": [
+        [
+          {
+            "node": "Parse Token (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Validate & Payload (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Payload (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Delete Automation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Automation": {
+      "main": [
+        [
+          {
+            "node": "Check Delete Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Delete Result": {
+      "main": [
+        [
+          {
+            "node": "Respond - Delete Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Test Automation": {
+      "main": [
+        [
+          {
+            "node": "Parse Token (Test)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token (Test)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester (Test)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester (Test)": {
+      "main": [
+        [
+          {
+            "node": "Validate & Payload (Test)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Payload (Test)": {
+      "main": [
+        [
+          {
+            "node": "Build Sample Query",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Sample Query": {
+      "main": [
+        [
+          {
+            "node": "Run Sample Query",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Sample Query": {
+      "main": [
+        [
+          {
+            "node": "Evaluate & Respond",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate & Respond": {
+      "main": [
+        [
+          {
+            "node": "Should Send Test Email?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Send Test Email?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Test Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Finalize Without Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Test Email": {
+      "main": [
+        [
+          {
+            "node": "Send Test Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Test Email": {
+      "main": [
+        [
+          {
+            "node": "Finalize With Email Sent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finalize With Email Sent": {
+      "main": [
+        [
+          {
+            "node": "Respond - Test",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finalize Without Email": {
+      "main": [
+        [
+          {
+            "node": "Respond - Test",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

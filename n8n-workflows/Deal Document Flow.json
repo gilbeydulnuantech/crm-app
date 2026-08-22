@@ -1,0 +1,861 @@
+{
+  "name": "Deal Document Flow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-document-flows",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "ddf1f0001-1111-4a5a-9b1a-docflow0000001",
+      "name": "Webhook - Get Document Flows",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        480
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "ddf1f0002-2222-4a5a-9b1a-docflow0000002",
+      "name": "Parse Token (Get)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        480
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "ddf1f0003-3333-4a5a-9b1a-docflow0000003",
+      "name": "Look Up Requester Role (Get)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1408,
+        480
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\nreturn [{ json: {} }];"
+      },
+      "id": "ddf1f0004-4444-4a5a-9b1a-docflow0000004",
+      "name": "Validate Admin (Get)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        480
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT f.id, f.name, f.trigger_stage_id, ts.name AS trigger_stage_name, p.id AS pipeline_id, p.name AS pipeline_name, f.delay_hours,\n  f.proposal_email_subject, f.proposal_email_body,\n  f.proposal_viewed_stage_id, vs.name AS proposal_viewed_stage_name,\n  f.proposal_approved_stage_id, aps.name AS proposal_approved_stage_name,\n  f.contract_email_subject, f.contract_email_body,\n  f.contract_signed_stage_id, css.name AS contract_signed_stage_name,\n  f.contract_template_id, ct.title AS contract_template_title,\n  f.proposal_reminder_delay_hours, f.proposal_reminder_email_subject, f.proposal_reminder_email_body,\n  f.is_active, f.created_at,\n  (SELECT COUNT(*) FROM opportunities o WHERE o.stage_id = f.trigger_stage_id AND o.is_archived = false AND o.status = 'Open') AS deals_in_stage\nFROM deal_document_flows f\nJOIN stages ts ON ts.id = f.trigger_stage_id\nJOIN pipelines p ON p.id = ts.pipeline_id\nLEFT JOIN stages vs ON vs.id = f.proposal_viewed_stage_id\nLEFT JOIN stages aps ON aps.id = f.proposal_approved_stage_id\nLEFT JOIN stages css ON css.id = f.contract_signed_stage_id\nLEFT JOIN contract_templates ct ON ct.id = f.contract_template_id\nORDER BY f.created_at DESC;",
+        "options": {}
+      },
+      "id": "ddf1f0005-5555-4a5a-9b1a-docflow0000005",
+      "name": "Select Document Flows",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1856,
+        480
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "ddf1f0006-6666-4a5a-9b1a-docflow0000006",
+      "name": "Respond - Get Document Flows",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2080,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "save-document-flow",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "ddf1f0007-7777-4a5a-9b1a-docflow0000007",
+      "name": "Webhook - Save Document Flow",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        704
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "ddf1f0008-8888-4a5a-9b1a-docflow0000008",
+      "name": "Parse Token (Save)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        704
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "ddf1f0009-9999-4a5a-9b1a-docflow0000009",
+      "name": "Look Up Requester Role (Save)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1408,
+        704
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Save Document Flow').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst id = body.id ? parseInt(body.id, 10) : null;\nconst name = (body.name || '').toString().trim();\nconst triggerStageId = parseInt(body.trigger_stage_id, 10);\nconst delayHours = parseInt(body.delay_hours, 10);\nconst proposalEmailSubject = (body.proposal_email_subject || '').toString().trim();\nconst proposalEmailBody = (body.proposal_email_body || '').toString();\nconst proposalViewedStageId = body.proposal_viewed_stage_id ? parseInt(body.proposal_viewed_stage_id, 10) : null;\nconst proposalApprovedStageId = body.proposal_approved_stage_id ? parseInt(body.proposal_approved_stage_id, 10) : null;\nconst contractEmailSubject = (body.contract_email_subject || '').toString().trim();\nconst contractEmailBody = (body.contract_email_body || '').toString();\nconst contractSignedStageId = body.contract_signed_stage_id ? parseInt(body.contract_signed_stage_id, 10) : null;\nconst contractTemplateId = body.contract_template_id ? parseInt(body.contract_template_id, 10) : null;\nconst proposalReminderDelayHours = body.proposal_reminder_delay_hours !== undefined && body.proposal_reminder_delay_hours !== null && body.proposal_reminder_delay_hours !== '' ? parseInt(body.proposal_reminder_delay_hours, 10) : null;\nconst proposalReminderEmailSubject = (body.proposal_reminder_email_subject || '').toString().trim() || null;\nconst proposalReminderEmailBody = (body.proposal_reminder_email_body || '').toString().trim() || null;\n\nif (!name) throw new Error('\"name\" is required.');\nif (!Number.isInteger(triggerStageId)) throw new Error('\"trigger_stage_id\" is required.');\nif (!Number.isInteger(delayHours) || delayHours < 0) throw new Error('\"delay_hours\" must be 0 or more.');\nif (!proposalEmailSubject || !proposalEmailBody.trim()) throw new Error('Proposal email subject and body are required.');\nif (!contractEmailSubject || !contractEmailBody.trim()) throw new Error('Contract email subject and body are required.');\n\nreturn [{\n  json: {\n    id, name, triggerStageId, delayHours, proposalEmailSubject, proposalEmailBody,\n    proposalViewedStageId, proposalApprovedStageId, contractEmailSubject, contractEmailBody,\n    contractSignedStageId, contractTemplateId, proposalReminderDelayHours, proposalReminderEmailSubject, proposalReminderEmailBody, requesterId: requester.id,\n  },\n}];"
+      },
+      "id": "ddf1f0010-1010-4a5a-9b1a-docflow0000010",
+      "name": "Validate Admin & Payload (Save)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        704
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO deal_document_flows (\n  id, name, trigger_stage_id, delay_hours, proposal_email_subject, proposal_email_body,\n  proposal_viewed_stage_id, proposal_approved_stage_id, contract_email_subject, contract_email_body,\n  contract_signed_stage_id, contract_template_id, proposal_reminder_delay_hours, proposal_reminder_email_subject, proposal_reminder_email_body, is_active, created_by, created_at, updated_at\n)\nVALUES (\n  COALESCE($1, nextval(pg_get_serial_sequence('deal_document_flows', 'id'))), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, true, $16, now(), now()\n)\nON CONFLICT (id) DO UPDATE SET\n  name = EXCLUDED.name,\n  trigger_stage_id = EXCLUDED.trigger_stage_id,\n  delay_hours = EXCLUDED.delay_hours,\n  proposal_email_subject = EXCLUDED.proposal_email_subject,\n  proposal_email_body = EXCLUDED.proposal_email_body,\n  proposal_viewed_stage_id = EXCLUDED.proposal_viewed_stage_id,\n  proposal_approved_stage_id = EXCLUDED.proposal_approved_stage_id,\n  contract_email_subject = EXCLUDED.contract_email_subject,\n  contract_email_body = EXCLUDED.contract_email_body,\n  contract_signed_stage_id = EXCLUDED.contract_signed_stage_id,\n  contract_template_id = EXCLUDED.contract_template_id,\n  proposal_reminder_delay_hours = EXCLUDED.proposal_reminder_delay_hours,\n  proposal_reminder_email_subject = EXCLUDED.proposal_reminder_email_subject,\n  proposal_reminder_email_body = EXCLUDED.proposal_reminder_email_body,\n  updated_at = now()\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id, $json.name, $json.triggerStageId, $json.delayHours, $json.proposalEmailSubject, $json.proposalEmailBody, $json.proposalViewedStageId, $json.proposalApprovedStageId, $json.contractEmailSubject, $json.contractEmailBody, $json.contractSignedStageId, $json.contractTemplateId, $json.proposalReminderDelayHours, $json.proposalReminderEmailSubject, $json.proposalReminderEmailBody, $json.requesterId ] }}"
+        }
+      },
+      "id": "ddf1f0011-1111-4a5a-9b1a-docflow0000011",
+      "name": "Upsert Flow",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1856,
+        704
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true } }}",
+        "options": {}
+      },
+      "id": "ddf1f0012-1212-4a5a-9b1a-docflow0000012",
+      "name": "Respond - Save Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2080,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "update-document-flow-active",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "ddf1f0013-1313-4a5a-9b1a-docflow0000013",
+      "name": "Webhook - Update Flow Active",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        928
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "ddf1f0014-1414-4a5a-9b1a-docflow0000014",
+      "name": "Parse Token (Toggle)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        928
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "ddf1f0015-1515-4a5a-9b1a-docflow0000015",
+      "name": "Look Up Requester Role (Toggle)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1408,
+        928
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Update Flow Active').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" must be an integer.');\nif (typeof body.is_active !== 'boolean') throw new Error('\"is_active\" must be true or false.');\n\nreturn [{ json: { id, isActive: body.is_active } }];"
+      },
+      "id": "ddf1f0016-1616-4a5a-9b1a-docflow0000016",
+      "name": "Validate Admin & Payload (Toggle)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        928
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE deal_document_flows SET is_active = $1, updated_at = now() WHERE id = $2 RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.isActive, $json.id ] }}"
+        }
+      },
+      "id": "ddf1f0017-1717-4a5a-9b1a-docflow0000017",
+      "name": "Update Flow Active",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1856,
+        928
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) throw new Error('Flow not found.');\nreturn [{ json: { success: true } }];"
+      },
+      "id": "ddf1f0018-1818-4a5a-9b1a-docflow0000018",
+      "name": "Check Toggle Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        928
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "ddf1f0019-1919-4a5a-9b1a-docflow0000019",
+      "name": "Respond - Toggle Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2304,
+        928
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "delete-document-flow",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "ddf1f0020-2020-4a5a-9b1a-docflow0000020",
+      "name": "Webhook - Delete Flow",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        1152
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "ddf1f0021-2121-4a5a-9b1a-docflow0000021",
+      "name": "Parse Token (Delete)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        1152
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "ddf1f0022-2222-4a5a-9b1a-docflow0000022",
+      "name": "Look Up Requester Role (Delete)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1408,
+        1152
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Delete Flow').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" must be an integer.');\n\nreturn [{ json: { id } }];"
+      },
+      "id": "ddf1f0023-2323-4a5a-9b1a-docflow0000023",
+      "name": "Validate Admin & Payload (Delete)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        1152
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM deal_document_flows WHERE id = $1 RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id ] }}"
+        }
+      },
+      "id": "ddf1f0024-2424-4a5a-9b1a-docflow0000024",
+      "name": "Delete Flow",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1856,
+        1152
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "notes": "Proposals/contracts already created under this flow keep their flow_id set to NULL (ON DELETE SET NULL) rather than being deleted."
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) throw new Error('Flow not found.');\nreturn [{ json: { success: true } }];"
+      },
+      "id": "ddf1f0025-2525-4a5a-9b1a-docflow0000025",
+      "name": "Check Delete Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        1152
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "ddf1f0026-2626-4a5a-9b1a-docflow0000026",
+      "name": "Respond - Delete Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2304,
+        1152
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "ddf1f0027-2727-4a5a-9b1a-docflow0000027",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1408,
+        1376
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook - Get Document Flows": {
+      "main": [
+        [
+          {
+            "node": "Parse Token (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token (Get)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester Role (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester Role (Get)": {
+      "main": [
+        [
+          {
+            "node": "Validate Admin (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Admin (Get)": {
+      "main": [
+        [
+          {
+            "node": "Select Document Flows",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Document Flows": {
+      "main": [
+        [
+          {
+            "node": "Respond - Get Document Flows",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Save Document Flow": {
+      "main": [
+        [
+          {
+            "node": "Parse Token (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token (Save)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester Role (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester Role (Save)": {
+      "main": [
+        [
+          {
+            "node": "Validate Admin & Payload (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Admin & Payload (Save)": {
+      "main": [
+        [
+          {
+            "node": "Upsert Flow",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Flow": {
+      "main": [
+        [
+          {
+            "node": "Respond - Save Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Update Flow Active": {
+      "main": [
+        [
+          {
+            "node": "Parse Token (Toggle)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token (Toggle)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester Role (Toggle)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester Role (Toggle)": {
+      "main": [
+        [
+          {
+            "node": "Validate Admin & Payload (Toggle)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Admin & Payload (Toggle)": {
+      "main": [
+        [
+          {
+            "node": "Update Flow Active",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Flow Active": {
+      "main": [
+        [
+          {
+            "node": "Check Toggle Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Toggle Result": {
+      "main": [
+        [
+          {
+            "node": "Respond - Toggle Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Delete Flow": {
+      "main": [
+        [
+          {
+            "node": "Parse Token (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester Role (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester Role (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Validate Admin & Payload (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Admin & Payload (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Delete Flow",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Flow": {
+      "main": [
+        [
+          {
+            "node": "Check Delete Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Delete Result": {
+      "main": [
+        [
+          {
+            "node": "Respond - Delete Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

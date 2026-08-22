@@ -13,6 +13,8 @@ interface Props {
   onEditDeal: (opportunity: Opportunity) => void;
   onAddNote: (opportunity: Opportunity) => void;
   onCreateTask: (opportunity: Opportunity) => void;
+  onCreateProposal: (opportunity: Opportunity) => void;
+  onCreateContract: (opportunity: Opportunity) => void;
   onMarkWon: (opportunity: Opportunity) => void;
   onMarkLost: (opportunity: Opportunity) => void;
   onArchive: (opportunity: Opportunity) => void;
@@ -81,6 +83,8 @@ export default function PipelineBoard({
   onEditDeal,
   onAddNote,
   onCreateTask,
+  onCreateProposal,
+  onCreateContract,
   onMarkWon,
   onMarkLost,
   onArchive,
@@ -123,6 +127,8 @@ export default function PipelineBoard({
               onEditDeal={onEditDeal}
               onAddNote={onAddNote}
               onCreateTask={onCreateTask}
+              onCreateProposal={onCreateProposal}
+              onCreateContract={onCreateContract}
               onMoveStage={(o, stageId) => onMoveStage(o.id, stageId)}
               onMarkWon={onMarkWon}
               onMarkLost={onMarkLost}

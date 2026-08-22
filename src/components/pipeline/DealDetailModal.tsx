@@ -8,6 +8,9 @@ import { useTasks } from '../../hooks/useTasks';
 import { toTitleCase } from '../../utils/text';
 import { getTagColorClasses } from '../../utils/tagColors';
 import DealTagsInline from './DealTagsInline';
+import ProposalsSection from './ProposalsSection';
+import ContractsSection from './ContractsSection';
+import CreateContractModal from './CreateContractModal';
 
 interface Props {
   deal: Opportunity | null;
@@ -81,6 +84,7 @@ export default function DealDetailModal({
   const addNote = useAddNote('opportunity', deal?.id ?? null);
   const { data: allTasks = [] } = useTasks();
   const [comment, setComment] = useState('');
+  const [createContractOpen, setCreateContractOpen] = useState(false);
 
   const activity = useMemo(() => {
     if (!deal) return [];
@@ -124,6 +128,7 @@ export default function DealDetailModal({
   }
 
   return (
+    <>
     <div
       className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4"
       onClick={onClose}
@@ -225,6 +230,10 @@ export default function DealDetailModal({
               <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Description</h3>
               <p className="text-sm text-slate-700 whitespace-pre-wrap">{deal.description || '--'}</p>
             </div>
+
+            <ProposalsSection opportunityId={deal.id} canEdit={canEdit} onCreateNew={() => navigate('/documents/proposals/new')} />
+
+            <ContractsSection opportunityId={deal.id} canEdit={canEdit} onCreateNew={() => setCreateContractOpen(true)} />
 
             <div>
               <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Activity Feed &amp; Audit Trail</h3>
@@ -332,5 +341,8 @@ export default function DealDetailModal({
         </div>
       </div>
     </div>
+
+    <CreateContractModal opportunity={createContractOpen ? deal : null} onClose={() => setCreateContractOpen(false)} />
+    </>
   );
 }

@@ -1,8 +1,8 @@
 // Base URL for the n8n webhook backend.
-// NOTE: the old ngrok free-tier URL rotates/expires — move this to a real
+// NOTE: the ngrok free-tier URL rotates/expires — move this to a real
 // domain (or a .env var, e.g. import.meta.env.VITE_API_BASE_URL) before shipping.
 export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? 'https://cornball-empathy-bath.ngrok-free.dev';
+  import.meta.env.VITE_API_BASE_URL ?? 'https://tubular-silica-despite.ngrok-free.dev';
 
 export function getAuthToken(): string | null {
   return localStorage.getItem('authToken');
@@ -62,6 +62,13 @@ export async function apiFetch<T = unknown>(
 
   const res = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
+    // Every one of these webhooks is a live query/action, never a static
+    // resource — a GET hitting the exact same URL twice (e.g. retrying the
+    // same public_token) must never be served from the browser's HTTP
+    // cache. n8n's webhook responses don't set Cache-Control themselves, so
+    // without this a transient early failure can get cached and keep being
+    // replayed on every retry even after the backend is fixed.
+    cache: 'no-store',
     headers: {
       'ngrok-skip-browser-warning': 'true',
       ...(options.body && !isFormData ? { 'Content-Type': 'application/json' } : {}),
@@ -88,9 +95,19 @@ export async function apiFetch<T = unknown>(
     throw new Error(message);
   }
 
-  // Some webhooks (e.g. DELETE-style actions) may return an empty body.
   const text = await res.text();
-  return (text ? JSON.parse(text) : undefined) as T;
+  if (!text) {
+    // A 200 with a genuinely empty body never happens on a working path —
+    // every webhook in this app responds with at least {success:true} via
+    // its own Respond node. An empty body means the n8n execution errored
+    // out and died before reaching any Respond node (most often a Postgres
+    // node with no onError branch configured) — treat it as the failure it
+    // is, instead of returning undefined and letting it surface downstream
+    // as React Query's opaque "data is undefined" invariant error, which
+    // hides what actually broke.
+    throw new Error('Empty response from the server — the request likely failed before it could respond.');
+  }
+  return JSON.parse(text) as T;
 }
 
 export function decodeHtml(html: string): string {

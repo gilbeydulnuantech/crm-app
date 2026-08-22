@@ -164,6 +164,7 @@ export interface TeamUser {
   id: number;
   name: string;
   email?: string;
+  phone?: string | null;
   color?: string;
   role?: 'admin' | 'user';
   notification_preferences?: NotificationPreferences;
@@ -213,6 +214,13 @@ export function updateUserColor(userId: number, color: string) {
   return apiFetch<{ success: boolean; user?: TeamUser; error?: string }>('/webhook/update-user-color', {
     method: 'POST',
     body: JSON.stringify({ user_id: userId, color }),
+  });
+}
+
+export function updateUserPhone(userId: number, phone: string) {
+  return apiFetch<{ success: boolean; user?: TeamUser; error?: string }>('/webhook/update-user-phone', {
+    method: 'POST',
+    body: JSON.stringify({ user_id: userId, phone }),
   });
 }
 

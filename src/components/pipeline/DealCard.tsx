@@ -16,6 +16,8 @@ interface Props {
   onEdit: () => void;
   onAddNote: () => void;
   onCreateTask: () => void;
+  onCreateProposal: () => void;
+  onCreateContract: () => void;
   onMoveStage: (stageId: number) => void;
   onMarkWon: () => void;
   onMarkLost: () => void;
@@ -47,6 +49,8 @@ export default function DealCard({
   onEdit,
   onAddNote,
   onCreateTask,
+  onCreateProposal,
+  onCreateContract,
   onMoveStage,
   onMarkWon,
   onMarkLost,
@@ -156,6 +160,8 @@ export default function DealCard({
           onEdit={onEdit}
           onAddNote={onAddNote}
           onCreateTask={onCreateTask}
+          onCreateProposal={onCreateProposal}
+          onCreateContract={onCreateContract}
           onMoveStage={onMoveStage}
           onMarkWon={onMarkWon}
           onMarkLost={onMarkLost}

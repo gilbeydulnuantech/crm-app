@@ -1,0 +1,722 @@
+{
+  "name": "Contract Templates",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-contract-templates",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "ctpl0001-1111-4a5a-9b1a-conttemp0001",
+      "name": "Webhook - Get Contract Templates",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        400
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "ctpl0002-2222-4a5a-9b1a-conttemp0002",
+      "name": "Parse Token (Get)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        400
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "ctpl0003-3333-4a5a-9b1a-conttemp0003",
+      "name": "Look Up Requester (Get)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1408,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nreturn [{ json: {} }];"
+      },
+      "id": "ctpl0004-4444-4a5a-9b1a-conttemp0004",
+      "name": "Validate (Get)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        400
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT ct.id, ct.title, ct.content_html, ct.total_amount, ct.email_subject, ct.email_body, ct.thank_you_page_id, p.name AS thank_you_page_name, ct.created_by, u.name AS created_by_name, ct.created_at, ct.updated_at\nFROM contract_templates ct\nLEFT JOIN users u ON u.id = ct.created_by\nLEFT JOIN pages p ON p.id = ct.thank_you_page_id\nORDER BY ct.title ASC;",
+        "options": {}
+      },
+      "id": "ctpl0005-5555-4a5a-9b1a-conttemp0005",
+      "name": "Select Contract Templates",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1856,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "ctpl0006-6666-4a5a-9b1a-conttemp0006",
+      "name": "Respond - Get Contract Templates",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2080,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "save-contract-template",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "ctpl0007-7777-4a5a-9b1a-conttemp0007",
+      "name": "Webhook - Save Contract Template",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        624
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "ctpl0008-8888-4a5a-9b1a-conttemp0008",
+      "name": "Parse Token (Save)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        624
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "ctpl0009-9999-4a5a-9b1a-conttemp0009",
+      "name": "Look Up Requester (Save)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1408,
+        624
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT ct.created_by\nFROM (SELECT $1::int AS tid) dummy\nLEFT JOIN contract_templates ct ON ct.id = dummy.tid;",
+        "options": {
+          "queryReplacement": "={{ [ $('Webhook - Save Contract Template').first().json.body.id || null ] }}"
+        }
+      },
+      "id": "ctpl0010-1010-4a5a-9b1a-conttemp0010",
+      "name": "Look Up Existing Template (Save)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1632,
+        624
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const existing = $input.item.json;\nconst requester = $('Look Up Requester (Save)').first().json;\nconst body = $('Webhook - Save Contract Template').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst id = body.id ? parseInt(body.id, 10) : null;\nif (id && existing.created_by != null && requester.role !== 'admin' && existing.created_by !== requester.id) {\n  throw new Error('Only an admin or the template\\'s creator can edit it.');\n}\n\nconst title = (body.title || '').toString().trim();\nconst contentHtml = (body.content_html || '').toString();\nconst totalAmount = body.total_amount !== undefined && body.total_amount !== null && body.total_amount !== '' ? Number(body.total_amount) : 0;\nconst emailSubject = (body.email_subject || '').toString().trim() || 'Your contract is ready to sign';\nconst emailBody = (body.email_body || '').toString().trim() || 'Hi {{first_name}}, please review and sign your contract here: {{contract_link}}';\n\nconst thankYouPageId = body.thank_you_page_id ? parseInt(body.thank_you_page_id, 10) : null;\n\nif (!title) throw new Error('\"title\" is required.');\nif (!contentHtml.trim()) throw new Error('Contract content is required.');\nif (!Number.isFinite(totalAmount) || totalAmount < 0) throw new Error('\"total_amount\" must be 0 or more.');\n\nreturn [{ json: { id, title, contentHtml, totalAmount, emailSubject, emailBody, thankYouPageId, requesterId: requester.id } }];"
+      },
+      "id": "ctpl0011-1111-4a5a-9b1a-conttemp0011",
+      "name": "Validate & Payload (Save)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1856,
+        624
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO contract_templates (id, title, content_html, total_amount, email_subject, email_body, thank_you_page_id, created_by, created_at, updated_at)\nVALUES (COALESCE($1, nextval(pg_get_serial_sequence('contract_templates', 'id'))), $2, $3, $4, $5, $6, $7, $8, now(), now())\nON CONFLICT (id) DO UPDATE SET\n  title = EXCLUDED.title,\n  content_html = EXCLUDED.content_html,\n  total_amount = EXCLUDED.total_amount,\n  email_subject = EXCLUDED.email_subject,\n  email_body = EXCLUDED.email_body,\n  thank_you_page_id = EXCLUDED.thank_you_page_id,\n  updated_at = now()\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id, $json.title, $json.contentHtml, $json.totalAmount, $json.emailSubject, $json.emailBody, $json.thankYouPageId, $json.requesterId ] }}"
+        }
+      },
+      "id": "ctpl0012-1212-4a5a-9b1a-conttemp0012",
+      "name": "Upsert Contract Template",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2080,
+        624
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, id: $json.id } }}",
+        "options": {}
+      },
+      "id": "ctpl0013-1313-4a5a-9b1a-conttemp0013",
+      "name": "Respond - Save Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2304,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "delete-contract-template",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "ctpl0014-1414-4a5a-9b1a-conttemp0014",
+      "name": "Webhook - Delete Contract Template",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        848
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "ctpl0015-1515-4a5a-9b1a-conttemp0015",
+      "name": "Parse Token (Delete)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        848
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "ctpl0016-1616-4a5a-9b1a-conttemp0016",
+      "name": "Look Up Requester (Delete)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1408,
+        848
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT ct.created_by\nFROM (SELECT $1::int AS tid) dummy\nLEFT JOIN contract_templates ct ON ct.id = dummy.tid;",
+        "options": {
+          "queryReplacement": "={{ [ $('Webhook - Delete Contract Template').first().json.body.id ] }}"
+        }
+      },
+      "id": "ctpl0017-1717-4a5a-9b1a-conttemp0017",
+      "name": "Look Up Existing Template (Delete)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1632,
+        848
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const existing = $input.item.json;\nconst requester = $('Look Up Requester (Delete)').first().json;\nconst body = $('Webhook - Delete Contract Template').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" must be an integer.');\nif (existing.created_by != null && requester.role !== 'admin' && existing.created_by !== requester.id) {\n  throw new Error('Only an admin or the template\\'s creator can delete it.');\n}\n\nreturn [{ json: { id } }];"
+      },
+      "id": "ctpl0018-1818-4a5a-9b1a-conttemp0018",
+      "name": "Validate & Payload (Delete)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1856,
+        848
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM contract_templates WHERE id = $1 RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id ] }}"
+        }
+      },
+      "id": "ctpl0019-1919-4a5a-9b1a-conttemp0019",
+      "name": "Delete Contract Template",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2080,
+        848
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) throw new Error('Template not found.');\nreturn [{ json: { success: true } }];"
+      },
+      "id": "ctpl0020-2020-4a5a-9b1a-conttemp0020",
+      "name": "Check Delete Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2304,
+        848
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "ctpl0021-2121-4a5a-9b1a-conttemp0021",
+      "name": "Respond - Delete Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2528,
+        848
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "ctpl0022-2222-4a5a-9b1a-conttemp0022",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1408,
+        1072
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook - Get Contract Templates": {
+      "main": [
+        [
+          {
+            "node": "Parse Token (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token (Get)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester (Get)": {
+      "main": [
+        [
+          {
+            "node": "Validate (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate (Get)": {
+      "main": [
+        [
+          {
+            "node": "Select Contract Templates",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Contract Templates": {
+      "main": [
+        [
+          {
+            "node": "Respond - Get Contract Templates",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Save Contract Template": {
+      "main": [
+        [
+          {
+            "node": "Parse Token (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token (Save)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester (Save)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Existing Template (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Existing Template (Save)": {
+      "main": [
+        [
+          {
+            "node": "Validate & Payload (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Payload (Save)": {
+      "main": [
+        [
+          {
+            "node": "Upsert Contract Template",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Contract Template": {
+      "main": [
+        [
+          {
+            "node": "Respond - Save Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Delete Contract Template": {
+      "main": [
+        [
+          {
+            "node": "Parse Token (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Existing Template (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Existing Template (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Validate & Payload (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Payload (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Delete Contract Template",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Contract Template": {
+      "main": [
+        [
+          {
+            "node": "Check Delete Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Delete Result": {
+      "main": [
+        [
+          {
+            "node": "Respond - Delete Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

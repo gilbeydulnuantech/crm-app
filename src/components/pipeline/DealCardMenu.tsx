@@ -10,6 +10,8 @@ interface Props {
   onEdit: () => void;
   onAddNote: () => void;
   onCreateTask: () => void;
+  onCreateProposal: () => void;
+  onCreateContract: () => void;
   onMoveStage: (stageId: number) => void;
   onMarkWon: () => void;
   onMarkLost: () => void;
@@ -51,6 +53,8 @@ export default function DealCardMenu({
   onEdit,
   onAddNote,
   onCreateTask,
+  onCreateProposal,
+  onCreateContract,
   onMoveStage,
   onMarkWon,
   onMarkLost,
@@ -110,6 +114,8 @@ export default function DealCardMenu({
               <MenuItem icon="fa-pen" label="Edit Deal" onClick={() => run(onEdit)} />
               <MenuItem icon="fa-note-sticky" label="Add Note" onClick={() => run(onAddNote)} />
               <MenuItem icon="fa-list-check" label="Create Task" onClick={() => run(onCreateTask)} />
+              <MenuItem icon="fa-file-lines" label="Create Proposal" onClick={() => run(onCreateProposal)} />
+              <MenuItem icon="fa-file-signature" label="Create Contract" onClick={() => run(onCreateContract)} />
 
               <div
                 className="relative"

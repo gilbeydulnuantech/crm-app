@@ -1,5 +1,5 @@
 import { FormEvent, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toTitleCase } from '../utils/text';
 import { useUnreadEmailContacts, useUsers } from '../hooks/useContacts';
@@ -10,6 +10,10 @@ import { stripRefTokens } from '../utils/chatRefs';
 export default function TopBar() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Matches AppLayout's NO_SIDEBAR_PATTERN — search/back-arrow track the
+  // same full-page-editor condition as the hidden main nav.
+  const hideSearch = /^\/documents\/(proposals|contracts|pages)\/(new|\d+\/edit)$/.test(location.pathname);
   const [bellOpen, setBellOpen] = useState(false);
   const [globalSearch, setGlobalSearch] = useState('');
 
@@ -64,28 +68,44 @@ export default function TopBar() {
       className="h-12 border-b border-slate-200 flex items-center justify-between px-4 shrink-0 gap-4"
       style={{ backgroundColor: 'var(--theme-header)' }}
     >
-      <span className="font-bold text-slate-800 text-sm tracking-wide shrink-0">CRM</span>
-
-      <form onSubmit={runGlobalSearch} className="relative flex-1 max-w-sm">
-        <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
-        <input
-          type="text"
-          value={globalSearch}
-          onChange={(e) => setGlobalSearch(e.target.value)}
-          placeholder="Search contacts..."
-          className="w-full pl-8 pr-8 py-1.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
-        />
-        {globalSearch && (
+      <div className="flex items-center gap-3 shrink-0">
+        {hideSearch && (
           <button
             type="button"
-            onClick={() => setGlobalSearch('')}
-            title="Clear search"
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500"
+            onClick={() => navigate('/dashboard')}
+            title="Back to app"
+            className="text-slate-500 hover:text-slate-700"
           >
-            <i className="fa-solid fa-xmark text-xs" />
+            <i className="fa-solid fa-arrow-left" />
           </button>
         )}
-      </form>
+        <span className="font-bold text-slate-800 text-sm tracking-wide">CRM</span>
+      </div>
+
+      {hideSearch ? (
+        <div className="flex-1" />
+      ) : (
+        <form onSubmit={runGlobalSearch} className="relative flex-1 max-w-sm">
+          <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
+          <input
+            type="text"
+            value={globalSearch}
+            onChange={(e) => setGlobalSearch(e.target.value)}
+            placeholder="Search contacts..."
+            className="w-full pl-8 pr-8 py-1.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
+          />
+          {globalSearch && (
+            <button
+              type="button"
+              onClick={() => setGlobalSearch('')}
+              title="Clear search"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500"
+            >
+              <i className="fa-solid fa-xmark text-xs" />
+            </button>
+          )}
+        </form>
+      )}
 
       <div className="flex items-center gap-4 shrink-0">
         <div className="relative">

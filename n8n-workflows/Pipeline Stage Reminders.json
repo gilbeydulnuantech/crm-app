@@ -1,0 +1,493 @@
+{
+  "name": "Pipeline Stage Reminders",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-stage-reminders",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "psr1f0001-1111-4a5a-9b1a-pstrem0000001",
+      "name": "Webhook - Get Stage Reminders",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [960, 480],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "psr1f0002-2222-4a5a-9b1a-pstrem0000002",
+      "name": "Parse Token (Get)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1184, 480],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": { "queryReplacement": "={{ [ $json.requesterId ] }}" }
+      },
+      "id": "psr1f0003-3333-4a5a-9b1a-pstrem0000003",
+      "name": "Look Up Requester Role (Get)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1408, 480],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\nreturn [{ json: {} }];"
+      },
+      "id": "psr1f0004-4444-4a5a-9b1a-pstrem0000004",
+      "name": "Validate Admin (Get)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1632, 480],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT r.id, r.name, r.stage_id, s.name AS stage_name, p.id AS pipeline_id, p.name AS pipeline_name, r.is_active, r.created_at,\n  r.on_complete_advance_stage_id, cs.name AS on_complete_advance_stage_name, r.on_complete_email_subject, r.on_complete_email_body,\n  (SELECT COUNT(*) FROM opportunities o WHERE o.stage_id = r.stage_id AND o.is_archived = false AND o.status = 'Open') AS deals_in_stage,\n  (SELECT COALESCE(json_agg(json_build_object('id', st.id, 'offset_hours', st.offset_hours, 'email_subject', st.email_subject, 'email_body', st.email_body) ORDER BY st.offset_hours DESC), '[]'::json)\n   FROM pipeline_stage_reminder_steps st WHERE st.rule_id = r.id) AS steps\nFROM pipeline_stage_reminders r\nJOIN stages s ON s.id = r.stage_id\nJOIN pipelines p ON p.id = s.pipeline_id\nLEFT JOIN stages cs ON cs.id = r.on_complete_advance_stage_id\nORDER BY r.created_at DESC;",
+        "options": {}
+      },
+      "id": "psr1f0005-5555-4a5a-9b1a-pstrem0000005",
+      "name": "Select Stage Reminders",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1856, 480],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+    },
+    {
+      "parameters": { "respondWith": "allIncomingItems", "options": {} },
+      "id": "psr1f0006-6666-4a5a-9b1a-pstrem0000006",
+      "name": "Respond - Get Stage Reminders",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [2080, 480]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "save-stage-reminder",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "psr1f0007-7777-4a5a-9b1a-pstrem0000007",
+      "name": "Webhook - Save Stage Reminder",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [960, 704],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "psr1f0008-8888-4a5a-9b1a-pstrem0000008",
+      "name": "Parse Token (Save)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1184, 704],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": { "queryReplacement": "={{ [ $json.requesterId ] }}" }
+      },
+      "id": "psr1f0009-9999-4a5a-9b1a-pstrem0000009",
+      "name": "Look Up Requester Role (Save)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1408, 704],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Save Stage Reminder').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst id = body.id ? parseInt(body.id, 10) : null;\nconst name = (body.name || '').toString().trim();\nconst stageId = parseInt(body.stage_id, 10);\nconst steps = Array.isArray(body.steps) ? body.steps : [];\n\nif (!name) throw new Error('\"name\" is required.');\nif (!Number.isInteger(stageId)) throw new Error('\"stage_id\" is required.');\nif (steps.length === 0) throw new Error('At least one reminder step is required.');\n\nconst cleanSteps = steps.map((s, i) => {\n  const offsetHours = parseInt(s.offset_hours, 10);\n  const subject = (s.email_subject || '').toString().trim();\n  const emailBody = (s.email_body || '').toString();\n  if (!Number.isInteger(offsetHours)) throw new Error(`Step ${i + 1}: \"offset_hours\" must be an integer (positive = before appointment, negative = after).`);\n  if (!subject) throw new Error(`Step ${i + 1}: subject is required.`);\n  if (!emailBody.trim()) throw new Error(`Step ${i + 1}: email body is required.`);\n  return { offsetHours, subject, emailBody };\n});\n\nconst onCompleteAdvanceStageId = body.on_complete_advance_stage_id ? parseInt(body.on_complete_advance_stage_id, 10) : null;\nconst onCompleteEmailSubject = (body.on_complete_email_subject || '').toString().trim() || null;\nconst onCompleteEmailBody = (body.on_complete_email_body || '').toString().trim() || null;\nif (onCompleteAdvanceStageId !== null && !Number.isInteger(onCompleteAdvanceStageId)) throw new Error('\"on_complete_advance_stage_id\" must be an integer.');\nif ((onCompleteEmailSubject && !onCompleteEmailBody) || (!onCompleteEmailSubject && onCompleteEmailBody)) throw new Error('The \"after inspection\" email needs both a subject and a body.');\n\nreturn [{ json: { id, name, stageId, steps: cleanSteps, onCompleteAdvanceStageId, onCompleteEmailSubject, onCompleteEmailBody, requesterId: requester.id } }];"
+      },
+      "id": "psr1f0010-1010-4a5a-9b1a-pstrem0000010",
+      "name": "Validate Admin & Payload (Save)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1632, 704],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO pipeline_stage_reminders (id, name, stage_id, on_complete_advance_stage_id, on_complete_email_subject, on_complete_email_body, is_active, created_by, created_at, updated_at)\nVALUES (COALESCE($1, nextval(pg_get_serial_sequence('pipeline_stage_reminders', 'id'))), $2, $3, $4, $5, $6, true, $7, now(), now())\nON CONFLICT (id) DO UPDATE SET\n  name = EXCLUDED.name,\n  stage_id = EXCLUDED.stage_id,\n  on_complete_advance_stage_id = EXCLUDED.on_complete_advance_stage_id,\n  on_complete_email_subject = EXCLUDED.on_complete_email_subject,\n  on_complete_email_body = EXCLUDED.on_complete_email_body,\n  updated_at = now()\nRETURNING id;",
+        "options": { "queryReplacement": "={{ [ $json.id, $json.name, $json.stageId, $json.onCompleteAdvanceStageId, $json.onCompleteEmailSubject, $json.onCompleteEmailBody, $json.requesterId ] }}" }
+      },
+      "id": "psr1f0011-1111-4a5a-9b1a-pstrem0000011",
+      "name": "Upsert Rule",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1856, 704],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH deleted AS (\n  DELETE FROM pipeline_stage_reminder_steps WHERE rule_id = $1 RETURNING id\n)\nSELECT $1 AS rule_id;",
+        "options": { "queryReplacement": "={{ [ $json.id ] }}" }
+      },
+      "id": "psr1f0012-1212-4a5a-9b1a-pstrem0000012",
+      "name": "Clear Old Steps",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2080, 704],
+      "notes": "Full-replace edit pattern, same as nurture sequence steps: every save clears and re-inserts all steps rather than diffing."
+    },
+    {
+      "parameters": {
+        "jsCode": "const ruleId = $('Upsert Rule').first().json.id;\nconst steps = $('Validate Admin & Payload (Save)').first().json.steps;\nreturn steps.map((s) => ({ json: { ruleId, ...s } }));"
+      },
+      "id": "psr1f0013-1313-4a5a-9b1a-pstrem0000013",
+      "name": "Expand Steps",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2304, 704]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO pipeline_stage_reminder_steps (rule_id, offset_hours, email_subject, email_body) VALUES ($1, $2, $3, $4);",
+        "options": { "queryReplacement": "={{ [ $json.ruleId, $json.offsetHours, $json.subject, $json.emailBody ] }}" }
+      },
+      "id": "psr1f0014-1414-4a5a-9b1a-pstrem0000014",
+      "name": "Insert Step",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2528, 704],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ { success: true } }}", "options": {} },
+      "id": "psr1f0015-1515-4a5a-9b1a-pstrem0000015",
+      "name": "Respond - Save Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [2752, 704]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "update-stage-reminder-active",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "psr1f0016-1616-4a5a-9b1a-pstrem0000016",
+      "name": "Webhook - Update Reminder Active",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [960, 928],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "psr1f0017-1717-4a5a-9b1a-pstrem0000017",
+      "name": "Parse Token (Toggle)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1184, 928],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": { "queryReplacement": "={{ [ $json.requesterId ] }}" }
+      },
+      "id": "psr1f0018-1818-4a5a-9b1a-pstrem0000018",
+      "name": "Look Up Requester Role (Toggle)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1408, 928],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Update Reminder Active').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" must be an integer.');\nif (typeof body.is_active !== 'boolean') throw new Error('\"is_active\" must be true or false.');\n\nreturn [{ json: { id, isActive: body.is_active } }];"
+      },
+      "id": "psr1f0019-1919-4a5a-9b1a-pstrem0000019",
+      "name": "Validate Admin & Payload (Toggle)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1632, 928],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE pipeline_stage_reminders SET is_active = $1, updated_at = now() WHERE id = $2 RETURNING id;",
+        "options": { "queryReplacement": "={{ [ $json.isActive, $json.id ] }}" }
+      },
+      "id": "psr1f0020-2020-4a5a-9b1a-pstrem0000020",
+      "name": "Update Reminder Active",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1856, 928],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) throw new Error('Reminder rule not found.');\nreturn [{ json: { success: true } }];"
+      },
+      "id": "psr1f0021-2121-4a5a-9b1a-pstrem0000021",
+      "name": "Check Toggle Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2080, 928],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ $json }}", "options": {} },
+      "id": "psr1f0022-2222-4a5a-9b1a-pstrem0000022",
+      "name": "Respond - Toggle Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [2304, 928]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "delete-stage-reminder",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "psr1f0023-2323-4a5a-9b1a-pstrem0000023",
+      "name": "Webhook - Delete Reminder",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [960, 1152],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "psr1f0024-2424-4a5a-9b1a-pstrem0000024",
+      "name": "Parse Token (Delete)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1184, 1152],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": { "queryReplacement": "={{ [ $json.requesterId ] }}" }
+      },
+      "id": "psr1f0025-2525-4a5a-9b1a-pstrem0000025",
+      "name": "Look Up Requester Role (Delete)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1408, 1152],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Delete Reminder').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" must be an integer.');\n\nreturn [{ json: { id } }];"
+      },
+      "id": "psr1f0026-2626-4a5a-9b1a-pstrem0000026",
+      "name": "Validate Admin & Payload (Delete)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1632, 1152],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM pipeline_stage_reminders WHERE id = $1 RETURNING id;",
+        "options": { "queryReplacement": "={{ [ $json.id ] }}" }
+      },
+      "id": "psr1f0027-2727-4a5a-9b1a-pstrem0000027",
+      "name": "Delete Reminder",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1856, 1152],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "notes": "Steps and send-log rows cascade-delete via their FK ON DELETE CASCADE."
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) throw new Error('Reminder rule not found.');\nreturn [{ json: { success: true } }];"
+      },
+      "id": "psr1f0028-2828-4a5a-9b1a-pstrem0000028",
+      "name": "Check Delete Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2080, 1152],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ $json }}", "options": {} },
+      "id": "psr1f0029-2929-4a5a-9b1a-pstrem0000029",
+      "name": "Respond - Delete Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [2304, 1152]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "options": { "responseCode": 400 }
+      },
+      "id": "psr1f0030-3030-4a5a-9b1a-pstrem0000030",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1408, 1376]
+    }
+  ],
+  "connections": {
+    "Webhook - Get Stage Reminders": {
+      "main": [
+        [{ "node": "Parse Token (Get)", "type": "main", "index": 0 }],
+        [{ "node": "Respond - Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "Parse Token (Get)": {
+      "main": [
+        [{ "node": "Look Up Requester Role (Get)", "type": "main", "index": 0 }],
+        [{ "node": "Respond - Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "Look Up Requester Role (Get)": {
+      "main": [
+        [{ "node": "Validate Admin (Get)", "type": "main", "index": 0 }],
+        [{ "node": "Respond - Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "Validate Admin (Get)": {
+      "main": [
+        [{ "node": "Select Stage Reminders", "type": "main", "index": 0 }],
+        [{ "node": "Respond - Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "Select Stage Reminders": {
+      "main": [
+        [{ "node": "Respond - Get Stage Reminders", "type": "main", "index": 0 }],
+        [{ "node": "Respond - Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "Webhook - Save Stage Reminder": {
+      "main": [
+        [{ "node": "Parse Token (Save)", "type": "main", "index": 0 }],
+        [{ "node": "Respond - Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "Parse Token (Save)": {
+      "main": [
+        [{ "node": "Look Up Requester Role (Save)", "type": "main", "index": 0 }],
+        [{ "node": "Respond - Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "Look Up Requester Role (Save)": {
+      "main": [
+        [{ "node": "Validate Admin & Payload (Save)", "type": "main", "index": 0 }],
+        [{ "node": "Respond - Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "Validate Admin & Payload (Save)": {
+      "main": [
+        [{ "node": "Upsert Rule", "type": "main", "index": 0 }],
+        [{ "node": "Respond - Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "Upsert Rule": {
+      "main": [
+        [{ "node": "Clear Old Steps", "type": "main", "index": 0 }],
+        [{ "node": "Respond - Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "Clear Old Steps": { "main": [[{ "node": "Expand Steps", "type": "main", "index": 0 }]] },
+    "Expand Steps": { "main": [[{ "node": "Insert Step", "type": "main", "index": 0 }]] },
+    "Insert Step": {
+      "main": [
+        [{ "node": "Respond - Save Success", "type": "main", "index": 0 }],
+        [{ "node": "Respond - Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "Webhook - Update Reminder Active": {
+      "main": [
+        [{ "node": "Parse Token (Toggle)", "type": "main", "index": 0 }],
+        [{ "node": "Respond - Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "Parse Token (Toggle)": {
+      "main": [
+        [{ "node": "Look Up Requester Role (Toggle)", "type": "main", "index": 0 }],
+        [{ "node": "Respond - Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "Look Up Requester Role (Toggle)": {
+      "main": [
+        [{ "node": "Validate Admin & Payload (Toggle)", "type": "main", "index": 0 }],
+        [{ "node": "Respond - Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "Validate Admin & Payload (Toggle)": {
+      "main": [
+        [{ "node": "Update Reminder Active", "type": "main", "index": 0 }],
+        [{ "node": "Respond - Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "Update Reminder Active": {
+      "main": [
+        [{ "node": "Check Toggle Result", "type": "main", "index": 0 }],
+        [{ "node": "Respond - Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "Check Toggle Result": { "main": [[{ "node": "Respond - Toggle Success", "type": "main", "index": 0 }]] },
+    "Webhook - Delete Reminder": {
+      "main": [
+        [{ "node": "Parse Token (Delete)", "type": "main", "index": 0 }],
+        [{ "node": "Respond - Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "Parse Token (Delete)": {
+      "main": [
+        [{ "node": "Look Up Requester Role (Delete)", "type": "main", "index": 0 }],
+        [{ "node": "Respond - Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "Look Up Requester Role (Delete)": {
+      "main": [
+        [{ "node": "Validate Admin & Payload (Delete)", "type": "main", "index": 0 }],
+        [{ "node": "Respond - Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "Validate Admin & Payload (Delete)": {
+      "main": [
+        [{ "node": "Delete Reminder", "type": "main", "index": 0 }],
+        [{ "node": "Respond - Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "Delete Reminder": {
+      "main": [
+        [{ "node": "Check Delete Result", "type": "main", "index": 0 }],
+        [{ "node": "Respond - Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "Check Delete Result": { "main": [[{ "node": "Respond - Delete Success", "type": "main", "index": 0 }]] }
+  }
+}

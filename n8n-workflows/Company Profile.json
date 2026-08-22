@@ -1,0 +1,760 @@
+{
+  "name": "Company Profile",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-company-profile",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "cpro0001-1111-4a5a-9b1a-companyprof001",
+      "name": "Webhook - Get Company Profile",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        400
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "cpro0002-2222-4a5a-9b1a-companyprof002",
+      "name": "Parse Token (Get)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        400
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "cpro0003-3333-4a5a-9b1a-companyprof003",
+      "name": "Look Up Requester (Get)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1408,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nreturn [{ json: {} }];"
+      },
+      "id": "cpro0004-4444-4a5a-9b1a-companyprof004",
+      "name": "Validate (Get)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        400
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT cp.company_name, cp.email, cp.phone, cp.logo_url\nFROM (SELECT 1) dummy\nLEFT JOIN company_profile cp ON cp.id = 1;",
+        "options": {}
+      },
+      "id": "cpro0005-5555-4a5a-9b1a-companyprof005",
+      "name": "Select Company Profile",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1856,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, company_name: $json.company_name || '', email: $json.email || '', phone: $json.phone || '' } }}",
+        "options": {}
+      },
+      "id": "cpro0006-6666-4a5a-9b1a-companyprof006",
+      "name": "Respond - Get Company Profile",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2080,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "save-company-profile",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "cpro0007-7777-4a5a-9b1a-companyprof007",
+      "name": "Webhook - Save Company Profile",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        624
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "cpro0008-8888-4a5a-9b1a-companyprof008",
+      "name": "Parse Token (Save)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        624
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "cpro0009-9999-4a5a-9b1a-companyprof009",
+      "name": "Look Up Requester (Save)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1408,
+        624
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Save Company Profile').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst companyName = (body.company_name || '').toString().trim();\nconst email = (body.email || '').toString().trim();\nconst phone = (body.phone || '').toString().trim();\n\nreturn [{ json: { companyName, email, phone, requesterId: requester.id } }];"
+      },
+      "id": "cpro0010-1010-4a5a-9b1a-companyprof010",
+      "name": "Validate & Payload (Save)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        624
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO company_profile (id, company_name, email, phone, updated_at, updated_by)\nVALUES (1, $1, $2, $3, now(), $4)\nON CONFLICT (id) DO UPDATE SET\n  company_name = EXCLUDED.company_name,\n  email = EXCLUDED.email,\n  phone = EXCLUDED.phone,\n  updated_at = now(),\n  updated_by = EXCLUDED.updated_by\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.companyName, $json.email, $json.phone, $json.requesterId ] }}"
+        }
+      },
+      "id": "cpro0011-1111-4a5a-9b1a-companyprof011",
+      "name": "Upsert Company Profile",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1856,
+        624
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true } }}",
+        "options": {}
+      },
+      "id": "cpro0012-1212-4a5a-9b1a-companyprof012",
+      "name": "Respond - Save Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2080,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "cpro0013-1313-4a5a-9b1a-companyprof013",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1408,
+        848
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "upload-company-logo",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "cplogo01-1111-4a5a-9b1a-companylogo01",
+      "name": "Webhook - Upload Company Logo",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        848
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nconst requesterId = parseInt(match[1], 10);\n\nconst body = $input.first().json.body || {};\nconst photo = body.photo || {};\nconst dataUrl = photo.url || '';\n\nconst m = /^data:([^;,]+)?(?:;[^,]*)?,(.*)$/s.exec(dataUrl);\nif (!m) throw new Error('\"photo.url\" must be a base64 data URL.');\nconst [, mimeType, base64] = m;\n\nif (!mimeType || !mimeType.startsWith('image/')) {\n  throw new Error('Logo must be an image file.');\n}\nif (base64.length > 7000000) {\n  throw new Error('Logo is too large (max ~5MB).');\n}\n\nreturn [{\n  json: { requesterId },\n  binary: {\n    data: {\n      data: base64,\n      mimeType,\n      fileName: photo.name || 'logo.png'\n    }\n  }\n}];"
+      },
+      "id": "cplogo02-2222-4a5a-9b1a-companylogo02",
+      "name": "Parse Token & Logo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        848
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "cplogo03-3333-4a5a-9b1a-companylogo03",
+      "name": "Look Up Requester (Logo)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1408,
+        848
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\nreturn [{ json: $('Parse Token & Logo').first().json, binary: $('Parse Token & Logo').first().binary }];"
+      },
+      "id": "cplogo04-4444-4a5a-9b1a-companylogo04",
+      "name": "Validate Logo Admin",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        848
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "inputDataFieldName": "data",
+        "name": "={{ 'company_logo_' + Date.now() }}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "options": {}
+      },
+      "id": "cplogo05-5555-4a5a-9b1a-companylogo05",
+      "name": "Upload Logo to Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1856,
+        848
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "AU1Fom2bJxYQkeKG",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "share",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.id }}"
+        },
+        "permissionsUi": {
+          "permissionsValues": {
+            "role": "reader",
+            "type": "anyone",
+            "allowFileDiscovery": false
+          }
+        },
+        "options": {}
+      },
+      "id": "cplogo06-6666-4a5a-9b1a-companylogo06",
+      "name": "Share Logo File",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2080,
+        848
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "AU1Fom2bJxYQkeKG",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const fileId = $('Upload Logo to Drive').first().json.id;\nconst requesterId = $('Validate Logo Admin').first().json.requesterId;\nconst logoUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`;\nreturn [{ json: { requesterId, logoUrl } }];"
+      },
+      "id": "cplogo07-7777-4a5a-9b1a-companylogo07",
+      "name": "Build Logo URL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2304,
+        848
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO company_profile (id, logo_url, updated_at, updated_by)\nVALUES (1, $1, now(), $2)\nON CONFLICT (id) DO UPDATE SET\n  logo_url = EXCLUDED.logo_url,\n  updated_at = now(),\n  updated_by = EXCLUDED.updated_by\nRETURNING id, logo_url;",
+        "options": {
+          "queryReplacement": "={{ [ $json.logoUrl, $json.requesterId ] }}"
+        }
+      },
+      "id": "cplogo08-8888-4a5a-9b1a-companylogo08",
+      "name": "Update Company Logo",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2528,
+        848
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) throw new Error('Company profile not found.');\nreturn [{ json: { success: true, logo_url: result.json.logo_url } }];"
+      },
+      "id": "cplogo09-9999-4a5a-9b1a-companylogo09",
+      "name": "Check Logo Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2752,
+        848
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "cplogo10-1010-4a5a-9b1a-companylogo10",
+      "name": "Respond - Upload Logo Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2976,
+        848
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook - Get Company Profile": {
+      "main": [
+        [
+          {
+            "node": "Parse Token (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token (Get)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester (Get)": {
+      "main": [
+        [
+          {
+            "node": "Validate (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate (Get)": {
+      "main": [
+        [
+          {
+            "node": "Select Company Profile",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Company Profile": {
+      "main": [
+        [
+          {
+            "node": "Respond - Get Company Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Save Company Profile": {
+      "main": [
+        [
+          {
+            "node": "Parse Token (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token (Save)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester (Save)": {
+      "main": [
+        [
+          {
+            "node": "Validate & Payload (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Payload (Save)": {
+      "main": [
+        [
+          {
+            "node": "Upsert Company Profile",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Company Profile": {
+      "main": [
+        [
+          {
+            "node": "Respond - Save Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Upload Company Logo": {
+      "main": [
+        [
+          {
+            "node": "Parse Token & Logo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token & Logo": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester (Logo)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester (Logo)": {
+      "main": [
+        [
+          {
+            "node": "Validate Logo Admin",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Logo Admin": {
+      "main": [
+        [
+          {
+            "node": "Upload Logo to Drive",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Logo to Drive": {
+      "main": [
+        [
+          {
+            "node": "Share Logo File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Share Logo File": {
+      "main": [
+        [
+          {
+            "node": "Build Logo URL",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Logo URL": {
+      "main": [
+        [
+          {
+            "node": "Update Company Logo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Company Logo": {
+      "main": [
+        [
+          {
+            "node": "Check Logo Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Logo Result": {
+      "main": [
+        [
+          {
+            "node": "Respond - Upload Logo Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

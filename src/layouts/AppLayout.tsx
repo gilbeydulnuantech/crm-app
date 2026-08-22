@@ -1,16 +1,24 @@
 import { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 
+// The full-page proposal/contract/page document editors want maximum width,
+// same idea as GHL's builder going full-screen — hide the nav only there,
+// not on the Documents list pages (Proposals/Contracts/Pages/Email
+// Templates), which keep the main nav like the rest of the app.
+const NO_SIDEBAR_PATTERN = /^\/documents\/(proposals|contracts|pages)\/(new|\d+\/edit)$/;
+
 export default function AppLayout() {
   const [navOpen, setNavOpen] = useState(true);
+  const location = useLocation();
+  const hideSidebar = NO_SIDEBAR_PATTERN.test(location.pathname);
 
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden">
       <TopBar />
       <div className="flex-1 flex min-h-0">
-        <Sidebar collapsed={!navOpen} onToggleCollapsed={() => setNavOpen((v) => !v)} />
+        {!hideSidebar && <Sidebar collapsed={!navOpen} onToggleCollapsed={() => setNavOpen((v) => !v)} />}
         <main
           className="flex-1 flex flex-col min-w-0 overflow-hidden"
           style={{ backgroundColor: 'var(--theme-main)' }}

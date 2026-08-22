@@ -1,0 +1,876 @@
+{
+  "name": "Automation Engine",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "auteng001-0000-4a5a-9b1a-automationeng1",
+      "name": "Schedule Trigger: every 30 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        400,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT a.id, a.trigger_type, a.trigger_config, a.condition_tree,\n  COALESCE(\n    json_agg(\n      json_build_object('id', ac.id, 'branch', ac.branch, 'action_type', ac.action_type, 'action_config', ac.action_config)\n    ) FILTER (WHERE ac.id IS NOT NULL),\n    '[]'::json\n  ) AS actions\nFROM automations a\nJOIN automation_actions ac ON ac.automation_id = a.id\nWHERE a.is_active = true\nGROUP BY a.id;",
+        "options": {}
+      },
+      "id": "auteng002-0000-4a5a-9b1a-automationeng2",
+      "name": "Select Active Automations",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        624,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// One query per automation, scoped by trigger_type, anti-joined against\n// automation_runs so an entity that already SUCCEEDED for this\n// automation is never reconsidered. A row with status = 'error' does\n// NOT block \u2014 a transient failure (e.g. gmail hiccup) gets retried on\n// the next poll. status = 'unsupported' DOES block, same as success \u2014\n// retrying an action with no executor (send_team_notification/send_sms)\n// would just re-log 'unsupported' forever with no chance of succeeding.\n// Automation metadata (trigger_config/condition_tree) travels along as\n// a jsonb literal column rather than relying on cross-node pairedItem\n// lookups, since automationId here is our own integer PK (not user\n// input) it's safe to inline into the query text. `actions` is\n// DELIBERATELY excluded from this literal \u2014 it holds the raw,\n// not-yet-personalized email templates (e.g. \"Hi {{first_name}}\"), and\n// this literal flows through Run Candidate Query's Query field, which\n// is an n8n expression template (`={{ $json.sqlQuery }}`). n8n's\n// expression engine treats ANY \"{{ }}\" it finds as ITS OWN syntax, so a\n// merge token embedded in that string gets misread as an (invalid) n8n\n// expression and silently renders as \"undefined\" \u2014 this is exactly the\n// bug that caused live sends to say \"Hi undefined\". Evaluate & Expand\n// Actions re-attaches the real `actions` (with intact merge tokens) by\n// reading Select Active Automations' own output directly \u2014 plain data\n// access in a Code node, never passed through an expression field.\n// Task and Calendar both read from `activities` (see src/types/event.ts)\n// \u2014 there is no separate calendar_events table in this schema.\nconst row = $input.item.json; // { id, trigger_type, trigger_config, condition_tree, actions }\nconst meta = JSON.stringify({\n  automationId: row.id,\n  entityType: row.trigger_type,\n  triggerConfig: row.trigger_config,\n  conditionTree: row.condition_tree,\n});\nconst metaLiteral = `'${meta.replace(/'/g, \"''\")}'::jsonb`;\nconst id = row.id;\n\n// owner_name resolves the {{owner_name}} merge token \u2014 contacts/companies\n// use their own owner_id, opportunities use assigned_user, and\n// tasks/calendar events (both `activities` rows) use the assigned user_id.\nconst queries = {\n  contact: `SELECT c.id, c.first_name, c.last_name, c.email, c.lead_status, c.birthdate, c.city, c.state, c.country, ow.name AS owner_name,\n      (SELECT COALESCE(json_agg(t.name), '[]'::json) FROM tags t JOIN taggables tg ON tg.tag_id = t.id WHERE tg.entity_type = 'contact' AND tg.entity_id = c.id) AS tags,\n      ${metaLiteral} AS automation_meta\n    FROM contacts c\n    LEFT JOIN users ow ON ow.id = c.owner_id\n    WHERE c.is_archived = false\n      AND NOT EXISTS (SELECT 1 FROM automation_runs r WHERE r.automation_id = ${id} AND r.entity_type = 'contact' AND r.entity_id = c.id AND r.status <> 'error');`,\n  company: `SELECT co.id, co.name, NULL::text AS first_name, NULL::text AS last_name, NULL::text AS email, ow.name AS owner_name,\n      co.account_status, co.city, co.state, co.country, co.annual_revenue, co.employee_count,\n      (SELECT COALESCE(json_agg(t.name), '[]'::json) FROM tags t JOIN taggables tg ON tg.tag_id = t.id WHERE tg.entity_type = 'company' AND tg.entity_id = co.id) AS tags,\n      ${metaLiteral} AS automation_meta\n    FROM companies co\n    LEFT JOIN users ow ON ow.id = co.owner_id\n    WHERE co.is_archived = false\n      AND NOT EXISTS (SELECT 1 FROM automation_runs r WHERE r.automation_id = ${id} AND r.entity_type = 'company' AND r.entity_id = co.id AND r.status <> 'error');`,\n  task: `SELECT act.id, act.subject AS name, ct.first_name, ct.last_name, ct.email, ow.name AS owner_name, act.is_completed, act.due_at,\n      ${metaLiteral} AS automation_meta\n    FROM activities act\n    LEFT JOIN contacts ct ON ct.id = act.contact_id\n    LEFT JOIN users ow ON ow.id = act.user_id\n    WHERE act.due_at IS NOT NULL\n      AND NOT EXISTS (SELECT 1 FROM automation_runs r WHERE r.automation_id = ${id} AND r.entity_type = 'task' AND r.entity_id = act.id AND r.status <> 'error');`,\n  calendar: `SELECT act.id, act.subject AS name, ct.first_name, ct.last_name, ct.email, ow.name AS owner_name, act.type, act.due_at, act.is_completed,\n      ${metaLiteral} AS automation_meta\n    FROM activities act\n    LEFT JOIN contacts ct ON ct.id = act.contact_id\n    LEFT JOIN users ow ON ow.id = act.user_id\n    WHERE act.due_at IS NOT NULL\n      AND NOT EXISTS (SELECT 1 FROM automation_runs r WHERE r.automation_id = ${id} AND r.entity_type = 'calendar' AND r.entity_id = act.id AND r.status <> 'error');`,\n  pipeline: `SELECT o.id, o.name, o.account_id, ct.first_name, ct.last_name, ct.email, ct.phone AS contact_phone, co.name AS company_name, ow.name AS owner_name, ow.email AS owner_email, ow.phone AS owner_phone, o.pipeline_id, o.stage_id, prop.public_token AS proposal_token,\n      ${metaLiteral} AS automation_meta\n    FROM opportunities o\n    LEFT JOIN contacts ct ON ct.id = o.contact_id\n    LEFT JOIN companies co ON co.id = o.account_id\n    LEFT JOIN users ow ON ow.id = o.assigned_user\n    LEFT JOIN LATERAL (\n      SELECT p.public_token FROM proposals p WHERE p.opportunity_id = o.id ORDER BY p.created_at DESC LIMIT 1\n    ) prop ON true\n    WHERE o.is_archived = false\n      AND NOT EXISTS (SELECT 1 FROM automation_runs r WHERE r.automation_id = ${id} AND r.entity_type = 'pipeline' AND r.entity_id = o.id AND r.status <> 'error');`,\n};\n\nconst sqlQuery = queries[row.trigger_type];\nif (!sqlQuery) return [];\nreturn [{ json: { sqlQuery } }];"
+      },
+      "id": "auteng003-0000-4a5a-9b1a-automationeng3",
+      "name": "Build Candidate Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        848,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sqlQuery }}",
+        "options": {}
+      },
+      "id": "auteng004-0000-4a5a-9b1a-automationeng4",
+      "name": "Run Candidate Query",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1072,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "function getFieldValue(row, field) {\n  if (field === 'age') {\n    if (!row.birthdate) return null;\n    const ms = Date.now() - new Date(row.birthdate).getTime();\n    return Math.floor(ms / (365.25 * 24 * 3600 * 1000));\n  }\n  if (field === 'overdue') {\n    return !row.is_completed && row.due_at && new Date(row.due_at) < new Date();\n  }\n  if (field === 'location') {\n    return [row.city, row.state, row.country].filter(Boolean).join(', ');\n  }\n  return row[field];\n}\n\nfunction evalCondition(row, cond) {\n  if (!cond || !cond.field) return true;\n  const actual = getFieldValue(row, cond.field);\n  const expected = cond.value;\n  switch (cond.operator) {\n    case 'equals': return Array.isArray(actual) ? actual.includes(expected) : String(actual) === String(expected);\n    case 'not_equals': return Array.isArray(actual) ? !actual.includes(expected) : String(actual) !== String(expected);\n    case 'contains': return String(actual || '').toLowerCase().includes(String(expected).toLowerCase());\n    case 'greater_than': { const n = Number(actual); return Number.isFinite(n) ? n > Number(expected) : new Date(actual) > new Date(expected); }\n    case 'less_than': { const n = Number(actual); return Number.isFinite(n) ? n < Number(expected) : new Date(actual) < new Date(expected); }\n    case 'is_true': return Boolean(actual) === true;\n    case 'is_false': return Boolean(actual) === false;\n    default: return false;\n  }\n}\n\n// Fans one input row out into zero or more action-items \u2014 a manual\n// many-to-many reshape. Without an explicit `pairedItem` on each\n// constructed item, n8n's automatic pairedItem inference for this kind\n// of fan-out is unreliable once more than one row/action is in flight,\n// which breaks every downstream $('Evaluate & Expand Actions').item\n// lookup (Log Tag Result / Log Email Success / Log Unsupported) \u2014\n// they'd log the WRONG entity_id into automation_runs, so the real\n// entity never gets deduped and re-fires on the next poll. Setting\n// pairedItem explicitly here is what keeps that lineage correct.\n// actions come from Select Active Automations' own output (plain data\n// access, not a `={{ }}` expression field) rather than from the SQL\n// literal, so raw merge tokens like {{first_name}} survive intact \u2014\n// see the comment on Build Candidate Query for why.\nconst actionsByAutomationId = {};\nfor (const it of $('Select Active Automations').all()) {\n  actionsByAutomationId[it.json.id] = it.json.actions;\n}\n\nconst output = [];\n$input.all().forEach((item, itemIndex) => {\n  const row = item.json;\n  const meta = row.automation_meta;\n  if (!meta) return;\n  if (!evalCondition(row, meta.triggerConfig)) return;\n  const branch = meta.conditionTree ? (evalCondition(row, meta.conditionTree) ? 'true' : 'false') : 'default';\n  const actions = actionsByAutomationId[meta.automationId] || [];\n  const actionsForBranch = actions.filter((a) => a.branch === branch);\n  for (const action of actionsForBranch) {\n    output.push({\n      json: {\n        automationId: meta.automationId,\n        actionId: action.id,\n        entityType: meta.entityType,\n        entityId: row.id,\n        branch,\n        action,\n        row,\n      },\n      pairedItem: { item: itemIndex },\n    });\n  }\n});\nreturn output;"
+      },
+      "id": "auteng005-0000-4a5a-9b1a-automationeng5",
+      "name": "Evaluate & Expand Actions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1296,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "auteng006a",
+              "leftValue": "={{ $json.action.action_type }}",
+              "rightValue": "add_tag",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "auteng006b",
+              "leftValue": "={{ $json.entityType }}",
+              "rightValue": "task",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            },
+            {
+              "id": "auteng006c",
+              "leftValue": "={{ $json.entityType }}",
+              "rightValue": "calendar",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "auteng006-0000-4a5a-9b1a-automationeng6",
+      "name": "Is Add Tag?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO tags (name)\nVALUES ($1)\nON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name\nRETURNING id, name;",
+        "options": {
+          "queryReplacement": "={{ [ $json.action.action_config.tag_name ] }}"
+        }
+      },
+      "id": "auteng007-0000-4a5a-9b1a-automationeng7",
+      "name": "Resolve Tag",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1744,
+        96
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO taggables (tag_id, entity_type, entity_id)\nVALUES ($1, $2, $3)\nON CONFLICT (tag_id, entity_type, entity_id) DO NOTHING\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id, $('Evaluate & Expand Actions').item.json.entityType === 'pipeline' ? 'deal' : $('Evaluate & Expand Actions').item.json.entityType, $('Evaluate & Expand Actions').item.json.entityId ] }}"
+        }
+      },
+      "id": "auteng008-0000-4a5a-9b1a-automationeng8",
+      "name": "Insert Taggable",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1968,
+        96
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const meta = $('Evaluate & Expand Actions').item.json;\nreturn [{ json: { automationId: meta.automationId, actionId: meta.actionId, entityType: meta.entityType, entityId: meta.entityId, branch: meta.branch, status: 'success', detail: null } }];"
+      },
+      "id": "auteng009-0000-4a5a-9b1a-automationeng9",
+      "name": "Log Tag Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2192,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "auteng010a",
+              "leftValue": "={{ $json.action.action_type }}",
+              "rightValue": "send_email",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "auteng010-0000-4a5a-9b1a-automationeng10",
+      "name": "Is Send Email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1744,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// $env access can be blocked entirely by the n8n instance's own security settings (N8N_BLOCK_ENV_ACCESS_IN_NODE) \u2014 reading a blocked var THROWS rather than returning undefined, so a bare `$env.X || ''` never gets a chance to fall back.\nfunction safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\nconst meta = $input.item.json;\nconst row = meta.row;\nif (!row.email) {\n  return [{ json: { automationId: meta.automationId, actionId: meta.actionId, entityType: meta.entityType, entityId: meta.entityId, branch: meta.branch, status: 'error', detail: 'No email address available for this record.', hasEmail: false } }];\n}\n\n// Data arrives however a rep typed it (or a CSV import had it) \u2014\n// mirrors src/utils/text.ts's toTitleCase so merge fields don't send\n// 'Hi pretty' for a name stored all-lowercase.\nfunction toTitleCase(s) {\n  return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' ');\n}\n\n// proposal_link only resolves for Pipeline triggers (row.proposal_token\n// comes from a LATERAL join to that opportunity's most recent proposal\n// in Build Candidate Query) \u2014 null for every other trigger_type.\nconst proposalLink = row.proposal_token ? `${safeEnv('FRONTEND_BASE_URL')}/documents/proposal/${row.proposal_token}` : '';\n\nfunction fill(template) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, toTitleCase(row.last_name))\n    .replace(/{{\\s*deal_name\\s*}}/gi, row.name || '')\n    .replace(/{{\\s*owner_name\\s*}}/gi, toTitleCase(row.owner_name) || 'your account team')\n    .replace(/{{\\s*proposal_link\\s*}}/gi, proposalLink)\n    // Safety net: any OTHER \"{{ ... }}\" left over (a typo, a stray token\n    // pasted in from an inserted Email Template's own content, etc.) must\n    // be stripped here \u2014 Send Email's subject/message fields below are\n    // n8n expression fields (`={{ $json.subject }}`), and n8n's own\n    // expression engine will try to evaluate any \"{{ }}\" it finds in the\n    // final string as ITS OWN syntax, silently rendering an unresolvable\n    // one as the literal word \"undefined\" \u2014 the exact bug this app hit\n    // before. Stripping here, before that field ever sees the text, is\n    // what prevents a repeat for any token this function doesn't know.\n    .replace(/{{[^{}]*}}/g, '');\n}\n\nreturn [{\n  json: {\n    automationId: meta.automationId, actionId: meta.actionId, entityType: meta.entityType, entityId: meta.entityId, branch: meta.branch,\n    hasEmail: true, to: row.email, subject: fill(meta.action.action_config.subject), body: fill(meta.action.action_config.body),\n  },\n}];"
+      },
+      "id": "auteng011-0000-4a5a-9b1a-automationeng11",
+      "name": "Prepare Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1968,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "auteng012a",
+              "leftValue": "={{ $json.hasEmail }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "auteng012-0000-4a5a-9b1a-automationeng12",
+      "name": "Has Email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2192,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.body }}",
+        "options": {}
+      },
+      "id": "auteng013-0000-4a5a-9b1a-automationeng13",
+      "name": "Send Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2416,
+        256
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const meta = $('Evaluate & Expand Actions').item.json;\nreturn [{ json: { automationId: meta.automationId, actionId: meta.actionId, entityType: meta.entityType, entityId: meta.entityId, branch: meta.branch, status: 'success', detail: null } }];"
+      },
+      "id": "auteng014-0000-4a5a-9b1a-automationeng14",
+      "name": "Log Email Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Reached directly from two IF nodes (Is Add Tag? / Is Send Email?),\n// neither of which touches the item's json \u2014 safe to read straight off\n// $input.item rather than a cross-node pairedItem lookup.\nconst meta = $input.item.json;\nreturn [{ json: { automationId: meta.automationId, actionId: meta.actionId, entityType: meta.entityType, entityId: meta.entityId, branch: meta.branch, status: 'unsupported', detail: `No executor available for action_type \"${meta.action.action_type}\" on entity_type \"${meta.entityType}\".` } }];"
+      },
+      "id": "auteng015-0000-4a5a-9b1a-automationeng15",
+      "name": "Log Unsupported",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1968,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO automation_runs (automation_id, action_id, entity_type, entity_id, branch, status, detail, ran_at)\nVALUES ($1, $2, $3, $4, $5, $6, $7, now());",
+        "options": {
+          "queryReplacement": "={{ [ $json.automationId, $json.actionId, $json.entityType, $json.entityId, $json.branch, $json.status, $json.detail || null ] }}"
+        }
+      },
+      "id": "auteng016-0000-4a5a-9b1a-automationeng16",
+      "name": "Log Run",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2864,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Contract Templates (Documents > Contracts) are standalone, deal-less\n// content saved via ContractEditorPage \u2014 a rep references one directly in\n// a Pipeline-triggered automation's Send Email action via the Documents\n// picker, which inserts a {{contract_template:ID}} token (not a literal\n// link, since the template has no deal/link of its own yet). Only\n// Pipeline triggers have an opportunity to generate the contract against;\n// for any other trigger_type the token is left for Prepare Email's\n// existing \"strip unknown {{ }}\" fallback to clean up.\nconst meta = $input.item.json;\nconst subject = meta.action.action_config.subject || '';\nconst body = meta.action.action_config.body || '';\nconst match = meta.entityType === 'pipeline' ? (subject + ' ' + body).match(/\\{\\{\\s*contract_template:(\\d+)\\s*\\}\\}/) : null;\nreturn [{ json: { ...meta, contractTemplateId: match ? parseInt(match[1], 10) : null } }];\n"
+      },
+      "id": "auteng017-0000-4a5a-9b1a-automationeng17",
+      "name": "Detect Contract Template Token",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1968,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "auteng018cond",
+              "leftValue": "={{ $json.contractTemplateId ? 'yes' : '' }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "auteng018-0000-4a5a-9b1a-automationeng18",
+      "name": "Has Contract Template?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2192,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT title, content_html, thank_you_page_id FROM contract_templates WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.contractTemplateId ] }}"
+        }
+      },
+      "id": "auteng019-0000-4a5a-9b1a-automationeng19",
+      "name": "Look Up Contract Template",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2416,
+        480
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO contracts (opportunity_id, flow_id, title, content_html, total_amount, thank_you_page_id, status, created_at, sent_at)\nSELECT o.id, NULL, $2, $3, COALESCE(o.deal_value, 0), $4, 'sent', now(), now()\nFROM opportunities o WHERE o.id = $1\nRETURNING id, public_token;",
+        "options": {
+          "queryReplacement": "={{ [ $('Detect Contract Template Token').item.json.entityId, $('Look Up Contract Template').item.json.title, $('Look Up Contract Template').item.json.content_html, $('Look Up Contract Template').item.json.thank_you_page_id ] }}"
+        }
+      },
+      "id": "auteng020-0000-4a5a-9b1a-automationeng20",
+      "name": "Generate Contract For Deal",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2640,
+        480
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "notes": "Total auto-fills from the triggering deal's own value (COALESCE(o.deal_value, 0)) \u2014 Contract Templates carry no total of their own."
+    },
+    {
+      "parameters": {
+        "jsCode": "// $env access can be blocked entirely by the n8n instance's own security settings (N8N_BLOCK_ENV_ACCESS_IN_NODE) \u2014 reading a blocked var THROWS rather than returning undefined, so a bare `$env.X || ''` never gets a chance to fall back.\nfunction safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\n// Same merge-token handling as Prepare Email, plus resolving the\n// {{contract_template:ID}} token (already validated present) into the\n// real link for the contract just generated for this deal.\nconst meta = $('Detect Contract Template Token').item.json;\nconst row = meta.row;\nconst contract = $input.item.json;\nconst contractLink = `${safeEnv('FRONTEND_BASE_URL')}/documents/contract/${contract.public_token}`;\n\nfunction toTitleCase(s) {\n  return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' ');\n}\n\nconst proposalLink = row.proposal_token ? `${safeEnv('FRONTEND_BASE_URL')}/documents/proposal/${row.proposal_token}` : '';\n\nfunction fill(template) {\n  return (template || '')\n    .replace(/\\{\\{\\s*contract_template:\\d+\\s*\\}\\}/gi, contractLink)\n    .replace(/\\{\\{\\s*first_name\\s*\\}\\}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/\\{\\{\\s*last_name\\s*\\}\\}/gi, toTitleCase(row.last_name))\n    .replace(/\\{\\{\\s*deal_name\\s*\\}\\}/gi, row.name || '')\n    .replace(/\\{\\{\\s*owner_name\\s*\\}\\}/gi, toTitleCase(row.owner_name) || 'your account team')\n    .replace(/\\{\\{\\s*proposal_link\\s*\\}\\}/gi, proposalLink)\n    .replace(/\\{\\{[^{}]*\\}\\}/g, '');\n}\n\nif (!row.email) {\n  return [{ json: { automationId: meta.automationId, actionId: meta.actionId, entityType: meta.entityType, entityId: meta.entityId, branch: meta.branch, status: 'error', detail: 'No email address available for this record.', hasEmail: false } }];\n}\n\nreturn [{\n  json: {\n    automationId: meta.automationId, actionId: meta.actionId, entityType: meta.entityType, entityId: meta.entityId, branch: meta.branch,\n    hasEmail: true, to: row.email, subject: fill(meta.action.action_config.subject), body: fill(meta.action.action_config.body),\n  },\n}];\n"
+      },
+      "id": "auteng021-0000-4a5a-9b1a-automationeng21",
+      "name": "Substitute Contract Link & Prepare Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2864,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Proposal Templates (Documents > Proposals) are standalone, deal-less\n// content saved via ProposalEditorPage \u2014 a rep references one directly in\n// a Pipeline-triggered automation's Send Email action via the Documents\n// picker, which inserts a {{proposal_template:ID}} token (not a literal\n// link, since the template has no deal/link of its own yet). Only\n// Pipeline triggers have an opportunity to generate the proposal against.\nconst meta = $input.item.json;\nconst subject = meta.action.action_config.subject || '';\nconst body = meta.action.action_config.body || '';\nconst match = meta.entityType === 'pipeline' ? (subject + ' ' + body).match(/\\{\\{\\s*proposal_template:(\\d+)\\s*\\}\\}/) : null;\nreturn [{ json: { ...meta, proposalTemplateId: match ? parseInt(match[1], 10) : null } }];\n"
+      },
+      "id": "auteng022-0000-4a5a-9b1a-automationeng22",
+      "name": "Detect Proposal Template Token",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1744,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "auteng023cond",
+              "leftValue": "={{ $json.proposalTemplateId ? 'yes' : '' }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "auteng023-0000-4a5a-9b1a-automationeng23",
+      "name": "Has Proposal Template?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1968,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT title, content_html, email_subject, email_body, linked_contract_template_id FROM proposal_templates WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.proposalTemplateId ] }}"
+        }
+      },
+      "id": "auteng024-0000-4a5a-9b1a-automationeng24",
+      "name": "Look Up Proposal Template",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2192,
+        672
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO proposals (opportunity_id, flow_id, title, content_html, total_amount, email_subject, email_body, client_name, client_company_name, client_address, client_email, client_phone, linked_contract_template_id, status, created_at, updated_at, emailed_at)\nSELECT o.id,\n  (SELECT f.id FROM deal_document_flows f\n   WHERE f.is_active = true AND EXISTS (SELECT 1 FROM stages s WHERE s.id = f.trigger_stage_id AND s.pipeline_id = o.pipeline_id)\n   ORDER BY (f.trigger_stage_id = o.stage_id) DESC, f.id NULLS LAST LIMIT 1),\n  $2, $3, COALESCE(o.deal_value, 0), $4, $5,\n  NULLIF(TRIM(CONCAT(COALESCE($6::text, ''), ' ', COALESCE($7::text, ''))), ''), $8, NULL, $9, $10, $11,\n  'emailed', now(), now(), now()\nFROM opportunities o WHERE o.id = $1\nRETURNING id, public_token;",
+        "options": {
+          "queryReplacement": "={{ [ $('Detect Proposal Template Token').item.json.entityId, $('Look Up Proposal Template').item.json.title, $('Look Up Proposal Template').item.json.content_html, $('Look Up Proposal Template').item.json.email_subject, $('Look Up Proposal Template').item.json.email_body, $('Detect Proposal Template Token').item.json.row.first_name, $('Detect Proposal Template Token').item.json.row.last_name, $('Detect Proposal Template Token').item.json.row.company_name, $('Detect Proposal Template Token').item.json.row.email, $('Detect Proposal Template Token').item.json.row.contact_phone, $('Look Up Proposal Template').item.json.linked_contract_template_id ] }}"
+        }
+      },
+      "id": "auteng025-0000-4a5a-9b1a-automationeng25",
+      "name": "Generate Proposal For Deal",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2416,
+        672
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "notes": "Total auto-fills from the triggering deal's own value (COALESCE(o.deal_value, 0)); client_name/company/email/phone snapshot from the deal's linked contact, same as the manual deal-picker auto-fill in the editor. Marked 'emailed' immediately since Send Email fires later in this same run. Now also resolves flow_id the same way manual proposal saves do (Look Up Matching Flow (Save) in Proposals.json) \u2014 an active flow for the deal's pipeline, preferring one whose trigger_stage matches the deal's current stage. Without this, the generated proposal has no linked flow, so the viewed/approved stage-advance and any configured Contract Template silently never apply."
+    },
+    {
+      "parameters": {
+        "jsCode": "// $env access can be blocked entirely by the n8n instance's own security settings (N8N_BLOCK_ENV_ACCESS_IN_NODE) \u2014 reading a blocked var THROWS rather than returning undefined, so a bare `$env.X || ''` never gets a chance to fall back.\nfunction safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\n// Resolves {{proposal_template:ID}} into the real link for the proposal\n// just generated for this deal, then hands off the SAME meta shape (with\n// action.action_config.subject/body updated) so Detect Contract Template\n// Token can keep scanning \u2014 a single email can reference both a proposal\n// and a contract template.\nconst meta = $('Detect Proposal Template Token').item.json;\nconst proposal = $input.item.json;\nconst link = `${safeEnv('FRONTEND_BASE_URL')}/documents/proposal/${proposal.public_token}`;\nconst subject = (meta.action.action_config.subject || '').replace(/\\{\\{\\s*proposal_template:\\d+\\s*\\}\\}/gi, link);\nconst body = (meta.action.action_config.body || '').replace(/\\{\\{\\s*proposal_template:\\d+\\s*\\}\\}/gi, link);\nreturn [{\n  json: {\n    ...meta,\n    action: { ...meta.action, action_config: { ...meta.action.action_config, subject, body } },\n  },\n}];\n"
+      },
+      "id": "auteng026-0000-4a5a-9b1a-automationeng26",
+      "name": "Merge Proposal Link Into Action Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        672
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger: every 30 min": {
+      "main": [
+        [
+          {
+            "node": "Select Active Automations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Active Automations": {
+      "main": [
+        [
+          {
+            "node": "Build Candidate Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Candidate Query": {
+      "main": [
+        [
+          {
+            "node": "Run Candidate Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Candidate Query": {
+      "main": [
+        [
+          {
+            "node": "Evaluate & Expand Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate & Expand Actions": {
+      "main": [
+        [
+          {
+            "node": "Is Add Tag?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Add Tag?": {
+      "main": [
+        [
+          {
+            "node": "Resolve Tag",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is Send Email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Tag": {
+      "main": [
+        [
+          {
+            "node": "Insert Taggable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Taggable": {
+      "main": [
+        [
+          {
+            "node": "Log Tag Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Tag Result": {
+      "main": [
+        [
+          {
+            "node": "Log Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Send Email?": {
+      "main": [
+        [
+          {
+            "node": "Detect Proposal Template Token",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Unsupported",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Email": {
+      "main": [
+        [
+          {
+            "node": "Has Email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Email?": {
+      "main": [
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email": {
+      "main": [
+        [
+          {
+            "node": "Log Email Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Email Success": {
+      "main": [
+        [
+          {
+            "node": "Log Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Unsupported": {
+      "main": [
+        [
+          {
+            "node": "Log Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect Contract Template Token": {
+      "main": [
+        [
+          {
+            "node": "Has Contract Template?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Contract Template?": {
+      "main": [
+        [
+          {
+            "node": "Look Up Contract Template",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Contract Template": {
+      "main": [
+        [
+          {
+            "node": "Generate Contract For Deal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Contract For Deal": {
+      "main": [
+        [
+          {
+            "node": "Substitute Contract Link & Prepare Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Substitute Contract Link & Prepare Email": {
+      "main": [
+        [
+          {
+            "node": "Has Email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect Proposal Template Token": {
+      "main": [
+        [
+          {
+            "node": "Has Proposal Template?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Proposal Template?": {
+      "main": [
+        [
+          {
+            "node": "Look Up Proposal Template",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Detect Contract Template Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Proposal Template": {
+      "main": [
+        [
+          {
+            "node": "Generate Proposal For Deal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Proposal For Deal": {
+      "main": [
+        [
+          {
+            "node": "Merge Proposal Link Into Action Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Proposal Link Into Action Config": {
+      "main": [
+        [
+          {
+            "node": "Detect Contract Template Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
