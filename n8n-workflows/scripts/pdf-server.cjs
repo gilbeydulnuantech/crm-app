@@ -25,11 +25,15 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  const proposalToken = url.searchParams.get('proposalToken');
+  const printUrl = new URL(`http://localhost:5173/print/contract/${token}`);
+  if (proposalToken) printUrl.searchParams.set('proposal', proposalToken);
+
   let browser;
   try {
     browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
     const page = await browser.newPage();
-    await page.goto(`http://localhost:5173/print/contract/${token}`, { waitUntil: 'networkidle0', timeout: 30000 });
+    await page.goto(printUrl.toString(), { waitUntil: 'networkidle0', timeout: 30000 });
     const pdfBuffer = await page.pdf({
       format: 'Letter',
       printBackground: true,

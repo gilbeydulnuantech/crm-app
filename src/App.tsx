@@ -14,6 +14,7 @@ import Reports from './pages/Reports';
 import TeamChat from './pages/TeamChat';
 import Documents from './pages/Documents';
 import ProposalsListPage from './pages/ProposalsListPage';
+import ApprovedProposalsListPage from './pages/ApprovedProposalsListPage';
 import ProposalEditorPage from './pages/ProposalEditorPage';
 import ContractsListPage from './pages/ContractsListPage';
 import SignedContractsListPage from './pages/SignedContractsListPage';
@@ -60,6 +61,7 @@ export default function App() {
             <Route path="/team-chat" element={<TeamChat />} />
             <Route path="/documents" element={<Documents />} />
             <Route path="/documents/proposals" element={<ProposalsListPage />} />
+            <Route path="/documents/proposals/approved" element={<ApprovedProposalsListPage />} />
             <Route path="/documents/proposals/new" element={<ProposalEditorPage />} />
             <Route path="/documents/proposals/:id/edit" element={<ProposalEditorPage />} />
             <Route path="/documents/contracts" element={<ContractsListPage />} />

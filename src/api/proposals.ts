@@ -121,3 +121,38 @@ export function approveProposal(token: string, fieldValues?: Record<string, stri
     body: JSON.stringify({ token, field_values: fieldValues || {} }),
   });
 }
+
+// Internal, authenticated view of an approved proposal — the CRM equivalent
+// of PublicProposal, but fetched by internal id (not public_token) and
+// gated by the requester's role/deal ownership, same as fetchProposals.
+export interface ApprovedProposal {
+  success: boolean;
+  id: number;
+  title: string;
+  content_html: string;
+  total_amount: number;
+  public_token: string;
+  status: Proposal['status'];
+  client_name: string | null;
+  client_company_name: string | null;
+  client_address: string | null;
+  client_email: string | null;
+  client_phone: string | null;
+  contractor_company_name: string | null;
+  contractor_email: string | null;
+  contractor_phone: string | null;
+  field_values: Record<string, string | boolean> | null;
+  approved_at: string | null;
+  opportunity_name: string;
+  first_name: string | null;
+  last_name: string | null;
+  contact_email: string | null;
+  owner_name: string | null;
+  owner_email: string | null;
+  owner_phone: string | null;
+  error?: string;
+}
+
+export function fetchApprovedProposal(id: number) {
+  return apiFetch<ApprovedProposal>(`/webhook/get-proposal-approved?id=${id}`);
+}

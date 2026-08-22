@@ -50,3 +50,11 @@ export function useDeleteProposal() {
     },
   });
 }
+
+export function useApprovedProposal(id: number | null, enabled = true) {
+  return useQuery({
+    queryKey: ['approved-proposal', id],
+    queryFn: () => api.fetchApprovedProposal(id!),
+    enabled: enabled && id != null,
+  });
+}

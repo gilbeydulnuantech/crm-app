@@ -1249,6 +1249,175 @@
         1856,
         950
       ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-proposal-approved",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "prop0060-6060-4a5a-9b1a-proposal000060b",
+      "name": "Webhook - Get Proposal Approved",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        1760
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "prop0061-6161-4a5a-9b1a-proposal000061",
+      "name": "Parse Token (Approved)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        1760
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "prop0062-6262-4a5a-9b1a-proposal000062",
+      "name": "Look Up Requester (Approved)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1408,
+        1760
+      ],
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nconst qs = $('Webhook - Get Proposal Approved').first().json.query || {};\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nconst proposalId = parseInt(qs.id, 10);\nif (!Number.isInteger(proposalId)) throw new Error('A valid id query parameter is required.');\nreturn [{ json: { proposalId, requesterId: requester.id, requesterRole: requester.role } }];"
+      },
+      "id": "prop0063-6363-4a5a-9b1a-proposal000063",
+      "name": "Validate & Payload (Approved)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        1760
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT p.id, p.title, p.content_html, p.total_amount, p.public_token, p.status,\n  p.client_name, p.client_company_name, p.client_address, p.client_email, p.client_phone,\n  p.contractor_company_name, p.contractor_email, p.contractor_phone, p.field_values, p.approved_at,\n  o.name AS opportunity_name, c.first_name, c.last_name, c.email AS contact_email,\n  u.name AS owner_name, u.email AS owner_email, u.phone AS owner_phone\nFROM proposals p\nJOIN opportunities o ON o.id = p.opportunity_id\nLEFT JOIN contacts c ON c.id = o.contact_id\nLEFT JOIN users u ON u.id = o.assigned_user\nWHERE p.id = $1 AND p.is_archived = false AND ($2 = 'admin' OR o.assigned_user = $3);",
+        "options": {
+          "queryReplacement": "={{ [ $json.proposalId, $json.requesterRole, $json.requesterId ] }}"
+        }
+      },
+      "id": "prop0064-6464-4a5a-9b1a-proposal000064",
+      "name": "Look Up Proposal Approved",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1856,
+        1760
+      ],
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "prop0065-6565-4a5a-9b1a-proposal000065",
+              "leftValue": "={{ String($json.id || '') }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "prop0065-6565-4a5a-9b1a-proposal000065b",
+      "name": "Found? (Approved)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        1760
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: true, ...$input.item.json } }];"
+      },
+      "id": "prop0066-6666-4a5a-9b1a-proposal000066",
+      "name": "Build Proposal Approved Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2304,
+        1680
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "prop0067-6767-4a5a-9b1a-proposal000067",
+      "name": "Respond - Proposal Approved",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2528,
+        1680
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: 'Not found.' } }}",
+        "options": {
+          "responseCode": 404
+        }
+      },
+      "id": "prop0068-6868-4a5a-9b1a-proposal000068",
+      "name": "Respond - Proposal Approved Not Found",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2304,
+        1840
+      ]
     }
   ],
   "connections": {
@@ -2107,6 +2276,125 @@
         [
           {
             "node": "Respond - Proposal Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Get Proposal Approved": {
+      "main": [
+        [
+          {
+            "node": "Parse Token (Approved)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token (Approved)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester (Approved)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester (Approved)": {
+      "main": [
+        [
+          {
+            "node": "Validate & Payload (Approved)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Payload (Approved)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Proposal Approved",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Proposal Approved": {
+      "main": [
+        [
+          {
+            "node": "Found? (Approved)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Found? (Approved)": {
+      "main": [
+        [
+          {
+            "node": "Build Proposal Approved Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Proposal Approved Not Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Proposal Approved Response": {
+      "main": [
+        [
+          {
+            "node": "Respond - Proposal Approved",
             "type": "main",
             "index": 0
           }

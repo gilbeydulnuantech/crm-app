@@ -1398,7 +1398,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT ct.id, ct.title, ct.public_token, o.assigned_user\nFROM contracts ct\nJOIN opportunities o ON o.id = ct.opportunity_id\nWHERE ct.id = $1;",
+        "query": "SELECT ct.id, ct.title, ct.public_token, ct.proposal_id, p.public_token AS proposal_token, o.assigned_user\nFROM contracts ct\nJOIN opportunities o ON o.id = ct.opportunity_id\nLEFT JOIN proposals p ON p.id = ct.proposal_id\nWHERE ct.id = $1;",
         "options": {
           "queryReplacement": "={{ [ $('Parse Token & Payload (PDF)').item.json.contractId ] }}"
         }
@@ -1421,7 +1421,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const row = $input.item.json;\nconst requester = $('Look Up Requester (PDF)').first().json;\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (!row.id) throw new Error('Contract not found.');\nif (requester.role !== 'admin' && row.assigned_user !== requester.id) throw new Error('You do not have access to this deal.');\n\nreturn [{ json: { title: row.title, publicToken: row.public_token } }];"
+        "jsCode": "const row = $input.item.json;\nconst requester = $('Look Up Requester (PDF)').first().json;\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (!row.id) throw new Error('Contract not found.');\nif (requester.role !== 'admin' && row.assigned_user !== requester.id) throw new Error('You do not have access to this deal.');\n\nreturn [{ json: { title: row.title, publicToken: row.public_token, proposalToken: row.proposal_token || null } }];"
       },
       "id": "cont0084-8484-4a5a-9b1a-contract000084",
       "name": "Validate & Prepare (PDF)",
@@ -1449,7 +1449,7 @@
     },
     {
       "parameters": {
-        "url": "={{ 'http://localhost:5680/generate-pdf?token=' + $json.publicToken }}",
+        "url": "={{ 'http://localhost:5680/generate-pdf?token=' + $json.publicToken + ($json.proposalToken ? '&proposalToken=' + $json.proposalToken : '') }}",
         "options": {
           "response": {
             "response": {

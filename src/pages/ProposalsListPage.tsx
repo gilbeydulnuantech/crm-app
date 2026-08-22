@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProposalTemplates, useDeleteProposalTemplate } from '../hooks/useProposalTemplates';
 import ConfirmDialog from '../components/ConfirmDialog';
+import ProposalPreviewOverlay from '../components/proposals/ProposalPreviewOverlay';
 
 export default function ProposalsListPage() {
   const navigate = useNavigate();
@@ -10,6 +11,9 @@ export default function ProposalsListPage() {
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [previewId, setPreviewId] = useState<number | null>(null);
+
+  const previewTemplate = templates.find((t) => t.id === previewId);
 
   function handleDeleteConfirm() {
     if (confirmDeleteId == null) return;
@@ -25,13 +29,22 @@ export default function ProposalsListPage() {
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-lg font-bold text-slate-800">Proposals</h1>
-          <button
-            type="button"
-            onClick={() => navigate('/documents/proposals/new')}
-            className="px-4 py-2 text-sm font-semibold text-white bg-[var(--theme-accent)] hover:opacity-90 rounded-lg"
-          >
-            + New Proposal
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => navigate('/documents/proposals/approved')}
+              className="px-4 py-2 text-sm font-semibold text-slate-600 border border-slate-200 hover:bg-slate-50 rounded-lg"
+            >
+              Approved Proposals
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/documents/proposals/new')}
+              className="px-4 py-2 text-sm font-semibold text-white bg-[var(--theme-accent)] hover:opacity-90 rounded-lg"
+            >
+              + New Proposal
+            </button>
+          </div>
         </div>
         <p className="text-xs text-slate-500 -mt-2 mb-4">
           Standalone templates — no deal attached. A real, sendable proposal gets created from one of these either
@@ -56,6 +69,14 @@ export default function ProposalsListPage() {
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-slate-800 truncate">{t.title}</p>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewId(t.id)}
+                    title="View"
+                    className="shrink-0 text-slate-400 hover:text-indigo-600"
+                  >
+                    <i className="fa-solid fa-eye text-xs" />
+                  </button>
                   <button
                     type="button"
                     onClick={() => navigate(`/documents/proposals/${t.id}/edit`)}
@@ -94,6 +115,13 @@ export default function ProposalsListPage() {
             setDeleteError(null);
           }}
           onConfirm={handleDeleteConfirm}
+        />
+
+        <ProposalPreviewOverlay
+          open={previewId != null}
+          onClose={() => setPreviewId(null)}
+          title={previewTemplate?.title || ''}
+          contentHtml={previewTemplate?.content_html || ''}
         />
       </div>
     </div>
