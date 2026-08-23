@@ -19,6 +19,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/calendar', label: 'Calendar', icon: 'fa-solid fa-calendar-days' },
   { to: '/reports', label: 'Reports', icon: 'fa-solid fa-chart-line' },
   { to: '/team-chat', label: 'Team Chat', icon: 'fa-solid fa-comments' },
+  { to: '/tickets', label: 'Tickets', icon: 'fa-solid fa-headset' },
 ];
 
 const DOCUMENTS_SUB_ITEMS = [

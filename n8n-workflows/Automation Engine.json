@@ -44,7 +44,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// One query per automation, scoped by trigger_type. Deliberately does NOT\n// exclude entities that already have automation_runs history \u2014 the \"wait\"\n// action type needs an entity to be reconsidered on a LATER poll after a\n// wait step has been logged, so per-entity dedup can no longer happen at\n// the SQL level (a one-shot \"seen before? skip forever\" anti-join). All\n// dedup/wait-elapsed logic now lives in Evaluate & Expand Actions instead,\n// using the sibling Look Up Existing Runs node's data. This does mean\n// every matching entity gets re-evaluated every poll even once fully\n// done \u2014 acceptable at this app's data volume; automation_runs itself is\n// still the source of truth for \"has this exact action already run\".\n//\n// Automation metadata (trigger_config/condition_tree) travels along as a\n// jsonb literal column rather than relying on cross-node pairedItem\n// lookups, since automationId here is our own integer PK (not user\n// input) it's safe to inline into the query text. `actions` is\n// DELIBERATELY excluded from this literal \u2014 it holds the raw,\n// not-yet-personalized email templates (e.g. \"Hi {{first_name}}\"), and\n// this literal flows through Run Candidate Query's Query field, which\n// is an n8n expression template (`={{ $json.sqlQuery }}`). n8n's\n// expression engine treats ANY \"{{ }}\" it finds as ITS OWN syntax, so a\n// merge token embedded in that string gets misread as an (invalid) n8n\n// expression and silently renders as \"undefined\" \u2014 this is exactly the\n// bug that caused live sends to say \"Hi undefined\". Evaluate & Expand\n// Actions re-attaches the real `actions` (with intact merge tokens) by\n// reading Select Active Automations' own output directly \u2014 plain data\n// access in a Code node, never passed through an expression field.\n// Task and Calendar both read from `activities` (see src/types/event.ts)\n// \u2014 there is no separate calendar_events table in this schema.\n//\n// Every branch selects a consistent set of merge-token columns\n// (phone/job_title/lead_status/city/state/country/company_name/owner_*)\n// so the same AUTOMATION_DYNAMIC_FIELDS token set works regardless of\n// trigger type \u2014 a token whose column doesn't apply to a given branch\n// (e.g. {{deal_value}} on a Contact trigger) just comes back NULL and\n// fill() renders it as an empty string, same fallback every other\n// inapplicable token already had. stage_entered_at/last_contacted_at\n// back the days_since_stage_entered/days_since_last_activity trigger\n// fields (computed in getFieldValue, not here).\nconst row = $input.item.json; // { id, trigger_type, trigger_config, condition_tree, actions }\nconst meta = JSON.stringify({\n  automationId: row.id,\n  entityType: row.trigger_type,\n  triggerConfig: row.trigger_config,\n  conditionTree: row.condition_tree,\n});\nconst metaLiteral = `'${meta.replace(/'/g, \"''\")}'::jsonb`;\nconst id = row.id;\n\n// owner_name/owner_email/owner_phone resolve the {{owner_*}} merge tokens\n// \u2014 contacts/companies use their own owner_id, opportunities use\n// assigned_user, and tasks/calendar events (both `activities` rows) use\n// the assigned user_id.\nconst queries = {\n  contact: `SELECT c.id, c.first_name, c.last_name, c.email, c.phone, c.job_title, c.lead_status, c.birthdate, c.city, c.state, c.country, c.last_contacted_at,\n      comp.name AS company_name,\n      ow.name AS owner_name, ow.email AS owner_email, ow.phone AS owner_phone,\n      (SELECT COALESCE(json_agg(t.name), '[]'::json) FROM tags t JOIN taggables tg ON tg.tag_id = t.id WHERE tg.entity_type = 'contact' AND tg.entity_id = c.id) AS tags,\n      ${metaLiteral} AS automation_meta\n    FROM contacts c\n    LEFT JOIN companies comp ON comp.id = c.account_id\n    LEFT JOIN users ow ON ow.id = c.owner_id\n    WHERE c.is_archived = false;`,\n  company: `SELECT co.id, co.name, NULL::text AS first_name, NULL::text AS last_name, NULL::text AS email, NULL::text AS phone, NULL::text AS job_title, NULL::text AS lead_status,\n      co.name AS company_name, co.industry, co.website,\n      ow.name AS owner_name, ow.email AS owner_email, ow.phone AS owner_phone,\n      co.account_status, co.city, co.state, co.country, co.annual_revenue, co.employee_count,\n      (SELECT COALESCE(json_agg(t.name), '[]'::json) FROM tags t JOIN taggables tg ON tg.tag_id = t.id WHERE tg.entity_type = 'company' AND tg.entity_id = co.id) AS tags,\n      ${metaLiteral} AS automation_meta\n    FROM companies co\n    LEFT JOIN users ow ON ow.id = co.owner_id\n    WHERE co.is_archived = false;`,\n  task: `SELECT act.id, act.subject AS name, ct.first_name, ct.last_name, ct.email, ct.phone, ct.job_title, ct.lead_status,\n      comp.name AS company_name,\n      ow.name AS owner_name, ow.email AS owner_email, ow.phone AS owner_phone,\n      act.is_completed, act.due_at, act.type AS event_type,\n      ${metaLiteral} AS automation_meta\n    FROM activities act\n    LEFT JOIN contacts ct ON ct.id = act.contact_id\n    LEFT JOIN companies comp ON comp.id = ct.account_id\n    LEFT JOIN users ow ON ow.id = act.user_id\n    WHERE act.due_at IS NOT NULL;`,\n  calendar: `SELECT act.id, act.subject AS name, ct.first_name, ct.last_name, ct.email, ct.phone, ct.job_title, ct.lead_status,\n      comp.name AS company_name,\n      ow.name AS owner_name, ow.email AS owner_email, ow.phone AS owner_phone,\n      act.type AS event_type, act.due_at, act.is_completed,\n      ${metaLiteral} AS automation_meta\n    FROM activities act\n    LEFT JOIN contacts ct ON ct.id = act.contact_id\n    LEFT JOIN companies comp ON comp.id = ct.account_id\n    LEFT JOIN users ow ON ow.id = act.user_id\n    WHERE act.due_at IS NOT NULL;`,\n  pipeline: `SELECT o.id, o.name, o.account_id, o.deal_value, o.expected_close, o.source, o.priority, o.stage_entered_at,\n      ct.first_name, ct.last_name, ct.email, ct.phone, ct.job_title, ct.lead_status, ct.city, ct.state, ct.country,\n      co.name AS company_name, co.industry, co.website,\n      ow.name AS owner_name, ow.email AS owner_email, ow.phone AS owner_phone,\n      o.pipeline_id, o.stage_id, st.name AS stage_name, pl.name AS pipeline_name,\n      prop.public_token AS proposal_token, contr.public_token AS contract_token,\n      ${metaLiteral} AS automation_meta\n    FROM opportunities o\n    LEFT JOIN contacts ct ON ct.id = o.contact_id\n    LEFT JOIN companies co ON co.id = o.account_id\n    LEFT JOIN users ow ON ow.id = o.assigned_user\n    LEFT JOIN stages st ON st.id = o.stage_id\n    LEFT JOIN pipelines pl ON pl.id = o.pipeline_id\n    LEFT JOIN LATERAL (\n      SELECT p.public_token FROM proposals p WHERE p.opportunity_id = o.id ORDER BY p.created_at DESC LIMIT 1\n    ) prop ON true\n    LEFT JOIN LATERAL (\n      SELECT c2.public_token FROM contracts c2 WHERE c2.opportunity_id = o.id ORDER BY c2.created_at DESC LIMIT 1\n    ) contr ON true\n    WHERE o.is_archived = false;`,\n};\n\nconst sqlQuery = queries[row.trigger_type];\nif (!sqlQuery) return [];\nreturn [{ json: { sqlQuery, automationId: id } }];"
+        "jsCode": "// One query per automation, scoped by trigger_type. Deliberately does NOT\n// exclude entities that already have automation_runs history \u2014 the \"wait\"\n// action type needs an entity to be reconsidered on a LATER poll after a\n// wait step has been logged, so per-entity dedup can no longer happen at\n// the SQL level (a one-shot \"seen before? skip forever\" anti-join). All\n// dedup/wait-elapsed logic now lives in Evaluate & Expand Actions instead,\n// using the sibling Look Up Existing Runs node's data. This does mean\n// every matching entity gets re-evaluated every poll even once fully\n// done \u2014 acceptable at this app's data volume; automation_runs itself is\n// still the source of truth for \"has this exact action already run\".\n//\n// Automation metadata (trigger_config/condition_tree) travels along as a\n// jsonb literal column rather than relying on cross-node pairedItem\n// lookups, since automationId here is our own integer PK (not user\n// input) it's safe to inline into the query text. `actions` is\n// DELIBERATELY excluded from this literal \u2014 it holds the raw,\n// not-yet-personalized email templates (e.g. \"Hi {{first_name}}\"), and\n// this literal flows through Run Candidate Query's Query field, which\n// is an n8n expression template (`={{ $json.sqlQuery }}`). n8n's\n// expression engine treats ANY \"{{ }}\" it finds as ITS OWN syntax, so a\n// merge token embedded in that string gets misread as an (invalid) n8n\n// expression and silently renders as \"undefined\" \u2014 this is exactly the\n// bug that caused live sends to say \"Hi undefined\". Evaluate & Expand\n// Actions re-attaches the real `actions` (with intact merge tokens) by\n// reading Select Active Automations' own output directly \u2014 plain data\n// access in a Code node, never passed through an expression field.\n// Task and Calendar both read from `activities` (see src/types/event.ts)\n// \u2014 there is no separate calendar_events table in this schema.\n//\n// Every branch selects a consistent set of merge-token columns\n// (phone/job_title/lead_status/city/state/country/company_name/owner_*)\n// so the same AUTOMATION_DYNAMIC_FIELDS token set works regardless of\n// trigger type \u2014 a token whose column doesn't apply to a given branch\n// (e.g. {{deal_value}} on a Contact trigger) just comes back NULL and\n// fill() renders it as an empty string, same fallback every other\n// inapplicable token already had. stage_entered_at/last_contacted_at\n// back the days_since_stage_entered/days_since_last_activity trigger\n// fields (computed in getFieldValue, not here).\nconst row = $input.item.json; // { id, trigger_type, trigger_config, condition_tree, actions }\nconst meta = JSON.stringify({\n  automationId: row.id,\n  entityType: row.trigger_type,\n  triggerConfig: row.trigger_config,\n  conditionTree: row.condition_tree,\n});\nconst metaLiteral = `'${meta.replace(/'/g, \"''\")}'::jsonb`;\nconst id = row.id;\n\n// owner_name/owner_email/owner_phone resolve the {{owner_*}} merge tokens\n// \u2014 contacts/companies use their own owner_id, opportunities use\n// assigned_user, and tasks/calendar events (both `activities` rows) use\n// the assigned user_id.\nconst queries = {\n  contact: `SELECT c.id, c.first_name, c.last_name, c.email, c.phone, c.job_title, c.lead_status, c.birthdate, c.city, c.state, c.country, c.last_contacted_at, c.lead_source, c.do_not_contact, c.created_at,\n      comp.name AS company_name,\n      ow.name AS owner_name, ow.email AS owner_email, ow.phone AS owner_phone,\n      (SELECT COALESCE(json_agg(t.name), '[]'::json) FROM tags t JOIN taggables tg ON tg.tag_id = t.id WHERE tg.entity_type = 'contact' AND tg.entity_id = c.id) AS tags,\n      ${metaLiteral} AS automation_meta\n    FROM contacts c\n    LEFT JOIN companies comp ON comp.id = c.account_id\n    LEFT JOIN users ow ON ow.id = c.owner_id\n    WHERE c.is_archived = false;`,\n  company: `SELECT co.id, co.name, NULL::text AS first_name, NULL::text AS last_name, NULL::text AS email, NULL::text AS phone, NULL::text AS job_title, NULL::text AS lead_status,\n      co.name AS company_name, co.industry, co.website,\n      ow.name AS owner_name, ow.email AS owner_email, ow.phone AS owner_phone,\n      co.account_status, co.city, co.state, co.country, co.annual_revenue, co.employee_count, co.account_health, co.tier, co.created_at,\n      (SELECT COALESCE(json_agg(t.name), '[]'::json) FROM tags t JOIN taggables tg ON tg.tag_id = t.id WHERE tg.entity_type = 'company' AND tg.entity_id = co.id) AS tags,\n      ${metaLiteral} AS automation_meta\n    FROM companies co\n    LEFT JOIN users ow ON ow.id = co.owner_id\n    WHERE co.is_archived = false;`,\n  task: `SELECT act.id, act.subject AS name, ct.first_name, ct.last_name, ct.email, ct.phone, ct.job_title, ct.lead_status,\n      comp.name AS company_name,\n      ow.name AS owner_name, ow.email AS owner_email, ow.phone AS owner_phone,\n      act.is_completed, act.due_at, act.type AS event_type,\n      ${metaLiteral} AS automation_meta\n    FROM activities act\n    LEFT JOIN contacts ct ON ct.id = act.contact_id\n    LEFT JOIN companies comp ON comp.id = ct.account_id\n    LEFT JOIN users ow ON ow.id = act.user_id\n    WHERE act.due_at IS NOT NULL;`,\n  calendar: `SELECT act.id, act.subject AS name, ct.first_name, ct.last_name, ct.email, ct.phone, ct.job_title, ct.lead_status,\n      comp.name AS company_name,\n      ow.name AS owner_name, ow.email AS owner_email, ow.phone AS owner_phone,\n      act.type AS event_type, act.due_at, act.is_completed,\n      ${metaLiteral} AS automation_meta\n    FROM activities act\n    LEFT JOIN contacts ct ON ct.id = act.contact_id\n    LEFT JOIN companies comp ON comp.id = ct.account_id\n    LEFT JOIN users ow ON ow.id = act.user_id\n    WHERE act.due_at IS NOT NULL;`,\n  ticket: `SELECT t.id, t.subject AS name, t.status, t.priority, t.sla_due_at, t.created_at, t.resolved_at,\n      ct.first_name, ct.last_name, ct.email, ct.phone, ct.job_title, ct.lead_status,\n      co.name AS company_name,\n      ow.name AS owner_name, ow.email AS owner_email, ow.phone AS owner_phone,\n      ${metaLiteral} AS automation_meta\n    FROM tickets t\n    LEFT JOIN contacts ct ON ct.id = t.contact_id\n    LEFT JOIN companies co ON co.id = t.account_id\n    LEFT JOIN users ow ON ow.id = t.assigned_user\n    WHERE t.is_archived = false;`,\n  pipeline: `SELECT o.id, o.name, o.account_id, o.deal_value, o.expected_close, o.source, o.priority, o.stage_entered_at,\n      o.status, o.probability, o.lost_reason, o.created_at,\n      GREATEST(o.updated_at, COALESCE(la.last_activity, o.updated_at)) AS last_touched_at,\n      ct.first_name, ct.last_name, ct.email, ct.phone, ct.job_title, ct.lead_status, ct.city, ct.state, ct.country,\n      co.name AS company_name, co.industry, co.website,\n      ow.name AS owner_name, ow.email AS owner_email, ow.phone AS owner_phone,\n      o.pipeline_id, o.stage_id, st.name AS stage_name, pl.name AS pipeline_name,\n      prop.public_token AS proposal_token, prop.status AS proposal_status, prop.emailed_at AS proposal_emailed_at, prop.viewed_at AS proposal_viewed_at,\n      contr.public_token AS contract_token, contr.status AS contract_status, contr.sent_at AS contract_sent_at, contr.signed_at AS contract_signed_at,\n      ${metaLiteral} AS automation_meta\n    FROM opportunities o\n    LEFT JOIN contacts ct ON ct.id = o.contact_id\n    LEFT JOIN companies co ON co.id = o.account_id\n    LEFT JOIN users ow ON ow.id = o.assigned_user\n    LEFT JOIN stages st ON st.id = o.stage_id\n    LEFT JOIN pipelines pl ON pl.id = o.pipeline_id\n    LEFT JOIN (SELECT opportunity_id, MAX(created_at) AS last_activity FROM activities GROUP BY opportunity_id) la ON la.opportunity_id = o.id\n    LEFT JOIN LATERAL (\n      SELECT p.public_token, p.status, p.emailed_at, p.viewed_at FROM proposals p WHERE p.opportunity_id = o.id ORDER BY p.created_at DESC LIMIT 1\n    ) prop ON true\n    LEFT JOIN LATERAL (\n      SELECT c2.public_token, c2.status, c2.sent_at, c2.signed_at FROM contracts c2 WHERE c2.opportunity_id = o.id ORDER BY c2.created_at DESC LIMIT 1\n    ) contr ON true\n    WHERE o.is_archived = false;`,\n};\n\nconst sqlQuery = queries[row.trigger_type];\nif (!sqlQuery) return [];\nreturn [{ json: { sqlQuery, automationId: id } }];"
       },
       "id": "auteng003-0000-4a5a-9b1a-automationeng3",
       "name": "Build Candidate Query",
@@ -79,7 +79,7 @@
     },
     {
       "parameters": {
-        "jsCode": "function getFieldValue(row, field) {\n  if (field === 'age') {\n    if (!row.birthdate) return null;\n    const ms = Date.now() - new Date(row.birthdate).getTime();\n    return Math.floor(ms / (365.25 * 24 * 3600 * 1000));\n  }\n  if (field === 'overdue') {\n    return !row.is_completed && row.due_at && new Date(row.due_at) < new Date();\n  }\n  if (field === 'location') {\n    return [row.city, row.state, row.country].filter(Boolean).join(', ');\n  }\n  if (field === 'days_since_stage_entered') {\n    if (!row.stage_entered_at) return null;\n    return Math.floor((Date.now() - new Date(row.stage_entered_at).getTime()) / 86400000);\n  }\n  if (field === 'days_since_last_activity') {\n    if (!row.last_contacted_at) return null;\n    return Math.floor((Date.now() - new Date(row.last_contacted_at).getTime()) / 86400000);\n  }\n  return row[field];\n}\n\nfunction evalCondition(row, cond) {\n  if (!cond || !cond.field) return true;\n  const actual = getFieldValue(row, cond.field);\n  const expected = cond.value;\n  switch (cond.operator) {\n    case 'equals': return Array.isArray(actual) ? actual.includes(expected) : String(actual) === String(expected);\n    case 'not_equals': return Array.isArray(actual) ? !actual.includes(expected) : String(actual) !== String(expected);\n    case 'contains': return String(actual || '').toLowerCase().includes(String(expected).toLowerCase());\n    case 'greater_than': { const n = Number(actual); return Number.isFinite(n) ? n > Number(expected) : new Date(actual) > new Date(expected); }\n    case 'less_than': { const n = Number(actual); return Number.isFinite(n) ? n < Number(expected) : new Date(actual) < new Date(expected); }\n    case 'is_true': return Boolean(actual) === true;\n    case 'is_false': return Boolean(actual) === false;\n    default: return false;\n  }\n}\n\n// A \"wait\" action's duration, in milliseconds.\nfunction waitMs(config) {\n  const amount = Number(config?.amount) || 0;\n  const perUnit = { minutes: 60 * 1000, hours: 3600 * 1000, days: 86400 * 1000, months: 30 * 86400 * 1000 };\n  return amount * (perUnit[config?.unit] || perUnit.days);\n}\n\n// Fans one input row out into zero or more action-items \u2014 a manual\n// many-to-many reshape. Without an explicit `pairedItem` on each\n// constructed item, n8n's automatic pairedItem inference for this kind\n// of fan-out is unreliable once more than one row/action is in flight,\n// which breaks every downstream $('Evaluate & Expand Actions').item\n// lookup (Log Tag Result / Log Email Success / Log Unsupported) \u2014\n// they'd log the WRONG entity_id into automation_runs, so the real\n// entity never gets deduped and re-fires on the next poll. Setting\n// pairedItem explicitly here is what keeps that lineage correct.\n// actions come from Select Active Automations' own output (plain data\n// access, not a `={{ }}` expression field) rather than from the SQL\n// literal, so raw merge tokens like {{first_name}} survive intact \u2014\n// see the comment on Build Candidate Query for why.\n//\n// Dedup/sequencing now happens entirely here (not in SQL, see Build\n// Candidate Query's comment): each branch's actions run in sort_order.\n// An action already logged with status success/unsupported is skipped\n// (never re-run). A \"wait\" action, the first time it's reached, is\n// logged now (recording its start time) and blocks every action after\n// it in the SAME branch for THIS poll. On a later poll, once enough\n// time has passed since that logged ran_at, the wait is considered\n// satisfied and processing continues to the next action \u2014 this is what\n// makes a multi-day wait actually span multiple 30-minute poll cycles\n// instead of firing everything at once.\nconst actionsByAutomationId = {};\nconst createdByAutomationId = {};\nfor (const it of $('Select Active Automations').all()) {\n  actionsByAutomationId[it.json.id] = it.json.actions;\n  createdByAutomationId[it.json.id] = it.json.created_by;\n}\n\nconst runsByKey = {};\nfor (const it of $('Look Up Existing Runs').all()) {\n  const r = it.json;\n  runsByKey[`${r.action_id}|${r.entity_type}|${r.entity_id}`] = r;\n}\n\nconst output = [];\n$input.all().forEach((item, itemIndex) => {\n  const row = item.json;\n  const meta = row.automation_meta;\n  if (!meta) return;\n  if (!evalCondition(row, meta.triggerConfig)) return;\n  const branch = meta.conditionTree ? (evalCondition(row, meta.conditionTree) ? 'true' : 'false') : 'default';\n  const actions = (actionsByAutomationId[meta.automationId] || [])\n    .filter((a) => a.branch === branch)\n    .slice()\n    .sort((a, b) => a.sort_order - b.sort_order);\n\n  for (const action of actions) {\n    const key = `${action.id}|${meta.entityType}|${row.id}`;\n    const existingRun = runsByKey[key];\n\n    if (existingRun && existingRun.status !== 'error') {\n      if (action.action_type === 'wait') {\n        const elapsed = Date.now() - new Date(existingRun.ran_at).getTime();\n        if (elapsed < waitMs(action.action_config)) break; // still waiting \u2014 stop here this poll\n        continue; // wait satisfied \u2014 move on to the next action\n      }\n      continue; // already ran (tag/email/etc.) \u2014 never re-run, move on\n    }\n\n    // Not yet logged \u2014 this is the next thing to do for this entity.\n    output.push({\n      json: {\n        automationId: meta.automationId,\n        actionId: action.id,\n        entityType: meta.entityType,\n        entityId: row.id,\n        branch,\n        action,\n        row,\n        createdBy: createdByAutomationId[meta.automationId],\n      },\n      pairedItem: { item: itemIndex },\n    });\n\n    // A freshly-started wait blocks everything after it THIS pass \u2014 the\n    // next action only becomes eligible once the wait's logged ran_at is\n    // old enough, which can only be checked on a subsequent poll.\n    if (action.action_type === 'wait') break;\n  }\n});\nreturn output;"
+        "jsCode": "function getFieldValue(row, field) {\n  if (field === 'age') {\n    if (!row.birthdate) return null;\n    const ms = Date.now() - new Date(row.birthdate).getTime();\n    return Math.floor(ms / (365.25 * 24 * 3600 * 1000));\n  }\n  if (field === 'overdue') {\n    return !row.is_completed && row.due_at && new Date(row.due_at) < new Date();\n  }\n  if (field === 'location') {\n    return [row.city, row.state, row.country].filter(Boolean).join(', ');\n  }\n  if (field === 'days_since_stage_entered') {\n    if (!row.stage_entered_at) return null;\n    return Math.floor((Date.now() - new Date(row.stage_entered_at).getTime()) / 86400000);\n  }\n  if (field === 'days_since_last_activity') {\n    if (!row.last_contacted_at) return null;\n    return Math.floor((Date.now() - new Date(row.last_contacted_at).getTime()) / 86400000);\n  }\n  if (field === 'days_since_created') {\n    if (!row.created_at) return null;\n    return Math.floor((Date.now() - new Date(row.created_at).getTime()) / 86400000);\n  }\n  if (field === 'days_inactive') {\n    if (!row.last_touched_at) return null;\n    return Math.floor((Date.now() - new Date(row.last_touched_at).getTime()) / 86400000);\n  }\n  if (field === 'sla_overdue') {\n    if (!row.sla_due_at || row.status === 'resolved' || row.status === 'closed') return false;\n    return new Date(row.sla_due_at).getTime() < Date.now();\n  }\n  if (field === 'days_since_proposal_sent') {\n    if (!row.proposal_emailed_at) return null;\n    return Math.floor((Date.now() - new Date(row.proposal_emailed_at).getTime()) / 86400000);\n  }\n  if (field === 'days_since_proposal_viewed') {\n    if (!row.proposal_viewed_at) return null;\n    return Math.floor((Date.now() - new Date(row.proposal_viewed_at).getTime()) / 86400000);\n  }\n  if (field === 'days_since_contract_sent') {\n    if (!row.contract_sent_at) return null;\n    return Math.floor((Date.now() - new Date(row.contract_sent_at).getTime()) / 86400000);\n  }\n  if (field === 'days_since_contract_signed') {\n    if (!row.contract_signed_at) return null;\n    return Math.floor((Date.now() - new Date(row.contract_signed_at).getTime()) / 86400000);\n  }\n  return row[field];\n}\n\nfunction evalCondition(row, cond) {\n  if (!cond || !cond.field) return true;\n  const actual = getFieldValue(row, cond.field);\n  const expected = cond.value;\n  switch (cond.operator) {\n    case 'equals': return Array.isArray(actual) ? actual.includes(expected) : String(actual) === String(expected);\n    case 'not_equals': return Array.isArray(actual) ? !actual.includes(expected) : String(actual) !== String(expected);\n    case 'contains': return String(actual || '').toLowerCase().includes(String(expected).toLowerCase());\n    case 'greater_than': { const n = Number(actual); return Number.isFinite(n) ? n > Number(expected) : new Date(actual) > new Date(expected); }\n    case 'less_than': { const n = Number(actual); return Number.isFinite(n) ? n < Number(expected) : new Date(actual) < new Date(expected); }\n    case 'is_true': return Boolean(actual) === true;\n    case 'is_false': return Boolean(actual) === false;\n    default: return false;\n  }\n}\n\n// A \"wait\" action's duration, in milliseconds.\nfunction waitMs(config) {\n  const amount = Number(config?.amount) || 0;\n  const perUnit = { minutes: 60 * 1000, hours: 3600 * 1000, days: 86400 * 1000, months: 30 * 86400 * 1000 };\n  return amount * (perUnit[config?.unit] || perUnit.days);\n}\n\n// Fans one input row out into zero or more action-items \u2014 a manual\n// many-to-many reshape. Without an explicit `pairedItem` on each\n// constructed item, n8n's automatic pairedItem inference for this kind\n// of fan-out is unreliable once more than one row/action is in flight,\n// which breaks every downstream $('Evaluate & Expand Actions').item\n// lookup (Log Tag Result / Log Email Success / Log Unsupported) \u2014\n// they'd log the WRONG entity_id into automation_runs, so the real\n// entity never gets deduped and re-fires on the next poll. Setting\n// pairedItem explicitly here is what keeps that lineage correct.\n// actions come from Select Active Automations' own output (plain data\n// access, not a `={{ }}` expression field) rather than from the SQL\n// literal, so raw merge tokens like {{first_name}} survive intact \u2014\n// see the comment on Build Candidate Query for why.\n//\n// Dedup/sequencing now happens entirely here (not in SQL, see Build\n// Candidate Query's comment): each branch's actions run in sort_order.\n// An action already logged with status success/unsupported is skipped\n// (never re-run). A \"wait\" action, the first time it's reached, is\n// logged now (recording its start time) and blocks every action after\n// it in the SAME branch for THIS poll. On a later poll, once enough\n// time has passed since that logged ran_at, the wait is considered\n// satisfied and processing continues to the next action \u2014 this is what\n// makes a multi-day wait actually span multiple 30-minute poll cycles\n// instead of firing everything at once.\nconst actionsByAutomationId = {};\nconst createdByAutomationId = {};\nfor (const it of $('Select Active Automations').all()) {\n  actionsByAutomationId[it.json.id] = it.json.actions;\n  createdByAutomationId[it.json.id] = it.json.created_by;\n}\n\nconst runsByKey = {};\nfor (const it of $('Look Up Existing Runs').all()) {\n  const r = it.json;\n  if (r.action_id == null) continue; // alwaysOutputData placeholder from a zero-row lookup\n  runsByKey[`${r.action_id}|${r.entity_type}|${r.entity_id}`] = r;\n}\n\nconst output = [];\n$input.all().forEach((item, itemIndex) => {\n  const row = item.json;\n  const meta = row.automation_meta;\n  if (!meta) return;\n  if (!evalCondition(row, meta.triggerConfig)) return;\n  const branch = meta.conditionTree ? (evalCondition(row, meta.conditionTree) ? 'true' : 'false') : 'default';\n  const actions = (actionsByAutomationId[meta.automationId] || [])\n    .filter((a) => a.branch === branch)\n    .slice()\n    .sort((a, b) => a.sort_order - b.sort_order);\n\n  for (const action of actions) {\n    const key = `${action.id}|${meta.entityType}|${row.id}`;\n    const existingRun = runsByKey[key];\n\n    if (existingRun && existingRun.status !== 'error') {\n      if (action.action_type === 'wait') {\n        const elapsed = Date.now() - new Date(existingRun.ran_at).getTime();\n        if (elapsed < waitMs(action.action_config)) break; // still waiting \u2014 stop here this poll\n        continue; // wait satisfied \u2014 move on to the next action\n      }\n      continue; // already ran (tag/email/etc.) \u2014 never re-run, move on\n    }\n\n    // Not yet logged \u2014 this is the next thing to do for this entity.\n    output.push({\n      json: {\n        automationId: meta.automationId,\n        actionId: action.id,\n        entityType: meta.entityType,\n        entityId: row.id,\n        branch,\n        action,\n        row,\n        createdBy: createdByAutomationId[meta.automationId],\n      },\n      pairedItem: { item: itemIndex },\n    });\n\n    // A freshly-started wait blocks everything after it THIS pass \u2014 the\n    // next action only becomes eligible once the wait's logged ran_at is\n    // old enough, which can only be checked on a subsequent poll.\n    if (action.action_type === 'wait') break;\n  }\n});\nreturn output;"
       },
       "id": "auteng005-0000-4a5a-9b1a-automationeng5",
       "name": "Evaluate & Expand Actions",
@@ -582,7 +582,8 @@
           "name": "myRag"
         }
       },
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -766,6 +767,133 @@
         1520,
         720
       ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "auteng008updfield",
+              "leftValue": "={{ $json.action.action_type }}",
+              "rightValue": "update_field",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "841a7ba4-79b9-4574-9856-e036b8365df8",
+      "name": "Is Update Field?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1520,
+        880
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const meta = $input.item.json; // {automationId, actionId, entityType, entityId, branch, action, row, createdBy}\nconst config = meta.action.action_config || {};\n\n// Allowlist only \u2014 the field/table/column never come from raw user\n// input, they're looked up through this map, so there's no way an\n// automation's saved config can point an UPDATE at an arbitrary column.\nconst FIELD_MAP = {\n  contact: {\n    lead_status: { table: 'contacts', column: 'lead_status', valueType: 'text' },\n    owner_id: { table: 'contacts', column: 'owner_id', valueType: 'int' },\n  },\n  company: {\n    account_status: { table: 'companies', column: 'account_status', valueType: 'text' },\n    account_health: { table: 'companies', column: 'account_health', valueType: 'text' },\n    tier: { table: 'companies', column: 'tier', valueType: 'text' },\n    owner_id: { table: 'companies', column: 'owner_id', valueType: 'int' },\n  },\n  pipeline: {\n    status: { table: 'opportunities', column: 'status', valueType: 'text' },\n    stage_id: { table: 'opportunities', column: 'stage_id', valueType: 'int', extra: ', stage_entered_at = now()' },\n    priority: { table: 'opportunities', column: 'priority', valueType: 'text' },\n    assigned_user: { table: 'opportunities', column: 'assigned_user', valueType: 'int' },\n  },\n  task: {\n    is_completed: { table: 'activities', column: 'is_completed', valueType: 'boolean' },\n    user_id: { table: 'activities', column: 'user_id', valueType: 'int' },\n  },\n  calendar: {\n    is_completed: { table: 'activities', column: 'is_completed', valueType: 'boolean' },\n    user_id: { table: 'activities', column: 'user_id', valueType: 'int' },\n  },\n  ticket: {\n    status: { table: 'tickets', column: 'status', valueType: 'text' },\n    priority: { table: 'tickets', column: 'priority', valueType: 'text' },\n    assigned_user: { table: 'tickets', column: 'assigned_user', valueType: 'int' },\n  },\n};\n\n// contacts/companies/opportunities all have updated_at; activities does not.\nconst UPDATED_AT_TABLES = new Set(['contacts', 'companies', 'opportunities', 'tickets']);\n\nfunction fail(detail) {\n  return [{ json: { automationId: meta.automationId, actionId: meta.actionId, entityType: meta.entityType, entityId: meta.entityId, branch: meta.branch, status: 'error', detail } }];\n}\n\nconst spec = (FIELD_MAP[meta.entityType] || {})[config.field];\nif (!spec) return fail(`Field \"${config.field}\" is not updatable for entity type \"${meta.entityType}\".`);\nif (config.value === undefined || config.value === null || config.value === '') return fail('No value configured for this update.');\n\nlet castedValue = config.value;\nif (spec.valueType === 'int') {\n  castedValue = parseInt(config.value, 10);\n  if (!Number.isInteger(castedValue)) return fail(`Value \"${config.value}\" is not a valid id.`);\n} else if (spec.valueType === 'boolean') {\n  castedValue = config.value === true || config.value === 'true';\n}\n\n// Marking a task/calendar item complete (or un-complete) via automation\n// should behave the same as doing it by hand \u2014 stamp/clear completed_at.\nconst completedAtExtra = spec.column === 'is_completed' ? ', completed_at = CASE WHEN $1::boolean THEN now() ELSE NULL END' : '';\nconst updatedAtExtra = UPDATED_AT_TABLES.has(spec.table) ? ', updated_at = now()' : '';\n\nconst sqlQuery = `UPDATE ${spec.table} SET ${spec.column} = $1${completedAtExtra}${spec.extra || ''}${updatedAtExtra} WHERE id = $2 RETURNING id;`;\n\nreturn [{\n  json: {\n    automationId: meta.automationId,\n    actionId: meta.actionId,\n    entityType: meta.entityType,\n    entityId: meta.entityId,\n    branch: meta.branch,\n    status: 'ok',\n    sqlQuery,\n    params: [castedValue, meta.entityId],\n  },\n}];"
+      },
+      "id": "c6b45fba-b95d-470e-889a-03fa2125200b",
+      "name": "Prepare Update Field",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1744,
+        880
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "auteng009hasvalidfield",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "error",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "557deeb6-4819-4578-ae2e-846bce3fbbf4",
+      "name": "Has Valid Field?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1968,
+        880
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sqlQuery }}",
+        "options": {
+          "queryReplacement": "={{ $json.params }}"
+        }
+      },
+      "id": "28f683b5-979a-4af6-b594-5a175a51c33f",
+      "name": "Run Update Field",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2192,
+        880
+      ],
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const meta = $('Prepare Update Field').item.json;\nreturn [{ json: { automationId: meta.automationId, actionId: meta.actionId, entityType: meta.entityType, entityId: meta.entityId, branch: meta.branch, status: 'success', detail: null } }];"
+      },
+      "id": "07e538a9-517b-48a5-9e08-ad7b350c1bcd",
+      "name": "Log Update Field Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2416,
+        880
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: $('Build Candidate Query').item.json }];"
+      },
+      "id": "2719b80d-c8fe-4c2c-97b8-5e4d016e5838",
+      "name": "Bridge: Restore Candidate Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        460
+      ]
     }
   ],
   "connections": {
@@ -794,11 +922,6 @@
     "Build Candidate Query": {
       "main": [
         [
-          {
-            "node": "Run Candidate Query",
-            "type": "main",
-            "index": 0
-          },
           {
             "node": "Look Up Existing Runs",
             "type": "main",
@@ -1124,7 +1247,7 @@
         ],
         [
           {
-            "node": "Is Send Email?",
+            "node": "Is Update Field?",
             "type": "main",
             "index": 0
           }
@@ -1189,6 +1312,97 @@
         [
           {
             "node": "Log Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Existing Runs": {
+      "main": [
+        [
+          {
+            "node": "Bridge: Restore Candidate Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Update Field?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Update Field",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is Send Email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Update Field": {
+      "main": [
+        [
+          {
+            "node": "Has Valid Field?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Valid Field?": {
+      "main": [
+        [
+          {
+            "node": "Run Update Field",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Update Field": {
+      "main": [
+        [
+          {
+            "node": "Log Update Field Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Update Field Result": {
+      "main": [
+        [
+          {
+            "node": "Log Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge: Restore Candidate Query": {
+      "main": [
+        [
+          {
+            "node": "Run Candidate Query",
             "type": "main",
             "index": 0
           }

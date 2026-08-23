@@ -34,6 +34,35 @@ import SearchToolbar from '../components/SearchToolbar';
 
 const CLOSED_LOST_STAGE = /lost/i;
 
+// Column visibility is a per-rep display preference, not shared data — kept
+// in localStorage (scoped by user id, since a shared browser could have
+// multiple reps logging in/out) rather than the backend. Stage visibility
+// stores the HIDDEN ids, not the visible ones, so a newly added stage
+// defaults to visible instead of silently disappearing because it wasn't
+// in an old saved "visible" list.
+function hiddenStagesKey(userId: number | undefined, pipelineId: number | undefined) {
+  return `pipeline-hidden-stages:${userId ?? 'anon'}:${pipelineId ?? 'none'}`;
+}
+function listColumnVisibilityKey(userId: number | undefined) {
+  return `pipeline-list-column-visibility:${userId ?? 'anon'}`;
+}
+function loadHiddenStageIds(userId: number | undefined, pipelineId: number | undefined): Set<number> {
+  try {
+    const raw = localStorage.getItem(hiddenStagesKey(userId, pipelineId));
+    return raw ? new Set(JSON.parse(raw) as number[]) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+function loadListColumnVisibility(userId: number | undefined): VisibilityState {
+  try {
+    const raw = localStorage.getItem(listColumnVisibilityKey(userId));
+    return raw ? (JSON.parse(raw) as VisibilityState) : {};
+  } catch {
+    return {};
+  }
+}
+
 function isDealOverdue(o: Opportunity): boolean {
   return o.status === 'Open' && !!o.expected_close && new Date(o.expected_close).getTime() < Date.now();
 }
@@ -48,7 +77,7 @@ export default function Pipeline() {
     urlPipelineId ? Number(urlPipelineId) : undefined
   );
   const [viewMode, setViewMode] = useState<PipelineViewMode>('board');
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(() => loadListColumnVisibility(user?.id));
   const [visibleStageIds, setVisibleStageIds] = useState<Set<number>>(new Set());
   const [stagesInitializedForPipeline, setStagesInitializedForPipeline] = useState<number | undefined>(undefined);
   const [view, setView] = useState<PipelineTabView>('all');
@@ -103,15 +132,30 @@ export default function Pipeline() {
   const { data: users = [] } = useUsers();
   const { data: tags = [] } = useTags();
 
-  // Default to every stage visible once this pipeline's stages load — reset
-  // whenever the pipeline itself changes (stage ids differ per pipeline),
-  // not on every background refetch of the same pipeline's stages.
+  // Every stage visible by default, minus whatever this rep previously
+  // hid (persisted in localStorage) — reset whenever the pipeline itself
+  // changes (stage ids differ per pipeline), not on every background
+  // refetch of the same pipeline's stages.
   useEffect(() => {
     if (stages.length > 0 && stagesInitializedForPipeline !== pipelineId) {
-      setVisibleStageIds(new Set(stages.map((s) => s.id)));
+      const hidden = loadHiddenStageIds(user?.id, pipelineId);
+      setVisibleStageIds(new Set(stages.filter((s) => !hidden.has(s.id)).map((s) => s.id)));
       setStagesInitializedForPipeline(pipelineId);
     }
-  }, [stages, pipelineId, stagesInitializedForPipeline]);
+  }, [stages, pipelineId, stagesInitializedForPipeline, user?.id]);
+
+  // Persist hidden-stage choices as the rep toggles them, so a refresh
+  // doesn't silently un-hide everything — only re-checking the box does.
+  useEffect(() => {
+    if (stagesInitializedForPipeline !== pipelineId) return; // skip the transient pre-init state
+    const hiddenIds = stages.filter((s) => !visibleStageIds.has(s.id)).map((s) => s.id);
+    localStorage.setItem(hiddenStagesKey(user?.id, pipelineId), JSON.stringify(hiddenIds));
+  }, [visibleStageIds, stages, pipelineId, stagesInitializedForPipeline, user?.id]);
+
+  // Same idea for the List view's column-visibility menu.
+  useEffect(() => {
+    localStorage.setItem(listColumnVisibilityKey(user?.id), JSON.stringify(columnVisibility));
+  }, [columnVisibility, user?.id]);
 
   // Default to everyone checked once the team list loads — "All Members"
   // means unrestricted, not "hide everyone until you opt in".

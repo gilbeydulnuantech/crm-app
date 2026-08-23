@@ -5,6 +5,7 @@ import { toTitleCase } from '../utils/text';
 import { useUnreadEmailContacts, useUsers } from '../hooks/useContacts';
 import { useConversations } from '../hooks/useChat';
 import { useTasks } from '../hooks/useTasks';
+import { useTickets } from '../hooks/useTickets';
 import { stripRefTokens } from '../utils/chatRefs';
 
 export default function TopBar() {
@@ -44,7 +45,15 @@ export default function TopBar() {
       )
     : [];
 
-  const unreadCount = emailUnreadCount + chatUnreadCount + tasksDueToday.length;
+  // Tickets are a "specific owner" notification — team-wide ticket alerts
+  // (new/unassigned, SLA escalation) go to Team Chat via the automation
+  // engine instead; the bell only surfaces what's assigned to THIS user.
+  const { data: allTickets = [] } = useTickets();
+  const myOpenTickets = allTickets.filter(
+    (t) => t.assigned_user === user?.id && (t.status === 'open' || t.status === 'pending')
+  );
+
+  const unreadCount = emailUnreadCount + chatUnreadCount + tasksDueToday.length + myOpenTickets.length;
   const badgeCount = Math.max(unreadCount - seenUnreadCount, 0);
 
   function toggleBell() {
@@ -70,6 +79,11 @@ export default function TopBar() {
     navigate(`/tasks?highlight=${taskId}`);
   }
 
+  function openTicket(ticketId: number) {
+    setBellOpen(false);
+    navigate(`/tickets/${ticketId}`);
+  }
+
   function runGlobalSearch(e: FormEvent) {
     e.preventDefault();
     const q = globalSearch.trim();
@@ -83,16 +97,6 @@ export default function TopBar() {
       style={{ backgroundColor: 'var(--theme-header)' }}
     >
       <div className="flex items-center gap-3 shrink-0">
-        {hideSearch && (
-          <button
-            type="button"
-            onClick={() => navigate('/dashboard')}
-            title="Back to app"
-            className="text-slate-500 hover:text-slate-700"
-          >
-            <i className="fa-solid fa-arrow-left" />
-          </button>
-        )}
         <span className="font-bold text-slate-800 text-sm tracking-wide">CRM</span>
       </div>
 
@@ -147,7 +151,7 @@ export default function TopBar() {
                 <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
                   Notifications
                 </div>
-                {unreadContacts.length === 0 && unreadConversations.length === 0 && tasksDueToday.length === 0 ? (
+                {unreadContacts.length === 0 && unreadConversations.length === 0 && tasksDueToday.length === 0 && myOpenTickets.length === 0 ? (
                   <p className="px-3 py-3 text-xs text-slate-400">Nothing new.</p>
                 ) : (
                   <>
@@ -224,6 +228,26 @@ export default function TopBar() {
                         <span className="text-xs font-semibold text-slate-800 truncate">
                           {toTitleCase(t.subject)}
                         </span>
+                      </button>
+                    ))}
+                    {myOpenTickets.length > 0 && (
+                      <div className="px-3 pt-2 pb-0.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wide border-t border-slate-100 mt-1">
+                        My Tickets ({myOpenTickets.length})
+                      </div>
+                    )}
+                    {myOpenTickets.map((t) => (
+                      <button
+                        key={`ticket-${t.id}`}
+                        onClick={() => openTicket(t.id)}
+                        className="w-full flex items-start gap-2.5 px-3 py-2 text-left hover:bg-slate-50"
+                      >
+                        <i className="fa-solid fa-headset text-indigo-500 text-xs mt-0.5 shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <span className="text-xs font-semibold text-slate-800 truncate block">{t.subject}</span>
+                          {t.sla_due_at && new Date(t.sla_due_at).getTime() < Date.now() && (
+                            <span className="text-[10px] text-rose-600 font-semibold">Past SLA</span>
+                          )}
+                        </div>
                       </button>
                     ))}
                   </>

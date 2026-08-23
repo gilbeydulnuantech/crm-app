@@ -25,9 +25,12 @@ import Automations from './pages/Automations';
 import AutomationEditorPage from './pages/AutomationEditorPage';
 import Settings from './pages/Settings';
 import ObservabilityDashboard from './pages/ObservabilityDashboard';
+import Tickets from './pages/Tickets';
+import TicketDetailPage from './pages/TicketDetailPage';
 import PublicProposalPage from './pages/PublicProposalPage';
 import PublicContractPage from './pages/PublicContractPage';
 import PrintContractPage from './pages/PrintContractPage';
+import PublicTicketPage from './pages/PublicTicketPage';
 
 function LoginRoute() {
   const { user, isLoading } = useAuth();
@@ -45,6 +48,7 @@ export default function App() {
           <Route path="/documents/proposal/:token" element={<PublicProposalPage />} />
           <Route path="/documents/contract/:token" element={<PublicContractPage />} />
           <Route path="/print/contract/:token" element={<PrintContractPage />} />
+          <Route path="/support/new" element={<PublicTicketPage />} />
 
           <Route
             element={
@@ -78,6 +82,8 @@ export default function App() {
             <Route path="/automations/:id/edit" element={<AutomationEditorPage />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/observability" element={<ObservabilityDashboard />} />
+            <Route path="/tickets" element={<Tickets />} />
+            <Route path="/tickets/:id" element={<TicketDetailPage />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
           </Route>
 

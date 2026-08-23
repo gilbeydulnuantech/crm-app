@@ -13,7 +13,7 @@ import {
   TestAutomationResult,
 } from '../api/automations';
 import { useAutomations, useSaveAutomation, useTestAutomation } from '../hooks/useAutomations';
-import { useTags } from '../hooks/useContacts';
+import { useTags, useUsers } from '../hooks/useContacts';
 import { usePipelines, useStages, useAllStages } from '../hooks/useOpportunities';
 import { useProposalTemplates } from '../hooks/useProposalTemplates';
 import { useContractTemplates } from '../hooks/useContractTemplates';
@@ -23,14 +23,25 @@ import { ProposalTemplate } from '../api/proposalTemplates';
 import { ContractTemplate } from '../api/contractTemplates';
 import { EmailTemplate } from '../api/emailTemplates';
 import { LEAD_STATUS_OPTIONS } from '../types/contact';
-import { COMPANY_STATUSES, COMPANY_REVENUE_BANDS, COMPANY_EMPLOYEE_BANDS } from '../types/company';
+import {
+  COMPANY_STATUSES,
+  COMPANY_REVENUE_BANDS,
+  COMPANY_EMPLOYEE_BANDS,
+  COMPANY_HEALTH_STATUSES,
+  COMPANY_TIERS,
+} from '../types/company';
 import { EVENT_TYPES, EVENT_TYPE_META } from '../types/event';
+import { TICKET_STATUSES, TICKET_PRIORITIES } from '../types/ticket';
 import { AUTOMATION_DYNAMIC_FIELDS } from '../components/DynamicFieldDropdown';
 
 const inputClass =
   'w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]';
 
 type FieldKind = 'select' | 'text' | 'date' | 'number' | 'boolean';
+
+const DEAL_STATUS_OPTIONS = ['Open', 'Won', 'Lost'] as const;
+const PROPOSAL_STATUS_OPTIONS = ['draft', 'emailed', 'viewed', 'approved'] as const;
+const CONTRACT_STATUS_OPTIONS = ['draft', 'sent', 'signed'] as const;
 
 interface FieldDef {
   key: string;
@@ -48,6 +59,9 @@ const TRIGGER_FIELDS: Record<TriggerType, FieldDef[]> = {
     { key: 'age', label: 'Age', kind: 'number' },
     { key: 'location', label: 'Location', kind: 'text' },
     { key: 'days_since_last_activity', label: 'Days Since Last Contact', kind: 'number' },
+    { key: 'days_since_created', label: 'Lead Age (days)', kind: 'number' },
+    { key: 'lead_source', label: 'Lead Source', kind: 'text' },
+    { key: 'do_not_contact', label: 'Do Not Contact', kind: 'boolean' },
   ],
   company: [
     { key: 'account_status', label: 'Status', kind: 'select', options: COMPANY_STATUSES },
@@ -57,6 +71,9 @@ const TRIGGER_FIELDS: Record<TriggerType, FieldDef[]> = {
     { key: 'location', label: 'Location', kind: 'text' },
     { key: 'annual_revenue', label: 'Annual Revenue', kind: 'select', options: COMPANY_REVENUE_BANDS },
     { key: 'employee_count', label: 'Employee Number', kind: 'select', options: COMPANY_EMPLOYEE_BANDS },
+    { key: 'account_health', label: 'Account Health', kind: 'select', options: COMPANY_HEALTH_STATUSES },
+    { key: 'tier', label: 'Tier', kind: 'select', options: COMPANY_TIERS },
+    { key: 'days_since_created', label: 'Account Age (days)', kind: 'number' },
   ],
   task: [
     { key: 'is_completed', label: 'Complete', kind: 'boolean' },
@@ -65,15 +82,33 @@ const TRIGGER_FIELDS: Record<TriggerType, FieldDef[]> = {
   calendar: [
     { key: 'type', label: 'Type', kind: 'select', options: EVENT_TYPES },
     { key: 'due_at', label: 'Due Date', kind: 'date' },
+    { key: 'is_completed', label: 'Complete', kind: 'boolean' },
   ],
   pipeline: [
     { key: 'pipeline_id', label: 'Pipeline', kind: 'select' },
     { key: 'stage_id', label: 'Stage', kind: 'select' },
+    { key: 'status', label: 'Deal Status', kind: 'select', options: DEAL_STATUS_OPTIONS },
     { key: 'deal_value', label: 'Deal Value', kind: 'number' },
+    { key: 'probability', label: 'Probability (%)', kind: 'number' },
     { key: 'expected_close', label: 'Expected Close', kind: 'date' },
     { key: 'source', label: 'Source', kind: 'text' },
     { key: 'priority', label: 'Priority', kind: 'text' },
+    { key: 'lost_reason', label: 'Lost Reason', kind: 'text' },
     { key: 'days_since_stage_entered', label: 'Days in Current Stage', kind: 'number' },
+    { key: 'days_since_created', label: 'Deal Age (days)', kind: 'number' },
+    { key: 'days_inactive', label: 'Days Inactive (no updates/activity)', kind: 'number' },
+    { key: 'proposal_status', label: 'Proposal Status', kind: 'select', options: PROPOSAL_STATUS_OPTIONS },
+    { key: 'days_since_proposal_sent', label: 'Days Since Proposal Sent', kind: 'number' },
+    { key: 'days_since_proposal_viewed', label: 'Days Since Proposal Viewed', kind: 'number' },
+    { key: 'contract_status', label: 'Contract Status', kind: 'select', options: CONTRACT_STATUS_OPTIONS },
+    { key: 'days_since_contract_sent', label: 'Days Since Contract Sent', kind: 'number' },
+    { key: 'days_since_contract_signed', label: 'Days Since Contract Signed', kind: 'number' },
+  ],
+  ticket: [
+    { key: 'status', label: 'Status', kind: 'select', options: TICKET_STATUSES },
+    { key: 'priority', label: 'Priority', kind: 'select', options: TICKET_PRIORITIES },
+    { key: 'sla_overdue', label: 'SLA Overdue', kind: 'boolean' },
+    { key: 'days_since_created', label: 'Days Open', kind: 'number' },
   ],
 };
 
@@ -82,7 +117,8 @@ const TRIGGER_TYPE_LABELS: Record<TriggerType, string> = {
   company: 'Company',
   task: 'Task',
   calendar: 'Calendar',
-  pipeline: 'Pipeline',
+  pipeline: 'Deal',
+  ticket: 'Ticket',
 };
 
 const OPERATORS_BY_KIND: Record<FieldKind, { value: ConditionOperator; label: string }[]> = {
@@ -116,6 +152,52 @@ const ACTION_TYPE_META: Record<ActionType, { label: string; icon: string; coming
   send_team_notification: { label: 'Send team notification', icon: 'fa-bell' },
   send_sms: { label: 'Send SMS', icon: 'fa-comment-sms', comingSoon: true },
   wait: { label: 'Wait', icon: 'fa-clock' },
+  update_field: { label: 'Update field', icon: 'fa-pen-to-square' },
+};
+
+// Fields an automation is allowed to WRITE, per trigger type — deliberately
+// a much smaller allowlist than TRIGGER_FIELDS (which only ever READS).
+// Keep this in lockstep with the FIELD_MAP allowlist in the "Prepare
+// Update Field" node in n8n-workflows/Automation Engine.json.
+type UpdateFieldValueKind = 'select' | 'user' | 'boolean' | 'text' | 'stage';
+
+interface UpdateFieldDef {
+  key: string;
+  label: string;
+  valueKind: UpdateFieldValueKind;
+  options?: readonly string[];
+}
+
+const UPDATE_FIELD_OPTIONS: Record<TriggerType, UpdateFieldDef[]> = {
+  contact: [
+    { key: 'lead_status', label: 'Status', valueKind: 'select', options: LEAD_STATUS_OPTIONS },
+    { key: 'owner_id', label: 'Owner', valueKind: 'user' },
+  ],
+  company: [
+    { key: 'account_status', label: 'Status', valueKind: 'select', options: COMPANY_STATUSES },
+    { key: 'account_health', label: 'Account Health', valueKind: 'select', options: COMPANY_HEALTH_STATUSES },
+    { key: 'tier', label: 'Tier', valueKind: 'select', options: COMPANY_TIERS },
+    { key: 'owner_id', label: 'Owner', valueKind: 'user' },
+  ],
+  pipeline: [
+    { key: 'status', label: 'Deal Status', valueKind: 'select', options: DEAL_STATUS_OPTIONS },
+    { key: 'stage_id', label: 'Stage', valueKind: 'stage' },
+    { key: 'priority', label: 'Priority', valueKind: 'text' },
+    { key: 'assigned_user', label: 'Owner', valueKind: 'user' },
+  ],
+  task: [
+    { key: 'is_completed', label: 'Complete', valueKind: 'boolean' },
+    { key: 'user_id', label: 'Assigned To', valueKind: 'user' },
+  ],
+  calendar: [
+    { key: 'is_completed', label: 'Complete', valueKind: 'boolean' },
+    { key: 'user_id', label: 'Assigned To', valueKind: 'user' },
+  ],
+  ticket: [
+    { key: 'status', label: 'Status', valueKind: 'select', options: TICKET_STATUSES },
+    { key: 'priority', label: 'Priority', valueKind: 'select', options: TICKET_PRIORITIES },
+    { key: 'assigned_user', label: 'Assigned To', valueKind: 'user' },
+  ],
 };
 
 const WAIT_UNIT_OPTIONS: { value: WaitUnit; label: string }[] = [
@@ -155,6 +237,7 @@ export default function AutomationEditorPage() {
   const saveAutomation = useSaveAutomation();
   const testAutomation = useTestAutomation();
   const { data: tags = [] } = useTags();
+  const { data: users = [] } = useUsers();
   const { data: pipelines = [] } = usePipelines();
   const { data: proposalTemplates = [] } = useProposalTemplates();
   const { data: contractTemplates = [] } = useContractTemplates();
@@ -319,6 +402,12 @@ export default function AutomationEditorPage() {
       }
       if (a.action_type === 'wait' && !(Number(a.action_config.amount) > 0)) {
         return 'Every "Wait" action needs a duration greater than 0.';
+      }
+      if (a.action_type === 'update_field') {
+        if (!String(a.action_config.field || '').trim()) return 'Every "Update field" action needs a field chosen.';
+        if (a.action_config.value === undefined || a.action_config.value === '') {
+          return 'Every "Update field" action needs a value.';
+        }
       }
     }
     return null;
@@ -515,8 +604,12 @@ export default function AutomationEditorPage() {
                     >
                       <ActionCard
                         action={a}
+                        triggerType={triggerType}
                         tags={tags}
                         channels={channels}
+                        users={users}
+                        pipelines={pipelines}
+                        allStages={allStages}
                         onChange={(patch) => updateAction(i, patch)}
                         onFieldFocus={(key) => setActiveField({ index: i, key })}
                       />
@@ -622,8 +715,12 @@ export default function AutomationEditorPage() {
                           >
                             <ActionCard
                               action={a}
+                              triggerType={triggerType}
                               tags={tags}
                               channels={channels}
+                              users={users}
+                              pipelines={pipelines}
+                              allStages={allStages}
                               onChange={(patch) => updateAction(i, patch)}
                               onFieldFocus={(key) => setActiveField({ index: i, key })}
                             />
@@ -913,14 +1010,22 @@ function ActionNodeExtras({ meta, onRemove }: { meta: { label: string; comingSoo
 // editable in place either).
 function ActionCard({
   action,
+  triggerType,
   tags,
   channels,
+  users,
+  pipelines,
+  allStages,
   onChange,
   onFieldFocus,
 }: {
   action: ActionDraft;
+  triggerType: TriggerType;
   tags: { id: number; name: string }[];
   channels: { id: number; name?: string | null }[];
+  users: { id: number; name: string }[];
+  pipelines: { id: number; name: string }[];
+  allStages: { id: number; name: string; pipeline_id: number }[];
   onChange: (patch: Partial<ActionDraft>) => void;
   onFieldFocus: (key: 'subject' | 'body' | 'message') => void;
 }) {
@@ -1026,7 +1131,114 @@ function ActionCard({
           </select>
         </div>
       )}
+
+      {action.action_type === 'update_field' && (
+        <div className="space-y-1.5">
+          <select
+            value={String(action.action_config.field || '')}
+            onChange={(e) => onChange({ action_config: { field: e.target.value, value: '' } })}
+            className={inputClass}
+          >
+            <option value="">Choose a field to update...</option>
+            {UPDATE_FIELD_OPTIONS[triggerType].map((f) => (
+              <option key={f.key} value={f.key}>
+                {f.label}
+              </option>
+            ))}
+          </select>
+          {Boolean(action.action_config.field) && (
+            <UpdateFieldValueInput
+              def={UPDATE_FIELD_OPTIONS[triggerType].find((f) => f.key === action.action_config.field)!}
+              value={action.action_config.value as string | number | boolean | undefined}
+              onChange={(v) => onChange({ action_config: { ...action.action_config, value: v } })}
+              users={users}
+              pipelines={pipelines}
+              allStages={allStages}
+            />
+          )}
+        </div>
+      )}
     </div>
+  );
+}
+
+// The value input for "Update field" adapts to what kind of column is
+// being written — a plain text/select field, a user picker (owner/
+// assignee columns), a stage picker (deal stage_id, labeled with its
+// pipeline so it's unambiguous across multiple pipelines), or a
+// true/false picker (is_completed).
+function UpdateFieldValueInput({
+  def,
+  value,
+  onChange,
+  users,
+  pipelines,
+  allStages,
+}: {
+  def: UpdateFieldDef;
+  value: string | number | boolean | undefined;
+  onChange: (v: string | number | boolean) => void;
+  users: { id: number; name: string }[];
+  pipelines: { id: number; name: string }[];
+  allStages: { id: number; name: string; pipeline_id: number }[];
+}) {
+  if (def.valueKind === 'select') {
+    return (
+      <select value={String(value ?? '')} onChange={(e) => onChange(e.target.value)} className={inputClass}>
+        <option value="">Choose a value...</option>
+        {(def.options || []).map((o) => (
+          <option key={o} value={o}>
+            {o}
+          </option>
+        ))}
+      </select>
+    );
+  }
+  if (def.valueKind === 'user') {
+    return (
+      <select value={String(value ?? '')} onChange={(e) => onChange(Number(e.target.value))} className={inputClass}>
+        <option value="">Choose a user...</option>
+        {users.map((u) => (
+          <option key={u.id} value={u.id}>
+            {u.name}
+          </option>
+        ))}
+      </select>
+    );
+  }
+  if (def.valueKind === 'stage') {
+    return (
+      <select value={String(value ?? '')} onChange={(e) => onChange(Number(e.target.value))} className={inputClass}>
+        <option value="">Choose a stage...</option>
+        {allStages.map((s) => (
+          <option key={s.id} value={s.id}>
+            {pipelines.find((p) => p.id === s.pipeline_id)?.name || 'Pipeline'} / {s.name}
+          </option>
+        ))}
+      </select>
+    );
+  }
+  if (def.valueKind === 'boolean') {
+    return (
+      <select
+        value={value === true ? 'true' : value === false ? 'false' : ''}
+        onChange={(e) => onChange(e.target.value === 'true')}
+        className={inputClass}
+      >
+        <option value="">Choose a value...</option>
+        <option value="true">True</option>
+        <option value="false">False</option>
+      </select>
+    );
+  }
+  return (
+    <input
+      type="text"
+      value={String(value ?? '')}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder="New value"
+      className={inputClass}
+    />
   );
 }
 

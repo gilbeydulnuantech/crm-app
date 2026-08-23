@@ -7,7 +7,7 @@ import TopBar from './TopBar';
 // automation builder — want maximum width, same idea as GHL's builder
 // going full-screen — hide the nav only there, not on the Documents/
 // Automations list pages, which keep the main nav like the rest of the app.
-const NO_SIDEBAR_PATTERN = /^\/documents\/(proposals|contracts|pages)\/(new|\d+\/edit)$|^\/automations\/(new|\d+\/edit)$/;
+const NO_SIDEBAR_PATTERN = /^\/documents\/(proposals|contracts|pages)\/(new|\d+\/edit)$|^\/automations\/(new|\d+\/edit)$|^\/tickets\/\d+$/;
 
 export default function AppLayout() {
   const [navOpen, setNavOpen] = useState(true);

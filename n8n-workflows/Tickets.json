@@ -1,0 +1,1865 @@
+{
+  "name": "Tickets",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "get-tickets",
+        "responseMode": "responseNode",
+        "options": {},
+        "httpMethod": "GET"
+      },
+      "id": "d9e3ecbd-c8f0-42a7-8ae6-5530305417f3",
+      "name": "Webhook: get-tickets",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        160
+      ],
+      "webhookId": "0a0bbd63-b455-46ac-a381-9a9b7ca6e8a2"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
+      },
+      "id": "95b7d135-f50b-4c81-97b5-da1f2ba21519",
+      "name": "Parse Token: get-tickets",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "941a754f-a2e2-4d86-9125-15fbe9a3a596",
+      "name": "Look Up Requester: get-tickets",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        640,
+        160
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nreturn [{ json: {} }];"
+      },
+      "id": "800adee0-3571-419a-af9f-aeaf66e1b062",
+      "name": "Check Requester: get-tickets",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT t.id, t.subject, t.description, t.status, t.priority, t.contact_id, t.account_id, t.assigned_user,\n  t.sla_due_at, t.first_response_at, t.resolved_at, t.created_at, t.updated_at,\n  ct.first_name AS contact_first_name, ct.last_name AS contact_last_name,\n  co.name AS account_name,\n  u.name AS assigned_name,\n  t.submitter_name, t.submitter_email,\n  (SELECT COUNT(*) FROM ticket_comments tc WHERE tc.ticket_id = t.id) AS comment_count\nFROM tickets t\nLEFT JOIN contacts ct ON ct.id = t.contact_id\nLEFT JOIN companies co ON co.id = t.account_id\nLEFT JOIN users u ON u.id = t.assigned_user\nWHERE t.is_archived = false\nORDER BY t.created_at DESC;",
+        "options": {}
+      },
+      "id": "622e396d-04cf-467d-ade3-896b1edd5ddd",
+      "name": "Postgres: Select Tickets",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1040,
+        160
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "f8724c67-5b29-4f61-8c17-72464a893026",
+      "name": "Respond: get-tickets",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1240,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "path": "get-ticket",
+        "responseMode": "responseNode",
+        "options": {},
+        "httpMethod": "GET"
+      },
+      "id": "4245657f-cc95-4d09-9e48-9cc24433e1cf",
+      "name": "Webhook: get-ticket",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        380
+      ],
+      "webhookId": "83b8c9c2-a92e-4160-86b0-d4090ce7706e"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
+      },
+      "id": "9937fd48-d1b0-4095-91bb-9e4243acbff1",
+      "name": "Parse Token: get-ticket",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "c8e40dbf-3a3e-4d57-826b-07cf25badf9e",
+      "name": "Look Up Requester: get-ticket",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        640,
+        380
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nconst ticketId = parseInt($('Webhook: get-ticket').first().json.query.id, 10);\nif (!Number.isInteger(ticketId)) throw new Error('\"id\" is required.');\nreturn [{ json: { ticketId } }];"
+      },
+      "id": "43dea1fa-362a-48cd-9b1b-eb13ae3b20d7",
+      "name": "Check Requester: get-ticket",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT t.id, t.subject, t.description, t.status, t.priority, t.category, t.contact_id, t.account_id, t.assigned_user,\n  t.sla_due_at, t.first_response_at, t.resolved_at, t.resolution_notes, t.created_at, t.updated_at,\n  ct.first_name AS contact_first_name, ct.last_name AS contact_last_name, ct.email AS contact_email, ct.phone AS contact_phone,\n  ct.lead_status AS contact_status, ct.created_at AS contact_created_at,\n  co.name AS account_name,\n  u.name AS assigned_name,\n  ow.name AS account_owner_name,\n  rb.name AS resolved_by_name,\n  t.submitter_name, t.submitter_email\nFROM tickets t\nLEFT JOIN contacts ct ON ct.id = t.contact_id\nLEFT JOIN companies co ON co.id = t.account_id\nLEFT JOIN users u ON u.id = t.assigned_user\nLEFT JOIN users ow ON ow.id = COALESCE(ct.owner_id, co.owner_id)\nLEFT JOIN users rb ON rb.id = t.resolved_by\nWHERE t.id = $1 AND t.is_archived = false;",
+        "options": {
+          "queryReplacement": "={{ [ $json.ticketId ] }}"
+        }
+      },
+      "id": "2adb6a45-d40c-439b-b900-3026994cba54",
+      "name": "Postgres: Select Ticket",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1040,
+        380
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: $('Check Requester: get-ticket').first().json }];"
+      },
+      "id": "646ab4b7-d13f-4873-98c7-8dcfa2854d56",
+      "name": "Bridge: get-ticket",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1240,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT tc.id, tc.ticket_id, tc.author_id, u.name AS author_name, tc.body, tc.channel, tc.created_at\nFROM ticket_comments tc LEFT JOIN users u ON u.id = tc.author_id\nWHERE tc.ticket_id = $1 ORDER BY tc.created_at ASC;",
+        "options": {
+          "queryReplacement": "={{ [ $json.ticketId ] }}"
+        }
+      },
+      "id": "6ce9538d-0110-4df8-94ae-45858150431f",
+      "name": "Postgres: Select Ticket Comments",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1440,
+        380
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const ticketItem = $('Postgres: Select Ticket').first()?.json;\nif (!ticketItem || ticketItem.id == null) throw new Error('Ticket not found.');\nconst ticket = ticketItem;\n\n// Select Ticket Comments / Select Related Deal legitimately return zero\n// rows a lot (no comments yet, no linked deal) \u2014 those nodes have\n// \"Always Output Data\" on so the chain doesn't just stop dead (n8n's\n// default behavior when a node's query matches nothing), but that means\n// their one placeholder item has no real columns on it. Filter/guard on\n// an actual id instead of assuming the row is real.\nconst comments = $('Postgres: Select Ticket Comments').all()\n  .filter((i) => i.json.id != null)\n  .map((i) => ({ kind: 'comment', ...i.json }));\nconst events = $('Postgres: Select Ticket Activity Log').all()\n  .filter((i) => i.json.id != null)\n  .map((i) => ({ kind: 'event', ...i.json }));\nconst timeline = [...comments, ...events].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));\n\nconst counts = $('Postgres: Select Ticket Counts').first()?.json || { open_count: 0, previous_count: 0 };\nconst relatedDealRow = $('Postgres: Select Related Deal').first()?.json;\nconst relatedDeal = relatedDealRow && relatedDealRow.id != null ? relatedDealRow : null;\n\nreturn [{\n  json: {\n    ...ticket,\n    timeline,\n    open_ticket_count: Number(counts.open_count) || 0,\n    previous_ticket_count: Number(counts.previous_count) || 0,\n    related_deal: relatedDeal,\n  },\n}];"
+      },
+      "id": "e8ef73cf-965f-4d50-b5db-3cdbbd16c06e",
+      "name": "Merge: get-ticket",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1640,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "80959354-f388-4e17-9b1a-db43aa3cb133",
+      "name": "Respond: get-ticket",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1840,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "path": "create-ticket",
+        "responseMode": "responseNode",
+        "options": {},
+        "httpMethod": "POST"
+      },
+      "id": "66bbe7e0-ebd7-4ddb-a014-f1348b24c791",
+      "name": "Webhook: create-ticket",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        600
+      ],
+      "webhookId": "28eac81d-2266-4a1d-948b-7811f2c78588"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
+      },
+      "id": "f1ca5242-edc0-4f15-a59f-b7f876228f98",
+      "name": "Parse Token: create-ticket",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "420e360d-12ec-460a-8430-2281c8b215d6",
+      "name": "Look Up Requester: create-ticket",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        640,
+        600
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: create-ticket').first().json.body || {};\nconst subject = (body.subject || '').toString().trim();\nif (!subject) throw new Error('\"subject\" is required.');\n\nconst VALID_PRIORITIES = ['low', 'normal', 'high', 'urgent'];\nconst priority = VALID_PRIORITIES.includes(body.priority) ? body.priority : 'normal';\nconst SLA_HOURS = { urgent: 4, high: 8, normal: 24, low: 72 };\n\nreturn [{\n  json: {\n    subject,\n    description: (body.description || '').toString(),\n    priority,\n    slaHours: SLA_HOURS[priority],\n    contactId: body.contact_id ? parseInt(body.contact_id, 10) : null,\n    accountId: body.account_id ? parseInt(body.account_id, 10) : null,\n    assignedUser: body.assigned_user ? parseInt(body.assigned_user, 10) : null,\n    requesterId: requester.id,\n    requesterName: requester.name,\n  },\n}];"
+      },
+      "id": "c77b1f48-6d34-4264-ba3d-ecf0ceadd518",
+      "name": "Check Payload: create-ticket",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO tickets (subject, description, priority, contact_id, account_id, assigned_user, created_by, sla_due_at)\nVALUES ($1, $2, $3, $4, $5, $6, $7, now() + ($8 || ' hours')::interval)\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.subject, $json.description, $json.priority, $json.contactId, $json.accountId, $json.assignedUser, $json.requesterId, $json.slaHours ] }}"
+        }
+      },
+      "id": "27e092ae-504f-4630-b107-a5f54687f2ad",
+      "name": "Postgres: Insert Ticket",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1040,
+        600
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: true, id: $('Postgres: Insert Ticket').item.json.id } }];"
+      },
+      "id": "302f11ae-5998-42d5-9799-d518c21ece21",
+      "name": "Bridge: create-ticket",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1240,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "b41a2466-4c3f-4483-80bf-dcc0b93a4661",
+      "name": "Respond: create-ticket",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1440,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "path": "update-ticket",
+        "responseMode": "responseNode",
+        "options": {},
+        "httpMethod": "POST"
+      },
+      "id": "5d60f8b3-906a-4e39-a800-ff51259a6f3a",
+      "name": "Webhook: update-ticket",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        820
+      ],
+      "webhookId": "189ebfdb-43f9-4d56-9864-73e1c099fcd4"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
+      },
+      "id": "7b9c6fcf-c14a-4f59-bac2-6ac89c3bb30b",
+      "name": "Parse Token: update-ticket",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        820
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "a1b7ed29-beb9-4768-aa13-a459b0a987a8",
+      "name": "Look Up Requester: update-ticket",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        640,
+        820
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: update-ticket').first().json.body || {};\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" is required.');\n\nconst VALID_STATUSES = ['open', 'pending', 'resolved', 'closed'];\nconst VALID_PRIORITIES = ['low', 'normal', 'high', 'urgent'];\nif (body.status !== undefined && !VALID_STATUSES.includes(body.status)) throw new Error('Invalid status.');\nif (body.priority !== undefined && !VALID_PRIORITIES.includes(body.priority)) throw new Error('Invalid priority.');\n\nconst resolving = body.status === 'resolved' || body.status === 'closed';\n\nreturn [{\n  json: {\n    id,\n    subject: body.subject !== undefined ? body.subject : null,\n    description: body.description !== undefined ? body.description : null,\n    status: body.status !== undefined ? body.status : null,\n    priority: body.priority !== undefined ? body.priority : null,\n    category: body.category !== undefined ? (body.category || null) : null,\n    contactId: body.contact_id !== undefined ? (body.contact_id || null) : null,\n    accountId: body.account_id !== undefined ? (body.account_id || null) : null,\n    assignedUser: body.assigned_user !== undefined ? (body.assigned_user || null) : null,\n    resolutionNotes: body.resolution_notes !== undefined ? (body.resolution_notes || null) : null,\n    resolvedAt: resolving ? new Date().toISOString() : null,\n    resolvedBy: resolving ? requester.id : null,\n    requesterId: requester.id,\n    requesterName: requester.name,\n  },\n}];"
+      },
+      "id": "339980bc-4e68-4612-bb75-bc0dd6f06ffa",
+      "name": "Check Payload: update-ticket",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        820
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE tickets SET\n  subject = COALESCE($1, subject),\n  description = COALESCE($2, description),\n  status = COALESCE($3, status),\n  priority = COALESCE($4, priority),\n  category = COALESCE($5, category),\n  contact_id = COALESCE($6, contact_id),\n  account_id = COALESCE($7, account_id),\n  assigned_user = COALESCE($8, assigned_user),\n  resolution_notes = COALESCE($9, resolution_notes),\n  resolved_at = COALESCE($10, resolved_at),\n  resolved_by = COALESCE($11, resolved_by),\n  updated_at = now()\nWHERE id = $12\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $('Build Change Log').item.json.subject, $('Build Change Log').item.json.description, $('Build Change Log').item.json.status, $('Build Change Log').item.json.priority, $('Build Change Log').item.json.category, $('Build Change Log').item.json.contactId, $('Build Change Log').item.json.accountId, $('Build Change Log').item.json.assignedUser, $('Build Change Log').item.json.resolutionNotes, $('Build Change Log').item.json.resolvedAt, $('Build Change Log').item.json.resolvedBy, $('Build Change Log').item.json.id ] }}"
+        }
+      },
+      "id": "97ce3c94-dde5-4ef9-ad4e-900f14a83dfe",
+      "name": "Postgres: Update Ticket",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1040,
+        820
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: true, id: $input.first().json.id } }];"
+      },
+      "id": "c2390a2f-b772-48ab-a473-214661c826ee",
+      "name": "Bridge: update-ticket",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1240,
+        820
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "4687e321-16e4-4a3a-8804-516f43e8838d",
+      "name": "Respond: update-ticket",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1440,
+        820
+      ]
+    },
+    {
+      "parameters": {
+        "path": "add-ticket-comment",
+        "responseMode": "responseNode",
+        "options": {},
+        "httpMethod": "POST"
+      },
+      "id": "27bcd534-eae0-41ab-bd60-b6d4fd4486a2",
+      "name": "Webhook: add-ticket-comment",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        1040
+      ],
+      "webhookId": "f9a8d951-5727-4cdb-a043-492438e1ad89"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
+      },
+      "id": "8081f033-32f5-4d3a-b493-b220985a61a5",
+      "name": "Parse Token: add-ticket-comment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        1040
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "35873b5d-ac9c-49f2-9f13-7e2ba271c622",
+      "name": "Look Up Requester: add-ticket-comment",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        640,
+        1040
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: add-ticket-comment').first().json.body || {};\nconst ticketId = parseInt(body.ticket_id, 10);\nconst text = (body.body || '').toString().trim();\nconst channel = body.channel === 'email' ? 'email' : 'internal';\nif (!Number.isInteger(ticketId)) throw new Error('\"ticket_id\" is required.');\nif (!text) throw new Error('Comment body cannot be empty.');\n\nreturn [{ json: { ticketId, text, channel, authorId: requester.id, authorName: requester.name } }];"
+      },
+      "id": "0e4e3ad6-a044-413d-b926-664e6d1604a4",
+      "name": "Check Payload: add-ticket-comment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        1040
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ticket_comments (ticket_id, author_id, body, channel) VALUES ($1, $2, $3, $4) RETURNING id, created_at;",
+        "options": {
+          "queryReplacement": "={{ [ $json.ticketId, $json.authorId, $json.text, $json.channel ] }}"
+        }
+      },
+      "id": "c57b19f6-134c-48bc-a908-46eba05c4cb9",
+      "name": "Postgres: Insert Comment",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1040,
+        1040
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE tickets SET first_response_at = COALESCE(first_response_at, now()), updated_at = now() WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Check Payload: add-ticket-comment').first().json.ticketId ] }}"
+        }
+      },
+      "id": "303ff52e-954d-45d3-9ebd-87185ad93f5c",
+      "name": "Postgres: Bump Ticket Response",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1240,
+        1040
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: true } }];"
+      },
+      "id": "d54ce7f0-021d-40ad-b744-4edfc8b1b8ca",
+      "name": "Bridge: add-ticket-comment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        1040
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "77ac1625-6b91-4ff7-b778-1a1a99e47a08",
+      "name": "Respond: add-ticket-comment",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1640,
+        1040
+      ]
+    },
+    {
+      "parameters": {
+        "path": "archive-ticket",
+        "responseMode": "responseNode",
+        "options": {},
+        "httpMethod": "POST"
+      },
+      "id": "f86eea46-bf76-4186-b8f6-6cb3f9de59b0",
+      "name": "Webhook: archive-ticket",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        1260
+      ],
+      "webhookId": "9333f118-6cd8-48f7-bf4d-b5acf22a6119"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
+      },
+      "id": "739d0acf-8053-4db6-ba30-2a2f129ea3de",
+      "name": "Parse Token: archive-ticket",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        1260
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "75b0595e-9aac-4d3c-98d7-5ef5b5790205",
+      "name": "Look Up Requester: archive-ticket",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        640,
+        1260
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: archive-ticket').first().json.body || {};\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" is required.');\nreturn [{ json: { id } }];"
+      },
+      "id": "2e2bfe6b-b451-45f8-be86-d6e705650d05",
+      "name": "Check Payload: archive-ticket",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        1260
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE tickets SET is_archived = true, updated_at = now() WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id ] }}"
+        }
+      },
+      "id": "9387a68a-57a5-4e0a-8ceb-e637ece4b5b8",
+      "name": "Postgres: Archive Ticket",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1040,
+        1260
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: true } }];"
+      },
+      "id": "879a7fb1-d772-4804-86fd-29c81975d9eb",
+      "name": "Bridge: archive-ticket",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1240,
+        1260
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "00581e90-d672-4281-b2d4-61f7ae7abfa7",
+      "name": "Respond: archive-ticket",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1440,
+        1260
+      ]
+    },
+    {
+      "parameters": {
+        "path": "create-ticket-public",
+        "responseMode": "responseNode",
+        "options": {},
+        "httpMethod": "POST"
+      },
+      "id": "ed4d8bd7-611d-4811-9789-1fb723affc6d",
+      "name": "Webhook: create-ticket-public",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        1600
+      ],
+      "webhookId": "8d200b17-acdf-4084-ab97-5375619b7868"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || {};\n\n// Honeypot \u2014 a real browser never fills this (it's visually hidden via\n// CSS on the public form); a bot filling every field will. Silently\n// pretend success without touching the database.\nif ((body.website || '').toString().trim()) {\n  return [{ json: { spam: true } }];\n}\n\nconst name = (body.name || '').toString().trim();\nconst email = (body.email || '').toString().trim().toLowerCase();\nconst subject = (body.subject || '').toString().trim();\nconst description = (body.description || '').toString().trim();\nif (!name) throw new Error('\"name\" is required.');\nif (!email || !email.includes('@')) throw new Error('A valid \"email\" is required.');\nif (!subject) throw new Error('\"subject\" is required.');\n\nconst VALID_PRIORITIES = ['low', 'normal', 'high', 'urgent'];\nconst priority = VALID_PRIORITIES.includes(body.priority) ? body.priority : 'normal';\nconst SLA_HOURS = { urgent: 4, high: 8, normal: 24, low: 72 };\n\nreturn [{\n  json: {\n    spam: false,\n    name,\n    email,\n    subject,\n    description,\n    priority,\n    slaHours: SLA_HOURS[priority],\n  },\n}];"
+      },
+      "id": "d0e3c69b-44e5-4392-8bae-e21836cf7f38",
+      "name": "Check Payload: create-ticket-public",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        1600
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "tickpub001notspam",
+              "leftValue": "={{ $json.spam }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "notEquals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cdd64f9f-8f81-41d8-962a-23566d80ee14",
+      "name": "Not Spam?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        640,
+        1600
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, account_id, owner_id FROM contacts WHERE lower(email) = $1 AND is_archived = false LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.email ] }}"
+        }
+      },
+      "id": "b8f4a355-e5e2-4d19-b2fb-dc7aedfa96a0",
+      "name": "Postgres: Match Contact By Email",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        840,
+        1560
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $('Check Payload: create-ticket-public').first().json;\nconst match = $input.first().json;\nreturn [{\n  json: {\n    ...payload,\n    contactId: match?.id || null,\n    accountId: match?.account_id || null,\n    assignedUser: match?.owner_id || null,\n  },\n}];"
+      },
+      "id": "0b4247d6-ea88-4eb0-8834-1d530762b957",
+      "name": "Merge Contact Match",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        1560
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO tickets (subject, description, priority, contact_id, account_id, assigned_user, submitter_name, submitter_email, sla_due_at)\nVALUES ($1, $2, $3, $4, $5, $6, $7, $8, now() + ($9 || ' hours')::interval)\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.subject, $json.description, $json.priority, $json.contactId, $json.accountId, $json.assignedUser, $json.name, $json.email, $json.slaHours ] }}"
+        }
+      },
+      "id": "967d75de-bf99-436d-beaf-3d040660e4cd",
+      "name": "Postgres: Insert Public Ticket",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1240,
+        1560
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: true, id: $('Postgres: Insert Public Ticket').item.json.id } }];"
+      },
+      "id": "429db6b5-04b4-4553-a37f-f9ecfb247f3c",
+      "name": "Bridge: create-ticket-public",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        1560
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: true } }];"
+      },
+      "id": "793795fd-381b-4a69-8fab-4c939e56a963",
+      "name": "Bridge: create-ticket-public (spam)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        1680
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "26260d8f-2bed-485d-b745-197fc895cc23",
+      "name": "Respond: create-ticket-public",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1640,
+        1600
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, category, subtype, summary, detail, actor_name, created_at\nFROM entity_activity_log WHERE entity_type = 'ticket' AND entity_id = $1\nORDER BY created_at ASC;",
+        "options": {
+          "queryReplacement": "={{ [ $('Check Requester: get-ticket').first().json.ticketId ] }}"
+        }
+      },
+      "id": "bf0a6c57-7fd8-4de5-bedf-8f3c31535e62",
+      "name": "Postgres: Select Ticket Activity Log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1240,
+        160
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  COUNT(*) FILTER (WHERE status IN ('open', 'pending')) AS open_count,\n  COUNT(*) FILTER (WHERE status IN ('resolved', 'closed')) AS previous_count\nFROM tickets t\nWHERE t.is_archived = false AND (\n  ($1::int IS NOT NULL AND t.contact_id = $1) OR\n  ($1::int IS NULL AND $2::text IS NOT NULL AND lower(t.submitter_email) = lower($2))\n);",
+        "options": {
+          "queryReplacement": "={{ [ $('Postgres: Select Ticket').first().json.contact_id, $('Postgres: Select Ticket').first().json.submitter_email ] }}"
+        }
+      },
+      "id": "d8c35ff2-8816-4a3e-b962-e43be0af7b1e",
+      "name": "Postgres: Select Ticket Counts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1440,
+        160
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT o.id, o.name, o.deal_value, o.status, st.name AS stage_name\nFROM opportunities o\nLEFT JOIN stages st ON st.id = o.stage_id\nWHERE o.contact_id = $1 AND o.is_archived = false\nORDER BY (o.status = 'Open') DESC, o.created_at DESC LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Postgres: Select Ticket').first().json.contact_id ] }}"
+        }
+      },
+      "id": "f128aa60-034e-4d7e-a4a3-f67e5dbf9a04",
+      "name": "Postgres: Select Related Deal",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1640,
+        160
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, actor_id, actor_name)\nVALUES ('ticket', $1, 'ticket', 'created', $2, $3, $4);",
+        "options": {
+          "queryReplacement": "={{ [ $json.id, $('Check Payload: create-ticket').first().json.subject, $('Check Payload: create-ticket').first().json.requesterId, $('Check Payload: create-ticket').first().json.requesterName ] }}"
+        }
+      },
+      "id": "bc70dd45-1a1f-4b55-8ed9-17c5892d2549",
+      "name": "Postgres: Log Ticket Created",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1400,
+        260
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, actor_id, actor_name)\nVALUES ('ticket', $1, 'ticket', 'created', $2, $3, $4);",
+        "options": {
+          "queryReplacement": "={{ [ $json.id, $('Check Payload: create-ticket-public').first().json.subject, null, $('Check Payload: create-ticket-public').first().json.name ] }}"
+        }
+      },
+      "id": "eb9cc92e-664e-4553-b519-bd09743a5636",
+      "name": "Postgres: Log Public Ticket Created",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1440,
+        1560
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT status, priority, assigned_user, u.name AS assigned_name\nFROM tickets t LEFT JOIN users u ON u.id = t.assigned_user\nWHERE t.id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id ] }}"
+        }
+      },
+      "id": "f51040f1-668a-404f-aae2-aad68c87bcf0",
+      "name": "Postgres: Select Current Ticket",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        960,
+        640
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $('Check Payload: update-ticket').first().json;\nconst current = $input.first().json;\nconst changes = [];\n\nif (payload.status !== null && payload.status !== current.status) {\n  changes.push(`status changed from \"${current.status}\" to \"${payload.status}\"`);\n}\nif (payload.priority !== null && payload.priority !== current.priority) {\n  changes.push(`priority changed from \"${current.priority}\" to \"${payload.priority}\"`);\n}\nif (payload.assignedUser !== null && payload.assignedUser !== current.assigned_user) {\n  changes.push(`reassigned`);\n}\n\nconst summary = changes.length > 0\n  ? `${payload.requesterName} ${changes.join(', ')}`\n  : '';\n\nreturn [{ json: { ...payload, hasChanges: changes.length > 0, changeSummary: summary } }];"
+      },
+      "id": "957ac3d2-08bf-4d5c-bfe7-d39e8b755c38",
+      "name": "Build Change Log",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1160,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c87f888b-06ab-4581-b6cd-ea6d3e25d457",
+              "leftValue": "={{ $json.hasChanges }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d83d92a7-a08a-4b86-aea1-719e8439ef5a",
+      "name": "Has Changes?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1360,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, actor_id, actor_name)\nVALUES ('ticket', $1, 'ticket', 'updated', $2, $3, $4);",
+        "options": {
+          "queryReplacement": "={{ [ $json.id, $json.changeSummary, $json.requesterId, $json.requesterName ] }}"
+        }
+      },
+      "id": "3317f13b-0269-4306-9c21-ccf8b35f126a",
+      "name": "Postgres: Insert Change Log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1560,
+        560
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT t.subject, COALESCE(ct.email, t.submitter_email) AS customer_email\nFROM tickets t LEFT JOIN contacts ct ON ct.id = t.contact_id\nWHERE t.id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Check Payload: add-ticket-comment').first().json.ticketId ] }}"
+        }
+      },
+      "id": "7c24848b-229f-45ed-a080-b3ec446d1285",
+      "name": "Postgres: Select Ticket For Reply",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1040,
+        640
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "3dda8240-0607-4953-907f-a483cf4ad14b",
+              "leftValue": "={{ $('Check Payload: add-ticket-comment').item.json.channel === 'email' && !!$json.customer_email }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6415dabe-64e8-438a-92d3-d44d4670811b",
+      "name": "Is Email Reply?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1240,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Postgres: Select Ticket For Reply').item.json.customer_email }}",
+        "subject": "={{ 'Re: ' + $('Postgres: Select Ticket For Reply').item.json.subject }}",
+        "emailType": "text",
+        "message": "={{ $('Check Payload: add-ticket-comment').item.json.text }}",
+        "options": {}
+      },
+      "id": "b44be104-f9d7-428b-9a0c-ed5e96c0c634",
+      "name": "Send Reply Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1440,
+        600
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueErrorOutput"
+    }
+  ],
+  "connections": {
+    "Webhook: get-tickets": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: get-tickets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: get-tickets": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: get-tickets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: get-tickets": {
+      "main": [
+        [
+          {
+            "node": "Check Requester: get-tickets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Requester: get-tickets": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Tickets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Tickets": {
+      "main": [
+        [
+          {
+            "node": "Respond: get-tickets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: get-ticket": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: get-ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: get-ticket": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: get-ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: get-ticket": {
+      "main": [
+        [
+          {
+            "node": "Check Requester: get-ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Requester: get-ticket": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Ticket": {
+      "main": [
+        [
+          {
+            "node": "Bridge: get-ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge: get-ticket": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Ticket Comments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Ticket Comments": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Ticket Activity Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge: get-ticket": {
+      "main": [
+        [
+          {
+            "node": "Respond: get-ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: create-ticket": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: create-ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: create-ticket": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: create-ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: create-ticket": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: create-ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload: create-ticket": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Insert Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Insert Ticket": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Log Ticket Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge: create-ticket": {
+      "main": [
+        [
+          {
+            "node": "Respond: create-ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: update-ticket": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: update-ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: update-ticket": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: update-ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: update-ticket": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: update-ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload: update-ticket": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Current Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Update Ticket": {
+      "main": [
+        [
+          {
+            "node": "Bridge: update-ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge: update-ticket": {
+      "main": [
+        [
+          {
+            "node": "Respond: update-ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: add-ticket-comment": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: add-ticket-comment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: add-ticket-comment": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: add-ticket-comment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: add-ticket-comment": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: add-ticket-comment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload: add-ticket-comment": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Insert Comment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Insert Comment": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Ticket For Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Bump Ticket Response": {
+      "main": [
+        [
+          {
+            "node": "Bridge: add-ticket-comment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge: add-ticket-comment": {
+      "main": [
+        [
+          {
+            "node": "Respond: add-ticket-comment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: archive-ticket": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: archive-ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: archive-ticket": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: archive-ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: archive-ticket": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: archive-ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload: archive-ticket": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Archive Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Archive Ticket": {
+      "main": [
+        [
+          {
+            "node": "Bridge: archive-ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge: archive-ticket": {
+      "main": [
+        [
+          {
+            "node": "Respond: archive-ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: create-ticket-public": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: create-ticket-public",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload: create-ticket-public": {
+      "main": [
+        [
+          {
+            "node": "Not Spam?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Not Spam?": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Match Contact By Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Bridge: create-ticket-public (spam)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Match Contact By Email": {
+      "main": [
+        [
+          {
+            "node": "Merge Contact Match",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Contact Match": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Insert Public Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Insert Public Ticket": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Log Public Ticket Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge: create-ticket-public": {
+      "main": [
+        [
+          {
+            "node": "Respond: create-ticket-public",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge: create-ticket-public (spam)": {
+      "main": [
+        [
+          {
+            "node": "Respond: create-ticket-public",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Ticket Activity Log": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Ticket Counts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Ticket Counts": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Related Deal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Related Deal": {
+      "main": [
+        [
+          {
+            "node": "Merge: get-ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Log Ticket Created": {
+      "main": [
+        [
+          {
+            "node": "Bridge: create-ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Log Public Ticket Created": {
+      "main": [
+        [
+          {
+            "node": "Bridge: create-ticket-public",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Current Ticket": {
+      "main": [
+        [
+          {
+            "node": "Build Change Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Change Log": {
+      "main": [
+        [
+          {
+            "node": "Has Changes?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Changes?": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Insert Change Log",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Postgres: Update Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Insert Change Log": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Update Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Ticket For Reply": {
+      "main": [
+        [
+          {
+            "node": "Is Email Reply?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Email Reply?": {
+      "main": [
+        [
+          {
+            "node": "Send Reply Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Postgres: Bump Ticket Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Reply Email": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Bump Ticket Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  }
+}

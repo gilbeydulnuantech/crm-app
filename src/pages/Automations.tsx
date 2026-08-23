@@ -9,7 +9,8 @@ const TRIGGER_LABELS: Record<TriggerType, string> = {
   company: 'Company',
   task: 'Task',
   calendar: 'Calendar',
-  pipeline: 'Pipeline',
+  pipeline: 'Deal',
+  ticket: 'Ticket',
 };
 
 const TRIGGER_BADGE_CLASS: Record<TriggerType, string> = {
@@ -18,6 +19,7 @@ const TRIGGER_BADGE_CLASS: Record<TriggerType, string> = {
   task: 'bg-amber-100 text-amber-700',
   calendar: 'bg-emerald-100 text-emerald-700',
   pipeline: 'bg-blue-100 text-blue-700',
+  ticket: 'bg-rose-100 text-rose-700',
 };
 
 export default function Automations() {
