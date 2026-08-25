@@ -1,0 +1,193 @@
+{
+  "name": "Contact Public Form",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "add-contact-public",
+        "responseMode": "responseNode",
+        "options": { "allowedOrigins": "*" }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 0],
+      "id": "cpf-webhook",
+      "name": "Webhook: add-contact-public",
+      "webhookId": "d3b3f1a0-3c1b-4a9e-8f2a-add-contact-public-01"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || {};\n\n// Honeypot — a real visitor never fills this (hidden via CSS on the\n// public form); a bot filling every field will. Silently pretend\n// success without touching the database — same pattern as\n// create-ticket-public.\nif ((body.website_hp || '').toString().trim()) {\n  return [{ json: { spam: true } }];\n}\n\nconst firstName = (body.first_name || '').toString().trim();\nconst lastName = (body.last_name || '').toString().trim();\nconst email = (body.email || '').toString().trim().toLowerCase();\nconst phone = (body.phone || '').toString().trim();\nconst companyName = (body.company_name || '').toString().trim();\nconst jobTitle = (body.job_title || '').toString().trim();\nconst leadSource = (body.lead_source || 'Website Form').toString().trim();\nconst message = (body.message || '').toString().trim();\n\nif (!firstName) throw new Error('\"first_name\" is required.');\nif (!email && !phone) throw new Error('Either \"email\" or \"phone\" is required.');\nif (email && !email.includes('@')) throw new Error('\"email\" is not valid.');\n\nreturn [{\n  json: {\n    spam: false,\n    firstName, lastName, email, phone, companyName, jobTitle, leadSource, message,\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0],
+      "id": "cpf-check-payload",
+      "name": "Check Payload: add-contact-public"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "cpf-not-spam-cond",
+              "leftValue": "={{ $json.spam }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "notEquals" }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [440, 0],
+      "id": "cpf-not-spam",
+      "name": "Not Spam?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id FROM contacts WHERE lower(email) = $1 AND $1 <> '' AND is_archived = false LIMIT 1;",
+        "options": { "queryReplacement": "={{ [ $json.email ] }}" }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [660, -60],
+      "id": "cpf-match-existing",
+      "name": "Postgres: Match Existing Contact",
+      "alwaysOutputData": true,
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// A resubmission from the same visitor updates the existing lead instead\n// of creating a duplicate — same principle as Check Duplicate Contact in\n// the internal add-contact flow, just resolved automatically here since\n// there's no rep present to pick \"merge or create new\".\nconst payload = $('Check Payload: add-contact-public').first().json;\nconst existing = $input.first().json;\nreturn [{ json: { ...payload, existingContactId: existing?.id || null } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, -60],
+      "id": "cpf-merge-match",
+      "name": "Merge Existing Match"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO contacts (id, first_name, last_name, email, phone, job_title, lead_status, lead_source, created_at, updated_at)\nVALUES (COALESCE($1, nextval(pg_get_serial_sequence('contacts', 'id'))), $2, $3, $4, $5, $6, 'New', $7, now(), now())\nON CONFLICT (id) DO UPDATE SET\n  phone = COALESCE(NULLIF(EXCLUDED.phone, ''), contacts.phone),\n  job_title = COALESCE(NULLIF(EXCLUDED.job_title, ''), contacts.job_title),\n  updated_at = now()\nRETURNING id, first_name, last_name, (xmax = 0) AS is_new;",
+        "options": {
+          "queryReplacement": "={{ [ $json.existingContactId, $json.firstName, $json.lastName, $json.email, $json.phone, $json.jobTitle, $json.leadSource ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [1100, -60],
+      "id": "cpf-upsert-contact",
+      "name": "Postgres: Upsert Contact",
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// xmax = 0 (from the upsert's RETURNING) means this INSERT actually\n// inserted a fresh row rather than hitting the ON CONFLICT UPDATE path —\n// the \"contact created\" event should only fire for genuinely new leads,\n// not every resubmission of the same form by the same person.\nconst row = $input.first().json;\nconst payload = $('Merge Existing Match').first().json;\nreturn [{ json: { contactId: row.id, isNew: row.is_new === true, message: payload.message || '' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1320, -60],
+      "id": "cpf-prepare-dispatch",
+      "name": "Prepare Dispatch"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "cpf-is-new-cond",
+              "leftValue": "={{ $json.isNew }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [1540, -60],
+      "id": "cpf-is-new",
+      "name": "Is New Contact?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/dispatch-contact-created",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { contact_id: $json.contactId, source: \"form\" } }}",
+        "options": { "timeout": 5000 }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1760, -140],
+      "id": "cpf-notify-dispatch",
+      "name": "Notify: Contact Created",
+      "onError": "continueRegularOutput",
+      "notesInFlow": true,
+      "notes": "Fire-and-forget — a dispatch failure must never block the visitor's form submission from succeeding."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1980, -60],
+      "id": "cpf-respond-success",
+      "name": "Respond: Success"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [660, 120],
+      "id": "cpf-respond-spam",
+      "name": "Respond: Spam (fake success)"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook: add-contact-public": { "main": [[{ "node": "Check Payload: add-contact-public", "type": "main", "index": 0 }]] },
+    "Check Payload: add-contact-public": { "main": [[{ "node": "Not Spam?", "type": "main", "index": 0 }]] },
+    "Not Spam?": {
+      "main": [
+        [{ "node": "Postgres: Match Existing Contact", "type": "main", "index": 0 }],
+        [{ "node": "Respond: Spam (fake success)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Postgres: Match Existing Contact": { "main": [[{ "node": "Merge Existing Match", "type": "main", "index": 0 }]] },
+    "Merge Existing Match": { "main": [[{ "node": "Postgres: Upsert Contact", "type": "main", "index": 0 }]] },
+    "Postgres: Upsert Contact": { "main": [[{ "node": "Prepare Dispatch", "type": "main", "index": 0 }]] },
+    "Prepare Dispatch": { "main": [[{ "node": "Is New Contact?", "type": "main", "index": 0 }]] },
+    "Is New Contact?": {
+      "main": [
+        [{ "node": "Notify: Contact Created", "type": "main", "index": 0 }],
+        [{ "node": "Respond: Success", "type": "main", "index": 0 }]
+      ]
+    },
+    "Notify: Contact Created": { "main": [[{ "node": "Respond: Success", "type": "main", "index": 0 }]] }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  }
+}

@@ -16,7 +16,8 @@
         960,
         480
       ],
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "webhookId": "57eb4b3f-129c-4868-99eb-2ea2d40fbd46"
     },
     {
       "parameters": {
@@ -120,7 +121,8 @@
         960,
         704
       ],
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "webhookId": "a3fde461-3789-4810-9788-1b59571ef1d3"
     },
     {
       "parameters": {
@@ -213,7 +215,13 @@
         2080,
         704
       ],
-      "notes": "Full-replace edit pattern: every save clears and re-inserts all steps rather than diffing \u2014 simplest correct approach for a small, admin-edited step list."
+      "notes": "Full-replace edit pattern: every save clears and re-inserts all steps rather than diffing \u2014 simplest correct approach for a small, admin-edited step list.",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
     },
     {
       "parameters": {
@@ -281,7 +289,8 @@
         960,
         928
       ],
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "webhookId": "5fbd2307-6a6d-4e0f-9620-f3340f7d4191"
     },
     {
       "parameters": {
@@ -403,7 +412,8 @@
         960,
         1152
       ],
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "webhookId": "648668b1-7172-4483-b2e2-e6796b7f8dda"
     },
     {
       "parameters": {
@@ -951,5 +961,13 @@
         ]
       ]
     }
+  },
+  "pinData": {},
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
   }
 }

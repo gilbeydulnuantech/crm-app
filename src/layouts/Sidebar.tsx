@@ -26,7 +26,13 @@ const DOCUMENTS_SUB_ITEMS = [
   { to: '/documents/proposals', label: 'Proposals', icon: 'fa-solid fa-file-lines' },
   { to: '/documents/contracts', label: 'Contracts', icon: 'fa-solid fa-file-signature' },
   { to: '/documents/pages', label: 'Pages', icon: 'fa-solid fa-window-maximize' },
-  { to: '/documents', label: 'Email Templates', icon: 'fa-solid fa-envelope' },
+  { to: '/documents/templates', label: 'Templates', icon: 'fa-solid fa-copy' },
+];
+
+const PAYMENTS_SUB_ITEMS = [
+  { to: '/payments', label: 'Payments', icon: 'fa-solid fa-credit-card' },
+  { to: '/payments/invoices', label: 'Invoices', icon: 'fa-solid fa-file-invoice-dollar' },
+  { to: '/payments?status=refunded', label: 'Refunds', icon: 'fa-solid fa-rotate-left' },
 ];
 
 const navLinkClasses = (isActive: boolean) =>
@@ -52,7 +58,19 @@ export default function Sidebar({ collapsed, onToggleCollapsed }: Props) {
   const location = useLocation();
   const documentsActive = location.pathname.startsWith('/documents');
   const [documentsOpen, setDocumentsOpen] = useState(documentsActive);
+  const paymentsActive = location.pathname.startsWith('/payments');
+  const [paymentsOpen, setPaymentsOpen] = useState(paymentsActive);
   const chatUnreadCount = useUnreadChatCount();
+
+  // NavLink's own isActive only looks at pathname — Payments and Refunds
+  // share the same pathname (/payments) and differ only by query string
+  // (?status=refunded), so its default matching would highlight both (or
+  // neither) at once. Compute each sub-item's active state manually
+  // instead, comparing pathname + search exactly.
+  function isPaymentsSubActive(to: string): boolean {
+    const [path, query] = to.split('?');
+    return location.pathname === path && location.search === (query ? `?${query}` : '');
+  }
 
   if (collapsed) {
     return (
@@ -87,6 +105,13 @@ export default function Sidebar({ collapsed, onToggleCollapsed }: Props) {
           className={collapsedNavLinkClasses(documentsActive)}
         >
           <i className="fa-solid fa-file-signature text-xs" />
+        </NavLink>
+        <NavLink
+          to="/payments"
+          title="Finance"
+          className={collapsedNavLinkClasses(paymentsActive)}
+        >
+          <i className="fa-solid fa-credit-card text-xs" />
         </NavLink>
         <NavLink
           to="/automations"
@@ -157,8 +182,31 @@ export default function Sidebar({ collapsed, onToggleCollapsed }: Props) {
                   <NavLink
                     key={item.to}
                     to={item.to}
-                    end={item.to === '/documents'}
                     className={({ isActive }) => navLinkClasses(isActive)}
+                  >
+                    <i className={`${item.icon} w-5 text-xs`} />
+                    <span>{item.label}</span>
+                  </NavLink>
+                ))}
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setPaymentsOpen((o) => !o)}
+              className={`w-full ${navLinkClasses(paymentsActive && !paymentsOpen)}`}
+            >
+              <i className="fa-solid fa-credit-card w-5" />
+              <span className="flex-1 text-left">Finance</span>
+              <i className={`fa-solid fa-chevron-${paymentsOpen ? 'up' : 'down'} text-[10px] text-slate-400`} />
+            </button>
+            {paymentsOpen && (
+              <div className="pl-6 space-y-0.5">
+                {PAYMENTS_SUB_ITEMS.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    className={() => navLinkClasses(isPaymentsSubActive(item.to))}
                   >
                     <i className={`${item.icon} w-5 text-xs`} />
                     <span>{item.label}</span>

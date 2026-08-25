@@ -38,11 +38,26 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "respondWith": "allIncomingItems",
+        "jsCode": "// alwaysOutputData emits one placeholder {} item when zero companies match\n// (e.g. everything archived) — without filtering it out, allIncomingItems\n// would respond with [{}] instead of a real [], or (without\n// alwaysOutputData at all) a 0-byte body the frontend can't parse. Same\n// bug/fix as contacts-show-to-UI.json's Ensure Array Response.\nconst rows = $input.all().map((i) => i.json).filter((r) => r && Object.keys(r).length > 0);\nreturn [{ json: { rows } }];"
+      },
+      "id": "companies-ensure-array-active",
+      "name": "Ensure Array Response: get-companies",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.rows }}",
         "options": {}
       },
       "id": "93de3dcd-a12a-4976-acf0-29531e253f39",
@@ -91,11 +106,26 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "respondWith": "allIncomingItems",
+        "jsCode": "const rows = $input.all().map((i) => i.json).filter((r) => r && Object.keys(r).length > 0);\nreturn [{ json: { rows } }];"
+      },
+      "id": "companies-ensure-array-archived",
+      "name": "Ensure Array Response: get-archived-companies",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.rows }}",
         "options": {}
       },
       "id": "6617eb13-62a1-4473-b2d6-d44b930e88e2",
@@ -1095,6 +1125,17 @@
       "main": [
         [
           {
+            "node": "Ensure Array Response: get-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ensure Array Response: get-companies": {
+      "main": [
+        [
+          {
             "node": "Respond: get-companies",
             "type": "main",
             "index": 0
@@ -1114,6 +1155,17 @@
       ]
     },
     "Postgres: Select Archived Companies": {
+      "main": [
+        [
+          {
+            "node": "Ensure Array Response: get-archived-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ensure Array Response: get-archived-companies": {
       "main": [
         [
           {

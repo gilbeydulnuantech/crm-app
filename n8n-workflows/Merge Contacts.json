@@ -636,7 +636,9 @@
     }
   },
   "active": false,
-  "settings": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
   "versionId": "33234e64-d142-4bba-8a94-0325542a1f62",
   "meta": {},
   "id": "mrgCts0001NewFlow",

@@ -16,7 +16,8 @@
         960,
         400
       ],
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "webhookId": "f86c1b13-1e49-4a40-b784-87f330296564"
     },
     {
       "parameters": {
@@ -73,7 +74,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT cp.company_name, cp.email, cp.phone, cp.logo_url\nFROM (SELECT 1) dummy\nLEFT JOIN company_profile cp ON cp.id = 1;",
+        "query": "SELECT cp.company_name, cp.email, cp.phone, cp.logo_url, cp.address, cp.website, cp.brand_color\nFROM (SELECT 1) dummy\nLEFT JOIN company_profile cp ON cp.id = 1;",
         "options": {}
       },
       "id": "cpro0005-5555-4a5a-9b1a-companyprof005",
@@ -94,7 +95,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: true, company_name: $json.company_name || '', email: $json.email || '', phone: $json.phone || '' } }}",
+        "responseBody": "={{ { success: true, company_name: $json.company_name || '', email: $json.email || '', phone: $json.phone || '', logo_url: $json.logo_url || null, address: $json.address || '', website: $json.website || '', brand_color: $json.brand_color || '#2563EB' } }}",
         "options": {}
       },
       "id": "cpro0006-6666-4a5a-9b1a-companyprof006",
@@ -121,7 +122,8 @@
         960,
         624
       ],
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "webhookId": "5ed7bdd1-3101-4f57-ac21-79776f79c308"
     },
     {
       "parameters": {
@@ -163,7 +165,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Save Company Profile').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst companyName = (body.company_name || '').toString().trim();\nconst email = (body.email || '').toString().trim();\nconst phone = (body.phone || '').toString().trim();\n\nreturn [{ json: { companyName, email, phone, requesterId: requester.id } }];"
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Save Company Profile').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst companyName = (body.company_name || '').toString().trim();\nconst email = (body.email || '').toString().trim();\nconst phone = (body.phone || '').toString().trim();\nconst address = (body.address || '').toString().trim();\nconst website = (body.website || '').toString().trim();\nlet brandColor = (body.brand_color || '#2563EB').toString().trim();\nif (!/^#[0-9a-fA-F]{6}$/.test(brandColor)) brandColor = '#2563EB';\n\nreturn [{ json: { companyName, email, phone, address, website, brandColor, requesterId: requester.id } }];"
       },
       "id": "cpro0010-1010-4a5a-9b1a-companyprof010",
       "name": "Validate & Payload (Save)",
@@ -178,9 +180,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO company_profile (id, company_name, email, phone, updated_at, updated_by)\nVALUES (1, $1, $2, $3, now(), $4)\nON CONFLICT (id) DO UPDATE SET\n  company_name = EXCLUDED.company_name,\n  email = EXCLUDED.email,\n  phone = EXCLUDED.phone,\n  updated_at = now(),\n  updated_by = EXCLUDED.updated_by\nRETURNING id;",
+        "query": "INSERT INTO company_profile (id, company_name, email, phone, address, website, brand_color, updated_at, updated_by)\nVALUES (1, $1, $2, $3, $4, $5, $6, now(), $7)\nON CONFLICT (id) DO UPDATE SET\n  company_name = EXCLUDED.company_name,\n  email = EXCLUDED.email,\n  phone = EXCLUDED.phone,\n  address = EXCLUDED.address,\n  website = EXCLUDED.website,\n  brand_color = EXCLUDED.brand_color,\n  updated_at = now(),\n  updated_by = EXCLUDED.updated_by\nRETURNING id;",
         "options": {
-          "queryReplacement": "={{ [ $json.companyName, $json.email, $json.phone, $json.requesterId ] }}"
+          "queryReplacement": "={{ [ $json.companyName, $json.email, $json.phone, $json.address, $json.website, $json.brandColor, $json.requesterId ] }}"
         }
       },
       "id": "cpro0011-1111-4a5a-9b1a-companyprof011",
@@ -245,7 +247,8 @@
         960,
         848
       ],
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "webhookId": "0d6610e8-a47c-469f-8fc0-d0c68c703d15"
     },
     {
       "parameters": {
@@ -756,5 +759,13 @@
         ]
       ]
     }
+  },
+  "pinData": {},
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
   }
 }

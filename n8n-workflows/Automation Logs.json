@@ -1,0 +1,193 @@
+{
+  "name": "Automation Logs",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-automation-runs",
+        "responseMode": "responseNode",
+        "options": { "allowedOrigins": "*" }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 0],
+      "id": "autolog-webhook-runs",
+      "name": "Webhook - Get Automation Runs",
+      "webhookId": "autolog-runs-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0],
+      "id": "autolog-parse-token-runs",
+      "name": "Parse Token: get-automation-runs"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": { "queryReplacement": "={{ [ $json.requesterId ] }}" }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [440, 0],
+      "id": "autolog-lookup-requester-runs",
+      "name": "Look Up Requester: get-automation-runs",
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst q = $('Webhook - Get Automation Runs').first().json.query || {};\nconst automationId = q.automation_id ? parseInt(q.automation_id, 10) : null;\nconst status = ['success', 'error', 'unsupported'].includes(q.status) ? q.status : null;\nconst limit = Math.min(Math.max(parseInt(q.limit, 10) || 50, 1), 200);\nconst offset = Math.max(parseInt(q.offset, 10) || 0, 0);\n\nreturn [{ json: { automationId, status, limit, offset } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 0],
+      "id": "autolog-parse-params-runs",
+      "name": "Parse Filters: get-automation-runs"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT ar.id, ar.automation_id, ar.action_id, ar.entity_type, ar.entity_id, ar.branch, ar.status, ar.detail, ar.ran_at,\n  a.name AS automation_name, aa.action_type,\n  CASE ar.entity_type\n    WHEN 'contact' THEN (SELECT NULLIF(TRIM(CONCAT(c.first_name, ' ', c.last_name)), '') FROM contacts c WHERE c.id = ar.entity_id)\n    WHEN 'company' THEN (SELECT co.name FROM companies co WHERE co.id = ar.entity_id)\n    WHEN 'pipeline' THEN (SELECT o.name FROM opportunities o WHERE o.id = ar.entity_id)\n    WHEN 'task' THEN (SELECT act.subject FROM activities act WHERE act.id = ar.entity_id)\n    WHEN 'calendar' THEN (SELECT act.subject FROM activities act WHERE act.id = ar.entity_id)\n    WHEN 'ticket' THEN (SELECT t.subject FROM tickets t WHERE t.id = ar.entity_id)\n    ELSE NULL\n  END AS entity_label,\n  COUNT(*) OVER() AS total_count\nFROM automation_runs ar\nJOIN automations a ON a.id = ar.automation_id\nLEFT JOIN automation_actions aa ON aa.id = ar.action_id\nWHERE ($1::int IS NULL OR ar.automation_id = $1)\n  AND ($2::text IS NULL OR ar.status = $2)\nORDER BY ar.ran_at DESC\nLIMIT $3 OFFSET $4;",
+        "options": { "queryReplacement": "={{ [ $json.automationId, $json.status, $json.limit, $json.offset ] }}" }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [880, 0],
+      "id": "autolog-select-runs",
+      "name": "Postgres: Select Automation Runs",
+      "alwaysOutputData": true,
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// alwaysOutputData means a genuinely empty page (offset past the end,\n// or a filter matching nothing) still reaches here as zero items — total\n// count would be lost with them, so re-derive it from a first-page item\n// when there are results, and treat a truly empty result as count 0.\nconst rows = $input.all().map((i) => i.json).filter((r) => r.id != null);\nconst totalCount = rows.length > 0 ? Number(rows[0].total_count) : 0;\nconst runs = rows.map((r) => {\n  const { total_count, ...rest } = r;\n  return rest;\n});\nreturn [{ json: { success: true, runs, total_count: totalCount } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 0],
+      "id": "autolog-bridge-runs",
+      "name": "Bridge: get-automation-runs"
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1320, 0],
+      "id": "autolog-respond-runs",
+      "name": "Respond: get-automation-runs"
+    },
+
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-automation-run-stats",
+        "responseMode": "responseNode",
+        "options": { "allowedOrigins": "*" }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 220],
+      "id": "autolog-webhook-stats",
+      "name": "Webhook - Get Automation Run Stats",
+      "webhookId": "autolog-stats-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 220],
+      "id": "autolog-parse-token-stats",
+      "name": "Parse Token: get-automation-run-stats"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": { "queryReplacement": "={{ [ $json.requesterId ] }}" }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [440, 220],
+      "id": "autolog-lookup-requester-stats",
+      "name": "Look Up Requester: get-automation-run-stats",
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nconst q = $('Webhook - Get Automation Run Stats').first().json.query || {};\nreturn [{ json: { automationId: q.automation_id ? parseInt(q.automation_id, 10) : null } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 220],
+      "id": "autolog-parse-params-stats",
+      "name": "Parse Filters: get-automation-run-stats"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT a.id AS automation_id, a.name AS automation_name,\n  COUNT(*) FILTER (WHERE ar.status = 'success') AS success_count,\n  COUNT(*) FILTER (WHERE ar.status = 'error') AS error_count,\n  COUNT(*) FILTER (WHERE ar.status = 'unsupported') AS unsupported_count,\n  MAX(ar.ran_at) AS last_ran_at\nFROM automation_runs ar\nJOIN automations a ON a.id = ar.automation_id\nWHERE ($1::int IS NULL OR ar.automation_id = $1)\nGROUP BY a.id, a.name\nORDER BY last_ran_at DESC;",
+        "options": { "queryReplacement": "={{ [ $json.automationId ] }}" }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [880, 220],
+      "id": "autolog-select-stats",
+      "name": "Postgres: Select Automation Run Stats",
+      "alwaysOutputData": true,
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map((i) => i.json).filter((r) => r.automation_id != null);\nreturn [{ json: { success: true, stats: rows } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 220],
+      "id": "autolog-bridge-stats",
+      "name": "Bridge: get-automation-run-stats"
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1320, 220],
+      "id": "autolog-respond-stats",
+      "name": "Respond: get-automation-run-stats"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook - Get Automation Runs": { "main": [[{ "node": "Parse Token: get-automation-runs", "type": "main", "index": 0 }]] },
+    "Parse Token: get-automation-runs": { "main": [[{ "node": "Look Up Requester: get-automation-runs", "type": "main", "index": 0 }]] },
+    "Look Up Requester: get-automation-runs": { "main": [[{ "node": "Parse Filters: get-automation-runs", "type": "main", "index": 0 }]] },
+    "Parse Filters: get-automation-runs": { "main": [[{ "node": "Postgres: Select Automation Runs", "type": "main", "index": 0 }]] },
+    "Postgres: Select Automation Runs": { "main": [[{ "node": "Bridge: get-automation-runs", "type": "main", "index": 0 }]] },
+    "Bridge: get-automation-runs": { "main": [[{ "node": "Respond: get-automation-runs", "type": "main", "index": 0 }]] },
+
+    "Webhook - Get Automation Run Stats": { "main": [[{ "node": "Parse Token: get-automation-run-stats", "type": "main", "index": 0 }]] },
+    "Parse Token: get-automation-run-stats": { "main": [[{ "node": "Look Up Requester: get-automation-run-stats", "type": "main", "index": 0 }]] },
+    "Look Up Requester: get-automation-run-stats": { "main": [[{ "node": "Parse Filters: get-automation-run-stats", "type": "main", "index": 0 }]] },
+    "Parse Filters: get-automation-run-stats": { "main": [[{ "node": "Postgres: Select Automation Run Stats", "type": "main", "index": 0 }]] },
+    "Postgres: Select Automation Run Stats": { "main": [[{ "node": "Bridge: get-automation-run-stats", "type": "main", "index": 0 }]] },
+    "Bridge: get-automation-run-stats": { "main": [[{ "node": "Respond: get-automation-run-stats", "type": "main", "index": 0 }]] }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  }
+}

@@ -1,0 +1,159 @@
+{
+  "name": "Email Open Tracking",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "track-email-open",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "email-open-webhook",
+      "name": "Webhook - Track Email Open",
+      "webhookId": "email-open-tracking-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Public, unauthenticated by design \u2014 this is hit directly by an email\n// client loading an <img> tag, which can't send auth headers. id/contact_id\n// are internal correlation values (not real secrets); worst case of someone\n// guessing one is a fake 'opened' event on a purely informational metric.\nconst q = $json.query || {};\nconst id = (q.id || '').toString().trim();\nconst contactId = parseInt(q.contact_id, 10);\nreturn [{ json: { id, contactId: Number.isInteger(contactId) ? contactId : null, valid: Boolean(id) && Number.isInteger(contactId) } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "id": "email-open-parse-params",
+      "name": "Parse Params"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts\nSET email_logs = (\n  SELECT COALESCE(jsonb_agg(\n    CASE WHEN elem->>'id' = $1 AND elem->>'opened_at' IS NULL\n      THEN elem || jsonb_build_object('opened_at', NOW())\n      ELSE elem\n    END\n  ), '[]'::jsonb)\n  FROM jsonb_array_elements(COALESCE(email_logs, '[]'::jsonb)) AS elem\n)\nWHERE id = $2 AND $3 = true;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id, $json.contactId, $json.valid ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        440,
+        0
+      ],
+      "id": "email-open-mark",
+      "name": "Mark Email Opened",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// The smallest valid transparent 1x1 GIF, hardcoded \u2014 this endpoint's\n// only job is to always return an image, whether or not the update above\n// actually matched anything (e.g. a stale/invalid id), so a broken pixel\n// never shows up as a broken-image icon in the recipient's email client.\nconst base64 = 'R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';\nreturn [{ json: {}, binary: { data: { data: base64, mimeType: 'image/gif', fileName: 'pixel.gif' } } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ],
+      "id": "email-open-build-pixel",
+      "name": "Build Pixel"
+    },
+    {
+      "parameters": {
+        "respondWith": "binary",
+        "responseDataSource": "set",
+        "inputFieldName": "data",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Cache-Control",
+                "value": "no-store, no-cache, must-revalidate"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        880,
+        0
+      ],
+      "id": "email-open-respond",
+      "name": "Respond - Pixel"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook - Track Email Open": {
+      "main": [
+        [
+          {
+            "node": "Parse Params",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Params": {
+      "main": [
+        [
+          {
+            "node": "Mark Email Opened",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Email Opened": {
+      "main": [
+        [
+          {
+            "node": "Build Pixel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Pixel": {
+      "main": [
+        [
+          {
+            "node": "Respond - Pixel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "emailOpenTracking001",
+  "tags": []
+}

@@ -93,11 +93,26 @@
           "name": "myRag"
         }
       },
+      "alwaysOutputData": true,
       "onError": "continueErrorOutput"
     },
     {
       "parameters": {
-        "respondWith": "allIncomingItems",
+        "jsCode": "// alwaysOutputData on Execute Query emits one placeholder {} item when the\n// query matched zero rows (e.g. every contact archived) — without this,\n// zero rows meant zero items reached Respond, which sent a 0-byte body\n// the frontend's res.json() couldn't parse, silently leaving the UI on\n// stale cached data instead of showing an empty list.\nconst rows = $input.all().map((i) => i.json).filter((r) => r && Object.keys(r).length > 0);\nreturn [{ json: { rows } }];"
+      },
+      "id": "ensure-array-response",
+      "name": "Ensure Array Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.rows }}",
         "options": {}
       },
       "id": "923dbfdd-e55b-48c3-8bc8-d932a7c01df4",
@@ -198,7 +213,7 @@
       "main": [
         [
           {
-            "node": "Respond - Success",
+            "node": "Ensure Array Response",
             "type": "main",
             "index": 0
           }
@@ -206,6 +221,17 @@
         [
           {
             "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ensure Array Response": {
+      "main": [
+        [
+          {
+            "node": "Respond - Success",
             "type": "main",
             "index": 0
           }

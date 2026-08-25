@@ -12,7 +12,10 @@ import Tasks from './pages/Tasks';
 import Calendar from './pages/Calendar';
 import Reports from './pages/Reports';
 import TeamChat from './pages/TeamChat';
-import Documents from './pages/Documents';
+import TemplatesPage from './pages/TemplatesPage';
+import EmailTemplateEditorPage from './pages/EmailTemplateEditorPage';
+import InvoiceTemplateEditorPage from './pages/InvoiceTemplateEditorPage';
+import ReceiptTemplateEditorPage from './pages/ReceiptTemplateEditorPage';
 import ProposalsListPage from './pages/ProposalsListPage';
 import ApprovedProposalsListPage from './pages/ApprovedProposalsListPage';
 import ProposalEditorPage from './pages/ProposalEditorPage';
@@ -22,11 +25,17 @@ import ContractEditorPage from './pages/ContractEditorPage';
 import PagesListPage from './pages/PagesListPage';
 import PageEditorPage from './pages/PageEditorPage';
 import Automations from './pages/Automations';
+import AutomationLogsPage from './pages/AutomationLogsPage';
 import AutomationEditorPage from './pages/AutomationEditorPage';
 import Settings from './pages/Settings';
 import ObservabilityDashboard from './pages/ObservabilityDashboard';
 import Tickets from './pages/Tickets';
 import TicketDetailPage from './pages/TicketDetailPage';
+import Payments from './pages/Payments';
+import PaymentDetailPage from './pages/PaymentDetailPage';
+import InvoicesListPage from './pages/InvoicesListPage';
+import InvoiceDetailPage from './pages/InvoiceDetailPage';
+import CreateInvoicePage from './pages/CreateInvoicePage';
 import PublicProposalPage from './pages/PublicProposalPage';
 import PublicContractPage from './pages/PublicContractPage';
 import PrintContractPage from './pages/PrintContractPage';
@@ -65,7 +74,14 @@ export default function App() {
             <Route path="/calendar" element={<Calendar />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/team-chat" element={<TeamChat />} />
-            <Route path="/documents" element={<Documents />} />
+            <Route path="/documents" element={<Navigate to="/documents/templates" replace />} />
+            <Route path="/documents/templates" element={<TemplatesPage />} />
+            <Route path="/documents/templates/email/new" element={<EmailTemplateEditorPage />} />
+            <Route path="/documents/templates/email/:id/edit" element={<EmailTemplateEditorPage />} />
+            <Route path="/documents/templates/invoice/new" element={<InvoiceTemplateEditorPage />} />
+            <Route path="/documents/templates/invoice/:id/edit" element={<InvoiceTemplateEditorPage />} />
+            <Route path="/documents/templates/receipt/new" element={<ReceiptTemplateEditorPage />} />
+            <Route path="/documents/templates/receipt/:id/edit" element={<ReceiptTemplateEditorPage />} />
             <Route path="/documents/proposals" element={<ProposalsListPage />} />
             <Route path="/documents/proposals/approved" element={<ApprovedProposalsListPage />} />
             <Route path="/documents/proposals/new" element={<ProposalEditorPage />} />
@@ -78,12 +94,18 @@ export default function App() {
             <Route path="/documents/pages/new" element={<PageEditorPage />} />
             <Route path="/documents/pages/:id/edit" element={<PageEditorPage />} />
             <Route path="/automations" element={<Automations />} />
+            <Route path="/automations/logs" element={<AutomationLogsPage />} />
             <Route path="/automations/new" element={<AutomationEditorPage />} />
             <Route path="/automations/:id/edit" element={<AutomationEditorPage />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/observability" element={<ObservabilityDashboard />} />
             <Route path="/tickets" element={<Tickets />} />
             <Route path="/tickets/:id" element={<TicketDetailPage />} />
+            <Route path="/payments" element={<Payments />} />
+            <Route path="/payments/invoices" element={<InvoicesListPage />} />
+            <Route path="/payments/invoices/new" element={<CreateInvoicePage />} />
+            <Route path="/payments/invoices/:id" element={<InvoiceDetailPage />} />
+            <Route path="/payments/:id" element={<PaymentDetailPage />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
           </Route>
 

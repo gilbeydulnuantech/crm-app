@@ -1,7 +1,24 @@
 {
   "name": "Email Templates",
   "nodes": [
-    { "parameters": { "httpMethod": "GET", "path": "get-email-templates", "responseMode": "responseNode", "options": {} }, "id": "etpl0001-1111-4a5a-9b1a-emailtemp0001", "name": "Webhook - Get Email Templates", "type": "n8n-nodes-base.webhook", "typeVersion": 2, "position": [960, 400], "onError": "continueErrorOutput" },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-email-templates",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "etpl0001-1111-4a5a-9b1a-emailtemp0001",
+      "name": "Webhook - Get Email Templates",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        400
+      ],
+      "onError": "continueErrorOutput",
+      "webhookId": "7e8b125c-0eb2-4b2e-b4d9-926aa3aa5963"
+    },
     {
       "parameters": {
         "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
@@ -10,21 +27,34 @@
       "name": "Parse Token (Get)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1184, 400],
+      "position": [
+        1184,
+        400
+      ],
       "onError": "continueErrorOutput"
     },
     {
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": { "queryReplacement": "={{ [ $json.requesterId ] }}" }
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
       },
       "id": "etpl0003-3333-4a5a-9b1a-emailtemp0003",
       "name": "Look Up Requester (Get)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1408, 400],
-      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "position": [
+        1408,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
       "onError": "continueErrorOutput"
     },
     {
@@ -35,7 +65,10 @@
       "name": "Validate (Get)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1632, 400],
+      "position": [
+        1632,
+        400
+      ],
       "onError": "continueErrorOutput"
     },
     {
@@ -48,12 +81,49 @@
       "name": "Select Email Templates",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1856, 400],
-      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+      "position": [
+        1856,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
     },
-    { "parameters": { "respondWith": "allIncomingItems", "options": {} }, "id": "etpl0006-6666-4a5a-9b1a-emailtemp0006", "name": "Respond - Get Email Templates", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1.5, "position": [2080, 400] },
-
-    { "parameters": { "httpMethod": "POST", "path": "save-email-template", "responseMode": "responseNode", "options": {} }, "id": "etpl0007-7777-4a5a-9b1a-emailtemp0007", "name": "Webhook - Save Email Template", "type": "n8n-nodes-base.webhook", "typeVersion": 2, "position": [960, 624], "onError": "continueErrorOutput" },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "etpl0006-6666-4a5a-9b1a-emailtemp0006",
+      "name": "Respond - Get Email Templates",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2080,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "save-email-template",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "etpl0007-7777-4a5a-9b1a-emailtemp0007",
+      "name": "Webhook - Save Email Template",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        624
+      ],
+      "onError": "continueErrorOutput",
+      "webhookId": "9b83054c-a115-4039-80a5-2804e61339cb"
+    },
     {
       "parameters": {
         "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
@@ -62,35 +132,58 @@
       "name": "Parse Token (Save)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1184, 624],
+      "position": [
+        1184,
+        624
+      ],
       "onError": "continueErrorOutput"
     },
     {
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": { "queryReplacement": "={{ [ $json.requesterId ] }}" }
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
       },
       "id": "etpl0009-9999-4a5a-9b1a-emailtemp0009",
       "name": "Look Up Requester (Save)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1408, 624],
-      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "position": [
+        1408,
+        624
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
       "onError": "continueErrorOutput"
     },
     {
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT et.created_by\nFROM (SELECT $1::int AS tid) dummy\nLEFT JOIN email_templates et ON et.id = dummy.tid;",
-        "options": { "queryReplacement": "={{ [ $('Webhook - Save Email Template').first().json.body.id || null ] }}" }
+        "options": {
+          "queryReplacement": "={{ [ $('Webhook - Save Email Template').first().json.body.id || null ] }}"
+        }
       },
       "id": "etpl0010-1010-4a5a-9b1a-emailtemp0010",
       "name": "Look Up Existing Template (Save)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1632, 624],
-      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "position": [
+        1632,
+        624
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
       "onError": "continueErrorOutput"
     },
     {
@@ -101,25 +194,68 @@
       "name": "Validate & Payload (Save)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1856, 624],
+      "position": [
+        1856,
+        624
+      ],
       "onError": "continueErrorOutput"
     },
     {
       "parameters": {
         "operation": "executeQuery",
         "query": "INSERT INTO email_templates (id, name, trigger_event, subject, body, is_active, created_by, created_at, updated_at)\nVALUES (COALESCE($1, nextval(pg_get_serial_sequence('email_templates', 'id'))), $2, $3, $4, $5, true, $6, now(), now())\nON CONFLICT (id) DO UPDATE SET\n  name = EXCLUDED.name,\n  trigger_event = EXCLUDED.trigger_event,\n  subject = EXCLUDED.subject,\n  body = EXCLUDED.body,\n  updated_at = now()\nRETURNING id;",
-        "options": { "queryReplacement": "={{ [ $json.id, $json.name, $json.triggerEvent, $json.subject, $json.emailBody, $json.requesterId ] }}" }
+        "options": {
+          "queryReplacement": "={{ [ $json.id, $json.name, $json.triggerEvent, $json.subject, $json.emailBody, $json.requesterId ] }}"
+        }
       },
       "id": "etpl0012-1212-4a5a-9b1a-emailtemp0012",
       "name": "Upsert Email Template",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [2080, 624],
-      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+      "position": [
+        2080,
+        624
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
     },
-    { "parameters": { "respondWith": "json", "responseBody": "={{ { success: true, id: $json.id } }}", "options": {} }, "id": "etpl0013-1313-4a5a-9b1a-emailtemp0013", "name": "Respond - Save Success", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1.5, "position": [2304, 624] },
-
-    { "parameters": { "httpMethod": "POST", "path": "update-email-template-active", "responseMode": "responseNode", "options": {} }, "id": "etpl0014-1414-4a5a-9b1a-emailtemp0014", "name": "Webhook - Update Template Active", "type": "n8n-nodes-base.webhook", "typeVersion": 2, "position": [960, 848], "onError": "continueErrorOutput" },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, id: $json.id } }}",
+        "options": {}
+      },
+      "id": "etpl0013-1313-4a5a-9b1a-emailtemp0013",
+      "name": "Respond - Save Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2304,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "update-email-template-active",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "etpl0014-1414-4a5a-9b1a-emailtemp0014",
+      "name": "Webhook - Update Template Active",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        848
+      ],
+      "onError": "continueErrorOutput",
+      "webhookId": "96524734-e5c7-441a-936e-dd6f491a5788"
+    },
     {
       "parameters": {
         "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
@@ -128,21 +264,34 @@
       "name": "Parse Token (Toggle)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1184, 848],
+      "position": [
+        1184,
+        848
+      ],
       "onError": "continueErrorOutput"
     },
     {
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": { "queryReplacement": "={{ [ $json.requesterId ] }}" }
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
       },
       "id": "etpl0016-1616-4a5a-9b1a-emailtemp0016",
       "name": "Look Up Requester (Toggle)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1408, 848],
-      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "position": [
+        1408,
+        848
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
       "onError": "continueErrorOutput"
     },
     {
@@ -153,21 +302,34 @@
       "name": "Validate & Payload (Toggle)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1632, 848],
+      "position": [
+        1632,
+        848
+      ],
       "onError": "continueErrorOutput"
     },
     {
       "parameters": {
         "operation": "executeQuery",
         "query": "UPDATE email_templates SET is_active = $1, updated_at = now() WHERE id = $2 RETURNING id;",
-        "options": { "queryReplacement": "={{ [ $json.isActive, $json.id ] }}" }
+        "options": {
+          "queryReplacement": "={{ [ $json.isActive, $json.id ] }}"
+        }
       },
       "id": "etpl0018-1818-4a5a-9b1a-emailtemp0018",
       "name": "Update Template Active",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1856, 848],
-      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "position": [
+        1856,
+        848
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
       "onError": "continueErrorOutput"
     },
     {
@@ -178,12 +340,45 @@
       "name": "Check Toggle Result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2080, 848],
+      "position": [
+        2080,
+        848
+      ],
       "onError": "continueErrorOutput"
     },
-    { "parameters": { "respondWith": "json", "responseBody": "={{ $json }}", "options": {} }, "id": "etpl0020-2020-4a5a-9b1a-emailtemp0020", "name": "Respond - Toggle Success", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1.5, "position": [2304, 848] },
-
-    { "parameters": { "httpMethod": "POST", "path": "delete-email-template", "responseMode": "responseNode", "options": {} }, "id": "etpl0021-2121-4a5a-9b1a-emailtemp0021", "name": "Webhook - Delete Email Template", "type": "n8n-nodes-base.webhook", "typeVersion": 2, "position": [960, 1072], "onError": "continueErrorOutput" },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "etpl0020-2020-4a5a-9b1a-emailtemp0020",
+      "name": "Respond - Toggle Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2304,
+        848
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "delete-email-template",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "etpl0021-2121-4a5a-9b1a-emailtemp0021",
+      "name": "Webhook - Delete Email Template",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        1072
+      ],
+      "onError": "continueErrorOutput",
+      "webhookId": "d0716107-4044-4c21-aada-143f8f034f3e"
+    },
     {
       "parameters": {
         "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
@@ -192,35 +387,58 @@
       "name": "Parse Token (Delete)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1184, 1072],
+      "position": [
+        1184,
+        1072
+      ],
       "onError": "continueErrorOutput"
     },
     {
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": { "queryReplacement": "={{ [ $json.requesterId ] }}" }
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
       },
       "id": "etpl0023-2323-4a5a-9b1a-emailtemp0023",
       "name": "Look Up Requester (Delete)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1408, 1072],
-      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "position": [
+        1408,
+        1072
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
       "onError": "continueErrorOutput"
     },
     {
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT et.created_by\nFROM (SELECT $1::int AS tid) dummy\nLEFT JOIN email_templates et ON et.id = dummy.tid;",
-        "options": { "queryReplacement": "={{ [ $('Webhook - Delete Email Template').first().json.body.id ] }}" }
+        "options": {
+          "queryReplacement": "={{ [ $('Webhook - Delete Email Template').first().json.body.id ] }}"
+        }
       },
       "id": "etpl0024-2424-4a5a-9b1a-emailtemp0024",
       "name": "Look Up Existing Template (Delete)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1632, 1072],
-      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "position": [
+        1632,
+        1072
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
       "onError": "continueErrorOutput"
     },
     {
@@ -231,21 +449,34 @@
       "name": "Validate & Payload (Delete)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1856, 1072],
+      "position": [
+        1856,
+        1072
+      ],
       "onError": "continueErrorOutput"
     },
     {
       "parameters": {
         "operation": "executeQuery",
         "query": "DELETE FROM email_templates WHERE id = $1 RETURNING id;",
-        "options": { "queryReplacement": "={{ [ $json.id ] }}" }
+        "options": {
+          "queryReplacement": "={{ [ $json.id ] }}"
+        }
       },
       "id": "etpl0026-2626-4a5a-9b1a-emailtemp0026",
       "name": "Delete Email Template",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [2080, 1072],
-      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+      "position": [
+        2080,
+        1072
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
     },
     {
       "parameters": {
@@ -255,51 +486,464 @@
       "name": "Check Delete Result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2304, 1072],
+      "position": [
+        2304,
+        1072
+      ],
       "onError": "continueErrorOutput"
     },
-    { "parameters": { "respondWith": "json", "responseBody": "={{ $json }}", "options": {} }, "id": "etpl0028-2828-4a5a-9b1a-emailtemp0028", "name": "Respond - Delete Success", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1.5, "position": [2528, 1072] },
-
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "etpl0028-2828-4a5a-9b1a-emailtemp0028",
+      "name": "Respond - Delete Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2528,
+        1072
+      ]
+    },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
-        "options": { "responseCode": 400 }
+        "options": {
+          "responseCode": 400
+        }
       },
       "id": "etpl0029-2929-4a5a-9b1a-emailtemp0029",
       "name": "Respond - Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
-      "position": [1408, 1296]
+      "position": [
+        1408,
+        1296
+      ]
     }
   ],
   "connections": {
-    "Webhook - Get Email Templates": { "main": [[{ "node": "Parse Token (Get)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
-    "Parse Token (Get)": { "main": [[{ "node": "Look Up Requester (Get)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
-    "Look Up Requester (Get)": { "main": [[{ "node": "Validate (Get)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
-    "Validate (Get)": { "main": [[{ "node": "Select Email Templates", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
-    "Select Email Templates": { "main": [[{ "node": "Respond - Get Email Templates", "type": "main", "index": 0 }]] },
-
-    "Webhook - Save Email Template": { "main": [[{ "node": "Parse Token (Save)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
-    "Parse Token (Save)": { "main": [[{ "node": "Look Up Requester (Save)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
-    "Look Up Requester (Save)": { "main": [[{ "node": "Look Up Existing Template (Save)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
-    "Look Up Existing Template (Save)": { "main": [[{ "node": "Validate & Payload (Save)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
-    "Validate & Payload (Save)": { "main": [[{ "node": "Upsert Email Template", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
-    "Upsert Email Template": { "main": [[{ "node": "Respond - Save Success", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
-
-    "Webhook - Update Template Active": { "main": [[{ "node": "Parse Token (Toggle)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
-    "Parse Token (Toggle)": { "main": [[{ "node": "Look Up Requester (Toggle)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
-    "Look Up Requester (Toggle)": { "main": [[{ "node": "Validate & Payload (Toggle)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
-    "Validate & Payload (Toggle)": { "main": [[{ "node": "Update Template Active", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
-    "Update Template Active": { "main": [[{ "node": "Check Toggle Result", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
-    "Check Toggle Result": { "main": [[{ "node": "Respond - Toggle Success", "type": "main", "index": 0 }]] },
-
-    "Webhook - Delete Email Template": { "main": [[{ "node": "Parse Token (Delete)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
-    "Parse Token (Delete)": { "main": [[{ "node": "Look Up Requester (Delete)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
-    "Look Up Requester (Delete)": { "main": [[{ "node": "Look Up Existing Template (Delete)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
-    "Look Up Existing Template (Delete)": { "main": [[{ "node": "Validate & Payload (Delete)", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
-    "Validate & Payload (Delete)": { "main": [[{ "node": "Delete Email Template", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
-    "Delete Email Template": { "main": [[{ "node": "Check Delete Result", "type": "main", "index": 0 }], [{ "node": "Respond - Error", "type": "main", "index": 0 }]] },
-    "Check Delete Result": { "main": [[{ "node": "Respond - Delete Success", "type": "main", "index": 0 }]] }
+    "Webhook - Get Email Templates": {
+      "main": [
+        [
+          {
+            "node": "Parse Token (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token (Get)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester (Get)": {
+      "main": [
+        [
+          {
+            "node": "Validate (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate (Get)": {
+      "main": [
+        [
+          {
+            "node": "Select Email Templates",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Email Templates": {
+      "main": [
+        [
+          {
+            "node": "Respond - Get Email Templates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Save Email Template": {
+      "main": [
+        [
+          {
+            "node": "Parse Token (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token (Save)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester (Save)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Existing Template (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Existing Template (Save)": {
+      "main": [
+        [
+          {
+            "node": "Validate & Payload (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Payload (Save)": {
+      "main": [
+        [
+          {
+            "node": "Upsert Email Template",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Email Template": {
+      "main": [
+        [
+          {
+            "node": "Respond - Save Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Update Template Active": {
+      "main": [
+        [
+          {
+            "node": "Parse Token (Toggle)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token (Toggle)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester (Toggle)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester (Toggle)": {
+      "main": [
+        [
+          {
+            "node": "Validate & Payload (Toggle)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Payload (Toggle)": {
+      "main": [
+        [
+          {
+            "node": "Update Template Active",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Template Active": {
+      "main": [
+        [
+          {
+            "node": "Check Toggle Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Toggle Result": {
+      "main": [
+        [
+          {
+            "node": "Respond - Toggle Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Delete Email Template": {
+      "main": [
+        [
+          {
+            "node": "Parse Token (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Existing Template (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Existing Template (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Validate & Payload (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Payload (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Delete Email Template",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Email Template": {
+      "main": [
+        [
+          {
+            "node": "Check Delete Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Delete Result": {
+      "main": [
+        [
+          {
+            "node": "Respond - Delete Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
   }
 }

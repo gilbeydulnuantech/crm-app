@@ -20,8 +20,8 @@
       "parameters": {
         "sendTo": "={{ $json.to }}",
         "subject": "={{ $('Webhook').item.json.body.subject }}",
-        "emailType": "text",
-        "message": "={{ $('Webhook').item.json.body.message }}",
+        "emailType": "html",
+        "message": "={{ $('Prepare HTML Email').item.json.htmlMessage }}",
         "options": {
           "attachmentsUi": {
             "attachmentsBinary": [
@@ -134,7 +134,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Fetch the uploaded file metadata directly from 'Upload file' — the\n// 'Share file' node's output is a permission resource, not file metadata,\n// so we read name/webViewLink from the upload step instead (same item count,\n// Share runs first to guarantee the link is open before we log/send it).\nconst items = $('Upload file').all();\nconst attachmentList = [];\n\nitems.forEach(item => {\n    // Access item JSON data aggregated from the Google Drive node\n    const data = item.json;\n\n    // Handle whether Aggregate outputted an array or individual item objects\n    const fileArray = Array.isArray(data) ? data : (data.data || [data]);\n\n    fileArray.forEach(file => {\n        // Skip execution metadata or items without a webViewLink\n        if (!file || !file.webViewLink) return;\n\n        const fileName = file.name || file.fileName || 'Attachment';\n        const fileUrl = file.webViewLink;\n\n        attachmentList.push({\n            name: fileName,\n            url: fileUrl\n        });\n    });\n});\n\n// Return as a formatted JSON string for Postgres $3 parameter\nreturn [{\n    json: {\n        attachments_json: JSON.stringify(attachmentList)\n    }\n}];"
+        "jsCode": "// Fetch the uploaded file metadata directly from 'Upload file' \u2014 the\n// 'Share file' node's output is a permission resource, not file metadata,\n// so we read name/webViewLink from the upload step instead (same item count,\n// Share runs first to guarantee the link is open before we log/send it).\nconst items = $('Upload file').all();\nconst attachmentList = [];\n\nitems.forEach(item => {\n    // Access item JSON data aggregated from the Google Drive node\n    const data = item.json;\n\n    // Handle whether Aggregate outputted an array or individual item objects\n    const fileArray = Array.isArray(data) ? data : (data.data || [data]);\n\n    fileArray.forEach(file => {\n        // Skip execution metadata or items without a webViewLink\n        if (!file || !file.webViewLink) return;\n\n        const fileName = file.name || file.fileName || 'Attachment';\n        const fileUrl = file.webViewLink;\n\n        attachmentList.push({\n            name: fileName,\n            url: fileUrl\n        });\n    });\n});\n\n// Return as a formatted JSON string for Postgres $3 parameter\nreturn [{\n    json: {\n        attachments_json: JSON.stringify(attachmentList)\n    }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -175,8 +175,8 @@
       "parameters": {
         "sendTo": "={{ $('format base64').item.json.to_email }}",
         "subject": "={{ $('format base64').item.json.subject }}",
-        "emailType": "text",
-        "message": "={{ $('format base64').item.json.message }}",
+        "emailType": "html",
+        "message": "={{ $('Prepare HTML Email').item.json.htmlMessage }}",
         "options": {}
       },
       "type": "n8n-nodes-base.gmail",
@@ -247,9 +247,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE contacts\nSET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object(\n    'type', 'sent',\n    'subject', $1::text,\n    'message', $2::text,\n    'sent_at', NOW(),\n    'is_read', true)\n    \nWHERE id = $3\nRETURNING email_logs;",
+        "query": "UPDATE contacts\nSET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object(\n    'id', $4::text,\n    'type', 'sent',\n    'subject', $1::text,\n    'message', $2::text,\n    'sent_at', NOW(),\n    'is_read', true,\n    'opened_at', NULL)\nWHERE id = $3\nRETURNING email_logs;",
         "options": {
-          "queryReplacement": "={{ [ $('Webhook').first().json.body.subject || '', $('Webhook').first().json.body.message || '', Number($('Webhook').first().json.body.contact_id) ] }}"
+          "queryReplacement": "={{ [ $('Webhook').first().json.body.subject || '', $('Webhook').first().json.body.message || '', Number($('Webhook').first().json.body.contact_id), $('Prepare HTML Email').first().json.pixelId ] }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -270,9 +270,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE contacts\nSET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object(\n    'type', 'sent',\n    'subject', $1::text,\n    'message', $2::text,\n    'sent_at', NOW(),\n    'is_read', true,\n    'attachments', $3::jsonb\n)::jsonb\nWHERE id = $4\nRETURNING email_logs;",
+        "query": "UPDATE contacts\nSET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object(\n    'id', $5::text,\n    'type', 'sent',\n    'subject', $1::text,\n    'message', $2::text,\n    'sent_at', NOW(),\n    'is_read', true,\n    'opened_at', NULL,\n    'attachments', $3::jsonb\n)::jsonb\nWHERE id = $4\nRETURNING email_logs;",
         "options": {
-          "queryReplacement": "={{ [ $('Webhook').first().json.body.subject || '', $('Webhook').first().json.body.message || '', $json.attachments_json, Number($('Webhook').first().json.body.contact_id) ] }}"
+          "queryReplacement": "={{ [ $('Webhook').first().json.body.subject || '', $('Webhook').first().json.body.message || '', $json.attachments_json, Number($('Webhook').first().json.body.contact_id), $('Prepare HTML Email').first().json.pixelId ] }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -289,6 +289,19 @@
           "name": "myRag"
         }
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "function safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\nfunction escapeHtml(s) {\n  return (s || '').toString()\n    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')\n    .replace(/\"/g, '&quot;').replace(/'/g, '&#39;');\n}\nfunction genId() {\n  return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);\n}\n// A tracking pixel only works in an HTML email \u2014 the two Gmail nodes\n// downstream switched from emailType 'text' to 'html' alongside this.\n// contact_id always comes straight from the webhook body here (this is\n// the manual \"Email Contact\" send, always initiated FROM a contact).\nconst contactId = Number($json.contact_id);\nconst pixelId = genId();\nconst pixelUrl = `${safeEnv('N8N_WEBHOOK_BASE_URL')}/webhook/track-email-open?id=${pixelId}&contact_id=${contactId}`;\nconst pixelTag = `<img src=\"${pixelUrl}\" width=\"1\" height=\"1\" style=\"display:none\" alt=\"\" />`;\nconst htmlMessage = escapeHtml($json.message || '').replace(/\\n/g, '<br>') + pixelTag;\nreturn [{ json: { ...$json, htmlMessage, pixelId } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2480,
+        1440
+      ],
+      "id": "prepare-html-email-mail-send",
+      "name": "Prepare HTML Email"
     }
   ],
   "pinData": {},
@@ -352,7 +365,7 @@
       "main": [
         [
           {
-            "node": "If",
+            "node": "Prepare HTML Email",
             "type": "main",
             "index": 0
           }
@@ -415,6 +428,17 @@
         [
           {
             "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare HTML Email": {
+      "main": [
+        [
+          {
+            "node": "If",
             "type": "main",
             "index": 0
           }

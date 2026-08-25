@@ -14,44 +14,82 @@ export const DYNAMIC_FIELDS: DynamicField[] = [
 
 // The full merge-token set the Automation Engine's fill() functions
 // actually resolve (Build Candidate Query selects the underlying columns,
-// Prepare Email / Substitute Contract Link & Prepare Email replace them).
-// Grouped by entity so the picker reads like GoHighLevel/HubSpot's
-// categorized merge-field menus rather than one flat list. A token not
-// backed by the current trigger type's row (e.g. {{deal_value}} on a
-// Contact trigger) just resolves to an empty string — same fallback
-// behavior as the existing 5 tokens already had.
+// Prepare Email / Substitute Contract Link & Prepare Email / Prepare Team
+// Notification replace them). Grouped and namespaced GHL-style (Contact →
+// Company → Opportunity → Appointment → User → System) so the picker reads
+// like GoHighLevel/HubSpot's categorized merge-field menus. The OLD flat
+// tokens ({{first_name}}, {{deal_value}}, etc.) still work in every saved
+// automation/template — fill() resolves both forms from the same
+// underlying data — they're just no longer offered in this picker in favor
+// of the namespaced equivalents below.
+//
+// Opportunity only resolves on a Deal-triggered automation, and
+// Appointment only on a Task/Calendar-triggered one (Appointment reuses
+// that same `activities` data — there's no separate appointments table in
+// this schema) — on any other trigger type those tokens resolve to an
+// empty string rather than leaking a same-named column from the wrong
+// entity. Custom Fields and Trigger Data (webhook payload) aren't offered
+// here — neither exists as real, queryable data in this schema yet.
 export const AUTOMATION_DYNAMIC_FIELDS: DynamicField[] = [
-  { token: '{{first_name}}', label: 'First Name', group: 'Contact' },
-  { token: '{{last_name}}', label: 'Last Name', group: 'Contact' },
-  { token: '{{email}}', label: 'Email', group: 'Contact' },
-  { token: '{{phone}}', label: 'Phone', group: 'Contact' },
-  { token: '{{job_title}}', label: 'Job Title', group: 'Contact' },
-  { token: '{{lead_status}}', label: 'Lead Status', group: 'Contact' },
-  { token: '{{city}}', label: 'City', group: 'Contact' },
-  { token: '{{state}}', label: 'State', group: 'Contact' },
-  { token: '{{country}}', label: 'Country', group: 'Contact' },
+  { token: '{{contact.id}}', label: 'Contact ID', group: 'Contact' },
+  { token: '{{contact.first_name}}', label: 'First Name', group: 'Contact' },
+  { token: '{{contact.last_name}}', label: 'Last Name', group: 'Contact' },
+  { token: '{{contact.full_name}}', label: 'Full Name', group: 'Contact' },
+  { token: '{{contact.email}}', label: 'Email', group: 'Contact' },
+  { token: '{{contact.phone}}', label: 'Phone', group: 'Contact' },
+  { token: '{{contact.city}}', label: 'City', group: 'Contact' },
+  { token: '{{contact.state}}', label: 'State', group: 'Contact' },
+  { token: '{{contact.postal_code}}', label: 'Postal Code', group: 'Contact' },
+  { token: '{{contact.country}}', label: 'Country', group: 'Contact' },
+  { token: '{{contact.date_of_birth}}', label: 'Date of Birth', group: 'Contact' },
+  { token: '{{contact.source}}', label: 'Lead Source', group: 'Contact' },
+  { token: '{{contact.tags}}', label: 'Tags', group: 'Contact' },
+  { token: '{{contact.created_at}}', label: 'Created At', group: 'Contact' },
+  { token: '{{contact.updated_at}}', label: 'Updated At', group: 'Contact' },
 
-  { token: '{{company_name}}', label: 'Company Name', group: 'Company' },
-  { token: '{{industry}}', label: 'Industry', group: 'Company' },
-  { token: '{{website}}', label: 'Website', group: 'Company' },
+  { token: '{{company.id}}', label: 'Company ID', group: 'Company' },
+  { token: '{{company.name}}', label: 'Company Name', group: 'Company' },
+  { token: '{{company.phone}}', label: 'Phone', group: 'Company' },
+  { token: '{{company.website}}', label: 'Website', group: 'Company' },
+  { token: '{{company.address}}', label: 'Address', group: 'Company' },
+  { token: '{{company.city}}', label: 'City', group: 'Company' },
+  { token: '{{company.state}}', label: 'State', group: 'Company' },
+  { token: '{{company.postal_code}}', label: 'Postal Code', group: 'Company' },
+  { token: '{{company.country}}', label: 'Country', group: 'Company' },
 
-  { token: '{{deal_name}}', label: 'Deal Name', group: 'Deal' },
-  { token: '{{deal_value}}', label: 'Deal Value', group: 'Deal' },
-  { token: '{{deal_stage}}', label: 'Deal Stage', group: 'Deal' },
-  { token: '{{pipeline_name}}', label: 'Pipeline', group: 'Deal' },
-  { token: '{{expected_close}}', label: 'Expected Close', group: 'Deal' },
-  { token: '{{proposal_link}}', label: 'Proposal Link', group: 'Deal' },
-  { token: '{{contract_link}}', label: 'Contract Link', group: 'Deal' },
+  { token: '{{opportunity.id}}', label: 'Opportunity ID', group: 'Opportunity' },
+  { token: '{{opportunity.name}}', label: 'Name', group: 'Opportunity' },
+  { token: '{{opportunity.status}}', label: 'Status', group: 'Opportunity' },
+  { token: '{{opportunity.pipeline}}', label: 'Pipeline', group: 'Opportunity' },
+  { token: '{{opportunity.pipeline_id}}', label: 'Pipeline ID', group: 'Opportunity' },
+  { token: '{{opportunity.stage}}', label: 'Stage', group: 'Opportunity' },
+  { token: '{{opportunity.stage_id}}', label: 'Stage ID', group: 'Opportunity' },
+  { token: '{{opportunity.value}}', label: 'Value', group: 'Opportunity' },
+  { token: '{{opportunity.source}}', label: 'Source', group: 'Opportunity' },
+  { token: '{{opportunity.created_at}}', label: 'Created At', group: 'Opportunity' },
+  { token: '{{opportunity.updated_at}}', label: 'Updated At', group: 'Opportunity' },
+  { token: '{{proposal_link}}', label: 'Proposal Link', group: 'Opportunity' },
+  { token: '{{contract_link}}', label: 'Contract Link', group: 'Opportunity' },
 
-  { token: '{{owner_name}}', label: 'Owner Name', group: 'Owner' },
-  { token: '{{owner_email}}', label: 'Owner Email', group: 'Owner' },
-  { token: '{{owner_phone}}', label: 'Owner Phone', group: 'Owner' },
+  { token: '{{appointment.id}}', label: 'Appointment ID', group: 'Appointment' },
+  { token: '{{appointment.title}}', label: 'Title', group: 'Appointment' },
+  { token: '{{appointment.start_time}}', label: 'Start Time', group: 'Appointment' },
+  { token: '{{appointment.end_time}}', label: 'End Time', group: 'Appointment' },
+  { token: '{{appointment.status}}', label: 'Status', group: 'Appointment' },
+  { token: '{{appointment.calendar}}', label: 'Type', group: 'Appointment' },
+  { token: '{{appointment.location}}', label: 'Location', group: 'Appointment' },
+  { token: '{{appointment.assigned_user}}', label: 'Assigned User', group: 'Appointment' },
+  { token: '{{appointment.notes}}', label: 'Notes', group: 'Appointment' },
 
-  { token: '{{task_name}}', label: 'Task / Event Name', group: 'Task & Calendar' },
-  { token: '{{due_date}}', label: 'Due Date', group: 'Task & Calendar' },
-  { token: '{{event_type}}', label: 'Event Type', group: 'Task & Calendar' },
+  { token: '{{user.id}}', label: 'User ID', group: 'User' },
+  { token: '{{user.full_name}}', label: 'Full Name', group: 'User' },
+  { token: '{{user.email}}', label: 'Email', group: 'User' },
+  { token: '{{user.phone}}', label: 'Phone', group: 'User' },
 
-  { token: '{{today}}', label: "Today's Date", group: 'Other' },
+  { token: '{{system.current_date}}', label: 'Current Date', group: 'System' },
+  { token: '{{system.current_time}}', label: 'Current Time', group: 'System' },
+  { token: '{{system.current_datetime}}', label: 'Current Date & Time', group: 'System' },
+  { token: '{{system.timestamp}}', label: 'Timestamp (ISO)', group: 'System' },
 ];
 
 export function insertAtCursor(

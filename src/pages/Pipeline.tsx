@@ -13,6 +13,7 @@ import {
   useStages,
   useUpdateOpportunity,
 } from '../hooks/useOpportunities';
+import { hiddenStagesKey, loadHiddenStageIds } from '../utils/pipelineStageVisibility';
 import { useTags, useUsers } from '../hooks/useContacts';
 import { useAddNote } from '../hooks/useNotes';
 import { useAddTask } from '../hooks/useTasks';
@@ -34,25 +35,8 @@ import SearchToolbar from '../components/SearchToolbar';
 
 const CLOSED_LOST_STAGE = /lost/i;
 
-// Column visibility is a per-rep display preference, not shared data — kept
-// in localStorage (scoped by user id, since a shared browser could have
-// multiple reps logging in/out) rather than the backend. Stage visibility
-// stores the HIDDEN ids, not the visible ones, so a newly added stage
-// defaults to visible instead of silently disappearing because it wasn't
-// in an old saved "visible" list.
-function hiddenStagesKey(userId: number | undefined, pipelineId: number | undefined) {
-  return `pipeline-hidden-stages:${userId ?? 'anon'}:${pipelineId ?? 'none'}`;
-}
 function listColumnVisibilityKey(userId: number | undefined) {
   return `pipeline-list-column-visibility:${userId ?? 'anon'}`;
-}
-function loadHiddenStageIds(userId: number | undefined, pipelineId: number | undefined): Set<number> {
-  try {
-    const raw = localStorage.getItem(hiddenStagesKey(userId, pipelineId));
-    return raw ? new Set(JSON.parse(raw) as number[]) : new Set();
-  } catch {
-    return new Set();
-  }
 }
 function loadListColumnVisibility(userId: number | undefined): VisibilityState {
   try {

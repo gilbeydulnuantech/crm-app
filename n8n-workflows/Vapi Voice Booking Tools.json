@@ -16,7 +16,8 @@
         960,
         320
       ],
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "webhookId": "110eff0c-cf0c-4c29-a462-673f19858937"
     },
     {
       "parameters": {
@@ -100,7 +101,8 @@
         960,
         640
       ],
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "webhookId": "c64bd3e3-2dd0-4679-a7ae-0fce72d93144"
     },
     {
       "parameters": {
@@ -415,5 +417,13 @@
         ]
       ]
     }
+  },
+  "pinData": {},
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
   }
 }

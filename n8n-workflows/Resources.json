@@ -5,13 +5,18 @@
       "parameters": {
         "path": "get-resources",
         "responseMode": "responseNode",
-        "options": { "allowedOrigins": "*" }
+        "options": {
+          "allowedOrigins": "*"
+        }
       },
       "id": "e5f6a001-1111-4a5a-9b1a-resources0001",
       "name": "Webhook: get-resources",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [240, 560],
+      "position": [
+        240,
+        560
+      ],
       "webhookId": "e5f6a001-1111-4a5a-9b1a-webhookres01"
     },
     {
@@ -24,9 +29,15 @@
       "name": "Postgres: Select Resources",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [464, 560],
+      "position": [
+        464,
+        560
+      ],
       "credentials": {
-        "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" }
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
       }
     },
     {
@@ -38,20 +49,28 @@
       "name": "Respond: get-resources",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
-      "position": [688, 560]
+      "position": [
+        688,
+        560
+      ]
     },
     {
       "parameters": {
         "httpMethod": "POST",
         "path": "add-resource",
         "responseMode": "responseNode",
-        "options": { "allowedOrigins": "*" }
+        "options": {
+          "allowedOrigins": "*"
+        }
       },
       "id": "e5f6a004-4444-4a5a-9b1a-resources0004",
       "name": "Webhook: add-resource",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [240, 784],
+      "position": [
+        240,
+        784
+      ],
       "webhookId": "e5f6a004-4444-4a5a-9b1a-webhookres04"
     },
     {
@@ -66,9 +85,15 @@
       "name": "Postgres: Insert Resource",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [464, 784],
+      "position": [
+        464,
+        784
+      ],
       "credentials": {
-        "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" }
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
       }
     },
     {
@@ -81,21 +106,56 @@
       "name": "Respond: add-resource",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
-      "position": [688, 784]
+      "position": [
+        688,
+        784
+      ]
     }
   ],
   "connections": {
     "Webhook: get-resources": {
-      "main": [[{ "node": "Postgres: Select Resources", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Resources",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Postgres: Select Resources": {
-      "main": [[{ "node": "Respond: get-resources", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond: get-resources",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Webhook: add-resource": {
-      "main": [[{ "node": "Postgres: Insert Resource", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Postgres: Insert Resource",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Postgres: Insert Resource": {
-      "main": [[{ "node": "Respond: add-resource", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond: add-resource",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
@@ -103,5 +163,6 @@
     "executionOrder": "v1"
   },
   "id": "resourcesWorkflow001",
-  "tags": []
+  "tags": [],
+  "pinData": {}
 }

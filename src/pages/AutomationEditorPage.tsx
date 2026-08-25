@@ -1,5 +1,8 @@
-import { ReactNode, useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { ReactFlow, Background, Controls, Handle, Position, MarkerType, BaseEdge, EdgeLabelRenderer, getSmoothStepPath } from '@xyflow/react';
+import type { Node, Edge, NodeProps, EdgeProps, OnNodeDrag } from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
 import {
   Automation,
   ActionType,
@@ -48,6 +51,7 @@ interface FieldDef {
   label: string;
   kind: FieldKind;
   options?: readonly string[];
+  group?: string;
 }
 
 const TRIGGER_FIELDS: Record<TriggerType, FieldDef[]> = {
@@ -62,6 +66,13 @@ const TRIGGER_FIELDS: Record<TriggerType, FieldDef[]> = {
     { key: 'days_since_created', label: 'Lead Age (days)', kind: 'number' },
     { key: 'lead_source', label: 'Lead Source', kind: 'text' },
     { key: 'do_not_contact', label: 'Do Not Contact', kind: 'boolean' },
+    // Backed by contacts.email_logs — Replied comes from a live Gmail-inbox
+    // poller so it's accurate regardless of how the original email was
+    // sent; Opened depends on the tracking pixel embedded in outbound HTML
+    // emails actually loading, which many email clients block by default,
+    // so treat it as a best-effort signal rather than a guarantee.
+    { key: 'email_replied', label: 'Email Replied', kind: 'boolean', group: 'Email' },
+    { key: 'email_opened', label: 'Email Opened', kind: 'boolean', group: 'Email' },
   ],
   company: [
     { key: 'account_status', label: 'Status', kind: 'select', options: COMPANY_STATUSES },
@@ -220,14 +231,84 @@ function fieldDef(triggerType: TriggerType, key: string): FieldDef | undefined {
   return TRIGGER_FIELDS[triggerType].find((f) => f.key === key);
 }
 
+// Ungrouped fields render as plain top-level options; grouped ones (e.g.
+// Email Replied/Opened under "Email") render inside an <optgroup> —
+// matches the same group-rendering convention already used for the
+// Dynamic Fields picker and the Add Step dropdown.
+function renderFieldOptions(fields: FieldDef[]) {
+  const ungrouped = fields.filter((f) => !f.group);
+  const grouped = fields.reduce<Record<string, FieldDef[]>>((acc, f) => {
+    if (f.group) (acc[f.group] ||= []).push(f);
+    return acc;
+  }, {});
+  return (
+    <>
+      {ungrouped.map((f) => (
+        <option key={f.key} value={f.key}>
+          {f.label}
+        </option>
+      ))}
+      {Object.entries(grouped).map(([group, groupFields]) => (
+        <optgroup key={group} label={group}>
+          {groupFields.map((f) => (
+            <option key={f.key} value={f.key}>
+              {f.label}
+            </option>
+          ))}
+        </optgroup>
+      ))}
+    </>
+  );
+}
+
 function defaultOperatorFor(kind: FieldKind): ConditionOperator {
   return OPERATORS_BY_KIND[kind][0].value;
 }
 
-// Full-page automation builder — same "when this happens → do this"
-// two-column shape used by GHL/HubSpot/Zoho, and the same full-page
-// pattern as the Proposal/Contract editors (AppLayout hides the main nav
-// on this route for maximum width, see NO_SIDEBAR_PATTERN).
+// A text field is only eligible for the dynamic-field/document picker on
+// actions that actually have a free-text body — add_tag/wait/update_field
+// are all structured pickers, not merge-token-eligible copy.
+function actionHasTextFields(t: ActionType): boolean {
+  return t === 'send_email' || t === 'send_team_notification' || t === 'send_sms';
+}
+
+function actionSubtitle(a: ActionDraft): string {
+  switch (a.action_type) {
+    case 'add_tag':
+      return a.action_config.tag_name ? String(a.action_config.tag_name) : 'No tag set';
+    case 'send_email':
+      return a.action_config.subject ? String(a.action_config.subject) : 'No subject set';
+    case 'send_team_notification':
+    case 'send_sms':
+      return a.action_config.message ? String(a.action_config.message) : 'No message set';
+    case 'wait':
+      return a.action_config.amount ? `${a.action_config.amount} ${String(a.action_config.unit || 'days')}` : 'No duration set';
+    case 'update_field':
+      return a.action_config.field ? String(a.action_config.field) : 'No field chosen';
+    default:
+      return '';
+  }
+}
+
+type SelectedNodeId = 'trigger' | 'condition' | `action-${number}` | `branch-${Branch}` | null;
+
+function branchOfSelection(selectedNodeId: SelectedNodeId, actions: ActionDraft[]): Branch {
+  if (selectedNodeId?.startsWith('action-')) {
+    const index = Number(selectedNodeId.slice('action-'.length));
+    return actions[index]?.branch ?? 'default';
+  }
+  if (selectedNodeId?.startsWith('branch-')) {
+    return selectedNodeId.slice('branch-'.length) as Branch;
+  }
+  return 'default';
+}
+
+// Full-page automation builder — a real React Flow canvas (center) with a
+// Node Library (left, click to add a step) and a Config Panel (right, shows
+// the selected node's settings) — the GHL/HubSpot/Zoho "when this happens →
+// do this" shape, laid out as three columns instead of one big scrolling
+// form. AppLayout hides the main nav on this route for maximum width, see
+// NO_SIDEBAR_PATTERN.
 export default function AutomationEditorPage() {
   const { id } = useParams();
   const isEdit = id != null && id !== 'new';
@@ -260,10 +341,37 @@ export default function AutomationEditorPage() {
   const [testResult, setTestResult] = useState<TestAutomationResult | null>(null);
   const [testEmail, setTestEmail] = useState('');
   const [loadedExisting, setLoadedExisting] = useState(false);
-  // Tracks which action's which text field was last focused, so the
-  // right-hand Dynamic Fields/Documents panel knows where to insert —
-  // available to every action's text field, not just Send Email's body.
-  const [activeField, setActiveField] = useState<{ index: number; key: 'subject' | 'body' | 'message' } | null>(null);
+  // Which node is clicked on the canvas — drives what the Config Panel
+  // shows, and (for `branch-*` / `action-*` selections) which branch a new
+  // step from the Node Library gets appended to.
+  const [selectedNodeId, setSelectedNodeId] = useState<SelectedNodeId>(null);
+  // Which text field (subject/body/message) on the CURRENTLY SELECTED
+  // action was last focused — only one action's fields are ever visible at
+  // once now (in the Config Panel), so this no longer needs to track index.
+  const [activeFieldKey, setActiveFieldKey] = useState<'subject' | 'body' | 'message' | null>(null);
+  const [fieldPickerOpen, setFieldPickerOpen] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(true);
+  const [configOpen, setConfigOpen] = useState(true);
+  // Set by clicking the "+" button on an edge between two real nodes —
+  // the NEXT type picked from the Node Library gets spliced in at this
+  // exact position instead of appended to the end of a branch. Cleared
+  // after the insert (or on Cancel).
+  const [insertionPoint, setInsertionPoint] = useState<{ branch: Branch; afterIndexInBranch: number } | null>(null);
+
+  useEffect(() => {
+    setActiveFieldKey(null);
+    setFieldPickerOpen(false);
+  }, [selectedNodeId]);
+
+  // A failed Save/Test leaves its error (or stale Test result) banner up —
+  // the Config Panel's own "Save" button only closes the panel, it doesn't
+  // re-validate. Without this, fixing the actual problem (e.g. typing a
+  // missing message) leaves a now-stale banner on screen that looks like
+  // it's still failing.
+  useEffect(() => {
+    setError(null);
+    setTestResult(null);
+  }, [name, triggerType, trigger, hasIfElse, condition, actions]);
 
   const { data: stages = [] } = useStages(stagePipelineId ? Number(stagePipelineId) : undefined);
 
@@ -330,19 +438,72 @@ export default function AutomationEditorPage() {
     setActions((prev) => [...prev, { branch, action_type: actionType, action_config: {}, sort_order: prev.length }]);
   }
 
-  // The "Add a step" dropdown mixes one virtual, UI-only entry ("If/Else
-  // Condition") in with the real ActionType options — picking it doesn't
-  // add an action at all, it flips on the existing condition_tree UI below
-  // (only offered once, since this data model supports a single if/else,
-  // not an arbitrary step sequence).
-  function handleAddStep(branch: Branch, value: string) {
-    if (!value) return;
-    if (value === '__condition__') {
-      setHasIfElse(true);
-      setCondition(EMPTY_CONDITION);
+  // Splices a new action into the middle of a branch, right after the
+  // Nth existing action in that branch's current order (-1 = before the
+  // branch's first action). Re-derived from `afterIndexInBranch` at
+  // insert time rather than a stored array index, so it stays correct
+  // even if actions were added/removed elsewhere since the "+" was clicked.
+  function insertActionAt(branch: Branch, afterIndexInBranch: number, actionType: ActionType) {
+    setActions((prev) => {
+      const branchEntries = prev
+        .map((a, i) => ({ a, i }))
+        .filter(({ a }) => a.branch === branch)
+        .sort((x, y) => x.a.sort_order - y.a.sort_order);
+      const spliceAfterArrayIndex = afterIndexInBranch < 0 ? -1 : (branchEntries[afterIndexInBranch]?.i ?? prev.length - 1);
+      const next = [...prev];
+      next.splice(spliceAfterArrayIndex + 1, 0, { branch, action_type: actionType, action_config: {}, sort_order: 0 });
+      return next.map((a, i) => ({ ...a, sort_order: i }));
+    });
+  }
+
+  // A 'default'-branch action becomes permanently unreachable (and
+  // invisible on the canvas) the instant a condition exists — the engine
+  // only ever resolves branch to 'true'/'false' once conditionTree is set,
+  // never 'default'. Rather than silently orphaning whatever the admin
+  // already built (which reads as "my step got deleted"), move any
+  // existing default-branch steps onto the True branch — "if the
+  // condition passes, do what I already had" is the closest match to
+  // their original intent, and nothing gets lost.
+  function handleLibraryAddCondition() {
+    if (hasIfElse || !triggerConfigured) return;
+    setHasIfElse(true);
+    setCondition(EMPTY_CONDITION);
+    setActions((prev) => prev.map((a) => (a.branch === 'default' ? { ...a, branch: 'true' } : a)));
+    setSelectedNodeId('condition');
+  }
+
+  function handleLibraryAddAction(actionType: ActionType) {
+    if (!triggerConfigured) return;
+    if (insertionPoint) {
+      insertActionAt(insertionPoint.branch, insertionPoint.afterIndexInBranch, actionType);
+      setInsertionPoint(null);
       return;
     }
-    addAction(branch, value as ActionType);
+    const branch = branchOfSelection(selectedNodeId, actions);
+    addAction(branch, actionType);
+  }
+
+  // Reorders one branch's actions to match a drag-and-drop result —
+  // reassigns the SAME set of sort_order values this branch already used
+  // (just in the new order), leaving every other branch's actions and
+  // sort_order completely untouched.
+  function reorderBranch(branch: Branch, draggedActionIndex: number, newRank: number) {
+    setActions((prev) => {
+      const branchEntries = prev.map((a, i) => ({ a, i })).filter(({ a }) => a.branch === branch).sort((x, y) => x.a.sort_order - y.a.sort_order);
+      const order = branchEntries.map((e) => e.i);
+      const fromPos = order.indexOf(draggedActionIndex);
+      if (fromPos === -1) return prev;
+      const clampedRank = Math.max(0, Math.min(newRank, order.length - 1));
+      if (fromPos === clampedRank) return prev;
+      const [moved] = order.splice(fromPos, 1);
+      order.splice(clampedRank, 0, moved);
+      const branchSortOrders = branchEntries.map((e) => e.a.sort_order).sort((x, y) => x - y);
+      const next = prev.map((a) => ({ ...a }));
+      order.forEach((idx, rank) => {
+        next[idx].sort_order = branchSortOrders[rank];
+      });
+      return next;
+    });
   }
 
   function updateAction(index: number, patch: Partial<ActionDraft>) {
@@ -351,20 +512,26 @@ export default function AutomationEditorPage() {
 
   function removeAction(index: number) {
     setActions((prev) => prev.filter((_, i) => i !== index));
-    setActiveField((f) => (f?.index === index ? null : f));
+    setSelectedNodeId((id) => (id === `action-${index}` ? null : id));
   }
 
-  // Appends a token/document to whichever field was last focused — the
-  // side panel is available to any action's text field, not just Send
-  // Email's body, so insertion has to go through this shared tracked
-  // target instead of each field owning its own inline picker.
+  function removeCondition() {
+    setHasIfElse(false);
+    setActions((prev) => prev.map((a) => ({ ...a, branch: 'default' })));
+    setSelectedNodeId((id) => (id === 'condition' ? null : id));
+  }
+
+  // Appends a token/document into whichever field of the SELECTED action
+  // was last focused — only one action's fields are visible at a time now
+  // (in the Config Panel), so there's no index to track beyond that.
   function insertIntoActiveField(text: string) {
-    if (!activeField) return;
-    const action = actions[activeField.index];
+    if (!activeFieldKey || !selectedNodeId?.startsWith('action-')) return;
+    const index = Number(selectedNodeId.slice('action-'.length));
+    const action = actions[index];
     if (!action) return;
-    const key = activeField.key;
-    const current = String(action.action_config[key] || '');
-    updateAction(activeField.index, { action_config: { ...action.action_config, [key]: current + text } });
+    const current = String(action.action_config[activeFieldKey] || '');
+    updateAction(index, { action_config: { ...action.action_config, [activeFieldKey]: current + text } });
+    setFieldPickerOpen(false);
   }
 
   function buildPayload(): SaveAutomationPayload {
@@ -438,6 +605,157 @@ export default function AutomationEditorPage() {
     });
   }
 
+  // Nodes/edges are fully recomputed from the same domain state (trigger,
+  // condition, actions, selectedNodeId) on every render — the canvas is a
+  // read-only VIEW of that state, not its own source of truth. Positions
+  // are laid out by hand (this data model is only ever a straight chain, or
+  // one fork into two straight chains — never an arbitrary DAG) rather than
+  // pulling in an auto-layout engine like dagre. Dragging is disabled so
+  // the computed layout can't drift from what's actually saved. Nodes are
+  // deliberately small/clean — clicking one opens its settings in the
+  // Config Panel instead of showing the form inline.
+  const { nodes, edges } = useMemo<{ nodes: Node[]; edges: Edge[] }>(() => {
+    const nodes: Node[] = [];
+    const edges: Edge[] = [];
+
+    // `onAdd` is only passed for edges between two REAL nodes (trigger→
+    // action, action→action, condition→action) — never on the trigger→
+    // condition edge, since this data model has no branch an action
+    // between Trigger and Condition could ever belong to (it would become
+    // the exact same orphaned-'default'-branch dead code a real automation
+    // hit in production), and never into a branch-anchor placeholder,
+    // which is already itself a "click to add" affordance.
+    function edge(id: string, source: string, target: string, label?: string, color?: string, onAdd?: () => void): Edge {
+      const data: ButtonEdgeData = { onAdd };
+      return {
+        id,
+        source,
+        target,
+        type: 'buttonEdge',
+        markerEnd: { type: MarkerType.ArrowClosed, color: color || '#cbd5e1' },
+        style: { stroke: color || '#cbd5e1', strokeWidth: 2 },
+        label,
+        labelStyle: color ? { fill: color, fontWeight: 700, fontSize: 10 } : undefined,
+        labelBgStyle: color ? { fill: 'white' } : undefined,
+        data: data as unknown as Record<string, unknown>,
+      };
+    }
+
+    const triggerData: TriggerFlowNodeData = { triggerType, trigger, selected: selectedNodeId === 'trigger' };
+    nodes.push({
+      id: 'trigger',
+      type: 'trigger',
+      position: { x: CANVAS_CENTER_X, y: 0 },
+      data: triggerData as unknown as Record<string, unknown>,
+      draggable: false,
+      selectable: false,
+    });
+
+    function pushActionNode(id: string, index: number, x: number, y: number) {
+      const data: ActionFlowNodeData = {
+        action: actions[index],
+        selected: selectedNodeId === id,
+        onRemove: () => removeAction(index),
+      };
+      // Draggable — dropping it reorders within its own branch (see
+      // handleNodeDragStop); it always snaps back to a clean grid position
+      // since positions are recomputed from domain state, never stored.
+      nodes.push({ id, type: 'action', position: { x, y }, data: data as unknown as Record<string, unknown>, draggable: true, selectable: false });
+    }
+
+    function pushBranchAnchor(id: string, x: number, y: number, branch: Branch) {
+      const data: BranchAnchorNodeData = { branch, selected: selectedNodeId === id };
+      nodes.push({ id, type: 'branchAnchor', position: { x, y }, data: data as unknown as Record<string, unknown>, draggable: false, selectable: false });
+    }
+
+    if (!hasIfElse) {
+      const defaultActions = actions.map((a, i) => ({ a, i })).filter(({ a }) => a.branch === 'default').sort((x, y) => x.a.sort_order - y.a.sort_order);
+      let prevId = 'trigger';
+      let y = CANVAS_ROW_HEIGHT;
+      defaultActions.forEach(({ i }, rank) => {
+        const id = `action-${i}`;
+        pushActionNode(id, i, CANVAS_CENTER_X, y);
+        edges.push(edge(`e-${prevId}-${id}`, prevId, id, undefined, undefined, () => handleInsertClick('default', rank - 1)));
+        prevId = id;
+        y += CANVAS_ROW_HEIGHT;
+      });
+      if (defaultActions.length === 0) {
+        pushBranchAnchor('branch-default', CANVAS_CENTER_X, y, 'default');
+        edges.push(edge(`e-${prevId}-branch-default`, prevId, 'branch-default'));
+      }
+    } else {
+      const conditionData: ConditionFlowNodeData = { triggerType, condition, selected: selectedNodeId === 'condition' };
+      nodes.push({
+        id: 'condition',
+        type: 'condition',
+        position: { x: CANVAS_CENTER_X, y: CANVAS_ROW_HEIGHT },
+        data: conditionData as unknown as Record<string, unknown>,
+        draggable: false,
+        selectable: false,
+      });
+      // No "+" on this edge — an action here would need `branch: 'default'`,
+      // which becomes permanently dead code the moment a condition exists
+      // (Evaluate & Expand Actions never resolves branch to 'default' once
+      // conditionTree is set) — exactly the orphaned-action bug found in
+      // production. The data model has no slot for a pre-condition step.
+      edges.push(edge('e-trigger-condition', 'trigger', 'condition'));
+
+      (['true', 'false'] as Branch[]).forEach((branch) => {
+        const x = branch === 'true' ? CANVAS_LEFT_X : CANVAS_RIGHT_X;
+        const color = branch === 'true' ? '#10b981' : '#f43f5e';
+        const branchLabel = branch === 'true' ? 'True' : 'False';
+        const branchActions = actions.map((a, i) => ({ a, i })).filter(({ a }) => a.branch === branch).sort((x, y) => x.a.sort_order - y.a.sort_order);
+        let prevId = 'condition';
+        let y = CANVAS_ROW_HEIGHT * 2;
+        let isFirstEdge = true;
+        branchActions.forEach(({ i }, rank) => {
+          const id = `action-${i}`;
+          pushActionNode(id, i, x, y);
+          edges.push(edge(`e-${prevId}-${id}`, prevId, id, isFirstEdge ? branchLabel : undefined, isFirstEdge ? color : undefined, () => handleInsertClick(branch, rank - 1)));
+          prevId = id;
+          y += CANVAS_ROW_HEIGHT;
+          isFirstEdge = false;
+        });
+        if (branchActions.length === 0) {
+          const anchorId = `branch-${branch}`;
+          pushBranchAnchor(anchorId, x, y, branch);
+          edges.push(edge(`e-${prevId}-${anchorId}`, prevId, anchorId, isFirstEdge ? branchLabel : undefined, isFirstEdge ? color : undefined));
+        }
+      });
+    }
+
+    return { nodes, edges };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [triggerType, trigger, hasIfElse, condition, actions, selectedNodeId]);
+
+  function handleNodeClick(nodeId: string) {
+    if (nodeId === 'trigger' || nodeId === 'condition' || nodeId.startsWith('action-') || nodeId.startsWith('branch-')) {
+      setSelectedNodeId(nodeId as SelectedNodeId);
+      setConfigOpen(true);
+      setInsertionPoint(null);
+    }
+  }
+
+  function handleInsertClick(branch: Branch, afterIndexInBranch: number) {
+    setInsertionPoint({ branch, afterIndexInBranch });
+    setSelectedNodeId(null);
+    setLibraryOpen(true);
+  }
+
+  // Drop position → which rank (0-based) in the SAME branch the dragged
+  // action should land at, based purely on Y (branches don't change via
+  // drag — only reordering within one, matching what "like in GHL" means
+  // here: reorder the sequence, not rewire the graph).
+  const handleNodeDragStop: OnNodeDrag = (_, node) => {
+    if (!node.id.startsWith('action-')) return;
+    const draggedIndex = Number(node.id.slice('action-'.length));
+    const draggedAction = actions[draggedIndex];
+    if (!draggedAction) return;
+    const baseY = hasIfElse ? CANVAS_ROW_HEIGHT * 2 : CANVAS_ROW_HEIGHT;
+    const rank = Math.round((node.position.y - baseY) / CANVAS_ROW_HEIGHT);
+    reorderBranch(draggedAction.branch, draggedIndex, rank);
+  };
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-white">
       {/* Header: back, name, test/save */}
@@ -506,308 +824,381 @@ export default function AutomationEditorPage() {
         </p>
       )}
 
-      {/* Body: a vertical flow (left) — Trigger node, arrow down, then
-          whatever step was chosen from the dropdown appears as its own
-          connected node below, GHL-canvas style. Picking "Condition" forks
-          the flow into True/False branches, each its own connected column
-          that keeps growing downward as more steps are added. A persistent
-          Dynamic Fields / Documents panel (right) inserts into whichever
-          action field was last focused — available to any action, not
-          just Send Email. */}
+      {/* Body: three columns — Node Library (left, click a type to append
+          it), the React Flow canvas (center, small clean nodes, click to
+          select), and the Config Panel (right, shows the selected node's
+          settings + a dynamic-field/document picker for text fields). */}
       <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-2xl mx-auto flex flex-col items-center">
-            {/* Trigger node */}
-          <FlowNode icon="fa-bolt" title="Trigger" className="w-full">
-            <div className="space-y-2">
-              <div>
-                <label className="block text-[11px] font-medium text-slate-500 mb-1">Category</label>
-                <select
-                  value={triggerType}
-                  onChange={(e) => handleTriggerTypeChange(e.target.value as TriggerType)}
-                  className={inputClass}
-                >
-                  {(Object.keys(TRIGGER_TYPE_LABELS) as TriggerType[]).map((t) => (
-                    <option key={t} value={t}>
-                      {TRIGGER_TYPE_LABELS[t]}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-[11px] font-medium text-slate-500 mb-1">Field</label>
-                <select
-                  value={trigger.field}
-                  onChange={(e) => {
-                    updateConditionField(trigger, setTrigger, e.target.value);
-                    setStagePipelineId('');
-                  }}
-                  className={inputClass}
-                >
-                  <option value="">Choose a field...</option>
-                  {TRIGGER_FIELDS[triggerType].map((f) => (
-                    <option key={f.key} value={f.key}>
-                      {f.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {trigger.field && (
-                <div className="flex gap-2">
-                  <div className="w-28">
-                    <label className="block text-[11px] font-medium text-slate-500 mb-1">Operator</label>
-                    <select
-                      value={trigger.operator}
-                      onChange={(e) => setTrigger({ ...trigger, operator: e.target.value as ConditionOperator })}
-                      className={inputClass}
-                    >
-                      {OPERATORS_BY_KIND[fieldDef(triggerType, trigger.field)?.kind ?? 'text'].map((op) => (
-                        <option key={op.value} value={op.value}>
-                          {op.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-[11px] font-medium text-slate-500 mb-1">Value</label>
-                    <ValueInput
-                      triggerType={triggerType}
-                      field={trigger.field}
-                      value={trigger.value}
-                      onChange={(v) => setTrigger({ ...trigger, value: v })}
-                      tags={tags}
-                      pipelines={pipelines}
-                      stages={stages}
-                      stagePipelineId={stagePipelineId}
-                      onStagePipelineChange={setStagePipelineId}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          </FlowNode>
+        <NodeLibraryPanel
+          open={libraryOpen}
+          onToggle={() => setLibraryOpen((v) => !v)}
+          triggerConfigured={triggerConfigured}
+          hasIfElse={hasIfElse}
+          availableActionTypes={availableActionTypes}
+          onAddCondition={handleLibraryAddCondition}
+          onAddAction={handleLibraryAddAction}
+          inserting={insertionPoint != null}
+          onCancelInsertion={() => setInsertionPoint(null)}
+        />
 
-          <FlowArrow />
-
-          {!hasIfElse ? (
-            <div className="w-full flex flex-col items-center">
-              {actions
-                .map((a, i) => ({ a, i }))
-                .filter(({ a }) => a.branch === 'default')
-                .map(({ a, i }) => (
-                  <div key={i} className="w-full flex flex-col items-center">
-                    <FlowNode
-                      icon={ACTION_TYPE_META[a.action_type].icon}
-                      title={ACTION_TYPE_META[a.action_type].label}
-                      className="w-full"
-                      right={<ActionNodeExtras meta={ACTION_TYPE_META[a.action_type]} onRemove={() => removeAction(i)} />}
-                    >
-                      <ActionCard
-                        action={a}
-                        triggerType={triggerType}
-                        tags={tags}
-                        channels={channels}
-                        users={users}
-                        pipelines={pipelines}
-                        allStages={allStages}
-                        onChange={(patch) => updateAction(i, patch)}
-                        onFieldFocus={(key) => setActiveField({ index: i, key })}
-                      />
-                    </FlowNode>
-                    <FlowArrow />
-                  </div>
-                ))}
-              <AddStepSelect
-                disabled={!triggerConfigured}
-                availableActionTypes={availableActionTypes}
-                allowCondition
-                onSelect={(v) => handleAddStep('default', v)}
-              />
-            </div>
-          ) : (
-            <div className="w-full flex flex-col items-center">
-              <FlowNode
-                icon="fa-code-branch"
-                title="Condition"
-                className="w-full"
-                right={
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setHasIfElse(false);
-                      setActions((prev) => prev.map((a) => ({ ...a, branch: 'default' })));
-                    }}
-                    className="text-slate-400 hover:text-rose-600"
-                    title="Remove condition"
-                  >
-                    <i className="fa-solid fa-xmark text-xs" />
-                  </button>
-                }
-              >
-                <div className="space-y-2">
-                  <select
-                    value={condition.field}
-                    onChange={(e) => updateConditionField(condition, setCondition, e.target.value)}
-                    className={inputClass}
-                  >
-                    <option value="">Choose a field...</option>
-                    {TRIGGER_FIELDS[triggerType].map((f) => (
-                      <option key={f.key} value={f.key}>
-                        {f.label}
-                      </option>
-                    ))}
-                  </select>
-                  {condition.field && (
-                    <div className="flex gap-2">
-                      <div className="w-28">
-                        <select
-                          value={condition.operator}
-                          onChange={(e) => setCondition({ ...condition, operator: e.target.value as ConditionOperator })}
-                          className={inputClass}
-                        >
-                          {OPERATORS_BY_KIND[fieldDef(triggerType, condition.field)?.kind ?? 'text'].map((op) => (
-                            <option key={op.value} value={op.value}>
-                              {op.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="flex-1">
-                        <ValueInput
-                          triggerType={triggerType}
-                          field={condition.field}
-                          value={condition.value}
-                          onChange={(v) => setCondition({ ...condition, value: v })}
-                          tags={tags}
-                          pipelines={pipelines}
-                          stages={stages}
-                          stagePipelineId={stagePipelineId}
-                          onStagePipelineChange={setStagePipelineId}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </FlowNode>
-
-              <ForkConnector />
-
-              <div className="w-full grid grid-cols-2 gap-6">
-                {(['true', 'false'] as Branch[]).map((branch) => (
-                  <div key={branch} className="flex flex-col items-center">
-                    <span
-                      className={`mb-2 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide rounded-full ${
-                        branch === 'true' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
-                      }`}
-                    >
-                      {branch === 'true' ? 'True' : 'False'}
-                    </span>
-                    {actions
-                      .map((a, i) => ({ a, i }))
-                      .filter(({ a }) => a.branch === branch)
-                      .map(({ a, i }) => (
-                        <div key={i} className="w-full flex flex-col items-center">
-                          <FlowNode
-                            icon={ACTION_TYPE_META[a.action_type].icon}
-                            title={ACTION_TYPE_META[a.action_type].label}
-                            className="w-full"
-                            right={<ActionNodeExtras meta={ACTION_TYPE_META[a.action_type]} onRemove={() => removeAction(i)} />}
-                          >
-                            <ActionCard
-                              action={a}
-                              triggerType={triggerType}
-                              tags={tags}
-                              channels={channels}
-                              users={users}
-                              pipelines={pipelines}
-                              allStages={allStages}
-                              onChange={(patch) => updateAction(i, patch)}
-                              onFieldFocus={(key) => setActiveField({ index: i, key })}
-                            />
-                          </FlowNode>
-                          <FlowArrow />
-                        </div>
-                      ))}
-                    <AddStepSelect
-                      disabled={!triggerConfigured}
-                      availableActionTypes={availableActionTypes}
-                      onSelect={(v) => handleAddStep(branch, v)}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-            )}
-          </div>
+        <div className="flex-1 relative">
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
+            nodesConnectable={false}
+            elementsSelectable={false}
+            panOnScroll
+            fitView
+            fitViewOptions={{ padding: 0.25 }}
+            proOptions={{ hideAttribution: true }}
+            onNodeClick={(_, node) => handleNodeClick(node.id)}
+            onNodeDragStop={handleNodeDragStop}
+            onPaneClick={() => {
+              setSelectedNodeId(null);
+              setInsertionPoint(null);
+            }}
+          >
+            <Background gap={16} color="#e2e8f0" />
+            <Controls showInteractive={false} />
+          </ReactFlow>
         </div>
 
-        <DynamicFieldsPanel
-          activeField={activeField}
+        <ConfigPanel
+          open={configOpen}
+          onToggle={() => setConfigOpen((v) => !v)}
+          selectedNodeId={selectedNodeId}
+          triggerType={triggerType}
+          trigger={trigger}
+          onTriggerTypeChange={handleTriggerTypeChange}
+          onTriggerFieldChange={(key) => {
+            updateConditionField(trigger, setTrigger, key);
+            setStagePipelineId('');
+          }}
+          onTriggerOperatorChange={(op) => setTrigger({ ...trigger, operator: op })}
+          onTriggerValueChange={(v) => setTrigger({ ...trigger, value: v })}
+          condition={condition}
+          onConditionFieldChange={(key) => updateConditionField(condition, setCondition, key)}
+          onConditionOperatorChange={(op) => setCondition({ ...condition, operator: op })}
+          onConditionValueChange={(v) => setCondition({ ...condition, value: v })}
+          onRemoveCondition={removeCondition}
+          actions={actions}
+          onActionChange={updateAction}
+          onActionRemove={removeAction}
+          triggerConfigured={triggerConfigured}
+          tags={tags}
+          channels={channels}
+          users={users}
+          pipelines={pipelines}
+          stages={stages}
+          allStages={allStages}
+          stagePipelineId={stagePipelineId}
+          onStagePipelineChange={setStagePipelineId}
+          activeFieldKey={activeFieldKey}
+          onFieldFocus={setActiveFieldKey}
+          fieldPickerOpen={fieldPickerOpen}
+          onToggleFieldPicker={() => setFieldPickerOpen((v) => !v)}
+          onInsertField={insertIntoActiveField}
           proposalTemplates={proposalTemplates}
           contractTemplates={contractTemplates}
           emailTemplates={emailTemplates}
-          onInsert={insertIntoActiveField}
+          onClose={() => setSelectedNodeId(null)}
         />
       </div>
     </div>
   );
 }
 
-// A single connected node in the flow — a titled box with an icon header,
-// used for both the Trigger and every Action/Condition step below it.
-// `right` holds per-node header extras (a "coming soon" badge, a remove
-// button) so individual step bodies (ActionCard) don't need their own
-// duplicate header.
-function FlowNode({
-  icon,
-  title,
-  right,
-  className = '',
-  children,
-}: {
-  icon: string;
-  title: string;
-  right?: ReactNode;
-  className?: string;
-  children: ReactNode;
-}) {
+// Hand-computed canvas layout — this data model is only ever a straight
+// chain, or one fork into two straight chains, so fixed columns/row height
+// are simpler and more predictable than pulling in an auto-layout engine.
+const CANVAS_CENTER_X = 360;
+const CANVAS_LEFT_X = 40;
+const CANVAS_RIGHT_X = 680;
+const CANVAS_ROW_HEIGHT = 170;
+
+interface TriggerFlowNodeData {
+  triggerType: TriggerType;
+  trigger: ConditionNode;
+  selected: boolean;
+}
+
+interface ConditionFlowNodeData {
+  triggerType: TriggerType;
+  condition: ConditionNode;
+  selected: boolean;
+}
+
+interface ActionFlowNodeData {
+  action: ActionDraft;
+  selected: boolean;
+  onRemove: () => void;
+}
+
+interface BranchAnchorNodeData {
+  branch: Branch;
+  selected: boolean;
+}
+
+interface ButtonEdgeData {
+  onAdd?: () => void;
+}
+
+// A "+" button at the midpoint of every edge between two real nodes — GHL-
+// style "insert a step here" instead of only ever appending at the end of
+// a branch. Edges without an `onAdd` (trigger→condition, and anything
+// leading into a branch-anchor placeholder) render as a plain path.
+function ButtonEdge({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  markerEnd,
+  style,
+  label,
+  labelStyle,
+  data,
+}: EdgeProps) {
+  const [edgePath, labelX, labelY] = getSmoothStepPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
+  const d = data as unknown as ButtonEdgeData | undefined;
+
   return (
-    <div className={`border border-slate-200 rounded-xl p-3 bg-white shadow-sm ${className}`}>
-      <div className="flex items-center justify-between mb-2">
-        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-          <i className={`fa-solid ${icon} mr-1.5 text-[var(--theme-accent)]`} />
-          {title}
+    <>
+      <BaseEdge id={id} path={edgePath} markerEnd={markerEnd} style={style} />
+      <EdgeLabelRenderer>
+        {label != null && (
+          <div
+            className="absolute px-1 text-[10px] font-bold rounded"
+            style={{
+              ...(labelStyle as object),
+              background: 'white',
+              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY - 16}px)`,
+              pointerEvents: 'none',
+            }}
+          >
+            {label}
+          </div>
+        )}
+        {d?.onAdd && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              d.onAdd!();
+            }}
+            title="Insert a step here"
+            className="nodrag nopan absolute w-5 h-5 rounded-full bg-white border border-slate-300 text-slate-400 hover:border-[var(--theme-accent)] hover:text-[var(--theme-accent)] flex items-center justify-center shadow-sm"
+            style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`, pointerEvents: 'all' }}
+          >
+            <i className="fa-solid fa-plus" style={{ fontSize: 9 }} />
+          </button>
+        )}
+      </EdgeLabelRenderer>
+    </>
+  );
+}
+
+// `nodrag`/`nowheel` let clicks inside a node behave normally instead of
+// being intercepted as a canvas pan/drag gesture by React Flow. Nodes are
+// deliberately small — just an icon, title, and one-line summary; the full
+// settings form only appears in the Config Panel once a node is selected.
+// No `nodrag` here — Action nodes need to stay draggable (see
+// pushActionNode). It's harmless on the other node types too since they're
+// explicitly `draggable: false` regardless; `nodrag` would only matter for
+// a node that's actually draggable, and there it would block the exact
+// gesture just enabled. `nowheel` stays — that one's just scroll-vs-zoom.
+function flowNodeClass(selected: boolean, dashed?: boolean) {
+  return `nowheel w-56 border rounded-xl px-3 py-2.5 bg-white shadow-sm cursor-pointer transition-colors ${
+    dashed ? 'border-dashed' : ''
+  } ${selected ? 'border-[var(--theme-accent)] ring-2 ring-indigo-100' : 'border-slate-200 hover:border-slate-300'}`;
+}
+
+function TriggerFlowNodeComponent({ data }: NodeProps) {
+  const d = data as unknown as TriggerFlowNodeData;
+  const subtitle = d.trigger.field
+    ? fieldDef(d.triggerType, d.trigger.field)?.label || d.trigger.field
+    : 'Not configured';
+  return (
+    <div className={flowNodeClass(d.selected)}>
+      <Handle type="source" position={Position.Bottom} className="!bg-slate-300" />
+      <p className="text-xs font-semibold text-slate-700">
+        <i className="fa-solid fa-bolt mr-1.5 text-[var(--theme-accent)]" />
+        Trigger
+      </p>
+      <p className="text-[11px] text-slate-400 mt-0.5 truncate">
+        {TRIGGER_TYPE_LABELS[d.triggerType]} · {subtitle}
+      </p>
+    </div>
+  );
+}
+
+function ConditionFlowNodeComponent({ data }: NodeProps) {
+  const d = data as unknown as ConditionFlowNodeData;
+  const subtitle = d.condition.field
+    ? fieldDef(d.triggerType, d.condition.field)?.label || d.condition.field
+    : 'Not configured';
+  return (
+    <div className={flowNodeClass(d.selected)}>
+      <Handle type="target" position={Position.Top} className="!bg-slate-300" />
+      <Handle type="source" position={Position.Bottom} className="!bg-slate-300" />
+      <p className="text-xs font-semibold text-slate-700">
+        <i className="fa-solid fa-code-branch mr-1.5 text-[var(--theme-accent)]" />
+        Condition
+      </p>
+      <p className="text-[11px] text-slate-400 mt-0.5 truncate">{subtitle}</p>
+    </div>
+  );
+}
+
+function ActionFlowNodeComponent({ data }: NodeProps) {
+  const d = data as unknown as ActionFlowNodeData;
+  const meta = ACTION_TYPE_META[d.action.action_type];
+  return (
+    <div className={flowNodeClass(d.selected)}>
+      <Handle type="target" position={Position.Top} className="!bg-slate-300" />
+      <Handle type="source" position={Position.Bottom} className="!bg-slate-300" />
+      <div className="flex items-center justify-between gap-1">
+        <p className="text-xs font-semibold text-slate-700 truncate">
+          <i className={`fa-solid ${meta.icon} mr-1.5 text-[var(--theme-accent)]`} />
+          {meta.label}
         </p>
-        {right}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            d.onRemove();
+          }}
+          className="nodrag shrink-0 text-slate-300 hover:text-rose-600"
+        >
+          <i className="fa-solid fa-xmark text-xs" />
+        </button>
       </div>
-      {children}
+      {meta.comingSoon && (
+        <span className="inline-block mt-1 px-1.5 py-0.5 text-[9px] font-semibold rounded-full bg-amber-100 text-amber-700">
+          Coming soon
+        </span>
+      )}
+      <p className="text-[11px] text-slate-400 mt-0.5 truncate">{actionSubtitle(d.action)}</p>
     </div>
   );
 }
 
-// The connecting line between two stacked nodes.
-function FlowArrow() {
+function BranchAnchorNodeComponent({ data }: NodeProps) {
+  const d = data as unknown as BranchAnchorNodeData;
   return (
-    <div className="flex flex-col items-center">
-      <div className="w-0.5 h-4 bg-slate-300" />
-      <i className="fa-solid fa-caret-down text-slate-300 text-lg -mt-2" />
+    <div className={flowNodeClass(d.selected, true)}>
+      <Handle type="target" position={Position.Top} className="!bg-slate-300" />
+      <p className="text-[11px] text-slate-400 text-center">
+        <i className="fa-solid fa-plus mr-1" />
+        {d.selected ? 'Pick a step from the library' : 'No steps yet — click to target'}
+      </p>
     </div>
   );
 }
 
-// The branch split below a Condition node — one line down from the
-// condition, forking left/right into the True/False columns.
-function ForkConnector() {
+// Module-level and referentially stable across renders — passing a
+// freshly-created object as React Flow's `nodeTypes` prop every render
+// triggers a full pane remount (and a console warning).
+const nodeTypes = {
+  trigger: TriggerFlowNodeComponent,
+  condition: ConditionFlowNodeComponent,
+  action: ActionFlowNodeComponent,
+  branchAnchor: BranchAnchorNodeComponent,
+};
+
+const edgeTypes = { buttonEdge: ButtonEdge };
+
+// The left-hand palette — AI Agent and Webhook steps aren't real
+// capabilities this automation engine executes yet, so only genuinely
+// supported step types are listed here (unlike the mockup this was built
+// from, which included both). Clicking a type appends it to whichever
+// branch is currently "targeted" — the branch of the selected node, or the
+// top-level flow if nothing (or the Trigger) is selected.
+function NodeLibraryPanel({
+  open,
+  onToggle,
+  triggerConfigured,
+  hasIfElse,
+  availableActionTypes,
+  onAddCondition,
+  onAddAction,
+  inserting,
+  onCancelInsertion,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  triggerConfigured: boolean;
+  hasIfElse: boolean;
+  availableActionTypes: ActionType[];
+  onAddCondition: () => void;
+  onAddAction: (t: ActionType) => void;
+  inserting: boolean;
+  onCancelInsertion: () => void;
+}) {
+  const itemClass =
+    'w-full flex items-center gap-2 text-left px-2.5 py-2 text-xs font-medium text-slate-600 hover:bg-white hover:text-[var(--theme-accent)] rounded-lg disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-600';
+
+  if (!open) {
+    return (
+      <div className="w-8 shrink-0 border-r border-slate-200 bg-slate-50 flex flex-col items-center pt-3">
+        <button
+          type="button"
+          onClick={onToggle}
+          title="Expand Node Library"
+          className="text-slate-400 hover:text-[var(--theme-accent)]"
+        >
+          <i className="fa-solid fa-chevron-right text-xs" />
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex justify-center w-full">
-      <svg viewBox="0 0 240 36" className="w-56 h-9 text-slate-300" preserveAspectRatio="xMidYMin meet">
-        <line x1="120" y1="0" x2="120" y2="12" stroke="currentColor" strokeWidth="2" />
-        <line x1="30" y1="12" x2="210" y2="12" stroke="currentColor" strokeWidth="2" />
-        <line x1="30" y1="12" x2="30" y2="26" stroke="currentColor" strokeWidth="2" />
-        <line x1="210" y1="12" x2="210" y2="26" stroke="currentColor" strokeWidth="2" />
-        <polygon points="30,34 23,22 37,22" fill="currentColor" />
-        <polygon points="210,34 203,22 217,22" fill="currentColor" />
-      </svg>
+    <div className="w-48 shrink-0 border-r border-slate-200 bg-slate-50 overflow-y-auto p-3">
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Node Library</p>
+        <button type="button" onClick={onToggle} title="Collapse" className="text-slate-400 hover:text-slate-600 shrink-0">
+          <i className="fa-solid fa-chevron-left text-xs" />
+        </button>
+      </div>
+      {inserting ? (
+        <div className="mb-3 px-2 py-1.5 text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg">
+          Inserting a step here — pick a type below.
+          <button type="button" onClick={onCancelInsertion} className="block mt-1 font-semibold text-emerald-800 hover:underline">
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <p className="text-[11px] text-slate-400 mb-3">
+          Click a node on the canvas first to choose where a new step goes, then click a type below to add it — or click the{' '}
+          <i className="fa-solid fa-plus" /> on any connection to insert one there instead.
+        </p>
+      )}
+      <div className="space-y-0.5">
+        <button
+          type="button"
+          onClick={onAddCondition}
+          disabled={!triggerConfigured || hasIfElse || inserting}
+          title={inserting ? 'Condition can only be added right after the Trigger' : hasIfElse ? 'Only one condition per automation' : undefined}
+          className={itemClass}
+        >
+          <i className="fa-solid fa-code-branch w-4 text-center" />
+          Condition
+        </button>
+        {availableActionTypes.map((t) => (
+          <button key={t} type="button" onClick={() => onAddAction(t)} disabled={!triggerConfigured} className={itemClass}>
+            <i className={`fa-solid ${ACTION_TYPE_META[t].icon} w-4 text-center`} />
+            {ACTION_TYPE_META[t].label}
+            {ACTION_TYPE_META[t].comingSoon && (
+              <span className="ml-auto px-1 py-0.5 text-[9px] font-semibold rounded-full bg-amber-100 text-amber-700 shrink-0">Soon</span>
+            )}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -938,76 +1329,6 @@ function ValueInput({
   return <input type="text" value={String(value)} onChange={(e) => onChange(e.target.value)} className={inputClass} />;
 }
 
-// The single dropdown used to append a new step to a branch — mixes a
-// "Condition" group (just the one If/Else virtual entry) in with the real
-// action types, GHL/HubSpot-style, so branching reads as just another kind
-// of step instead of a separate always-visible toggle. `allowCondition` is
-// only passed on the top-level (non-branched) add button — once an if/else
-// already exists, or a branch's own add-step select is being used, adding
-// a second condition isn't supported by this data model.
-function AddStepSelect({
-  disabled,
-  availableActionTypes,
-  allowCondition,
-  onSelect,
-}: {
-  disabled: boolean;
-  availableActionTypes: ActionType[];
-  allowCondition?: boolean;
-  onSelect: (value: string) => void;
-}) {
-  return (
-    <select
-      value=""
-      disabled={disabled}
-      onChange={(e) => {
-        if (e.target.value) onSelect(e.target.value);
-        e.target.value = '';
-      }}
-      className="w-full px-3 py-1.5 text-sm font-medium border border-dashed border-slate-300 hover:bg-slate-50 text-slate-600 rounded-lg disabled:opacity-40 bg-white"
-    >
-      <option value="">+ Add a step...</option>
-      {allowCondition && (
-        <optgroup label="Condition">
-          <option value="__condition__">If/Else Condition</option>
-        </optgroup>
-      )}
-      <optgroup label="Action">
-        {availableActionTypes.map((t) => (
-          <option key={t} value={t}>
-            {ACTION_TYPE_META[t].label}
-          </option>
-        ))}
-      </optgroup>
-    </select>
-  );
-}
-
-// The "coming soon" badge + remove button for an action step, rendered in
-// its FlowNode's header (`right` slot) rather than inside ActionCard, so
-// the step's title isn't duplicated between the node header and the card.
-function ActionNodeExtras({ meta, onRemove }: { meta: { label: string; comingSoon?: boolean }; onRemove: () => void }) {
-  return (
-    <div className="flex items-center gap-2">
-      {meta.comingSoon && (
-        <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-amber-100 text-amber-700">
-          Coming soon — not yet executed
-        </span>
-      )}
-      <button type="button" onClick={onRemove} className="text-slate-400 hover:text-rose-600">
-        <i className="fa-solid fa-xmark text-xs" />
-      </button>
-    </div>
-  );
-}
-
-// The type/dropdown that decides WHAT an action is lives one level up now
-// (AddStepSelect, chosen at creation) — this card just configures the type
-// it was created with; the title/remove/coming-soon badge live in the
-// wrapping FlowNode's header (ActionNodeExtras) instead of duplicating
-// here. Changing type after the fact means removing the step and adding a
-// new one, same as GHL/HubSpot's builders (a step's icon/type isn't
-// editable in place either).
 function ActionCard({
   action,
   triggerType,
@@ -1063,8 +1384,8 @@ function ActionCard({
             value={String(action.action_config.body || '')}
             onChange={(e) => onChange({ action_config: { ...action.action_config, body: e.target.value } })}
             onFocus={() => onFieldFocus('body')}
-            rows={3}
-            placeholder="Email body — use the Dynamic Fields / Documents panel on the right to insert tokens here"
+            rows={5}
+            placeholder="Email body — click Insert Field below to add tokens here"
             className={inputClass}
           />
         </div>
@@ -1088,7 +1409,7 @@ function ActionCard({
             value={String(action.action_config.message || '')}
             onChange={(e) => onChange({ action_config: { ...action.action_config, message: e.target.value } })}
             onFocus={() => onFieldFocus('message')}
-            rows={2}
+            rows={4}
             placeholder="Message — posted into Team Chat as the automation's creator"
             className={inputClass}
           />
@@ -1100,7 +1421,7 @@ function ActionCard({
           value={String(action.action_config.message || '')}
           onChange={(e) => onChange({ action_config: { message: e.target.value } })}
           onFocus={() => onFieldFocus('message')}
-          rows={2}
+          rows={4}
           placeholder="Message"
           className={inputClass}
         />
@@ -1310,18 +1631,16 @@ function DocumentPicker({
   );
 }
 
-// Persistent right-hand panel — Dynamic Fields and Documents, available to
-// ANY action's text field, not just Send Email's body. Clicking a field or
-// document appends it to whichever field was last focused (activeField),
-// tracked by the parent; there's no per-field inline picker anymore.
-function DynamicFieldsPanel({
-  activeField,
+// The grouped dropdown that opens under "Insert Field" — Contact/Company/
+// Deal/Owner/Task & Calendar/Other are the real merge-token groups the
+// Automation Engine resolves (AUTOMATION_DYNAMIC_FIELDS); Documents lets a
+// saved proposal/contract/email template be inserted the same way.
+function FieldPickerDropdown({
   proposalTemplates,
   contractTemplates,
   emailTemplates,
   onInsert,
 }: {
-  activeField: { index: number; key: 'subject' | 'body' | 'message' } | null;
   proposalTemplates: ProposalTemplate[];
   contractTemplates: ContractTemplate[];
   emailTemplates: EmailTemplate[];
@@ -1334,14 +1653,11 @@ function DynamicFieldsPanel({
   }, {});
 
   return (
-    <div className="w-64 shrink-0 border-l border-slate-200 bg-slate-50 overflow-y-auto p-4">
-      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Insert Into</p>
-      <p className={`text-xs mb-4 ${activeField ? 'text-emerald-700' : 'text-slate-400 italic'}`}>
-        {activeField ? 'Click a field or document below to insert it here.' : 'Click into a Subject, Body, or Message field first.'}
-      </p>
+    <div className="mt-2 border border-slate-200 rounded-lg bg-white shadow-sm p-3 max-h-72 overflow-y-auto">
+      <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2">Insert Dynamic Field</p>
 
-      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Documents</p>
-      <div className="mb-4">
+      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Documents</p>
+      <div className="mb-3">
         <DocumentPicker
           proposalTemplates={proposalTemplates}
           contractTemplates={contractTemplates}
@@ -1350,8 +1666,7 @@ function DynamicFieldsPanel({
         />
       </div>
 
-      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Dynamic Fields</p>
-      <div className="space-y-3">
+      <div className="space-y-2">
         {Object.entries(groups).map(([group, fields]) => (
           <div key={group}>
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">{group}</p>
@@ -1361,7 +1676,7 @@ function DynamicFieldsPanel({
                   key={f.token}
                   type="button"
                   onClick={() => onInsert(f.token)}
-                  className="w-full text-left px-2 py-1 text-xs text-slate-600 hover:bg-white hover:text-[var(--theme-accent)] rounded-md"
+                  className="w-full text-left px-2 py-1 text-xs text-slate-600 hover:bg-slate-50 hover:text-[var(--theme-accent)] rounded-md"
                 >
                   {f.label}
                 </button>
@@ -1370,6 +1685,311 @@ function DynamicFieldsPanel({
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// The right-hand panel — shows nothing until a node is clicked, then shows
+// that node's full settings form (previously inline on the canvas itself).
+// Action nodes with free-text fields (send_email/send_team_notification/
+// send_sms) get an "Insert Field" toggle that opens FieldPickerDropdown,
+// which inserts into whichever field was last focused.
+function ConfigPanel({
+  open,
+  onToggle,
+  selectedNodeId,
+  triggerType,
+  trigger,
+  onTriggerTypeChange,
+  onTriggerFieldChange,
+  onTriggerOperatorChange,
+  onTriggerValueChange,
+  condition,
+  onConditionFieldChange,
+  onConditionOperatorChange,
+  onConditionValueChange,
+  onRemoveCondition,
+  actions,
+  onActionChange,
+  onActionRemove,
+  triggerConfigured,
+  tags,
+  channels,
+  users,
+  pipelines,
+  stages,
+  allStages,
+  stagePipelineId,
+  onStagePipelineChange,
+  activeFieldKey,
+  onFieldFocus,
+  fieldPickerOpen,
+  onToggleFieldPicker,
+  onInsertField,
+  proposalTemplates,
+  contractTemplates,
+  emailTemplates,
+  onClose,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  selectedNodeId: SelectedNodeId;
+  triggerType: TriggerType;
+  trigger: ConditionNode;
+  onTriggerTypeChange: (t: TriggerType) => void;
+  onTriggerFieldChange: (key: string) => void;
+  onTriggerOperatorChange: (op: ConditionOperator) => void;
+  onTriggerValueChange: (v: string | number | boolean) => void;
+  condition: ConditionNode;
+  onConditionFieldChange: (key: string) => void;
+  onConditionOperatorChange: (op: ConditionOperator) => void;
+  onConditionValueChange: (v: string | number | boolean) => void;
+  onRemoveCondition: () => void;
+  actions: ActionDraft[];
+  onActionChange: (index: number, patch: Partial<ActionDraft>) => void;
+  onActionRemove: (index: number) => void;
+  triggerConfigured: boolean;
+  tags: { id: number; name: string }[];
+  channels: { id: number; name?: string | null }[];
+  users: { id: number; name: string }[];
+  pipelines: { id: number; name: string }[];
+  stages: { id: number; name: string }[];
+  allStages: { id: number; name: string; pipeline_id: number }[];
+  stagePipelineId: string;
+  onStagePipelineChange: (v: string) => void;
+  activeFieldKey: 'subject' | 'body' | 'message' | null;
+  onFieldFocus: (key: 'subject' | 'body' | 'message') => void;
+  fieldPickerOpen: boolean;
+  onToggleFieldPicker: () => void;
+  onInsertField: (text: string) => void;
+  proposalTemplates: ProposalTemplate[];
+  contractTemplates: ContractTemplate[];
+  emailTemplates: EmailTemplate[];
+  onClose: () => void;
+}) {
+  const panelClass = 'w-72 shrink-0 border-l border-slate-200 bg-slate-50 overflow-y-auto p-4';
+  const headerClass = 'text-xs font-bold text-slate-500 uppercase tracking-wide mb-3';
+  const doneButtonClass =
+    'w-full mt-4 px-3 py-1.5 text-xs font-semibold text-white bg-[var(--theme-accent)] hover:opacity-90 rounded-lg';
+
+  const collapseButton = (
+    <button type="button" onClick={onToggle} title="Collapse" className="text-slate-400 hover:text-slate-600 shrink-0">
+      <i className="fa-solid fa-chevron-right text-xs" />
+    </button>
+  );
+
+  if (!open) {
+    return (
+      <div className="w-8 shrink-0 border-l border-slate-200 bg-slate-50 flex flex-col items-center pt-3">
+        <button
+          type="button"
+          onClick={onToggle}
+          title="Expand Config Panel"
+          className="text-slate-400 hover:text-[var(--theme-accent)]"
+        >
+          <i className="fa-solid fa-chevron-left text-xs" />
+        </button>
+      </div>
+    );
+  }
+
+  if (!selectedNodeId) {
+    return (
+      <div className={panelClass}>
+        <div className="flex items-center justify-end mb-3">{collapseButton}</div>
+        <p className="text-xs text-slate-400 text-center italic">Click a node on the canvas to configure it.</p>
+      </div>
+    );
+  }
+
+  if (selectedNodeId === 'trigger') {
+    return (
+      <div className={panelClass}>
+        <div className="flex items-center justify-between mb-3">
+          <p className={`${headerClass} mb-0`}>Trigger Settings</p>
+          {collapseButton}
+        </div>
+        <div className="space-y-2">
+          <div>
+            <label className="block text-[11px] font-medium text-slate-500 mb-1">Category</label>
+            <select value={triggerType} onChange={(e) => onTriggerTypeChange(e.target.value as TriggerType)} className={inputClass}>
+              {(Object.keys(TRIGGER_TYPE_LABELS) as TriggerType[]).map((t) => (
+                <option key={t} value={t}>
+                  {TRIGGER_TYPE_LABELS[t]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-slate-500 mb-1">Field</label>
+            <select value={trigger.field} onChange={(e) => onTriggerFieldChange(e.target.value)} className={inputClass}>
+              <option value="">Choose a field...</option>
+              {renderFieldOptions(TRIGGER_FIELDS[triggerType])}
+            </select>
+          </div>
+          {trigger.field && (
+            <div className="flex gap-2">
+              <div className="w-24">
+                <label className="block text-[11px] font-medium text-slate-500 mb-1">Operator</label>
+                <select
+                  value={trigger.operator}
+                  onChange={(e) => onTriggerOperatorChange(e.target.value as ConditionOperator)}
+                  className={inputClass}
+                >
+                  {OPERATORS_BY_KIND[fieldDef(triggerType, trigger.field)?.kind ?? 'text'].map((op) => (
+                    <option key={op.value} value={op.value}>
+                      {op.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex-1">
+                <label className="block text-[11px] font-medium text-slate-500 mb-1">Value</label>
+                <ValueInput
+                  triggerType={triggerType}
+                  field={trigger.field}
+                  value={trigger.value}
+                  onChange={onTriggerValueChange}
+                  tags={tags}
+                  pipelines={pipelines}
+                  stages={stages}
+                  stagePipelineId={stagePipelineId}
+                  onStagePipelineChange={onStagePipelineChange}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+        <button type="button" onClick={onClose} className={doneButtonClass}>
+          Done
+        </button>
+      </div>
+    );
+  }
+
+  if (selectedNodeId === 'condition') {
+    return (
+      <div className={panelClass}>
+        <div className="flex items-center justify-between mb-3">
+          <p className={`${headerClass} mb-0`}>Condition Settings</p>
+          <div className="flex items-center gap-2.5">
+            <button type="button" onClick={onRemoveCondition} className="text-slate-400 hover:text-rose-600" title="Remove condition">
+              <i className="fa-solid fa-trash text-xs" />
+            </button>
+            {collapseButton}
+          </div>
+        </div>
+        <div className="space-y-2">
+          <select value={condition.field} onChange={(e) => onConditionFieldChange(e.target.value)} className={inputClass}>
+            <option value="">Choose a field...</option>
+            {renderFieldOptions(TRIGGER_FIELDS[triggerType])}
+          </select>
+          {condition.field && (
+            <div className="flex gap-2">
+              <div className="w-24">
+                <select
+                  value={condition.operator}
+                  onChange={(e) => onConditionOperatorChange(e.target.value as ConditionOperator)}
+                  className={inputClass}
+                >
+                  {OPERATORS_BY_KIND[fieldDef(triggerType, condition.field)?.kind ?? 'text'].map((op) => (
+                    <option key={op.value} value={op.value}>
+                      {op.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex-1">
+                <ValueInput
+                  triggerType={triggerType}
+                  field={condition.field}
+                  value={condition.value}
+                  onChange={onConditionValueChange}
+                  tags={tags}
+                  pipelines={pipelines}
+                  stages={stages}
+                  stagePipelineId={stagePipelineId}
+                  onStagePipelineChange={onStagePipelineChange}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+        <button type="button" onClick={onClose} className={doneButtonClass}>
+          Done
+        </button>
+      </div>
+    );
+  }
+
+  if (selectedNodeId.startsWith('branch-')) {
+    return (
+      <div className={panelClass}>
+        <div className="flex items-center justify-end mb-3">{collapseButton}</div>
+        <p className="text-xs text-slate-400 text-center italic">
+          This branch has no steps yet — pick a type from the Node Library on the left to add one here.
+        </p>
+      </div>
+    );
+  }
+
+  const index = Number(selectedNodeId.slice('action-'.length));
+  const action = actions[index];
+  if (!action) return <div className={panelClass} />;
+  const meta = ACTION_TYPE_META[action.action_type];
+
+  return (
+    <div className={panelClass}>
+      <div className="flex items-center justify-between mb-3">
+        <p className={`${headerClass} mb-0`}>{meta.label} Settings</p>
+        <div className="flex items-center gap-2.5">
+          <button type="button" onClick={() => onActionRemove(index)} className="text-slate-400 hover:text-rose-600" title="Remove step">
+            <i className="fa-solid fa-trash text-xs" />
+          </button>
+          {collapseButton}
+        </div>
+      </div>
+      {meta.comingSoon && (
+        <p className="mb-2 px-2 py-1 text-[10px] font-semibold rounded-full bg-amber-100 text-amber-700 inline-block">
+          Coming soon — not yet executed
+        </p>
+      )}
+      <ActionCard
+        action={action}
+        triggerType={triggerType}
+        tags={tags}
+        channels={channels}
+        users={users}
+        pipelines={pipelines}
+        allStages={allStages}
+        onChange={(patch) => onActionChange(index, patch)}
+        onFieldFocus={onFieldFocus}
+      />
+      {actionHasTextFields(action.action_type) && (
+        <div className="mt-2">
+          <button
+            type="button"
+            onClick={onToggleFieldPicker}
+            disabled={!activeFieldKey}
+            title={!activeFieldKey ? 'Click into a field above first' : undefined}
+            className="text-xs font-semibold text-[var(--theme-accent)] hover:underline disabled:opacity-40 disabled:no-underline"
+          >
+            <i className="fa-solid fa-plus mr-1" />
+            Insert Field
+          </button>
+          {fieldPickerOpen && (
+            <FieldPickerDropdown
+              proposalTemplates={proposalTemplates}
+              contractTemplates={contractTemplates}
+              emailTemplates={emailTemplates}
+              onInsert={onInsertField}
+            />
+          )}
+        </div>
+      )}
+      <button type="button" onClick={onClose} className={doneButtonClass}>
+        Save
+      </button>
     </div>
   );
 }

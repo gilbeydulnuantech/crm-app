@@ -45,13 +45,23 @@ export default function Automations() {
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-lg font-bold text-slate-800">Automations</h1>
-          <button
-            type="button"
-            onClick={() => navigate('/automations/new')}
-            className="px-4 py-2 text-sm font-semibold text-white bg-[var(--theme-accent)] hover:opacity-90 rounded-lg"
-          >
-            + Create
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => navigate('/automations/logs')}
+              className="px-3 py-2 text-sm font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg"
+            >
+              <i className="fa-solid fa-clock-rotate-left mr-1.5" />
+              View Logs
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/automations/new')}
+              className="px-4 py-2 text-sm font-semibold text-white bg-[var(--theme-accent)] hover:opacity-90 rounded-lg"
+            >
+              + Create
+            </button>
+          </div>
         </div>
 
         {isLoading ? (

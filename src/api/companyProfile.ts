@@ -7,6 +7,9 @@ export interface CompanyProfile {
   email: string;
   phone: string;
   logo_url: string | null;
+  address: string;
+  website: string;
+  brand_color: string;
 }
 
 export function fetchCompanyProfile() {
@@ -17,6 +20,9 @@ export interface SaveCompanyProfilePayload {
   company_name: string;
   email: string;
   phone: string;
+  address: string;
+  website: string;
+  brand_color: string;
 }
 
 export function saveCompanyProfile(payload: SaveCompanyProfilePayload) {

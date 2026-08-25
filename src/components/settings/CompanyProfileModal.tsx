@@ -17,6 +17,9 @@ export default function CompanyProfileModal({ open, onClose }: Props) {
   const [companyName, setCompanyName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
+  const [website, setWebsite] = useState('');
+  const [brandColor, setBrandColor] = useState('#2563EB');
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
@@ -42,6 +45,9 @@ export default function CompanyProfileModal({ open, onClose }: Props) {
       setCompanyName(data.company_name);
       setEmail(data.email);
       setPhone(data.phone);
+      setAddress(data.address || '');
+      setWebsite(data.website || '');
+      setBrandColor(data.brand_color || '#2563EB');
     }
   }, [data]);
 
@@ -52,7 +58,14 @@ export default function CompanyProfileModal({ open, onClose }: Props) {
     setError(null);
     setSaved(false);
     saveProfile.mutate(
-      { company_name: companyName.trim(), email: email.trim(), phone: phone.trim() },
+      {
+        company_name: companyName.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        address: address.trim(),
+        website: website.trim(),
+        brand_color: brandColor,
+      },
       {
         onSuccess: () => setSaved(true),
         onError: (err) => setError(err instanceof Error ? err.message : 'Failed to save.'),
@@ -66,11 +79,11 @@ export default function CompanyProfileModal({ open, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-md"
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-6 pt-6">
-          <h3 className="text-lg font-bold text-slate-800">Company Profile</h3>
+        <div className="flex items-center justify-between px-6 pt-6 shrink-0">
+          <h3 className="text-lg font-bold text-slate-800">Company / Business Profile</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
             <i className="fa-solid fa-xmark" />
           </button>
@@ -83,9 +96,11 @@ export default function CompanyProfileModal({ open, onClose }: Props) {
         {isLoading ? (
           <p className="text-sm text-slate-400 text-center py-8">Loading...</p>
         ) : (
-          <form onSubmit={handleSubmit} className="px-6 py-4 space-y-3">
+          <form onSubmit={handleSubmit} className="px-6 py-4 space-y-4 overflow-y-auto">
+            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Branding</p>
+
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Logo</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Company Logo</label>
               <div className="flex items-center gap-3">
                 <div className="w-16 h-16 rounded-lg border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0">
                   {data?.logo_url ? (
@@ -103,23 +118,51 @@ export default function CompanyProfileModal({ open, onClose }: Props) {
                   >
                     {uploadLogo.isPending ? 'Uploading...' : data?.logo_url ? 'Change logo' : 'Upload logo'}
                   </button>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Appears at the top of every proposal.</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Appears at the top of every proposal and invoice.</p>
                 </div>
                 <input ref={fileInputRef} type="file" accept="image/*" onChange={handleLogoSelect} className="hidden" />
               </div>
               {logoError && <p className="text-[11px] text-rose-600 mt-1">{logoError}</p>}
             </div>
+
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Company Name</label>
               <input type="text" value={companyName} onChange={(e) => setCompanyName(e.target.value)} className={inputClass} />
             </div>
+
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Email</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} />
+              <label className="block text-xs font-medium text-slate-600 mb-1">Company Address</label>
+              <textarea value={address} onChange={(e) => setAddress(e.target.value)} rows={2} className={inputClass} placeholder="123 Business Street, City, State, ZIP" />
             </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Phone</label>
+                <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Email</label>
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} />
+              </div>
+            </div>
+
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Phone</label>
-              <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass} />
+              <label className="block text-xs font-medium text-slate-600 mb-1">Website</label>
+              <input type="text" value={website} onChange={(e) => setWebsite(e.target.value)} className={inputClass} placeholder="https://yourcompany.com" />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Brand Color</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={brandColor}
+                  onChange={(e) => setBrandColor(e.target.value)}
+                  className="h-8 w-10 rounded border border-slate-200 shrink-0"
+                />
+                <input type="text" value={brandColor} onChange={(e) => setBrandColor(e.target.value)} className={inputClass} />
+              </div>
+              <p className="text-[11px] text-slate-400 mt-0.5">Default accent color for new invoice templates.</p>
             </div>
 
             {error && <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-md px-2 py-1">{error}</p>}

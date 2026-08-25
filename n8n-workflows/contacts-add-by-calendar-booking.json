@@ -74,7 +74,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH existing_activity AS (\n  SELECT id FROM activities WHERE google_event_id = $1\n),\nfound_contact AS (\n  SELECT id FROM contacts WHERE LOWER(email) = LOWER($6) AND is_archived = false LIMIT 1\n),\nnew_contact AS (\n  INSERT INTO contacts (first_name, last_name, email, lead_source, owner_id, created_at, updated_at)\n  SELECT $7, $8, $6, 'Calendar Booking', $5, now(), now()\n  WHERE NOT EXISTS (SELECT 1 FROM existing_activity)\n    AND NOT EXISTS (SELECT 1 FROM found_contact)\n  RETURNING id\n),\nresolved_contact AS (\n  SELECT id FROM found_contact\n  UNION ALL\n  SELECT id FROM new_contact\n  LIMIT 1\n)\nINSERT INTO activities (contact_id, user_id, type, subject, due_at, end_at, google_event_id, created_at)\nSELECT rc.id, $5, 'meeting', $2, $3::timestamptz, $4::timestamptz, $1, now()\nFROM resolved_contact rc\nWHERE NOT EXISTS (SELECT 1 FROM existing_activity)\nRETURNING id;",
+        "query": "WITH existing_activity AS (\n  SELECT id FROM activities WHERE google_event_id = $1\n),\nfound_contact AS (\n  SELECT id FROM contacts WHERE LOWER(email) = LOWER($6) AND is_archived = false LIMIT 1\n),\nnew_contact AS (\n  INSERT INTO contacts (first_name, last_name, email, lead_source, owner_id, created_at, updated_at)\n  SELECT $7, $8, $6, 'Calendar Booking', $5, now(), now()\n  WHERE NOT EXISTS (SELECT 1 FROM existing_activity)\n    AND NOT EXISTS (SELECT 1 FROM found_contact)\n  RETURNING id\n),\nresolved_contact AS (\n  SELECT id, false AS is_new FROM found_contact\n  UNION ALL\n  SELECT id, true AS is_new FROM new_contact\n  LIMIT 1\n)\nINSERT INTO activities (contact_id, user_id, type, subject, due_at, end_at, google_event_id, created_at)\nSELECT rc.id, $5, 'meeting', $2, $3::timestamptz, $4::timestamptz, $1, now()\nFROM resolved_contact rc\nWHERE NOT EXISTS (SELECT 1 FROM existing_activity)\nRETURNING contact_id, (SELECT is_new FROM resolved_contact) AS is_new;",
         "options": {
           "queryReplacement": "={{ [ $('Extract Lead Info').item.json.googleEventId, $('Extract Lead Info').item.json.subject, $('Extract Lead Info').item.json.dueAt, $('Extract Lead Info').item.json.endAt, $json.id, $('Extract Lead Info').item.json.email, $('Extract Lead Info').item.json.firstName, $('Extract Lead Info').item.json.lastName ] }}"
         }
@@ -174,6 +174,46 @@
       ],
       "id": "e2a7b906-2222-4a5a-9b1a-calbook000006",
       "name": "Already In CRM?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "calbook-is-new-cond",
+              "leftValue": "={{ $json.is_new }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [944, -176],
+      "id": "e2a7b907-3333-4a5a-9b1a-calbook000007",
+      "name": "Is New Contact?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/dispatch-contact-created",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { contact_id: $json.contact_id, source: \"calendar\" } }}",
+        "options": { "timeout": 5000 }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1168, -176],
+      "id": "e2a7b908-4444-4a5a-9b1a-calbook000008",
+      "name": "Notify: Contact Created",
+      "onError": "continueRegularOutput",
+      "notesInFlow": true,
+      "notes": "Fire-and-forget — only fires for a genuinely new contact (is_new), not every rebooking of an existing lead's calendar event."
     }
   ],
   "pinData": {},
@@ -209,6 +249,29 @@
             "index": 0
           }
         ]
+      ]
+    },
+    "Upsert Contact & Insert Activity": {
+      "main": [
+        [
+          {
+            "node": "Is New Contact?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is New Contact?": {
+      "main": [
+        [
+          {
+            "node": "Notify: Contact Created",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
       ]
     },
     "Check Already Imported": {

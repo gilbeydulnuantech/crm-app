@@ -1,0 +1,244 @@
+{
+  "name": "[Automation] Lead Response Sequence",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "automation-28-trigger",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 0],
+      "id": "lrs-webhook",
+      "name": "Webhook: automation-28-trigger",
+      "webhookId": "lrs-webhook-28",
+      "notes": "responseMode=onReceived — this run takes days (Wait nodes), so it must ack the dispatcher immediately instead of making it hold a connection open.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || {};\nconst contactId = parseInt(body.contact_id, 10);\nif (!Number.isInteger(contactId)) throw new Error('\"contact_id\" is required.');\nreturn [{ json: { contactId } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0],
+      "id": "lrs-parse",
+      "name": "Parse Trigger Payload"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM contacts WHERE id = $1;",
+        "options": { "queryReplacement": "={{ [ $json.contactId ] }}" }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [440, 0],
+      "id": "lrs-fetch1",
+      "name": "Fetch Contact (initial)",
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+    },
+    {
+      "parameters": { "resume": "timeInterval", "amount": 23, "unit": "hours" },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [660, 0],
+      "id": "lrs-wait23h",
+      "name": "Wait 23 Hours",
+      "webhookId": "lrs-wait23h-resume"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM contacts WHERE id = $1;",
+        "options": { "queryReplacement": "={{ [ $('Parse Trigger Payload').item.json.contactId ] }}" }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [880, 0],
+      "id": "lrs-fetch2",
+      "name": "Fetch Contact (after 23h)",
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.item.json;\nconst emailLogs = row.email_logs || [];\nconst referenceTime = new Date(row.created_at).getTime();\nconst replied = emailLogs.some((log) => log && log.type === 'received' && new Date(log.sent_at).getTime() > referenceTime);\nreturn [{ json: { ...row, replied } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 0],
+      "id": "lrs-check1",
+      "name": "Check Reply (23h mark)"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "combinator": "and",
+          "conditions": [
+            { "id": "lrs-replied1-cond", "leftValue": "={{ $json.replied }}", "rightValue": true, "operator": { "type": "boolean", "operation": "true", "singleValue": true } }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [1320, 0],
+      "id": "lrs-if1",
+      "name": "Replied? (23h mark)"
+    },
+    {
+      "parameters": {
+        "workflowId": { "__rl": true, "value": "ToNI5hiDTVapj2RK", "mode": "id" },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [1540, -140],
+      "id": "lrs-hotlead1",
+      "name": "Run Hot Lead Actions (from 23h check)"
+    },
+    {
+      "parameters": {
+        "jsCode": "function toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nconst row = $input.item.json;\nconst firstName = toTitleCase(row.first_name) || 'there';\nconst subject = `Just checking in, ${firstName}`;\nconst htmlBody = `Hi ${firstName},<br><br>Wanted to make sure my last note landed in your inbox — happy to answer any questions or help however I can.<br><br>Talk soon,<br>The Team`;\nreturn [{ json: { ...row, to: row.email, subject, htmlBody } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1540, 140],
+      "id": "lrs-prep-followup",
+      "name": "Prepare First Follow-Up"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.htmlBody }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [1760, 140],
+      "id": "lrs-send-followup",
+      "name": "Send First Follow-Up",
+      "credentials": { "gmailOAuth2": { "id": "VKDbMYV2U0WoSc16", "name": "n8n072826" } },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": { "resume": "timeInterval", "amount": 2, "unit": "days" },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1980, 140],
+      "id": "lrs-wait2d",
+      "name": "Wait 2 Days",
+      "webhookId": "lrs-wait2d-resume"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM contacts WHERE id = $1;",
+        "options": { "queryReplacement": "={{ [ $('Parse Trigger Payload').item.json.contactId ] }}" }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [2200, 140],
+      "id": "lrs-fetch3",
+      "name": "Fetch Contact (after 2d)",
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.item.json;\nconst emailLogs = row.email_logs || [];\nconst referenceTime = new Date(row.created_at).getTime();\nconst replied = emailLogs.some((log) => log && log.type === 'received' && new Date(log.sent_at).getTime() > referenceTime);\nreturn [{ json: { ...row, replied } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2420, 140],
+      "id": "lrs-check2",
+      "name": "Check Reply (2d mark)"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "combinator": "and",
+          "conditions": [
+            { "id": "lrs-replied2-cond", "leftValue": "={{ $json.replied }}", "rightValue": true, "operator": { "type": "boolean", "operation": "true", "singleValue": true } }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [2640, 140],
+      "id": "lrs-if2",
+      "name": "Replied? (2d mark)"
+    },
+    {
+      "parameters": {
+        "workflowId": { "__rl": true, "value": "ToNI5hiDTVapj2RK", "mode": "id" },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [2860, 0],
+      "id": "lrs-hotlead2",
+      "name": "Run Hot Lead Actions (from 2d check)"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO nurture_enrollments (sequence_id, contact_id, current_step, status, enrolled_at)\nVALUES ($1, $2, 0, 'active', now())\nON CONFLICT (sequence_id, contact_id) DO NOTHING;",
+        "options": { "queryReplacement": "={{ [ $json.nurtureSequenceId, $json.id ] }}" }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [2860, 280],
+      "id": "lrs-enroll",
+      "name": "Enroll Into Nurture Sequence",
+      "notesInFlow": true,
+      "notes": "Sequence id is set below via a Set-style Code node so this stays editable without touching the query.",
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ...$input.item.json, nurtureSequenceId: 2 } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2640, 280],
+      "id": "lrs-set-seq-id",
+      "name": "Set Nurture Sequence Id"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook: automation-28-trigger": { "main": [[{ "node": "Parse Trigger Payload", "type": "main", "index": 0 }]] },
+    "Parse Trigger Payload": { "main": [[{ "node": "Fetch Contact (initial)", "type": "main", "index": 0 }]] },
+    "Fetch Contact (initial)": { "main": [[{ "node": "Wait 23 Hours", "type": "main", "index": 0 }]] },
+    "Wait 23 Hours": { "main": [[{ "node": "Fetch Contact (after 23h)", "type": "main", "index": 0 }]] },
+    "Fetch Contact (after 23h)": { "main": [[{ "node": "Check Reply (23h mark)", "type": "main", "index": 0 }]] },
+    "Check Reply (23h mark)": { "main": [[{ "node": "Replied? (23h mark)", "type": "main", "index": 0 }]] },
+    "Replied? (23h mark)": {
+      "main": [
+        [{ "node": "Run Hot Lead Actions (from 23h check)", "type": "main", "index": 0 }],
+        [{ "node": "Prepare First Follow-Up", "type": "main", "index": 0 }]
+      ]
+    },
+    "Prepare First Follow-Up": { "main": [[{ "node": "Send First Follow-Up", "type": "main", "index": 0 }]] },
+    "Send First Follow-Up": { "main": [[{ "node": "Wait 2 Days", "type": "main", "index": 0 }]] },
+    "Wait 2 Days": { "main": [[{ "node": "Fetch Contact (after 2d)", "type": "main", "index": 0 }]] },
+    "Fetch Contact (after 2d)": { "main": [[{ "node": "Check Reply (2d mark)", "type": "main", "index": 0 }]] },
+    "Check Reply (2d mark)": { "main": [[{ "node": "Replied? (2d mark)", "type": "main", "index": 0 }]] },
+    "Replied? (2d mark)": {
+      "main": [
+        [{ "node": "Run Hot Lead Actions (from 2d check)", "type": "main", "index": 0 }],
+        [{ "node": "Set Nurture Sequence Id", "type": "main", "index": 0 }]
+      ]
+    },
+    "Set Nurture Sequence Id": { "main": [[{ "node": "Enroll Into Nurture Sequence", "type": "main", "index": 0 }]] }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" }
+}

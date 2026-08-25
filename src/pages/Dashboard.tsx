@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   PieChart,
@@ -15,10 +15,11 @@ import {
 } from 'recharts';
 import { useAuth } from '../context/AuthContext';
 import { useDashboard } from '../hooks/useDashboard';
-import { usePipelines } from '../hooks/useOpportunities';
+import { usePipelines, useStages } from '../hooks/useOpportunities';
 import { toTitleCase } from '../utils/text';
 import { DashboardActivity } from '../types/dashboard';
 import { CHART_BRAND, CHART_CHROME, CHART_STATUS, chartCategoryColor } from '../utils/chartTheme';
+import { loadHiddenStageIds } from '../utils/pipelineStageVisibility';
 
 function formatMoney(n: number): string {
   const abs = Math.abs(n);
@@ -166,7 +167,29 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { data: pipelines = [] } = usePipelines();
   const [pipelineId, setPipelineId] = useState<number | null>(null);
+  // Defaults to whichever pipeline is flagged is_default (Roofing
+  // Restoration, currently) the first time pipelines load — `initialized`
+  // makes this a one-shot so it never overrides a rep explicitly picking
+  // "All Pipelines" afterward.
+  const [initialized, setInitialized] = useState(false);
+  useEffect(() => {
+    if (initialized || pipelines.length === 0) return;
+    const defaultPipeline = pipelines.find((p) => p.is_default);
+    if (defaultPipeline) setPipelineId(defaultPipeline.id);
+    setInitialized(true);
+  }, [pipelines, initialized]);
   const { data, isLoading, isError } = useDashboard(pipelineId);
+
+  // "Deals by Stage" should match what the rep actually sees on the
+  // Pipeline board — stage visibility is a per-rep localStorage
+  // preference (see utils/pipelineStageVisibility), not a backend field,
+  // so it can only be applied here client-side. Only meaningful with one
+  // pipeline selected — "All Pipelines" has no single hidden-stage set to
+  // apply, so nothing gets filtered out in that view.
+  const { data: dashboardStages = [] } = useStages(pipelineId ?? undefined);
+  const hiddenStageIds = pipelineId ? loadHiddenStageIds(user?.id, pipelineId) : new Set<number>();
+  const hiddenStageNames = new Set(dashboardStages.filter((s) => hiddenStageIds.has(s.id)).map((s) => s.name));
+  const visibleFunnel = data?.funnel.filter((f) => !hiddenStageNames.has(f.stage_name)) ?? [];
 
   const today = new Date().toLocaleDateString(undefined, {
     year: 'numeric',
@@ -275,17 +298,17 @@ export default function Dashboard() {
 
             <Card>
               <CardTitle>Deals by Stage</CardTitle>
-              {data.funnel.every((f) => f.count === 0) ? (
+              {visibleFunnel.every((f) => f.count === 0) ? (
                 <EmptyState>No deals yet.</EmptyState>
               ) : (
                 // Contained height + internal scroll instead of letting the
                 // whole page balloon when a pipeline has many rarely-used
-                // stages (e.g. "Canceled / No Show") — every stage still
-                // shows (a 0-count row is real funnel information), it just
-                // doesn't push everything below it down the page anymore.
+                // stages (e.g. "Canceled / No Show") — every visible stage
+                // still shows (a 0-count row is real funnel information),
+                // it just doesn't push everything below it down the page.
                 <div className="max-h-[280px] overflow-y-auto">
-                  <ResponsiveContainer width="100%" height={Math.max(240, data.funnel.length * 26)}>
-                    <BarChart data={data.funnel} layout="vertical" margin={{ left: 8, right: 24 }}>
+                  <ResponsiveContainer width="100%" height={Math.max(240, visibleFunnel.length * 26)}>
+                    <BarChart data={visibleFunnel} layout="vertical" margin={{ left: 8, right: 24 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke={CHART_CHROME.grid} horizontal={false} />
                       <XAxis type="number" allowDecimals={false} tick={axisTick} axisLine={false} tickLine={false} />
                       <YAxis

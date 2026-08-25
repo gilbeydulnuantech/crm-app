@@ -1,0 +1,4647 @@
+{
+  "name": "Payments",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "get-payments",
+        "responseMode": "responseNode",
+        "options": {},
+        "httpMethod": "GET"
+      },
+      "id": "5edcace4-8ca7-4687-9e77-3f6ea9f5a48c",
+      "name": "Webhook: get-payments",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        160
+      ],
+      "webhookId": "738b326e-0744-416b-941e-6054afd155a1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
+      },
+      "id": "be220b31-5b03-42bf-9a75-7ee7556e03f2",
+      "name": "Parse Token: get-payments",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        430,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "747573dc-d376-429e-8fef-12bcd3ad9366",
+      "name": "Look Up Requester: get-payments",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        620,
+        160
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nreturn [{ json: {} }];"
+      },
+      "id": "ee05341f-466e-432b-887c-5e932ac10e0e",
+      "name": "Check Requester: get-payments",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        810,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT p.id, p.payment_number, p.invoice_id, p.opportunity_id, p.contact_id, p.account_id,\n  p.amount, p.amount_received, p.refunded_amount, p.method, p.status, p.reference,\n  p.payment_date, p.due_date, p.notes, p.owner_id, p.created_at, p.updated_at,\n  (p.status IN ('pending', 'processing', 'partially_paid') AND p.due_date IS NOT NULL AND p.due_date < CURRENT_DATE) AS is_overdue,\n  i.invoice_number,\n  o.name AS deal_name,\n  ct.first_name AS contact_first_name, ct.last_name AS contact_last_name,\n  co.name AS account_name,\n  u.name AS owner_name\nFROM payments p\nLEFT JOIN invoices i ON i.id = p.invoice_id\nLEFT JOIN opportunities o ON o.id = p.opportunity_id\nLEFT JOIN contacts ct ON ct.id = p.contact_id\nLEFT JOIN companies co ON co.id = p.account_id\nLEFT JOIN users u ON u.id = p.owner_id\nWHERE p.is_archived = false\nORDER BY p.created_at DESC;",
+        "options": {}
+      },
+      "id": "d3e84396-4d8f-46d6-9d58-e2c07380530d",
+      "name": "Postgres: Select Payments",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1000,
+        160
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "3af8dde3-12c4-454b-81cd-762c2a1722d6",
+      "name": "Respond: get-payments",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1190,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "path": "get-invoices",
+        "responseMode": "responseNode",
+        "options": {},
+        "httpMethod": "GET"
+      },
+      "id": "14812085-e515-492f-a1f6-889c4b68fedb",
+      "name": "Webhook: get-invoices",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        380
+      ],
+      "webhookId": "e25ff943-4b4a-49bd-9f58-3068554e6b6b"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
+      },
+      "id": "2cb8fce2-9eb4-4083-96f2-8022f06a1d5d",
+      "name": "Parse Token: get-invoices",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        430,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "1416b4eb-b64b-48f7-85ef-5b55ffba822d",
+      "name": "Look Up Requester: get-invoices",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        620,
+        380
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nreturn [{ json: {} }];"
+      },
+      "id": "d4c32c5d-f6f4-4e43-9751-63d973a60586",
+      "name": "Check Requester: get-invoices",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        810,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT inv.id, inv.invoice_number, inv.opportunity_id, inv.contact_id, inv.account_id,\n  inv.amount, inv.tax, inv.discount, inv.total, inv.issue_date, inv.due_date, inv.is_voided, inv.created_at,\n  o.name AS deal_name,\n  ct.first_name AS contact_first_name, ct.last_name AS contact_last_name,\n  co.name AS account_name,\n  COALESCE((SELECT SUM(p.amount_received) - SUM(p.refunded_amount) FROM payments p WHERE p.invoice_id = inv.id AND p.is_archived = false), 0) AS amount_paid\nFROM invoices inv\nLEFT JOIN opportunities o ON o.id = inv.opportunity_id\nLEFT JOIN contacts ct ON ct.id = inv.contact_id\nLEFT JOIN companies co ON co.id = inv.account_id\nWHERE inv.is_archived = false\nORDER BY inv.created_at DESC;",
+        "options": {}
+      },
+      "id": "64a461c7-43df-4274-947b-236a763c12c0",
+      "name": "Postgres: Select Invoices",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1000,
+        380
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "c200fe04-7624-4fd5-aafa-d37d152f69bf",
+      "name": "Respond: get-invoices",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1190,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "path": "get-payment",
+        "responseMode": "responseNode",
+        "options": {},
+        "httpMethod": "GET"
+      },
+      "id": "22b517c8-3d96-465a-bc04-96ab2c66149a",
+      "name": "Webhook: get-payment",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        600
+      ],
+      "webhookId": "ac36323b-3611-4f8a-a8de-436d9e8a4eb6"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
+      },
+      "id": "e3bf8440-de8a-4eb2-b9aa-fd5d3fe48a24",
+      "name": "Parse Token: get-payment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        430,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "dda085fb-7e9e-46fe-8efe-c6a13fccddde",
+      "name": "Look Up Requester: get-payment",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        620,
+        600
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nconst paymentId = parseInt($('Webhook: get-payment').first().json.query.id, 10);\nif (!Number.isInteger(paymentId)) throw new Error('\"id\" is required.');\nreturn [{ json: { paymentId } }];"
+      },
+      "id": "70d35308-a2cb-478b-b495-d8068a79cf39",
+      "name": "Check Requester: get-payment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        810,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT p.id, p.payment_number, p.invoice_id, p.opportunity_id, p.contact_id, p.account_id,\n  p.amount, p.amount_received, p.refunded_amount, p.method, p.status, p.reference,\n  p.payment_date, p.due_date, p.notes, p.owner_id, p.created_at, p.updated_at,\n  (p.status IN ('pending', 'processing', 'partially_paid') AND p.due_date IS NOT NULL AND p.due_date < CURRENT_DATE) AS is_overdue,\n  i.invoice_number,\n  o.name AS deal_name,\n  ct.first_name AS contact_first_name, ct.last_name AS contact_last_name,\n  co.name AS account_name,\n  u.name AS owner_name,\n  ct.email AS contact_email, ct.phone AS contact_phone,\n  ow.name AS account_owner_name\nFROM payments p\nLEFT JOIN invoices i ON i.id = p.invoice_id\nLEFT JOIN opportunities o ON o.id = p.opportunity_id\nLEFT JOIN contacts ct ON ct.id = p.contact_id\nLEFT JOIN companies co ON co.id = p.account_id\nLEFT JOIN users u ON u.id = p.owner_id\nLEFT JOIN users ow ON ow.id = COALESCE(ct.owner_id, co.owner_id)\nWHERE p.id = $1 AND p.is_archived = false;",
+        "options": {
+          "queryReplacement": "={{ [ $json.paymentId ] }}"
+        }
+      },
+      "id": "ab541fe3-2bb4-40a9-85e3-8b2289a25301",
+      "name": "Postgres: Select Payment",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1000,
+        600
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: $('Check Requester: get-payment').first().json }];"
+      },
+      "id": "c353d11e-bafb-48f8-8ef9-3c55d6619c73",
+      "name": "Bridge: get-payment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1190,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, category, subtype, summary, detail, actor_name, created_at\nFROM entity_activity_log WHERE entity_type = 'payment' AND entity_id = $1\nORDER BY created_at ASC;",
+        "options": {
+          "queryReplacement": "={{ [ $json.paymentId ] }}"
+        }
+      },
+      "id": "f7114e51-ca70-41f3-9103-7ebf1343fc3e",
+      "name": "Postgres: Select Payment Timeline",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1380,
+        600
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  COALESCE(SUM(p.amount_received), 0) AS total_spent,\n  COALESCE(SUM(p.refunded_amount), 0) AS total_refunded,\n  COUNT(*) FILTER (WHERE p.status IN ('pending', 'processing', 'partially_paid')) AS outstanding_count,\n  COUNT(*) FILTER (WHERE p.status = 'failed') AS failed_count,\n  COUNT(*) AS total_payments\nFROM payments p\nWHERE p.is_archived = false AND (\n  ($1::int IS NOT NULL AND p.contact_id = $1) OR\n  ($1::int IS NULL AND $2::int IS NOT NULL AND p.account_id = $2)\n);",
+        "options": {
+          "queryReplacement": "={{ [ $('Postgres: Select Payment').first().json.contact_id, $('Postgres: Select Payment').first().json.account_id ] }}"
+        }
+      },
+      "id": "c68035d0-24fc-4527-a6ec-3404f57e0fea",
+      "name": "Postgres: Select Customer Payment History",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1570,
+        600
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const paymentItem = $('Postgres: Select Payment').first()?.json;\nif (!paymentItem || paymentItem.id == null) throw new Error('Payment not found.');\n\nconst timeline = $('Postgres: Select Payment Timeline').all()\n  .filter((i) => i.json.id != null)\n  .map((i) => i.json);\nconst history = $('Postgres: Select Customer Payment History').first()?.json || {};\n\nreturn [{\n  json: {\n    ...paymentItem,\n    timeline,\n    customer_total_spent: Number(history.total_spent) || 0,\n    customer_total_refunded: Number(history.total_refunded) || 0,\n    customer_outstanding_count: Number(history.outstanding_count) || 0,\n    customer_failed_count: Number(history.failed_count) || 0,\n    customer_total_payments: Number(history.total_payments) || 0,\n  },\n}];"
+      },
+      "id": "219b153a-8a84-4630-810d-48ce52b102c3",
+      "name": "Merge: get-payment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "0c1a1c39-3873-4c0b-bd76-6cb86e6c26a9",
+      "name": "Respond: get-payment",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1950,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "path": "create-invoice",
+        "responseMode": "responseNode",
+        "options": {},
+        "httpMethod": "POST"
+      },
+      "id": "0a946985-59c6-4da2-8305-413dd2b45e52",
+      "name": "Webhook: create-invoice",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        820
+      ],
+      "webhookId": "3297805a-5661-4a9a-8912-6bea05680ba3"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
+      },
+      "id": "58f92162-e728-4bbb-a341-c5407c1e6463",
+      "name": "Parse Token: create-invoice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        430,
+        820
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "7ef94887-1a2b-4674-a995-e1b3a8738573",
+      "name": "Look Up Requester: create-invoice",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        620,
+        820
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: create-invoice').first().json.body || {};\nconst rawItems = Array.isArray(body.line_items) ? body.line_items : [];\nif (rawItems.length === 0) throw new Error('At least one line item is required.');\n\nconst lineItems = rawItems.map((it, i) => {\n  const qty = Number(it.qty) || 0;\n  const unitPrice = Number(it.unit_price) || 0;\n  const discount = Number(it.discount) || 0;\n  const tax = Number(it.tax) || 0;\n  const product = (it.product || '').toString().trim();\n  if (!product) throw new Error(`Line item ${i + 1}: \"product\" is required.`);\n  return { product, qty, unit_price: unitPrice, discount, tax, total: qty * unitPrice - discount + tax };\n});\n\nconst amount = lineItems.reduce((sum, it) => sum + it.qty * it.unit_price, 0);\nconst discount = lineItems.reduce((sum, it) => sum + it.discount, 0);\nconst tax = lineItems.reduce((sum, it) => sum + it.tax, 0);\nconst total = amount - discount + tax;\n\nreturn [{\n  json: {\n    opportunityId: body.opportunity_id ? parseInt(body.opportunity_id, 10) : null,\n    contactId: body.contact_id ? parseInt(body.contact_id, 10) : null,\n    accountId: body.account_id ? parseInt(body.account_id, 10) : null,\n    lineItems: JSON.stringify(lineItems),\n    amount, tax, discount, total,\n    issueDate: body.issue_date || new Date().toISOString().slice(0, 10),\n    dueDate: body.due_date || null,\n    internalNotes: (body.internal_notes || '').toString() || null,\n    customerNotes: (body.customer_notes || '').toString() || null,\n    requesterId: requester.id,\n    requesterName: requester.name,\n  },\n}];"
+      },
+      "id": "93554cff-b071-46a0-823f-8ddaec4c248b",
+      "name": "Check Payload: create-invoice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        810,
+        820
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO invoices (opportunity_id, contact_id, account_id, amount, tax, discount, total, line_items, issue_date, due_date, internal_notes, customer_notes, created_by, invoice_number)\nVALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11, $12, $13, '')\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.opportunityId, $json.contactId, $json.accountId, $json.amount, $json.tax, $json.discount, $json.total, $json.lineItems, $json.issueDate, $json.dueDate, $json.internalNotes, $json.customerNotes, $json.requesterId ] }}"
+        }
+      },
+      "id": "8f55b776-907e-4842-873e-88b0a4978b69",
+      "name": "Postgres: Insert Invoice",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1000,
+        820
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE invoices SET invoice_number = 'INV-' || (2000 + id) WHERE id = $1 RETURNING id, invoice_number;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id ] }}"
+        }
+      },
+      "id": "bc8027c9-84d2-4451-a049-9972bc11bacc",
+      "name": "Postgres: Set Invoice Number",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1190,
+        820
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $('Postgres: Set Invoice Number').item.json;\nreturn [{ json: { success: true, id: r.id, invoice_number: r.invoice_number } }];"
+      },
+      "id": "7871b044-36bb-4f8b-931e-8ea66455095a",
+      "name": "Bridge: create-invoice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1380,
+        820
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "c55d67a5-3a9e-4351-a9cd-69508851b3b8",
+      "name": "Respond: create-invoice",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1570,
+        820
+      ]
+    },
+    {
+      "parameters": {
+        "path": "create-payment",
+        "responseMode": "responseNode",
+        "options": {},
+        "httpMethod": "POST"
+      },
+      "id": "58facb79-117d-41e8-800f-7e6425144e70",
+      "name": "Webhook: create-payment",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        1040
+      ],
+      "webhookId": "86042eb9-0079-4d55-9a7b-9230a26ad83c"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
+      },
+      "id": "b388561f-93d8-4e20-a5a3-69237c335d3f",
+      "name": "Parse Token: create-payment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        430,
+        1040
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "cafd4826-565b-42dc-8535-ca99ecf5fb11",
+      "name": "Look Up Requester: create-payment",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        620,
+        1040
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: create-payment').first().json.body || {};\nconst amount = Number(body.amount);\nif (!Number.isFinite(amount) || amount <= 0) throw new Error('A valid \"amount\" is required.');\n\nconst VALID_STATUSES = ['pending', 'processing', 'paid', 'partially_paid', 'failed', 'refunded', 'partially_refunded', 'cancelled'];\nconst status = VALID_STATUSES.includes(body.status) ? body.status : 'paid';\nconst amountReceived = body.amount_received !== undefined && body.amount_received !== null\n  ? Number(body.amount_received)\n  : (status === 'paid' ? amount : 0);\n\nreturn [{\n  json: {\n    invoiceId: body.invoice_id ? parseInt(body.invoice_id, 10) : null,\n    opportunityId: body.opportunity_id ? parseInt(body.opportunity_id, 10) : null,\n    contactId: body.contact_id ? parseInt(body.contact_id, 10) : null,\n    accountId: body.account_id ? parseInt(body.account_id, 10) : null,\n    amount, amountReceived,\n    method: (body.method || 'other').toString(),\n    status,\n    reference: (body.reference || '').toString() || null,\n    paymentDate: body.payment_date || new Date().toISOString().slice(0, 10),\n    dueDate: body.due_date || null,\n    notes: (body.notes || '').toString() || null,\n    ownerId: body.owner_id ? parseInt(body.owner_id, 10) : requester.id,\n    requesterId: requester.id,\n    requesterName: requester.name,\n  },\n}];"
+      },
+      "id": "1e77d114-495a-4942-bee4-f50852ba2751",
+      "name": "Check Payload: create-payment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        810,
+        1040
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO payments (invoice_id, opportunity_id, contact_id, account_id, amount, amount_received, method, status, reference, payment_date, due_date, notes, owner_id, created_by, payment_number)\nVALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, '')\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.invoiceId, $json.opportunityId, $json.contactId, $json.accountId, $json.amount, $json.amountReceived, $json.method, $json.status, $json.reference, $json.paymentDate, $json.dueDate, $json.notes, $json.ownerId, $json.requesterId ] }}"
+        }
+      },
+      "id": "7925b8e7-7a68-437b-9421-489f6600b7c0",
+      "name": "Postgres: Insert Payment",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1000,
+        1040
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE payments SET payment_number = 'PAY-' || (10000 + id) WHERE id = $1 RETURNING id, payment_number;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id ] }}"
+        }
+      },
+      "id": "383fe2b8-3050-42cb-9dca-f2259a993aea",
+      "name": "Postgres: Set Payment Number",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1190,
+        1040
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, actor_id, actor_name)\nVALUES ('payment', $1, 'payment', 'created', $2, $3, $4);",
+        "options": {
+          "queryReplacement": "={{ [ $json.id, $('Check Payload: create-payment').first().json.requesterName + ' recorded a ' + $('Check Payload: create-payment').first().json.status + ' payment of $' + $('Check Payload: create-payment').first().json.amount, $('Check Payload: create-payment').first().json.requesterId, $('Check Payload: create-payment').first().json.requesterName ] }}"
+        }
+      },
+      "id": "49fb9407-1eee-4891-b28c-9b2aac71eec3",
+      "name": "Postgres: Log Payment Created",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1380,
+        1040
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: true, id: $('Postgres: Set Payment Number').item.json.id } }];"
+      },
+      "id": "a41e07d6-f9b0-4bfd-a1cd-71263bdce286",
+      "name": "Bridge: create-payment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1570,
+        1040
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "9825af00-73ca-47d2-9d3f-ad27636b3850",
+      "name": "Respond: create-payment",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1760,
+        1040
+      ]
+    },
+    {
+      "parameters": {
+        "path": "update-payment",
+        "responseMode": "responseNode",
+        "options": {},
+        "httpMethod": "POST"
+      },
+      "id": "8461e92f-f36e-4cc9-aee9-2c811bcc7d2c",
+      "name": "Webhook: update-payment",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        1260
+      ],
+      "webhookId": "4550296e-fb89-49af-ba00-6bc4bff40ef2"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
+      },
+      "id": "0a8629e5-fab4-436c-a1c5-a0e80a10babd",
+      "name": "Parse Token: update-payment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        430,
+        1260
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "cd69c7af-db46-4ca3-92b1-85f9f1835821",
+      "name": "Look Up Requester: update-payment",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        620,
+        1260
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: update-payment').first().json.body || {};\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" is required.');\n\n// Refunding or cancelling money movement is admin-only \u2014 status\n// changes like marking paid/failed stay open to any rep.\nconst RESTRICTED_STATUSES = ['refunded', 'partially_refunded', 'cancelled'];\nif (RESTRICTED_STATUSES.includes(body.status) && requester.role !== 'admin') {\n  throw new Error('Admin access required to refund or cancel a payment.');\n}\n\nconst VALID_STATUSES = ['pending', 'processing', 'paid', 'partially_paid', 'failed', 'refunded', 'partially_refunded', 'cancelled'];\nif (body.status !== undefined && !VALID_STATUSES.includes(body.status)) throw new Error('Invalid status.');\n\nreturn [{\n  json: {\n    id,\n    status: body.status !== undefined ? body.status : null,\n    amountReceived: body.amount_received !== undefined ? Number(body.amount_received) : null,\n    refundedAmount: body.refunded_amount !== undefined ? Number(body.refunded_amount) : null,\n    method: body.method !== undefined ? body.method : null,\n    reference: body.reference !== undefined ? body.reference : null,\n    paymentDate: body.payment_date !== undefined ? body.payment_date : null,\n    dueDate: body.due_date !== undefined ? body.due_date : null,\n    notes: body.notes !== undefined ? body.notes : null,\n    ownerId: body.owner_id !== undefined ? (body.owner_id || null) : null,\n    requesterId: requester.id,\n    requesterName: requester.name,\n  },\n}];"
+      },
+      "id": "661eccb0-2e1f-4b5e-ab9e-0e4bd23258e0",
+      "name": "Check Payload: update-payment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        810,
+        1260
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT status, amount_received, refunded_amount FROM payments WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id ] }}"
+        }
+      },
+      "id": "76839427-0581-4a3e-a34f-f0133c137b2f",
+      "name": "Postgres: Select Current Payment",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1000,
+        1260
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $('Check Payload: update-payment').first().json;\nconst current = $input.first().json;\nconst changes = [];\n\nif (payload.status !== null && payload.status !== current.status) {\n  changes.push(`status changed from \"${current.status}\" to \"${payload.status}\"`);\n}\nif (payload.refundedAmount !== null && Number(payload.refundedAmount) !== Number(current.refunded_amount)) {\n  changes.push(`refunded $${payload.refundedAmount}`);\n}\n\nconst summary = changes.length > 0 ? `${payload.requesterName} ${changes.join(', ')}` : '';\n\nreturn [{ json: { ...payload, hasChanges: changes.length > 0, changeSummary: summary } }];"
+      },
+      "id": "b173f6d0-0f44-4c5b-8f65-c1a8f4bb5b57",
+      "name": "Build Payment Change Log",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1190,
+        1260
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "212d56d6-5665-4c5d-9d69-60a879eb07b5",
+              "leftValue": "={{ $json.hasChanges }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "57685c9a-beb3-405f-9137-bc50205067c9",
+      "name": "Has Payment Changes?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1380,
+        1260
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, actor_id, actor_name)\nVALUES ('payment', $1, 'payment', 'updated', $2, $3, $4);",
+        "options": {
+          "queryReplacement": "={{ [ $json.id, $json.changeSummary, $json.requesterId, $json.requesterName ] }}"
+        }
+      },
+      "id": "19d84558-3ea3-41b9-a61a-9d709b7b1954",
+      "name": "Postgres: Insert Payment Change Log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1570,
+        1260
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE payments SET\n  status = COALESCE($1, status),\n  amount_received = COALESCE($2, amount_received),\n  refunded_amount = COALESCE($3, refunded_amount),\n  method = COALESCE($4, method),\n  reference = COALESCE($5, reference),\n  payment_date = COALESCE($6, payment_date),\n  due_date = COALESCE($7, due_date),\n  notes = COALESCE($8, notes),\n  owner_id = COALESCE($9, owner_id),\n  updated_at = now()\nWHERE id = $10\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $('Build Payment Change Log').item.json.status, $('Build Payment Change Log').item.json.amountReceived, $('Build Payment Change Log').item.json.refundedAmount, $('Build Payment Change Log').item.json.method, $('Build Payment Change Log').item.json.reference, $('Build Payment Change Log').item.json.paymentDate, $('Build Payment Change Log').item.json.dueDate, $('Build Payment Change Log').item.json.notes, $('Build Payment Change Log').item.json.ownerId, $('Build Payment Change Log').item.json.id ] }}"
+        }
+      },
+      "id": "26dc220e-28a1-489e-9220-e1a0a32c0a73",
+      "name": "Postgres: Update Payment",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1760,
+        1260
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: true, id: $input.first().json.id } }];"
+      },
+      "id": "e0465205-85df-405f-bb6e-65b9c93c424f",
+      "name": "Bridge: update-payment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1950,
+        1260
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "bb53bf00-db55-4a8c-8522-88cc6d15760f",
+      "name": "Respond: update-payment",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2140,
+        1260
+      ]
+    },
+    {
+      "parameters": {
+        "path": "add-payment-note",
+        "responseMode": "responseNode",
+        "options": {},
+        "httpMethod": "POST"
+      },
+      "id": "36429743-008a-4414-9317-a8e57d1b3819",
+      "name": "Webhook: add-payment-note",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        1480
+      ],
+      "webhookId": "e719cea0-bfa7-4dfe-90c7-d0df9856a473"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
+      },
+      "id": "feb01cbc-6e5e-4a42-97ce-45a34077d100",
+      "name": "Parse Token: add-payment-note",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        430,
+        1480
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "855268a0-f91b-403f-b7ec-2389726000a9",
+      "name": "Look Up Requester: add-payment-note",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        620,
+        1480
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: add-payment-note').first().json.body || {};\nconst paymentId = parseInt(body.payment_id, 10);\nconst text = (body.note || '').toString().trim();\nif (!Number.isInteger(paymentId)) throw new Error('\"payment_id\" is required.');\nif (!text) throw new Error('Note cannot be empty.');\n\nreturn [{ json: { paymentId, text, requesterId: requester.id, requesterName: requester.name } }];"
+      },
+      "id": "87f2ee05-ed4c-4203-9959-358acdc8bb46",
+      "name": "Check Payload: add-payment-note",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        810,
+        1480
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, actor_id, actor_name)\nVALUES ('payment', $1, 'note', 'note', $2, $3, $4);",
+        "options": {
+          "queryReplacement": "={{ [ $json.paymentId, $json.text, $json.requesterId, $json.requesterName ] }}"
+        }
+      },
+      "id": "10ba3423-276f-4299-af1b-9f4814c1df12",
+      "name": "Postgres: Insert Payment Note",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1000,
+        1480
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: true } }];"
+      },
+      "id": "5c3155e7-7ef9-4003-b338-fb8b9a8c1916",
+      "name": "Bridge: add-payment-note",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1190,
+        1480
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "2fdb103c-4a57-42ec-87f0-39521c9d22b0",
+      "name": "Respond: add-payment-note",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1380,
+        1480
+      ]
+    },
+    {
+      "parameters": {
+        "path": "send-receipt",
+        "responseMode": "responseNode",
+        "options": {},
+        "httpMethod": "POST"
+      },
+      "id": "c48a4138-3b9a-452f-abaa-dba61ed116d8",
+      "name": "Webhook: send-receipt",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        1700
+      ],
+      "webhookId": "0508bc35-c195-4113-838c-15d1052bff76"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
+      },
+      "id": "c8213db5-b538-426c-86e1-1379633c917c",
+      "name": "Parse Token: send-receipt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        430,
+        1700
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "87732c90-9898-4c2b-bf79-a631e041bd64",
+      "name": "Look Up Requester: send-receipt",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        620,
+        1700
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: send-receipt').first().json.body || {};\nconst paymentId = parseInt(body.payment_id, 10);\nif (!Number.isInteger(paymentId)) throw new Error('\"payment_id\" is required.');\nreturn [{ json: { paymentId, requesterId: requester.id, requesterName: requester.name } }];"
+      },
+      "id": "d6146998-295a-4474-809b-31e565af3e5f",
+      "name": "Check Payload: send-receipt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        810,
+        1700
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT p.id, p.payment_number, p.invoice_id, p.opportunity_id, p.contact_id, p.account_id,\n  p.amount, p.amount_received, p.refunded_amount, p.method, p.status, p.reference,\n  p.payment_date, p.due_date, p.notes, p.owner_id, p.created_at, p.updated_at,\n  (p.status IN ('pending', 'processing', 'partially_paid') AND p.due_date IS NOT NULL AND p.due_date < CURRENT_DATE) AS is_overdue,\n  i.invoice_number,\n  o.name AS deal_name,\n  ct.first_name AS contact_first_name, ct.last_name AS contact_last_name,\n  co.name AS account_name,\n  u.name AS owner_name, ct.email AS contact_email\nFROM payments p\nLEFT JOIN invoices i ON i.id = p.invoice_id\nLEFT JOIN opportunities o ON o.id = p.opportunity_id\nLEFT JOIN contacts ct ON ct.id = p.contact_id\nLEFT JOIN companies co ON co.id = p.account_id\nLEFT JOIN users u ON u.id = p.owner_id\nWHERE p.id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.paymentId ] }}"
+        }
+      },
+      "id": "1ffa7d39-39e3-40f8-beea-7d05a1a92dd8",
+      "name": "Postgres: Select Payment For Receipt",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1000,
+        1700
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "1954edd6-e167-4713-80b1-f6c085e9c510",
+              "leftValue": "={{ !!$json.contact_email }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "4f040726-11f7-46e7-a09a-5621f1875fbf",
+      "name": "Has Receipt Email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1190,
+        1700
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.contact_email }}",
+        "subject": "={{ $json.receiptSubject }}",
+        "emailType": "text",
+        "message": "={{ $json.receiptBody }}",
+        "options": {}
+      },
+      "id": "26990d97-8081-488c-b2a8-5cdd6b7e4a51",
+      "name": "Send Receipt Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1380,
+        1700
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, actor_id, actor_name)\nVALUES ('payment', $1, 'payment', 'receipt_sent', $2, $3, $4);",
+        "options": {
+          "queryReplacement": "={{ [ $('Check Payload: send-receipt').first().json.paymentId, 'Receipt emailed to customer', $('Check Payload: send-receipt').first().json.requesterId, $('Check Payload: send-receipt').first().json.requesterName ] }}"
+        }
+      },
+      "id": "b286cc3b-87d0-4c8a-bcaa-ffe553924670",
+      "name": "Postgres: Log Receipt Sent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1570,
+        1700
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: true } }];"
+      },
+      "id": "431ee39e-55bd-441e-bb2f-f68d7bfa5a49",
+      "name": "Bridge: send-receipt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        1700
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: false, error: 'No email on file for this customer.' } }];"
+      },
+      "id": "5f0c07f1-e2c9-4775-8097-258ad6ea5464",
+      "name": "Bridge: send-receipt (no email)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "470dc831-80db-4b16-9029-8a69c00ff48b",
+      "name": "Respond: send-receipt",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1950,
+        1700
+      ]
+    },
+    {
+      "parameters": {
+        "path": "archive-payment",
+        "responseMode": "responseNode",
+        "options": {},
+        "httpMethod": "POST"
+      },
+      "id": "bfa471c9-bc73-4ca7-a02c-7acd4963c835",
+      "name": "Webhook: archive-payment",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        1920
+      ],
+      "webhookId": "604abda4-2e23-4933-ae1b-f158ccb6ec94"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
+      },
+      "id": "3baf3a27-f32b-4dc8-bfe9-d5fdd6ccecc1",
+      "name": "Parse Token: archive-payment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        430,
+        1920
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "b0955259-11c7-4299-bc8e-742c984d893b",
+      "name": "Look Up Requester: archive-payment",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        620,
+        1920
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: archive-payment').first().json.body || {};\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" is required.');\nreturn [{ json: { id } }];"
+      },
+      "id": "a348d27a-09e7-4879-95e2-97060bcf0e6a",
+      "name": "Check Payload: archive-payment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        810,
+        1920
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE payments SET is_archived = true, updated_at = now() WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id ] }}"
+        }
+      },
+      "id": "e04c5db2-1662-4c6d-a30f-9ca216e62e20",
+      "name": "Postgres: Archive Payment",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1000,
+        1920
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: true } }];"
+      },
+      "id": "528032cc-1e83-4eee-b46f-4d5d2e07906b",
+      "name": "Bridge: archive-payment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1190,
+        1920
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "f87c963d-8c09-4cab-8934-40b7db88a2e0",
+      "name": "Respond: archive-payment",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1380,
+        1920
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, actor_id, actor_name)\nVALUES ('invoice', $1, 'invoice', 'created', $2, $3, $4);",
+        "options": {
+          "queryReplacement": "={{ [ $json.id, $('Check Payload: create-invoice').first().json.requesterName + ' created invoice for $' + $('Check Payload: create-invoice').first().json.total, $('Check Payload: create-invoice').first().json.requesterId, $('Check Payload: create-invoice').first().json.requesterName ] }}"
+        }
+      },
+      "id": "b032c8e3-835b-4e2b-a6f7-82c4d1aa3353",
+      "name": "Postgres: Log Invoice Created",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "path": "update-invoice",
+        "responseMode": "responseNode",
+        "options": {},
+        "httpMethod": "POST"
+      },
+      "id": "3eeaa70a-20ef-4b7f-86cd-147ec8c806b1",
+      "name": "Webhook: update-invoice",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "9f7de711-19c7-482f-8042-ebd2825ef396"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
+      },
+      "id": "7c768a4e-1ede-4bbc-8be0-562b39ca6b79",
+      "name": "Parse Token: update-invoice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "1881a64b-eacd-4ed8-8b74-7580c8aa0e25",
+      "name": "Look Up Requester: update-invoice",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required to edit an invoice.');\n\nconst body = $('Webhook: update-invoice').first().json.body || {};\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" is required.');\n\nlet lineItems = null, amount = null, tax = null, discount = null, total = null;\nif (Array.isArray(body.line_items)) {\n  lineItems = body.line_items.map((it, i) => {\n    const qty = Number(it.qty) || 0;\n    const unitPrice = Number(it.unit_price) || 0;\n    const d = Number(it.discount) || 0;\n    const t = Number(it.tax) || 0;\n    const product = (it.product || '').toString().trim();\n    if (!product) throw new Error(`Line item ${i + 1}: \"product\" is required.`);\n    return { product, qty, unit_price: unitPrice, discount: d, tax: t, total: qty * unitPrice - d + t };\n  });\n  amount = lineItems.reduce((sum, it) => sum + it.qty * it.unit_price, 0);\n  discount = lineItems.reduce((sum, it) => sum + it.discount, 0);\n  tax = lineItems.reduce((sum, it) => sum + it.tax, 0);\n  total = amount - discount + tax;\n  lineItems = JSON.stringify(lineItems);\n}\n\nreturn [{\n  json: {\n    id, lineItems, amount, tax, discount, total,\n    dueDate: body.due_date !== undefined ? body.due_date : null,\n    internalNotes: body.internal_notes !== undefined ? body.internal_notes : null,\n    customerNotes: body.customer_notes !== undefined ? body.customer_notes : null,\n    requesterId: requester.id,\n    requesterName: requester.name,\n  },\n}];"
+      },
+      "id": "1ea99e07-4aec-4968-a945-d14d18cf74d7",
+      "name": "Check Payload: update-invoice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE invoices SET\n  line_items = COALESCE($1::jsonb, line_items),\n  amount = COALESCE($2, amount),\n  tax = COALESCE($3, tax),\n  discount = COALESCE($4, discount),\n  total = COALESCE($5, total),\n  due_date = COALESCE($6, due_date),\n  internal_notes = COALESCE($7, internal_notes),\n  customer_notes = COALESCE($8, customer_notes),\n  updated_at = now()\nWHERE id = $9\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.lineItems, $json.amount, $json.tax, $json.discount, $json.total, $json.dueDate, $json.internalNotes, $json.customerNotes, $json.id ] }}"
+        }
+      },
+      "id": "f68985ca-582c-4121-a1c7-73dd6a905c39",
+      "name": "Postgres: Update Invoice",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, actor_id, actor_name)\nVALUES ('invoice', $1, 'invoice', 'updated', $2, $3, $4);",
+        "options": {
+          "queryReplacement": "={{ [ $('Check Payload: update-invoice').first().json.id, $('Check Payload: update-invoice').first().json.requesterName + ' edited this invoice', $('Check Payload: update-invoice').first().json.requesterId, $('Check Payload: update-invoice').first().json.requesterName ] }}"
+        }
+      },
+      "id": "8da2d1de-ccac-422d-a064-82b63f80fe59",
+      "name": "Postgres: Log Invoice Updated",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: true, id: $('Postgres: Update Invoice').item.json.id } }];"
+      },
+      "id": "23ffe327-7865-4cd3-85ec-69962334ed7f",
+      "name": "Bridge: update-invoice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "8549edb1-bb22-492b-960a-937af9361177",
+      "name": "Respond: update-invoice",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "path": "void-invoice",
+        "responseMode": "responseNode",
+        "options": {},
+        "httpMethod": "POST"
+      },
+      "id": "a8baf1eb-a721-49d4-880a-580ea48bd2fa",
+      "name": "Webhook: void-invoice",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "631d213e-dd3c-449a-b12f-4ee6e561baa3"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
+      },
+      "id": "019e311c-7921-4f6d-80b9-7d16f3afa9a1",
+      "name": "Parse Token: void-invoice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "392c7542-4318-40b3-abb8-8f1386bf02e5",
+      "name": "Look Up Requester: void-invoice",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required to void an invoice.');\n\nconst body = $('Webhook: void-invoice').first().json.body || {};\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" is required.');\nreturn [{ json: { id, requesterId: requester.id, requesterName: requester.name } }];"
+      },
+      "id": "b8091453-1a88-4ca6-90f2-1a4f14c94ce7",
+      "name": "Check Payload: void-invoice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE invoices SET is_voided = true, updated_at = now() WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id ] }}"
+        }
+      },
+      "id": "53bb610b-433e-414e-b908-f90c59353a94",
+      "name": "Postgres: Void Invoice",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, actor_id, actor_name)\nVALUES ('invoice', $1, 'invoice', 'voided', $2, $3, $4);",
+        "options": {
+          "queryReplacement": "={{ [ $('Check Payload: void-invoice').first().json.id, $('Check Payload: void-invoice').first().json.requesterName + ' voided this invoice', $('Check Payload: void-invoice').first().json.requesterId, $('Check Payload: void-invoice').first().json.requesterName ] }}"
+        }
+      },
+      "id": "dc8c2270-f4df-42ee-bc67-fd0195f0cb12",
+      "name": "Postgres: Log Invoice Voided",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: true } }];"
+      },
+      "id": "c9365d88-b4a7-4f9e-94fc-d63a2eeee87b",
+      "name": "Bridge: void-invoice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "c5d26044-52ad-4a75-bda7-588b925eded4",
+      "name": "Respond: void-invoice",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "path": "get-invoice",
+        "responseMode": "responseNode",
+        "options": {},
+        "httpMethod": "GET"
+      },
+      "id": "3e2a7ec6-dfc2-4170-8e87-3983f46ed300",
+      "name": "Webhook: get-invoice",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "39f6e976-f345-4098-8631-673b5700c845"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
+      },
+      "id": "d1eb15f4-dc60-49db-bd0b-2633bfa36cfe",
+      "name": "Parse Token: get-invoice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "edb7184f-a4b9-4c6e-9edb-8f3b88610f57",
+      "name": "Look Up Requester: get-invoice",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nconst invoiceId = parseInt($('Webhook: get-invoice').first().json.query.id, 10);\nif (!Number.isInteger(invoiceId)) throw new Error('\"id\" is required.');\nreturn [{ json: { invoiceId, isAdmin: requester.role === 'admin' } }];"
+      },
+      "id": "792a26a3-a8bd-468c-8c91-9fb542a74ba0",
+      "name": "Check Requester: get-invoice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT inv.id, inv.invoice_number, inv.opportunity_id, inv.contact_id, inv.account_id,\n  inv.amount, inv.tax, inv.discount, inv.total, inv.line_items, inv.issue_date, inv.due_date,\n  inv.internal_notes, inv.customer_notes, inv.is_voided, inv.created_at, inv.updated_at,\n  o.name AS deal_name,\n  ct.first_name AS contact_first_name, ct.last_name AS contact_last_name, ct.email AS contact_email, ct.phone AS contact_phone,\n  co.name AS account_name, co.street_address, co.city, co.state, co.zip_code, co.country,\n  ow.name AS owner_name\nFROM invoices inv\nLEFT JOIN opportunities o ON o.id = inv.opportunity_id\nLEFT JOIN contacts ct ON ct.id = inv.contact_id\nLEFT JOIN companies co ON co.id = inv.account_id\nLEFT JOIN users ow ON ow.id = COALESCE(ct.owner_id, co.owner_id)\nWHERE inv.id = $1 AND inv.is_archived = false;",
+        "options": {
+          "queryReplacement": "={{ [ $json.invoiceId ] }}"
+        }
+      },
+      "id": "6bbce507-bcae-4166-bf34-b5c9318ddda5",
+      "name": "Postgres: Select Invoice Detail",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: $('Check Requester: get-invoice').first().json }];"
+      },
+      "id": "e147a042-813a-4689-90a8-02ed7729ea30",
+      "name": "Bridge: get-invoice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT p.id, p.payment_number, p.amount, p.amount_received, p.refunded_amount, p.method, p.status,\n  p.reference, p.payment_date\nFROM payments p WHERE p.invoice_id = $1 AND p.is_archived = false ORDER BY p.created_at ASC;",
+        "options": {
+          "queryReplacement": "={{ [ $json.invoiceId ] }}"
+        }
+      },
+      "id": "273b2c1a-8ee6-4ef0-be5e-2c5fbc7bb9c6",
+      "name": "Postgres: Select Invoice Payments",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, category, subtype, summary, detail, actor_name, created_at\nFROM entity_activity_log WHERE entity_type = 'invoice' AND entity_id = $1\nORDER BY created_at ASC;",
+        "options": {
+          "queryReplacement": "={{ [ $json.invoiceId ] }}"
+        }
+      },
+      "id": "e92ca77e-dc65-4288-94a0-a63cde962223",
+      "name": "Postgres: Select Invoice Timeline",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT t.id, t.subject, t.status, t.priority, t.created_at\nFROM tickets t\nWHERE t.is_archived = false AND (\n  ($1::int IS NOT NULL AND t.contact_id = $1) OR\n  ($1::int IS NULL AND $2::int IS NOT NULL AND t.account_id = $2)\n)\nORDER BY t.created_at DESC LIMIT 10;",
+        "options": {
+          "queryReplacement": "={{ [ $('Postgres: Select Invoice Detail').first().json.contact_id, $('Postgres: Select Invoice Detail').first().json.account_id ] }}"
+        }
+      },
+      "id": "ada64d8d-c59d-45d4-93e2-24acce19d903",
+      "name": "Postgres: Select Invoice Related Tickets",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const invoiceItem = $('Postgres: Select Invoice Detail').first()?.json;\nif (!invoiceItem || invoiceItem.id == null) throw new Error('Invoice not found.');\n\nconst payments = $('Postgres: Select Invoice Payments').all().filter((i) => i.json.id != null).map((i) => i.json);\nconst timeline = $('Postgres: Select Invoice Timeline').all().filter((i) => i.json.id != null).map((i) => i.json);\nconst relatedTickets = $('Postgres: Select Invoice Related Tickets').all().filter((i) => i.json.id != null).map((i) => i.json);\n\nconst amountPaid = payments.reduce((sum, p) => sum + Number(p.amount_received), 0) - payments.reduce((sum, p) => sum + Number(p.refunded_amount), 0);\nlet status;\nif (invoiceItem.is_voided) status = 'voided';\nelse if (amountPaid >= Number(invoiceItem.total) && Number(invoiceItem.total) > 0) status = 'paid';\nelse if (amountPaid > 0) status = 'partially_paid';\nelse if (invoiceItem.due_date && new Date(invoiceItem.due_date) < new Date()) status = 'overdue';\nelse status = 'pending';\n\nreturn [{\n  json: {\n    ...invoiceItem,\n    status,\n    amount_paid: amountPaid,\n    outstanding: Number(invoiceItem.total) - amountPaid,\n    payments,\n    timeline,\n    related_tickets: relatedTickets,\n    is_admin: $('Check Requester: get-invoice').first().json.isAdmin,\n  },\n}];"
+      },
+      "id": "c93b8270-e02f-4432-83cc-ce215da860cc",
+      "name": "Merge: get-invoice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "a65d822a-3cf2-4d3d-90fc-18a3c663d5b5",
+      "name": "Respond: get-invoice",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "path": "send-invoice",
+        "responseMode": "responseNode",
+        "options": {},
+        "httpMethod": "POST"
+      },
+      "id": "2da873d5-8ff2-49af-8e19-757aeadcfe9b",
+      "name": "Webhook: send-invoice",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "e3e0e4b4-b3a5-4e90-91ed-bbb668803a02"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
+      },
+      "id": "3c40bf74-baaf-49bf-9ed9-13189a376643",
+      "name": "Parse Token: send-invoice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "dc6ab113-f559-401e-b800-9000139ca62f",
+      "name": "Look Up Requester: send-invoice",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: send-invoice').first().json.body || {};\nconst invoiceId = parseInt(body.invoice_id, 10);\nif (!Number.isInteger(invoiceId)) throw new Error('\"invoice_id\" is required.');\nreturn [{ json: { invoiceId, requesterId: requester.id, requesterName: requester.name } }];"
+      },
+      "id": "28774805-3c6a-4110-8590-1be21170c7b1",
+      "name": "Check Payload: send-invoice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT inv.id, inv.invoice_number, inv.opportunity_id, inv.contact_id, inv.account_id,\n  inv.amount, inv.tax, inv.discount, inv.total, inv.line_items, inv.issue_date, inv.due_date,\n  inv.internal_notes, inv.customer_notes, inv.is_voided, inv.created_at, inv.updated_at,\n  o.name AS deal_name,\n  ct.first_name AS contact_first_name, ct.last_name AS contact_last_name, ct.email AS contact_email, ct.phone AS contact_phone,\n  co.name AS account_name, co.street_address, co.city, co.state, co.zip_code, co.country,\n  ow.name AS owner_name\nFROM invoices inv\nLEFT JOIN opportunities o ON o.id = inv.opportunity_id\nLEFT JOIN contacts ct ON ct.id = inv.contact_id\nLEFT JOIN companies co ON co.id = inv.account_id\nLEFT JOIN users ow ON ow.id = COALESCE(ct.owner_id, co.owner_id)\nWHERE inv.id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.invoiceId ] }}"
+        }
+      },
+      "id": "d9b5c18f-a8b0-4034-ad97-a4d8c1240258",
+      "name": "Postgres: Select Invoice For Send",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "2a673f22-7a5d-4871-b9f9-d151a9f43f76",
+              "leftValue": "={{ !!$json.contact_email }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "113f1540-67b1-4a9c-b26a-07b036704135",
+      "name": "Has Invoice Email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.contact_email }}",
+        "subject": "={{ 'Invoice ' + $json.invoice_number }}",
+        "emailType": "text",
+        "message": "={{ 'Hi ' + ($json.contact_first_name || '') + ',\\n\\nPlease find your invoice below.\\n\\nInvoice: ' + $json.invoice_number + '\\nTotal: $' + $json.total + '\\nDue: ' + ($json.due_date || 'on receipt') + (\\n  $json.deal_name ? ('\\nFor: ' + $json.deal_name) : ''\\n) + '\\n\\nThank you!' }}",
+        "options": {}
+      },
+      "id": "5d2cb210-1402-4485-b5d4-8b9f0bd2b246",
+      "name": "Send Invoice Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, actor_id, actor_name)\nVALUES ('invoice', $1, 'invoice', 'sent', 'Invoice emailed to customer', $2, $3);",
+        "options": {
+          "queryReplacement": "={{ [ $('Check Payload: send-invoice').first().json.invoiceId, $('Check Payload: send-invoice').first().json.requesterId, $('Check Payload: send-invoice').first().json.requesterName ] }}"
+        }
+      },
+      "id": "56ea4f19-73d0-4d3f-8607-e58c649b77a8",
+      "name": "Postgres: Log Invoice Sent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: true } }];"
+      },
+      "id": "4ec21cd5-8353-49b0-9371-aefbda02b8da",
+      "name": "Bridge: send-invoice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: false, error: 'No email on file for this customer.' } }];"
+      },
+      "id": "5b789dab-ca74-4fa6-9143-aca114a542c7",
+      "name": "Bridge: send-invoice (no email)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "18b5549d-ee36-40a6-9533-a10e627edd37",
+      "name": "Respond: send-invoice",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "path": "get-invoice-templates",
+        "responseMode": "responseNode",
+        "options": {},
+        "httpMethod": "GET"
+      },
+      "id": "d4df02b4-9c5c-47db-97c7-1f3eb64d20d4",
+      "name": "Webhook: get-invoice-templates",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "a19425ae-7e5b-4914-b1b7-b2b79197b2c1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
+      },
+      "id": "e1448311-a8c2-4198-836d-e9506f9dbe82",
+      "name": "Parse Token: get-invoice-templates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "abde4ce4-a9a6-44fd-b370-20b0951cc96f",
+      "name": "Look Up Requester: get-invoice-templates",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nreturn [{ json: {} }];"
+      },
+      "id": "e90f9e7a-c994-40cc-b33b-9d1d387dce5b",
+      "name": "Check Requester: get-invoice-templates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT t.id, t.name, t.line_items, t.settings, t.is_active, t.created_by, u.name AS created_by_name, t.created_at, t.updated_at\nFROM invoice_templates t LEFT JOIN users u ON u.id = t.created_by\nORDER BY t.created_at DESC;",
+        "options": {}
+      },
+      "id": "f372c34a-0d6a-4d9f-bd50-f444d47be00f",
+      "name": "Postgres: Select Invoice Templates",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "29076d17-55f6-4ad2-8322-4fbfb11f0f48",
+      "name": "Respond: get-invoice-templates",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "path": "save-invoice-template",
+        "responseMode": "responseNode",
+        "options": {},
+        "httpMethod": "POST"
+      },
+      "id": "1fe568d7-b8ed-42b4-85cf-73fefb48526b",
+      "name": "Webhook: save-invoice-template",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "387cf976-95e3-411d-809c-2e38e8bca518"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
+      },
+      "id": "88803e4f-22c8-4197-8723-92979a57bf8f",
+      "name": "Parse Token: save-invoice-template",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "028ba85d-12bc-40ff-9b43-02e6b65eb379",
+      "name": "Look Up Requester: save-invoice-template",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: save-invoice-template').first().json.body || {};\nconst name = (body.name || '').toString().trim();\nif (!name) throw new Error('\"name\" is required.');\nconst settings = (body.settings && typeof body.settings === 'object' && !Array.isArray(body.settings)) ? body.settings : {};\nconst rawItems = Array.isArray(body.line_items) ? body.line_items : [];\nconst lineItems = rawItems.map((it, i) => {\n  const qty = Number(it.qty) || 0;\n  const unitPrice = Number(it.unit_price) || 0;\n  const discount = Number(it.discount) || 0;\n  const tax = Number(it.tax) || 0;\n  const product = (it.product || '').toString().trim();\n  if (!product) throw new Error(`Line item ${i + 1}: \"product\" is required.`);\n  return { product, qty, unit_price: unitPrice, discount, tax, total: qty * unitPrice - discount + tax };\n});\n\nreturn [{\n  json: {\n    id: body.id ? parseInt(body.id, 10) : null,\n    name,\n    lineItems: JSON.stringify(lineItems),\n    settings: JSON.stringify(settings),\n    requesterId: requester.id,\n  },\n}];"
+      },
+      "id": "6ebcadd8-4ad3-4966-a492-60dc02f36cca",
+      "name": "Check Payload: save-invoice-template",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO invoice_templates (id, name, line_items, settings, created_by, updated_at)\nVALUES (COALESCE($1, nextval(pg_get_serial_sequence('invoice_templates', 'id'))), $2, $3::jsonb, $4::jsonb, $5, now())\nON CONFLICT (id) DO UPDATE SET\n  name = EXCLUDED.name, line_items = EXCLUDED.line_items, settings = EXCLUDED.settings, updated_at = now()\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id, $json.name, $json.lineItems, $json.settings, $json.requesterId ] }}"
+        }
+      },
+      "id": "852b1727-b818-40ae-b70b-dab8fd5eeee4",
+      "name": "Postgres: Upsert Invoice Template",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: true, id: $input.first().json.id } }];"
+      },
+      "id": "b1ae0b14-4741-4910-a3b4-e72f67094b85",
+      "name": "Bridge: save-invoice-template",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "aaa394b0-fd88-4293-a683-d8fce15552e4",
+      "name": "Respond: save-invoice-template",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "path": "update-invoice-template-active",
+        "responseMode": "responseNode",
+        "options": {},
+        "httpMethod": "POST"
+      },
+      "id": "bd3939d6-eedb-4840-95a0-1adf17b8985a",
+      "name": "Webhook: update-invoice-template-active",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "ee6688f4-f62f-4a06-b231-723c66bf0411"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
+      },
+      "id": "ac9c5d9f-c4aa-4c11-83a5-7b0909767e5e",
+      "name": "Parse Token: update-invoice-template-active",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "ee711fc1-80dd-4938-addc-43d976dc8ddc",
+      "name": "Look Up Requester: update-invoice-template-active",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: update-invoice-template-active').first().json.body || {};\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" is required.');\nreturn [{ json: { id, isActive: !!body.is_active } }];"
+      },
+      "id": "4d4b4159-b651-462c-bd1c-74b2dc4836c8",
+      "name": "Check Payload: update-invoice-template-active",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE invoice_templates SET is_active = $1, updated_at = now() WHERE id = $2;",
+        "options": {
+          "queryReplacement": "={{ [ $json.isActive, $json.id ] }}"
+        }
+      },
+      "id": "3fa54430-b5ce-4731-9463-3c0cda8fa1e7",
+      "name": "Postgres: Update Invoice Template Active",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: true } }];"
+      },
+      "id": "692b5b3d-4343-4c99-acc9-1d4ad40c1f78",
+      "name": "Bridge: update-invoice-template-active",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "ce723496-4cc2-436e-9216-1b39ac15dda2",
+      "name": "Respond: update-invoice-template-active",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "path": "delete-invoice-template",
+        "responseMode": "responseNode",
+        "options": {},
+        "httpMethod": "POST"
+      },
+      "id": "9b7966ce-4299-4a98-84a1-888a1e9ae440",
+      "name": "Webhook: delete-invoice-template",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "01c06838-124e-45d0-b50e-9f1d2b8f7550"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
+      },
+      "id": "b9e54e88-41d0-4497-972a-d7593f628cb5",
+      "name": "Parse Token: delete-invoice-template",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "729d4da7-6456-4a81-ad71-651ae1815a98",
+      "name": "Look Up Requester: delete-invoice-template",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: delete-invoice-template').first().json.body || {};\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" is required.');\nreturn [{ json: { id } }];"
+      },
+      "id": "861327ae-79bd-46c7-aba6-c0c73e888c9f",
+      "name": "Check Payload: delete-invoice-template",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM invoice_templates WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id ] }}"
+        }
+      },
+      "id": "f2fe7c91-5e7d-4e35-a6bf-750ea01c131e",
+      "name": "Postgres: Delete Invoice Template",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: true } }];"
+      },
+      "id": "fc750868-e75d-4731-b9fd-3aad093d271f",
+      "name": "Bridge: delete-invoice-template",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "56b40920-b6e7-40a8-9b61-208c71f9a8d2",
+      "name": "Respond: delete-invoice-template",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "path": "get-receipt-templates",
+        "responseMode": "responseNode",
+        "options": {},
+        "httpMethod": "GET"
+      },
+      "id": "28e0f22f-034a-42fc-9bff-60819e85ada8",
+      "name": "Webhook: get-receipt-templates",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "dfdab134-5bd0-414e-9057-50e117969ef5"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
+      },
+      "id": "8a973c3a-9e35-4d5c-9429-4fc464668ff7",
+      "name": "Parse Token: get-receipt-templates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "c8f5fe7d-38ff-47ca-b4c0-4b6c1716ddb8",
+      "name": "Look Up Requester: get-receipt-templates",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nreturn [{ json: {} }];"
+      },
+      "id": "e859217c-168a-443f-9160-6a1562c688fd",
+      "name": "Check Requester: get-receipt-templates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT t.id, t.name, t.subject, t.body, t.is_active, t.created_by, u.name AS created_by_name, t.created_at, t.updated_at\nFROM receipt_templates t LEFT JOIN users u ON u.id = t.created_by\nORDER BY t.created_at DESC;",
+        "options": {}
+      },
+      "id": "b2c4c515-3a80-4c7f-b3eb-4371ca79c579",
+      "name": "Postgres: Select Receipt Templates",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "50b7b0a7-ad36-4fed-a4fb-c4d5d44cb73a",
+      "name": "Respond: get-receipt-templates",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "path": "save-receipt-template",
+        "responseMode": "responseNode",
+        "options": {},
+        "httpMethod": "POST"
+      },
+      "id": "1f71af60-ebdf-41d7-848d-f80d3040b89d",
+      "name": "Webhook: save-receipt-template",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "acdf53da-ffb4-435f-8b26-813c27bf76e4"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
+      },
+      "id": "a1383303-148b-49d5-863f-6d49c5f5a152",
+      "name": "Parse Token: save-receipt-template",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "acbe466f-8d7a-4b66-ae24-b4df640c7165",
+      "name": "Look Up Requester: save-receipt-template",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: save-receipt-template').first().json.body || {};\nconst name = (body.name || '').toString().trim();\nconst subject = (body.subject || '').toString().trim();\nconst emailBody = (body.body || '').toString();\nif (!name) throw new Error('\"name\" is required.');\nif (!subject) throw new Error('\"subject\" is required.');\nif (!emailBody.trim()) throw new Error('\"body\" is required.');\n\nreturn [{\n  json: {\n    id: body.id ? parseInt(body.id, 10) : null,\n    name, subject, emailBody,\n    requesterId: requester.id,\n  },\n}];"
+      },
+      "id": "4b9427e0-53fb-4c33-a926-a28a2e21629b",
+      "name": "Check Payload: save-receipt-template",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO receipt_templates (id, name, subject, body, created_by, updated_at)\nVALUES (COALESCE($1, nextval(pg_get_serial_sequence('receipt_templates', 'id'))), $2, $3, $4, $5, now())\nON CONFLICT (id) DO UPDATE SET\n  name = EXCLUDED.name, subject = EXCLUDED.subject, body = EXCLUDED.body, updated_at = now()\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id, $json.name, $json.subject, $json.emailBody, $json.requesterId ] }}"
+        }
+      },
+      "id": "e516a71e-5c81-4694-bba2-5a7427b9ab1e",
+      "name": "Postgres: Upsert Receipt Template",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: true, id: $input.first().json.id } }];"
+      },
+      "id": "d279dde1-5540-4acf-aba0-177fed87fecf",
+      "name": "Bridge: save-receipt-template",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "f55073c9-705b-4f56-a8e8-6c6ac4238296",
+      "name": "Respond: save-receipt-template",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "path": "update-receipt-template-active",
+        "responseMode": "responseNode",
+        "options": {},
+        "httpMethod": "POST"
+      },
+      "id": "d3c2da34-df97-4ffb-86d4-a90b1dfeb276",
+      "name": "Webhook: update-receipt-template-active",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "ba9eec66-a6af-4d36-b4d1-cc04502f6c72"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
+      },
+      "id": "617e98ed-6504-46ca-b5f4-b25964e35fdf",
+      "name": "Parse Token: update-receipt-template-active",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "1a0ac153-5edb-41c9-a12a-b5f4b5f15c0a",
+      "name": "Look Up Requester: update-receipt-template-active",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: update-receipt-template-active').first().json.body || {};\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" is required.');\nreturn [{ json: { id, isActive: !!body.is_active } }];"
+      },
+      "id": "795b127b-210c-43d6-82b6-c7382f4c0ca1",
+      "name": "Check Payload: update-receipt-template-active",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE receipt_templates SET is_active = $1, updated_at = now() WHERE id = $2;",
+        "options": {
+          "queryReplacement": "={{ [ $json.isActive, $json.id ] }}"
+        }
+      },
+      "id": "8681bccb-d9d2-438b-a970-50f0e60ac31d",
+      "name": "Postgres: Update Receipt Template Active",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: true } }];"
+      },
+      "id": "81ccfcda-805f-49fb-82dd-c0267c814f22",
+      "name": "Bridge: update-receipt-template-active",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "9cf6cadf-054b-4c68-aa5c-355f1339b73b",
+      "name": "Respond: update-receipt-template-active",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "path": "delete-receipt-template",
+        "responseMode": "responseNode",
+        "options": {},
+        "httpMethod": "POST"
+      },
+      "id": "7949ee32-43f2-4eb2-a4d7-408e9c30191b",
+      "name": "Webhook: delete-receipt-template",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "c0e78038-9f20-47d6-b5db-db78e3cd54fb"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
+      },
+      "id": "927fbfa6-c7b9-4439-9413-dbeac3ce83ab",
+      "name": "Parse Token: delete-receipt-template",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "755e9459-e98b-443e-8721-0dffeff547bd",
+      "name": "Look Up Requester: delete-receipt-template",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: delete-receipt-template').first().json.body || {};\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" is required.');\nreturn [{ json: { id } }];"
+      },
+      "id": "c6a9af74-7218-4a17-ab94-4973ee450958",
+      "name": "Check Payload: delete-receipt-template",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM receipt_templates WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id ] }}"
+        }
+      },
+      "id": "8e9fb0cd-abbd-4c78-b7a0-fb98e5d40353",
+      "name": "Postgres: Delete Receipt Template",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: true } }];"
+      },
+      "id": "8ff436c8-6fdc-4d68-a197-f15478ece893",
+      "name": "Bridge: delete-receipt-template",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "19c5407e-e6b7-4049-856b-b53c9671e8ef",
+      "name": "Respond: delete-receipt-template",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, subject, body FROM receipt_templates WHERE is_active = true ORDER BY updated_at DESC LIMIT 1;",
+        "options": {}
+      },
+      "id": "6df09220-e278-4855-9491-7364789b6106",
+      "name": "Postgres: Select Active Receipt Template",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// $input here is the (possibly empty-placeholder) receipt_templates row;\n// the actual payment fields live on 'Postgres: Select Payment For Receipt'\n// since this Postgres node's own output replaced $json.\nconst payment = $('Postgres: Select Payment For Receipt').item.json;\nconst template = $input.first().json;\nconst hasTemplate = template && template.id != null;\n\nfunction fill(text) {\n  return (text || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, payment.contact_first_name || '')\n    .replace(/{{\\s*payment_number\\s*}}/gi, payment.payment_number || '')\n    .replace(/{{\\s*amount\\s*}}/gi, '$' + payment.amount_received)\n    .replace(/{{\\s*payment_date\\s*}}/gi, payment.payment_date || '')\n    .replace(/{{\\s*deal_name\\s*}}/gi, payment.deal_name || '');\n}\n\nconst defaultSubject = `Receipt for payment ${payment.payment_number}`;\nconst defaultBody = `Hi ${payment.contact_first_name || ''},\\n\\nThis confirms your payment.\\n\\nPayment: ${payment.payment_number}\\nAmount: $${payment.amount_received}\\nDate: ${payment.payment_date || ''}${payment.deal_name ? '\\nFor: ' + payment.deal_name : ''}\\n\\nThank you!`;\n\nreturn [{\n  json: {\n    ...payment,\n    receiptSubject: hasTemplate ? fill(template.subject) : defaultSubject,\n    receiptBody: hasTemplate ? fill(template.body) : defaultBody,\n  },\n}];"
+      },
+      "id": "e0dab67f-c324-412d-9318-f88217c53f06",
+      "name": "Prepare Receipt Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook: get-payments": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: get-payments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: get-payments": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: get-payments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: get-payments": {
+      "main": [
+        [
+          {
+            "node": "Check Requester: get-payments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Requester: get-payments": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Payments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Payments": {
+      "main": [
+        [
+          {
+            "node": "Respond: get-payments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: get-invoices": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: get-invoices",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: get-invoices": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: get-invoices",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: get-invoices": {
+      "main": [
+        [
+          {
+            "node": "Check Requester: get-invoices",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Requester: get-invoices": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Invoices",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Invoices": {
+      "main": [
+        [
+          {
+            "node": "Respond: get-invoices",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: get-payment": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: get-payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: get-payment": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: get-payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: get-payment": {
+      "main": [
+        [
+          {
+            "node": "Check Requester: get-payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Requester: get-payment": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Payment": {
+      "main": [
+        [
+          {
+            "node": "Bridge: get-payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge: get-payment": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Payment Timeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Payment Timeline": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Customer Payment History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Customer Payment History": {
+      "main": [
+        [
+          {
+            "node": "Merge: get-payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge: get-payment": {
+      "main": [
+        [
+          {
+            "node": "Respond: get-payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: create-invoice": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: create-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: create-invoice": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: create-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: create-invoice": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: create-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload: create-invoice": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Insert Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Insert Invoice": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Set Invoice Number",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Set Invoice Number": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Log Invoice Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge: create-invoice": {
+      "main": [
+        [
+          {
+            "node": "Respond: create-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: create-payment": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: create-payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: create-payment": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: create-payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: create-payment": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: create-payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload: create-payment": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Insert Payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Insert Payment": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Set Payment Number",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Set Payment Number": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Log Payment Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Log Payment Created": {
+      "main": [
+        [
+          {
+            "node": "Bridge: create-payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge: create-payment": {
+      "main": [
+        [
+          {
+            "node": "Respond: create-payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: update-payment": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: update-payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: update-payment": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: update-payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: update-payment": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: update-payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload: update-payment": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Current Payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Current Payment": {
+      "main": [
+        [
+          {
+            "node": "Build Payment Change Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Payment Change Log": {
+      "main": [
+        [
+          {
+            "node": "Has Payment Changes?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Payment Changes?": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Insert Payment Change Log",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Postgres: Update Payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Insert Payment Change Log": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Update Payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Update Payment": {
+      "main": [
+        [
+          {
+            "node": "Bridge: update-payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge: update-payment": {
+      "main": [
+        [
+          {
+            "node": "Respond: update-payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: add-payment-note": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: add-payment-note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: add-payment-note": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: add-payment-note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: add-payment-note": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: add-payment-note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload: add-payment-note": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Insert Payment Note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Insert Payment Note": {
+      "main": [
+        [
+          {
+            "node": "Bridge: add-payment-note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge: add-payment-note": {
+      "main": [
+        [
+          {
+            "node": "Respond: add-payment-note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: send-receipt": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: send-receipt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: send-receipt": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: send-receipt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: send-receipt": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: send-receipt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload: send-receipt": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Payment For Receipt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Payment For Receipt": {
+      "main": [
+        [
+          {
+            "node": "Has Receipt Email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Receipt Email?": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Active Receipt Template",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Bridge: send-receipt (no email)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Receipt Email": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Log Receipt Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Log Receipt Sent": {
+      "main": [
+        [
+          {
+            "node": "Bridge: send-receipt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge: send-receipt": {
+      "main": [
+        [
+          {
+            "node": "Respond: send-receipt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge: send-receipt (no email)": {
+      "main": [
+        [
+          {
+            "node": "Respond: send-receipt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: archive-payment": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: archive-payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: archive-payment": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: archive-payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: archive-payment": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: archive-payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload: archive-payment": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Archive Payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Archive Payment": {
+      "main": [
+        [
+          {
+            "node": "Bridge: archive-payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge: archive-payment": {
+      "main": [
+        [
+          {
+            "node": "Respond: archive-payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Log Invoice Created": {
+      "main": [
+        [
+          {
+            "node": "Bridge: create-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: update-invoice": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: update-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: update-invoice": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: update-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: update-invoice": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: update-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload: update-invoice": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Update Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Update Invoice": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Log Invoice Updated",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Log Invoice Updated": {
+      "main": [
+        [
+          {
+            "node": "Bridge: update-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge: update-invoice": {
+      "main": [
+        [
+          {
+            "node": "Respond: update-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: void-invoice": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: void-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: void-invoice": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: void-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: void-invoice": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: void-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload: void-invoice": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Void Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Void Invoice": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Log Invoice Voided",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Log Invoice Voided": {
+      "main": [
+        [
+          {
+            "node": "Bridge: void-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge: void-invoice": {
+      "main": [
+        [
+          {
+            "node": "Respond: void-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: get-invoice": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: get-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: get-invoice": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: get-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: get-invoice": {
+      "main": [
+        [
+          {
+            "node": "Check Requester: get-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Requester: get-invoice": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Invoice Detail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Invoice Detail": {
+      "main": [
+        [
+          {
+            "node": "Bridge: get-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge: get-invoice": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Invoice Payments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Invoice Payments": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Invoice Timeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Invoice Timeline": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Invoice Related Tickets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Invoice Related Tickets": {
+      "main": [
+        [
+          {
+            "node": "Merge: get-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge: get-invoice": {
+      "main": [
+        [
+          {
+            "node": "Respond: get-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: send-invoice": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: send-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: send-invoice": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: send-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: send-invoice": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: send-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload: send-invoice": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Invoice For Send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Invoice For Send": {
+      "main": [
+        [
+          {
+            "node": "Has Invoice Email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Invoice Email?": {
+      "main": [
+        [
+          {
+            "node": "Send Invoice Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Bridge: send-invoice (no email)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Invoice Email": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Log Invoice Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Log Invoice Sent": {
+      "main": [
+        [
+          {
+            "node": "Bridge: send-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge: send-invoice": {
+      "main": [
+        [
+          {
+            "node": "Respond: send-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge: send-invoice (no email)": {
+      "main": [
+        [
+          {
+            "node": "Respond: send-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: get-invoice-templates": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: get-invoice-templates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: get-invoice-templates": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: get-invoice-templates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: get-invoice-templates": {
+      "main": [
+        [
+          {
+            "node": "Check Requester: get-invoice-templates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Requester: get-invoice-templates": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Invoice Templates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Invoice Templates": {
+      "main": [
+        [
+          {
+            "node": "Respond: get-invoice-templates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: save-invoice-template": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: save-invoice-template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: save-invoice-template": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: save-invoice-template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: save-invoice-template": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: save-invoice-template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload: save-invoice-template": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Upsert Invoice Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Upsert Invoice Template": {
+      "main": [
+        [
+          {
+            "node": "Bridge: save-invoice-template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge: save-invoice-template": {
+      "main": [
+        [
+          {
+            "node": "Respond: save-invoice-template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: update-invoice-template-active": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: update-invoice-template-active",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: update-invoice-template-active": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: update-invoice-template-active",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: update-invoice-template-active": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: update-invoice-template-active",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload: update-invoice-template-active": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Update Invoice Template Active",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Update Invoice Template Active": {
+      "main": [
+        [
+          {
+            "node": "Bridge: update-invoice-template-active",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge: update-invoice-template-active": {
+      "main": [
+        [
+          {
+            "node": "Respond: update-invoice-template-active",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: delete-invoice-template": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: delete-invoice-template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: delete-invoice-template": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: delete-invoice-template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: delete-invoice-template": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: delete-invoice-template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload: delete-invoice-template": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Delete Invoice Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Delete Invoice Template": {
+      "main": [
+        [
+          {
+            "node": "Bridge: delete-invoice-template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge: delete-invoice-template": {
+      "main": [
+        [
+          {
+            "node": "Respond: delete-invoice-template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: get-receipt-templates": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: get-receipt-templates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: get-receipt-templates": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: get-receipt-templates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: get-receipt-templates": {
+      "main": [
+        [
+          {
+            "node": "Check Requester: get-receipt-templates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Requester: get-receipt-templates": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Receipt Templates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Receipt Templates": {
+      "main": [
+        [
+          {
+            "node": "Respond: get-receipt-templates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: save-receipt-template": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: save-receipt-template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: save-receipt-template": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: save-receipt-template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: save-receipt-template": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: save-receipt-template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload: save-receipt-template": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Upsert Receipt Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Upsert Receipt Template": {
+      "main": [
+        [
+          {
+            "node": "Bridge: save-receipt-template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge: save-receipt-template": {
+      "main": [
+        [
+          {
+            "node": "Respond: save-receipt-template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: update-receipt-template-active": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: update-receipt-template-active",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: update-receipt-template-active": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: update-receipt-template-active",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: update-receipt-template-active": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: update-receipt-template-active",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload: update-receipt-template-active": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Update Receipt Template Active",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Update Receipt Template Active": {
+      "main": [
+        [
+          {
+            "node": "Bridge: update-receipt-template-active",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge: update-receipt-template-active": {
+      "main": [
+        [
+          {
+            "node": "Respond: update-receipt-template-active",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: delete-receipt-template": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: delete-receipt-template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: delete-receipt-template": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: delete-receipt-template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: delete-receipt-template": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: delete-receipt-template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload: delete-receipt-template": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Delete Receipt Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Delete Receipt Template": {
+      "main": [
+        [
+          {
+            "node": "Bridge: delete-receipt-template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge: delete-receipt-template": {
+      "main": [
+        [
+          {
+            "node": "Respond: delete-receipt-template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Active Receipt Template": {
+      "main": [
+        [
+          {
+            "node": "Prepare Receipt Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Receipt Content": {
+      "main": [
+        [
+          {
+            "node": "Send Receipt Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  }
+}

@@ -2,12 +2,24 @@
   "name": "Email Nurture Sequence Engine",
   "nodes": [
     {
-      "parameters": { "rule": { "interval": [{ "field": "hours", "hoursInterval": 1 }] } },
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
       "id": "ee1g0001-1111-4a5a-9b1a-nureng0000001",
       "name": "Schedule Trigger: every hour",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [240, 400]
+      "position": [
+        240,
+        400
+      ]
     },
     {
       "parameters": {
@@ -19,36 +31,62 @@
       "name": "Select Active Sequences",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [464, 320],
-      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+      "position": [
+        464,
+        320
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
     },
     {
       "parameters": {
         "operation": "executeQuery",
         "query": "INSERT INTO nurture_enrollments (sequence_id, contact_id, current_step, status, enrolled_at)\nSELECT $1, c.id, 0, 'active', now()\nFROM contacts c\nWHERE c.is_archived = false\n  AND c.email IS NOT NULL AND c.email <> ''\n  AND GREATEST(c.updated_at, COALESCE((SELECT MAX(created_at) FROM entity_activity_log WHERE entity_type = 'contact' AND entity_id = c.id), c.created_at)) <= now() - ($2 || ' days')::interval\n  AND NOT EXISTS (SELECT 1 FROM nurture_enrollments ne WHERE ne.sequence_id = $1 AND ne.contact_id = c.id)\nON CONFLICT (sequence_id, contact_id) DO NOTHING;",
-        "options": { "queryReplacement": "={{ [ $json.id, $json.trigger_inactive_days ] }}" }
+        "options": {
+          "queryReplacement": "={{ [ $json.id, $json.trigger_inactive_days ] }}"
+        }
       },
       "id": "ee1g0003-3333-4a5a-9b1a-nureng0000003",
       "name": "Auto-Enroll Eligible Contacts",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [688, 320],
-      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
-      "notes": "One-time enrollment per sequence per contact (UNIQUE constraint + ON CONFLICT DO NOTHING). Newly-enrolled contacts get picked up for step-sending on next hour's run, not this one — simpler than same-run ordering, and a 1-hour delay is invisible at this cadence."
+      "position": [
+        688,
+        320
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "notes": "One-time enrollment per sequence per contact (UNIQUE constraint + ON CONFLICT DO NOTHING). Newly-enrolled contacts get picked up for step-sending on next hour's run, not this one \u2014 simpler than same-run ordering, and a 1-hour delay is invisible at this cadence."
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT ne.id AS enrollment_id, ne.sequence_id, ne.contact_id, ne.current_step, ne.enrolled_at, ne.last_step_sent_at,\n  ns.exit_on_reply, ns.exit_lead_status,\n  c.email, c.first_name, c.last_name, c.email_logs,\n  (SELECT COUNT(*) FROM nurture_sequence_steps WHERE sequence_id = ns.id) AS total_steps\nFROM nurture_enrollments ne\nJOIN nurture_sequences ns ON ns.id = ne.sequence_id AND ns.is_active = true\nJOIN contacts c ON c.id = ne.contact_id AND c.is_archived = false\nWHERE ne.status = 'active';",
+        "query": "SELECT ne.id AS enrollment_id, ne.sequence_id, ne.contact_id, ne.current_step, ne.enrolled_at, ne.last_step_sent_at,\n  ns.exit_on_reply, ns.exit_lead_status, ns.on_reply_workflow_id, ns.on_complete_tag_name,\n  c.email, c.first_name, c.last_name, c.email_logs,\n  (SELECT COUNT(*) FROM nurture_sequence_steps WHERE sequence_id = ns.id) AS total_steps\nFROM nurture_enrollments ne\nJOIN nurture_sequences ns ON ns.id = ne.sequence_id AND ns.is_active = true\nJOIN contacts c ON c.id = ne.contact_id AND c.is_archived = false\nWHERE ne.status = 'active';",
         "options": {}
       },
       "id": "ee1g0004-4444-4a5a-9b1a-nureng0000004",
       "name": "Select Active Enrollments",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [464, 560],
-      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
-      "notes": "Independent of the auto-enroll branch above — both fire straight off the schedule trigger, no ordering dependency between them."
+      "position": [
+        464,
+        560
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "notes": "Independent of the auto-enroll branch above \u2014 both fire straight off the schedule trigger, no ordering dependency between them."
     },
     {
       "parameters": {
@@ -58,18 +96,28 @@
       "name": "Check Reply & Determine Action",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [688, 560]
+      "position": [
+        688,
+        560
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
           "conditions": [
             {
               "id": "ee1g0006-1111-4a5a-9b1a-nureng0000006",
               "leftValue": "={{ $json.action }}",
               "rightValue": "exit_reply",
-              "operator": { "type": "string", "operation": "equals" }
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
             }
           ],
           "combinator": "and"
@@ -80,31 +128,51 @@
       "name": "Is Exit Reply?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [912, 560]
+      "position": [
+        912,
+        560
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH exit_update AS (\n  UPDATE nurture_enrollments SET status = 'exited_reply', exited_at = now(), exit_reason = 'Contact replied'\n  WHERE id = $1\n  RETURNING contact_id\n),\nstatus_update AS (\n  UPDATE contacts SET lead_status = $2, updated_at = now()\n  WHERE id = (SELECT contact_id FROM exit_update) AND $2::text IS NOT NULL\n  RETURNING id\n)\nINSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'contact', contact_id, 'system_audit', 'created',\n  'Nurture sequence stopped — contact replied' || CASE WHEN $2::text IS NOT NULL THEN '; status set to ' || $2 ELSE '' END,\n  NULL::jsonb, NULL, 'Automation'\nFROM exit_update\nRETURNING id;",
-        "options": { "queryReplacement": "={{ [ $json.enrollment_id, $json.exit_lead_status ] }}" }
+        "query": "WITH exit_update AS (\n  UPDATE nurture_enrollments SET status = 'exited_reply', exited_at = now(), exit_reason = 'Contact replied'\n  WHERE id = $1\n  RETURNING contact_id\n),\nstatus_update AS (\n  UPDATE contacts SET lead_status = $2, updated_at = now()\n  WHERE id = (SELECT contact_id FROM exit_update) AND $2::text IS NOT NULL\n  RETURNING id\n)\nINSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'contact', contact_id, 'system_audit', 'created',\n  'Nurture sequence stopped \u2014 contact replied' || CASE WHEN $2::text IS NOT NULL THEN '; status set to ' || $2 ELSE '' END,\n  NULL::jsonb, NULL, 'Automation'\nFROM exit_update\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.enrollment_id, $json.exit_lead_status ] }}"
+        }
       },
       "id": "ee1g0007-7777-4a5a-9b1a-nureng0000007",
       "name": "Exit Enrollment (Reply)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1136, 464],
-      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+      "position": [
+        1136,
+        464
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
           "conditions": [
             {
               "id": "ee1g0008-1111-4a5a-9b1a-nureng0000008",
               "leftValue": "={{ $json.action }}",
               "rightValue": "complete",
-              "operator": { "type": "string", "operation": "equals" }
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
             }
           ],
           "combinator": "and"
@@ -115,33 +183,152 @@
       "name": "Is Complete?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1136, 656]
+      "position": [
+        1136,
+        656
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
         "query": "UPDATE nurture_enrollments SET status = 'completed', exited_at = now(), exit_reason = 'Sequence finished' WHERE id = $1;",
-        "options": { "queryReplacement": "={{ [ $json.enrollment_id ] }}" }
+        "options": {
+          "queryReplacement": "={{ [ $json.enrollment_id ] }}"
+        }
       },
       "id": "ee1g0009-9999-4a5a-9b1a-nureng0000009",
       "name": "Mark Completed",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1360, 592],
+      "position": [
+        1360,
+        592
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "nureng-has-reply-hook-cond",
+              "leftValue": "={{ $('Check Reply & Determine Action').item.json.on_reply_workflow_id }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEmpty", "singleValue": true }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "nureng-has-reply-hook",
+      "name": "Has Reply Hook?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [1360, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { contact_id: $('Check Reply & Determine Action').item.json.contact_id } }];"
+      },
+      "id": "nureng-prep-reply-hook",
+      "name": "Prepare Reply Hook Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1584, 400]
+    },
+    {
+      "parameters": {
+        "workflowId": { "__rl": true, "value": "={{ $('Check Reply & Determine Action').item.json.on_reply_workflow_id }}", "mode": "id" },
+        "options": {}
+      },
+      "id": "nureng-run-reply-hook",
+      "name": "Run Reply Hook Workflow",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [1808, 400],
+      "onError": "continueRegularOutput",
+      "notesInFlow": true,
+      "notes": "Opt-in per-sequence hook (nurture_sequences.on_reply_workflow_id) — most sequences leave this NULL and behave exactly as before."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "nureng-has-complete-tag-cond",
+              "leftValue": "={{ $('Check Reply & Determine Action').item.json.on_complete_tag_name }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEmpty", "singleValue": true }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "nureng-has-complete-tag",
+      "name": "Has Complete Tag?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [1584, 592]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO tags (name) VALUES ($1) ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id;",
+        "options": { "queryReplacement": "={{ [ $('Check Reply & Determine Action').item.json.on_complete_tag_name ] }}" }
+      },
+      "id": "nureng-resolve-complete-tag",
+      "name": "Resolve Complete Tag",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1808, 592],
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "notes": "Opt-in per-sequence hook (nurture_sequences.on_complete_tag_name) — most sequences leave this NULL and behave exactly as before.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO taggables (tag_id, entity_type, entity_id) VALUES ($1, 'contact', $2) ON CONFLICT (tag_id, entity_type, entity_id) DO NOTHING;",
+        "options": { "queryReplacement": "={{ [ $json.id, $('Check Reply & Determine Action').item.json.contact_id ] }}" }
+      },
+      "id": "nureng-insert-complete-taggable",
+      "name": "Insert Complete Taggable",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2032, 592],
       "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
     },
     {
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT delay_days, email_subject, email_body FROM nurture_sequence_steps WHERE sequence_id = $1 AND step_number = $2;",
-        "options": { "queryReplacement": "={{ [ $json.sequence_id, $json.nextStep ] }}" }
+        "options": {
+          "queryReplacement": "={{ [ $json.sequence_id, $json.nextStep ] }}"
+        }
       },
       "id": "ee1g0010-1010-4a5a-9b1a-nureng0000010",
       "name": "Look Up Next Step",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1360, 720],
-      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+      "position": [
+        1360,
+        720
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
     },
     {
       "parameters": {
@@ -151,18 +338,29 @@
       "name": "Check Due & Personalize",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1584, 720]
+      "position": [
+        1584,
+        720
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
           "conditions": [
             {
               "id": "ee1g0012-1111-4a5a-9b1a-nureng0000012",
               "leftValue": "={{ $json.due }}",
               "rightValue": true,
-              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
             }
           ],
           "combinator": "and"
@@ -173,7 +371,10 @@
       "name": "Is Due?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1808, 720]
+      "position": [
+        1808,
+        720
+      ]
     },
     {
       "parameters": {
@@ -187,8 +388,16 @@
       "name": "Send Step Email",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
-      "position": [2032, 656],
-      "credentials": { "gmailOAuth2": { "id": "VKDbMYV2U0WoSc16", "name": "n8n072826" } },
+      "position": [
+        2032,
+        656
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      },
       "onError": "continueErrorOutput"
     },
     {
@@ -203,42 +412,192 @@
       "name": "Advance Enrollment & Log",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [2256, 656],
-      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
-      "notes": "Only advances after the send succeeds — a failed send (Gmail error branch) leaves current_step unchanged, so next hour's run retries the same step instead of skipping it."
+      "position": [
+        2256,
+        656
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "notes": "Only advances after the send succeeds \u2014 a failed send (Gmail error branch) leaves current_step unchanged, so next hour's run retries the same step instead of skipping it."
     }
   ],
   "connections": {
     "Schedule Trigger: every hour": {
-      "main": [[
-        { "node": "Select Active Sequences", "type": "main", "index": 0 },
-        { "node": "Select Active Enrollments", "type": "main", "index": 0 }
-      ]]
+      "main": [
+        [
+          {
+            "node": "Select Active Sequences",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Select Active Enrollments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
-    "Select Active Sequences": { "main": [[{ "node": "Auto-Enroll Eligible Contacts", "type": "main", "index": 0 }]] },
-
-    "Select Active Enrollments": { "main": [[{ "node": "Check Reply & Determine Action", "type": "main", "index": 0 }]] },
-    "Check Reply & Determine Action": { "main": [[{ "node": "Is Exit Reply?", "type": "main", "index": 0 }]] },
+    "Select Active Sequences": {
+      "main": [
+        [
+          {
+            "node": "Auto-Enroll Eligible Contacts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Active Enrollments": {
+      "main": [
+        [
+          {
+            "node": "Check Reply & Determine Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Reply & Determine Action": {
+      "main": [
+        [
+          {
+            "node": "Is Exit Reply?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Is Exit Reply?": {
       "main": [
-        [{ "node": "Exit Enrollment (Reply)", "type": "main", "index": 0 }],
-        [{ "node": "Is Complete?", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Exit Enrollment (Reply)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is Complete?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Exit Enrollment (Reply)": {
+      "main": [
+        [
+          { "node": "Has Reply Hook?", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Has Reply Hook?": {
+      "main": [
+        [ { "node": "Prepare Reply Hook Input", "type": "main", "index": 0 } ],
+        []
+      ]
+    },
+    "Prepare Reply Hook Input": {
+      "main": [
+        [ { "node": "Run Reply Hook Workflow", "type": "main", "index": 0 } ]
       ]
     },
     "Is Complete?": {
       "main": [
-        [{ "node": "Mark Completed", "type": "main", "index": 0 }],
-        [{ "node": "Look Up Next Step", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Mark Completed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Look Up Next Step",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "Look Up Next Step": { "main": [[{ "node": "Check Due & Personalize", "type": "main", "index": 0 }]] },
-    "Check Due & Personalize": { "main": [[{ "node": "Is Due?", "type": "main", "index": 0 }]] },
-    "Is Due?": {
+    "Mark Completed": {
       "main": [
-        [{ "node": "Send Step Email", "type": "main", "index": 0 }],
+        [ { "node": "Has Complete Tag?", "type": "main", "index": 0 } ]
+      ]
+    },
+    "Has Complete Tag?": {
+      "main": [
+        [ { "node": "Resolve Complete Tag", "type": "main", "index": 0 } ],
         []
       ]
     },
-    "Send Step Email": { "main": [[{ "node": "Advance Enrollment & Log", "type": "main", "index": 0 }], []] }
+    "Resolve Complete Tag": {
+      "main": [
+        [ { "node": "Insert Complete Taggable", "type": "main", "index": 0 } ]
+      ]
+    },
+    "Look Up Next Step": {
+      "main": [
+        [
+          {
+            "node": "Check Due & Personalize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Due & Personalize": {
+      "main": [
+        [
+          {
+            "node": "Is Due?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Due?": {
+      "main": [
+        [
+          {
+            "node": "Send Step Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Send Step Email": {
+      "main": [
+        [
+          {
+            "node": "Advance Enrollment & Log",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "pinData": {},
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
   }
 }

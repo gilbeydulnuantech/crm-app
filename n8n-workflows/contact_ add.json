@@ -121,6 +121,24 @@
     },
     {
       "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/dispatch-contact-created",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { contact_id: $json.id, source: \"manual\" } }}",
+        "options": { "timeout": 5000 }
+      },
+      "id": "b1e2c3d4-5a6b-47c8-9d0e-notifydispatch1",
+      "name": "Notify: Contact Created",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1104, 320],
+      "onError": "continueRegularOutput",
+      "notesInFlow": true,
+      "notes": "Fire-and-forget — a dispatch failure must never block the contact creation response."
+    },
+    {
+      "parameters": {
         "respondWith": "json",
         "responseBody": "={{ { success: true, contact: $json } }}",
         "options": {
@@ -269,6 +287,11 @@
           },
           {
             "node": "Postgres: Log Activity (created)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Notify: Contact Created",
             "type": "main",
             "index": 0
           }

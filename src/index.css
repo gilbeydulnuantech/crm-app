@@ -82,6 +82,11 @@ body,
 }
 @media print {
   .proposal-page-break { break-after: page; border: none; }
+
+  body:has(#invoice-print-area) * { visibility: hidden; }
+  body:has(#invoice-print-area) #invoice-print-area,
+  body:has(#invoice-print-area) #invoice-print-area * { visibility: visible; }
+  body:has(#invoice-print-area) #invoice-print-area { position: absolute; inset: 0; padding: 0; background: white; }
 }
 
 .proposal-video-embed {

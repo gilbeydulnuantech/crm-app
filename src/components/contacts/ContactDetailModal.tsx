@@ -21,6 +21,10 @@ import { useAuth } from '../../context/AuthContext';
 import { useAllOpportunities, useAllStages, usePipelines } from '../../hooks/useOpportunities';
 import { useTasks } from '../../hooks/useTasks';
 import { useEvents } from '../../hooks/useEvents';
+import { useTickets } from '../../hooks/useTickets';
+import { useInvoices, usePayments } from '../../hooks/usePayments';
+import { useProposals } from '../../hooks/useProposals';
+import { useContracts } from '../../hooks/useContracts';
 import TagsDropdown from './TagsDropdown';
 import OwnerDropdown from './OwnerDropdown';
 import AddContactModal from './AddContactModal';
@@ -32,9 +36,36 @@ import ActivityTimeline from '../ActivityTimeline';
 import ActivityLogModal from '../ActivityLogModal';
 import LogCallModal from '../LogCallModal';
 import OwnerBadge from '../OwnerBadge';
+import ApprovedProposalViewModal from '../pipeline/ApprovedProposalViewModal';
+import SignedContractViewModal from '../pipeline/SignedContractViewModal';
 import { toTitleCase } from '../../utils/text';
 import { parseEmailLogs } from '../../utils/emailLogs';
 import { CalendarEvent } from '../../types/event';
+import { TICKET_STATUS_BADGE } from '../../types/ticket';
+import { INVOICE_STATUS_BADGE, PAYMENT_STATUS_BADGE, Invoice, InvoiceStatus } from '../../types/payment';
+
+function money(n: number) {
+  return `$${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function invoiceStatus(inv: Invoice): InvoiceStatus {
+  if (inv.is_voided) return 'voided';
+  if (inv.amount_paid >= inv.total && inv.total > 0) return 'paid';
+  if (inv.amount_paid > 0) return 'partially_paid';
+  if (inv.due_date && new Date(inv.due_date) < new Date()) return 'overdue';
+  return 'pending';
+}
+
+function StatBox({ label, value, tone }: { label: string; value: string; tone?: 'good' | 'bad' }) {
+  return (
+    <div className="border border-slate-200 rounded-lg px-2.5 py-2">
+      <div className="text-[10px] font-semibold text-slate-400 uppercase">{label}</div>
+      <div className={`text-sm font-bold ${tone === 'good' ? 'text-emerald-600' : tone === 'bad' ? 'text-rose-600' : 'text-slate-800'}`}>
+        {value}
+      </div>
+    </div>
+  );
+}
 
 const STATUS_COLORS: Record<string, string> = {
   New: 'bg-slate-100 text-slate-800',
@@ -137,7 +168,9 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
   const [taskFormOpen, setTaskFormOpen] = useState(false);
   const [eventFormOpen, setEventFormOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
-  const [relatedTab, setRelatedTab] = useState<'opportunities' | 'tasks' | 'events'>('tasks');
+  const [relatedTab, setRelatedTab] = useState<
+    'opportunities' | 'tasks' | 'events' | 'tickets' | 'invoices' | 'payments' | 'documents'
+  >('tasks');
   const [logCallOpen, setLogCallOpen] = useState(false);
   const [selectedLog, setSelectedLog] = useState<EmailLog | null>(null);
   const [selectedActivity, setSelectedActivity] = useState<ActivityLogEntry | null>(null);
@@ -179,6 +212,17 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
     return d.toISOString().slice(0, 10);
   }, []);
   const { data: allEvents = [] } = useEvents(eventsRangeStart, eventsRangeEnd, !!contact);
+  const { data: allTickets = [] } = useTickets();
+  const { data: allInvoices = [] } = useInvoices();
+  const { data: allPayments = [] } = usePayments();
+  // Proposals/contracts have no contact_id of their own (only
+  // opportunity_id) — fetched unscoped and matched against this contact's
+  // own deal ids below, same "fetch everything, filter client-side"
+  // pattern already used for allTasks/allEvents/allOpportunities above.
+  const { data: allProposals = [] } = useProposals(undefined, !!contact);
+  const { data: allContracts = [] } = useContracts(undefined, !!contact);
+  const [viewProposalId, setViewProposalId] = useState<number | null>(null);
+  const [viewContractId, setViewContractId] = useState<number | null>(null);
   const { data: notes = [], isLoading: notesLoading } = useNotes('contact', contact?.id ?? null);
   const addNote = useAddNote('contact', contact?.id ?? null);
   const updateNote = useUpdateNote('contact', contact?.id ?? null);
@@ -261,6 +305,64 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
 
   const logs = parseEmailLogs(contact.email_logs).slice().reverse();
   const contactDeals = allOpportunities.filter((o) => o.contact_id === contact.id);
+  const contactDealIds = new Set(contactDeals.map((d) => d.id));
+  const contactTickets = allTickets.filter((t) => t.contact_id === contact.id);
+  const contactInvoices = allInvoices.filter((i) => i.contact_id === contact.id);
+  const contactPayments = allPayments.filter((p) => p.contact_id === contact.id);
+  // Documents only lists proposals/contracts in a state that actually has a
+  // read-only viewer built (approved / signed) — matches exactly what's
+  // reachable from a Deal Card today, nothing invented for this tab.
+  const contactProposals = allProposals.filter((p) => contactDealIds.has(p.opportunity_id) && p.status === 'approved');
+  const contactContracts = allContracts.filter((c) => contactDealIds.has(c.opportunity_id) && c.status === 'signed');
+  const invoiceStats = contactInvoices.reduce(
+    (acc, inv) => {
+      const status = invoiceStatus(inv);
+      const total = Number(inv.total) || 0;
+      const paidAmt = Number(inv.amount_paid) || 0;
+      acc.totalInvoiced += total;
+      acc.paid += paidAmt;
+      if (status !== 'paid' && status !== 'voided') acc.outstanding += total - paidAmt;
+      if (status === 'overdue') acc.overdue += total - paidAmt;
+      return acc;
+    },
+    { totalInvoiced: 0, paid: 0, outstanding: 0, overdue: 0 }
+  );
+  const totalPaid = contactPayments.reduce(
+    (sum, p) => sum + (Number(p.amount_received) || 0) - (Number(p.refunded_amount) || 0),
+    0
+  );
+  const documentsList = [
+    ...contactProposals.map((p) => ({
+      key: `proposal-${p.id}`,
+      label: `Proposal - ${p.title}`,
+      onClick: () => setViewProposalId(p.id),
+    })),
+    ...contactContracts.map((c) => ({
+      key: `contract-${c.id}`,
+      label: c.title,
+      onClick: () => setViewContractId(c.id),
+    })),
+    ...contactInvoices.map((inv) => ({
+      key: `invoice-${inv.id}`,
+      label: `Invoice ${inv.invoice_number}`,
+      onClick: () => openInvoiceView(inv.id),
+    })),
+  ];
+
+  function openTicketView(id: number) {
+    onClose();
+    navigate(`/tickets/${id}`);
+  }
+
+  function openInvoiceView(id: number) {
+    onClose();
+    navigate(`/payments/invoices/${id}`);
+  }
+
+  function openPaymentView(id: number) {
+    onClose();
+    navigate(`/payments/${id}`);
+  }
   // Open items first, soonest-due/most-overdue before items further out;
   // items with no date sort last within their group. Finished items (done
   // tasks, closed deals) go after everything still actionable, most
@@ -631,24 +733,30 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
             </div>
 
             <div>
-              <div className="flex items-center gap-1 border-b border-slate-200 mb-2">
+              <div className="flex items-center gap-1 border-b border-slate-200 mb-2 overflow-x-auto">
                 {(
                   [
-                    ['opportunities', `Opportunities (${contactDeals.length})`],
-                    ['tasks', `Tasks (${contactTasks.length})`],
-                    ['events', `Events (${contactEvents.length})`],
+                    ['opportunities', 'Opportunities', 'fa-diagram-project', contactDeals.length],
+                    ['tasks', 'Tasks', 'fa-check-to-slot', contactTasks.length],
+                    ['events', 'Events', 'fa-calendar-days', contactEvents.length],
+                    ['tickets', 'Tickets', 'fa-headset', contactTickets.length],
+                    ['invoices', 'Invoices', 'fa-file-invoice-dollar', contactInvoices.length],
+                    ['payments', 'Payments', 'fa-credit-card', contactPayments.length],
+                    ['documents', 'Documents', 'fa-file-lines', documentsList.length],
                   ] as const
-                ).map(([key, label]) => (
+                ).map(([key, label, icon, count]) => (
                   <button
                     key={key}
                     onClick={() => setRelatedTab(key)}
-                    className={`px-2.5 py-1.5 text-xs font-semibold border-b-2 whitespace-nowrap transition-colors -mb-px ${
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold border-b-2 whitespace-nowrap transition-colors -mb-px ${
                       relatedTab === key
                         ? 'border-indigo-600 text-indigo-600'
                         : 'border-transparent text-slate-400 hover:text-slate-600'
                     }`}
                   >
+                    <i className={`fa-solid ${icon} text-xs`} />
                     {label}
+                    {count > 0 && <span className="text-slate-400 font-normal">({count})</span>}
                   </button>
                 ))}
               </div>
@@ -818,6 +926,115 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                       </button>
                     )}
                   </>
+                ))}
+
+              {relatedTab === 'tickets' &&
+                (contactTickets.length === 0 ? (
+                  <p className="text-xs text-slate-400">No tickets for this contact yet.</p>
+                ) : (
+                  <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg">
+                    {contactTickets.map((t) => (
+                      <button
+                        key={t.id}
+                        onClick={() => openTicketView(t.id)}
+                        className="w-full text-left px-3 py-2.5 hover:bg-slate-50"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-medium text-slate-800 truncate">{t.subject}</p>
+                          <span
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 ${TICKET_STATUS_BADGE[t.status]}`}
+                          >
+                            {toTitleCase(t.status.replace('_', ' '))}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          {new Date(t.created_at).toLocaleDateString(undefined, { month: 'short', day: '2-digit', year: 'numeric' })}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                ))}
+
+              {relatedTab === 'invoices' && (
+                <div>
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                    <StatBox label="Total Invoiced" value={money(invoiceStats.totalInvoiced)} />
+                    <StatBox label="Paid" value={money(invoiceStats.paid)} tone="good" />
+                    <StatBox label="Outstanding" value={money(invoiceStats.outstanding)} />
+                    <StatBox
+                      label="Overdue"
+                      value={money(invoiceStats.overdue)}
+                      tone={invoiceStats.overdue > 0 ? 'bad' : undefined}
+                    />
+                  </div>
+                  {contactInvoices.length === 0 ? (
+                    <p className="text-xs text-slate-400">No invoices for this contact yet.</p>
+                  ) : (
+                    <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg">
+                      {contactInvoices.map((inv) => {
+                        const status = invoiceStatus(inv);
+                        return (
+                          <button
+                            key={inv.id}
+                            onClick={() => openInvoiceView(inv.id)}
+                            className="w-full flex items-center justify-between gap-2 px-3 py-2.5 hover:bg-slate-50 text-left"
+                          >
+                            <span className="text-sm font-medium text-indigo-600 shrink-0">{inv.invoice_number}</span>
+                            <span className="text-sm font-semibold text-slate-700">{money(inv.total)}</span>
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 ${INVOICE_STATUS_BADGE[status]}`}>
+                              {toTitleCase(status.replace('_', ' '))}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {relatedTab === 'payments' && (
+                <div>
+                  <div className="mb-3">
+                    <StatBox label="Total Paid" value={money(totalPaid)} tone="good" />
+                  </div>
+                  {contactPayments.length === 0 ? (
+                    <p className="text-xs text-slate-400">No payments for this contact yet.</p>
+                  ) : (
+                    <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg">
+                      {contactPayments.map((p) => (
+                        <button
+                          key={p.id}
+                          onClick={() => openPaymentView(p.id)}
+                          className="w-full flex items-center justify-between gap-2 px-3 py-2.5 hover:bg-slate-50 text-left"
+                        >
+                          <span className="text-sm font-medium text-indigo-600 shrink-0">{p.payment_number}</span>
+                          <span className="text-sm font-semibold text-slate-700">{money(p.amount_received)}</span>
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 ${PAYMENT_STATUS_BADGE[p.status]}`}>
+                            {toTitleCase(p.status.replace('_', ' '))}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {relatedTab === 'documents' &&
+                (documentsList.length === 0 ? (
+                  <p className="text-xs text-slate-400">No documents for this contact yet.</p>
+                ) : (
+                  <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg">
+                    {documentsList.map((doc) => (
+                      <button
+                        key={doc.key}
+                        onClick={doc.onClick}
+                        className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-slate-50 text-left"
+                      >
+                        <i className="fa-solid fa-file-lines text-slate-400" />
+                        <span className="text-sm font-medium text-slate-700 truncate">{doc.label}</span>
+                      </button>
+                    ))}
+                  </div>
                 ))}
             </div>
           </div>
@@ -1116,6 +1333,8 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
         }}
         canEdit={isAdmin || quickViewCompany?.owner_id === user?.id}
       />
+      <ApprovedProposalViewModal proposalId={viewProposalId} onClose={() => setViewProposalId(null)} />
+      <SignedContractViewModal contractId={viewContractId} onClose={() => setViewContractId(null)} />
     </div>
   );
 }
