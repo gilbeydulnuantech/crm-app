@@ -125,15 +125,6 @@ export default function AutomationLogsPage() {
             <option value="error">Error</option>
             <option value="unsupported">Unsupported</option>
           </select>
-          {automationId != null && (
-            <button
-              type="button"
-              onClick={() => navigate(`/automations/${automationId}/edit`)}
-              className="text-xs font-semibold text-[var(--theme-accent)] hover:underline ml-auto"
-            >
-              Edit this automation
-            </button>
-          )}
         </div>
 
         {isError ? (

@@ -137,3 +137,33 @@ export function archivePayment(id: number) {
     body: JSON.stringify({ id }),
   });
 }
+
+// --- Public down-payment flow (contract-signing page, no auth) ---
+
+export function fetchStripeConfig() {
+  return apiFetch<{ success: boolean; publishable_key: string }>('/webhook/get-stripe-config');
+}
+
+export interface PublicDownPayment {
+  success: boolean;
+  total: number;
+  deal_name: string | null;
+  first_name: string | null;
+  contact_email: string | null;
+  is_paid: boolean;
+  error?: string;
+}
+
+export function fetchDownPayment(token: string) {
+  return apiFetch<PublicDownPayment>(`/webhook/get-down-payment-public?token=${encodeURIComponent(token)}`);
+}
+
+export function createPaymentIntent(token: string) {
+  return apiFetch<{ success: boolean; client_secret?: string; error?: string }>(
+    '/webhook/create-payment-intent-public',
+    {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    }
+  );
+}

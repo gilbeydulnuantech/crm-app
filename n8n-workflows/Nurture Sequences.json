@@ -74,7 +74,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT ns.id, ns.name, ns.trigger_inactive_days, ns.exit_on_reply, ns.exit_lead_status, ns.is_active, ns.created_at,\n  (SELECT COUNT(*) FROM nurture_enrollments ne WHERE ne.sequence_id = ns.id AND ne.status = 'active') AS active_enrollments,\n  (SELECT COALESCE(json_agg(json_build_object('id', s.id, 'step_number', s.step_number, 'delay_days', s.delay_days, 'email_subject', s.email_subject, 'email_body', s.email_body) ORDER BY s.step_number), '[]'::json)\n   FROM nurture_sequence_steps s WHERE s.sequence_id = ns.id) AS steps\nFROM nurture_sequences ns\nORDER BY ns.created_at DESC;",
+        "query": "SELECT ns.id, ns.name, ns.trigger_inactive_days, ns.exit_on_reply, ns.exit_lead_status, ns.is_active, ns.created_at,\n  (SELECT COUNT(*) FROM nurture_enrollments ne WHERE ne.sequence_id = ns.id AND ne.status = 'active') AS active_enrollments,\n  (SELECT COALESCE(json_agg(json_build_object('id', s.id, 'step_number', s.step_number, 'delay_days', s.delay_days, 'email_template_id', s.email_template_id, 'email_subject', et.subject, 'email_body', et.body) ORDER BY s.step_number), '[]'::json)\n   FROM nurture_sequence_steps s JOIN email_templates et ON et.id = s.email_template_id WHERE s.sequence_id = ns.id) AS steps\nFROM nurture_sequences ns\nORDER BY ns.created_at DESC;",
         "options": {}
       },
       "id": "ns1f0005-5555-4a5a-9b1a-nurseq00000005",
@@ -164,7 +164,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Save Nurture Sequence').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst id = body.id ? parseInt(body.id, 10) : null;\nconst name = (body.name || '').toString().trim();\nconst triggerInactiveDays = parseInt(body.trigger_inactive_days, 10);\nconst exitOnReply = body.exit_on_reply !== false;\nconst exitLeadStatus = (body.exit_lead_status || '').toString().trim() || null;\nconst steps = Array.isArray(body.steps) ? body.steps : [];\n\nif (!name) throw new Error('\"name\" is required.');\nif (!Number.isInteger(triggerInactiveDays) || triggerInactiveDays < 1) throw new Error('\"trigger_inactive_days\" must be a positive integer.');\nif (steps.length === 0) throw new Error('At least one email step is required.');\n\nconst cleanSteps = steps.map((s, i) => {\n  const delayDays = parseInt(s.delay_days, 10);\n  const subject = (s.email_subject || '').toString().trim();\n  const emailBody = (s.email_body || '').toString();\n  if (!Number.isInteger(delayDays) || delayDays < 0) throw new Error(`Step ${i + 1}: \"delay_days\" must be a non-negative integer.`);\n  if (!subject) throw new Error(`Step ${i + 1}: subject is required.`);\n  if (!emailBody.trim()) throw new Error(`Step ${i + 1}: email body is required.`);\n  return { stepNumber: i + 1, delayDays, subject, emailBody };\n});\n\nreturn [{ json: { id, name, triggerInactiveDays, exitOnReply, exitLeadStatus, steps: cleanSteps, requesterId: requester.id } }];"
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Save Nurture Sequence').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst id = body.id ? parseInt(body.id, 10) : null;\nconst name = (body.name || '').toString().trim();\nconst triggerInactiveDays = parseInt(body.trigger_inactive_days, 10);\nconst exitOnReply = body.exit_on_reply !== false;\nconst exitLeadStatus = (body.exit_lead_status || '').toString().trim() || null;\nconst steps = Array.isArray(body.steps) ? body.steps : [];\n\nif (!name) throw new Error('\"name\" is required.');\nif (!Number.isInteger(triggerInactiveDays) || triggerInactiveDays < 1) throw new Error('\"trigger_inactive_days\" must be a positive integer.');\nif (steps.length === 0) throw new Error('At least one email step is required.');\n\n// Email copy lives only in email_templates now — a step just points at one.\nconst cleanSteps = steps.map((s, i) => {\n  const delayDays = parseInt(s.delay_days, 10);\n  const emailTemplateId = parseInt(s.email_template_id, 10);\n  if (!Number.isInteger(delayDays) || delayDays < 0) throw new Error(`Step ${i + 1}: \"delay_days\" must be a non-negative integer.`);\n  if (!Number.isInteger(emailTemplateId)) throw new Error(`Step ${i + 1}: an email template is required.`);\n  return { stepNumber: i + 1, delayDays, emailTemplateId };\n});\n\nreturn [{ json: { id, name, triggerInactiveDays, exitOnReply, exitLeadStatus, steps: cleanSteps, requesterId: requester.id } }];"
       },
       "id": "ns1f0010-1010-4a5a-9b1a-nurseq00000010",
       "name": "Validate Admin & Payload (Save)",
@@ -239,9 +239,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO nurture_sequence_steps (sequence_id, step_number, delay_days, email_subject, email_body) VALUES ($1, $2, $3, $4, $5);",
+        "query": "INSERT INTO nurture_sequence_steps (sequence_id, step_number, delay_days, email_template_id) VALUES ($1, $2, $3, $4);",
         "options": {
-          "queryReplacement": "={{ [ $json.sequenceId, $json.stepNumber, $json.delayDays, $json.subject, $json.emailBody ] }}"
+          "queryReplacement": "={{ [ $json.sequenceId, $json.stepNumber, $json.delayDays, $json.emailTemplateId ] }}"
         }
       },
       "id": "ns1f0014-1414-4a5a-9b1a-nurseq00000014",

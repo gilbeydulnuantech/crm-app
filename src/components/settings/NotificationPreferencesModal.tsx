@@ -12,12 +12,18 @@ const DEFAULT_PREFS: Required<NotificationPreferences> = {
   email: true,
   chat: true,
   tasks_due: true,
+  automation_dms: true,
 };
 
 const OPTIONS: { key: keyof NotificationPreferences; label: string; description: string }[] = [
   { key: 'email', label: 'Email replies', description: 'Unread replies from contacts.' },
   { key: 'chat', label: 'Team chat messages', description: 'Unread messages in your conversations.' },
   { key: 'tasks_due', label: 'Tasks due today', description: 'Your open tasks due today.' },
+  {
+    key: 'automation_dms',
+    label: 'Automation alerts',
+    description: 'DMs from automations — hot lead replies, no-shows, deals won/lost, and similar.',
+  },
 ];
 
 export default function NotificationPreferencesModal({ open, onClose }: Props) {

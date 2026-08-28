@@ -13,7 +13,7 @@ import {
   CartesianGrid,
   Legend,
 } from 'recharts';
-import { fetchObservabilityDashboard, ApiServiceStatus } from '../api/observability';
+import { fetchObservabilityDashboard, fetchAutomationErrorLog, ApiServiceStatus } from '../api/observability';
 import { CHART_CHROME, CHART_STATUS, chartCategoryColor } from '../utils/chartTheme';
 
 function formatBytes(bytes: number): string {
@@ -30,6 +30,17 @@ function formatMs(ms: number | null): string {
 function formatTime(ts: string | null): string {
   if (!ts) return '--';
   return new Date(ts.replace(' ', 'T') + 'Z').toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+// automation_error_log.created_at comes back already ISO (timestamptz), unlike
+// the executions/errors timestamps above which are bare Postgres strings.
+function formatIsoTime(ts: string): string {
+  return new Date(ts).toLocaleString(undefined, {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
@@ -87,6 +98,11 @@ export default function ObservabilityDashboard() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['observability-dashboard'],
     queryFn: fetchObservabilityDashboard,
+    refetchInterval: 30000,
+  });
+  const { data: errorLog } = useQuery({
+    queryKey: ['automation-error-log'],
+    queryFn: fetchAutomationErrorLog,
     refetchInterval: 30000,
   });
 
@@ -283,6 +299,43 @@ export default function ObservabilityDashboard() {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Global Error Trigger alert log */}
+          <div className="bg-white border border-slate-200 rounded-xl p-4">
+            <h2 className="text-sm font-semibold text-slate-700 mb-1">Global Error Trigger Alerts</h2>
+            <p className="text-[11px] text-slate-400 mb-3">
+              Every failure the Global Error Trigger has actually fired on — the same alerts sent to Slack #urgent
+              and DM'd to the admin, logged here as the authoritative record.
+            </p>
+            {!errorLog || errorLog.length === 0 ? (
+              <p className="text-xs text-slate-400">No alerts logged yet.</p>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {errorLog.map((e) => (
+                  <div key={e.id} className="text-xs border-b border-slate-100 pb-2 last:border-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-slate-700 truncate">{e.workflowName || e.workflowId}</span>
+                      <span className="text-[10px] text-slate-400 shrink-0">{formatIsoTime(e.createdAt)}</span>
+                    </div>
+                    <div className="text-slate-500 truncate">
+                      {e.nodeName ? `${e.nodeName}: ` : ''}
+                      {e.message || 'No detail'}
+                    </div>
+                    {e.executionUrl && (
+                      <a
+                        href={e.executionUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[11px] text-indigo-600 hover:underline"
+                      >
+                        View execution
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Workflow table */}

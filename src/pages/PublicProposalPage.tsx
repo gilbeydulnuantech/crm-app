@@ -5,6 +5,8 @@ import { fetchPublicProposal, approveProposal } from '../api/proposals';
 import { fetchPublicContract, signContract } from '../api/contracts';
 import SignatureField, { SignatureFieldHandle } from '../components/SignatureField';
 import SignedOutcomeScreen from '../components/SignedOutcomeScreen';
+import DownPaymentForm from '../components/DownPaymentForm';
+import ChatWidget from '../components/ChatWidget';
 import FillableFieldsRenderer, { FieldValue, FillableFieldsRendererHandle } from '../components/richtext/FillableFieldsRenderer';
 import { fillMergeFields } from '../utils/mergeFields';
 
@@ -30,6 +32,7 @@ export default function PublicProposalPage() {
 
   const [contractToken, setContractToken] = useState<string | null>(null);
   const [approveError, setApproveError] = useState<string | null>(null);
+  const [paidLocally, setPaidLocally] = useState(false);
   const proposalContentRef = useRef<HTMLDivElement>(null);
   const proposalFieldsRef = useRef<FillableFieldsRendererHandle>(null);
   const [proposalFieldValues, setProposalFieldValues] = useState<Record<string, FieldValue>>({});
@@ -138,6 +141,19 @@ export default function PublicProposalPage() {
           <p className="text-sm text-slate-400 text-center py-10">Loading...</p>
         ) : !data || !data.success ? (
           <p className="text-sm text-rose-600 text-center py-10">This proposal link is invalid or has expired.</p>
+        ) : contract?.status === 'signed' && contract.down_payment_token && !contract.down_payment_paid && !paidLocally ? (
+          <>
+            <div className="text-center py-6">
+              <div className="w-14 h-14 mx-auto rounded-full bg-emerald-100 flex items-center justify-center mb-4">
+                <i className="fa-solid fa-circle-check text-2xl text-emerald-600" />
+              </div>
+              <h1 className="text-xl font-bold text-slate-800">
+                Thank you{contract.signature_name ? `, ${contract.signature_name}` : ''}!
+              </h1>
+              <p className="text-sm text-slate-500 mt-1.5">Your contract is signed. One last step below.</p>
+            </div>
+            <DownPaymentForm token={contract.down_payment_token} onPaid={() => setPaidLocally(true)} />
+          </>
         ) : contract?.status === 'signed' ? (
           <SignedOutcomeScreen
             thankYouPageContentHtml={contract.thank_you_page_content_html}
@@ -266,6 +282,7 @@ export default function PublicProposalPage() {
           </>
         )}
       </div>
+      <ChatWidget />
     </div>
   );
 }

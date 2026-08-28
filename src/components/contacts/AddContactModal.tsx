@@ -31,6 +31,7 @@ const EMPTY = {
   lead_status: 'New',
   lead_source: '',
   timezone: '',
+  birthdate: '',
   do_not_contact: false,
   owner_id: null as number | null,
 };
@@ -123,6 +124,7 @@ export default function AddContactModal({
         lead_status: contact.lead_status ?? 'New',
         lead_source: contact.lead_source ?? '',
         timezone: contact.timezone ?? '',
+        birthdate: contact.birthdate ?? '',
         do_not_contact: contact.do_not_contact ?? false,
         owner_id: contact.owner_id ?? null,
       });
@@ -169,6 +171,7 @@ export default function AddContactModal({
       lead_status: form.lead_status,
       lead_source: form.lead_source,
       timezone: form.timezone,
+      birthdate: form.birthdate,
       do_not_contact: form.do_not_contact,
       // The backend only honors this for admins — anyone else's new
       // contacts stay self-owned regardless of what's sent here.
@@ -409,6 +412,16 @@ export default function AddContactModal({
                 className={inputClass}
               />
             )}
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Birthdate</label>
+            <input
+              type="date"
+              value={form.birthdate}
+              onChange={(e) => update('birthdate', e.target.value)}
+              className={inputClass}
+            />
           </div>
 
           <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer pt-1">

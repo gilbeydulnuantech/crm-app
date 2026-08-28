@@ -78,3 +78,21 @@ export interface ObservabilityDashboard {
 export function fetchObservabilityDashboard() {
   return apiFetch<ObservabilityDashboard>('/webhook/observability-dashboard');
 }
+
+// The Global Error Trigger's own authoritative log — every entry here is a
+// failure it actually alerted on (Slack + admin DM), distinct from the
+// `errors` array above which is independently reconstructed from n8n's raw
+// execution history and can miss pruned/unparseable executions.
+export interface AutomationErrorLogEntry {
+  id: number;
+  workflowId: string | null;
+  workflowName: string | null;
+  nodeName: string | null;
+  message: string | null;
+  executionUrl: string | null;
+  createdAt: string;
+}
+
+export function fetchAutomationErrorLog() {
+  return apiFetch<AutomationErrorLogEntry[]>('/webhook/get-automation-error-log');
+}

@@ -158,6 +158,11 @@ export interface NotificationPreferences {
   email?: boolean;
   chat?: boolean;
   tasks_due?: boolean;
+  // Distinct from `chat` (which only controls the notification-bell badge
+  // for messages that already exist) — this controls whether automations
+  // (hot lead replies, no-shows, deals won/lost, etc.) send you a DM at
+  // all. Off means the message is never created, not just unbadged.
+  automation_dms?: boolean;
 }
 
 export interface TeamUser {

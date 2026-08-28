@@ -90,6 +90,7 @@ export default function Contacts() {
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [activeContactId, setActiveContactId] = useState<number | null>(null);
   const [archiveTargetIds, setArchiveTargetIds] = useState<number[] | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [density, setDensity] = useState<'comfortable' | 'compact'>(
     () => (localStorage.getItem(DENSITY_STORAGE_KEY) as 'comfortable' | 'compact' | null) ?? 'comfortable'
   );
@@ -199,7 +200,10 @@ export default function Contacts() {
     if (isAdmin) {
       const fullName = `${contact.first_name} ${contact.last_name}`.trim();
       if (!confirm(`PERMANENT DELETE: Remove ${fullName || 'this contact'} forever?`)) return;
-      deleteContacts.mutate([contact.id]);
+      setDeleteError(null);
+      deleteContacts.mutate([contact.id], {
+        onError: (err) => setDeleteError(err instanceof Error ? err.message : 'Failed to delete contact.'),
+      });
     } else {
       setArchiveTargetIds([contact.id]);
     }
@@ -326,7 +330,11 @@ export default function Contacts() {
   function handleDeletePermanently() {
     if (selectedIds.size === 0) return;
     if (!confirm(`PERMANENT DELETE: Remove ${selectedIds.size} contact(s) forever?`)) return;
-    deleteContacts.mutate(Array.from(selectedIds), { onSuccess: () => setSelectedIds(new Set()) });
+    setDeleteError(null);
+    deleteContacts.mutate(Array.from(selectedIds), {
+      onSuccess: () => setSelectedIds(new Set()),
+      onError: (err) => setDeleteError(err instanceof Error ? err.message : 'Failed to delete contact(s).'),
+    });
   }
 
   function handleExport() {
@@ -346,6 +354,19 @@ export default function Contacts() {
         <h1 className="text-lg font-bold text-slate-800">Contacts</h1>
         <AddContactDropdown onAddContact={openAddModal} onImportCsv={() => setImportOpen(true)} />
       </div>
+
+      {deleteError && (
+        <div className="px-4 py-2 shrink-0 bg-rose-50 border-b border-rose-200 flex items-center justify-between gap-3">
+          <p className="text-xs text-rose-600">{deleteError}</p>
+          <button
+            type="button"
+            onClick={() => setDeleteError(null)}
+            className="text-rose-400 hover:text-rose-600 shrink-0"
+          >
+            <i className="fa-solid fa-xmark text-xs" />
+          </button>
+        </div>
+      )}
 
       <ContactsTabs view={view} onChange={changeView} />
 

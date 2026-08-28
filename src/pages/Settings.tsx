@@ -8,9 +8,6 @@ import AuditLogModal from '../components/settings/AuditLogModal';
 import UserManagementModal from '../components/settings/UserManagementModal';
 import CalendarIntegrationsModal from '../components/settings/CalendarIntegrationsModal';
 import IntegrationsModal from '../components/settings/IntegrationsModal';
-import NurtureSequencesModal from '../components/settings/NurtureSequencesModal';
-import StageRemindersModal from '../components/settings/StageRemindersModal';
-import DocumentFlowModal from '../components/settings/DocumentFlowModal';
 import CompanyProfileModal from '../components/settings/CompanyProfileModal';
 
 export default function Settings() {
@@ -23,9 +20,6 @@ export default function Settings() {
   const [userMgmtOpen, setUserMgmtOpen] = useState(false);
   const [calendarIntegrationsOpen, setCalendarIntegrationsOpen] = useState(false);
   const [integrationsOpen, setIntegrationsOpen] = useState(false);
-  const [nurtureSequencesOpen, setNurtureSequencesOpen] = useState(false);
-  const [stageRemindersOpen, setStageRemindersOpen] = useState(false);
-  const [documentFlowOpen, setDocumentFlowOpen] = useState(false);
   const [companyProfileOpen, setCompanyProfileOpen] = useState(false);
 
   return (
@@ -158,58 +152,6 @@ export default function Settings() {
 
             <div className="p-5 flex items-center justify-between">
               <div>
-                <h2 className="text-sm font-semibold text-slate-800">Email Nurture</h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Multi-step drip sequences for contacts who've gone quiet — stops automatically on reply.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setNurtureSequencesOpen(true)}
-                className="shrink-0 px-4 py-2 text-sm font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg flex items-center gap-2"
-              >
-                <i className="fa-solid fa-seedling text-[var(--theme-accent)]" />
-                Sequences
-              </button>
-            </div>
-
-            <div className="p-5 flex items-center justify-between">
-              <div>
-                <h2 className="text-sm font-semibold text-slate-800">Stage Reminders</h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Appointment reminders for deals sitting in a pipeline stage — e.g. reminders before an
-                  inspection, or a no-show follow-up after.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setStageRemindersOpen(true)}
-                className="shrink-0 px-4 py-2 text-sm font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg flex items-center gap-2"
-              >
-                <i className="fa-solid fa-bell text-[var(--theme-accent)]" />
-                Reminders
-              </button>
-            </div>
-
-            <div className="p-5 flex items-center justify-between">
-              <div>
-                <h2 className="text-sm font-semibold text-slate-800">Proposal & Contract Flow</h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Auto-email a rep's proposal, then move the deal forward as the lead views, approves, and signs.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setDocumentFlowOpen(true)}
-                className="shrink-0 px-4 py-2 text-sm font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg flex items-center gap-2"
-              >
-                <i className="fa-solid fa-file-signature text-[var(--theme-accent)]" />
-                Flow
-              </button>
-            </div>
-
-            <div className="p-5 flex items-center justify-between">
-              <div>
                 <h2 className="text-sm font-semibold text-slate-800">Company Profile</h2>
                 <p className="text-xs text-slate-500 mt-0.5">
                   Your company's name, email, and phone — auto-fills the "Contractor" details on new proposals.
@@ -252,9 +194,6 @@ export default function Settings() {
       <UserManagementModal open={userMgmtOpen} onClose={() => setUserMgmtOpen(false)} />
       <CalendarIntegrationsModal open={calendarIntegrationsOpen} onClose={() => setCalendarIntegrationsOpen(false)} />
       <IntegrationsModal open={integrationsOpen} onClose={() => setIntegrationsOpen(false)} />
-      <NurtureSequencesModal open={nurtureSequencesOpen} onClose={() => setNurtureSequencesOpen(false)} />
-      <StageRemindersModal open={stageRemindersOpen} onClose={() => setStageRemindersOpen(false)} />
-      <DocumentFlowModal open={documentFlowOpen} onClose={() => setDocumentFlowOpen(false)} />
       <CompanyProfileModal open={companyProfileOpen} onClose={() => setCompanyProfileOpen(false)} />
     </div>
   );

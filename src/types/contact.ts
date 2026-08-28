@@ -17,6 +17,7 @@ export interface Contact {
   country?: string;
   lead_status?: string;
   lead_source?: string;
+  birthdate?: string; // YYYY-MM-DD; age is computed on the fly, not stored
   do_not_contact?: boolean;
   dnc_email?: boolean;
   dnc_call?: boolean;

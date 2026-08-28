@@ -89,6 +89,9 @@ export interface PublicContract {
   field_values: Record<string, string | boolean> | null;
   thank_you_page_id: number | null;
   thank_you_page_content_html: string | null;
+  down_payment_token: string | null;
+  down_payment_amount: number | null;
+  down_payment_paid: boolean;
   error?: string;
 }
 
@@ -106,10 +109,13 @@ export interface SignContractPayload {
 }
 
 export function signContract(payload: SignContractPayload) {
-  return apiFetch<{ success: boolean; error?: string }>('/webhook/sign-contract-public', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
+  return apiFetch<{ success: boolean; error?: string; down_payment_token?: string; down_payment_amount?: number }>(
+    '/webhook/sign-contract-public',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }
+  );
 }
 
 // Internal, authenticated view of a signed contract — the CRM equivalent of

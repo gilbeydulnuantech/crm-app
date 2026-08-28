@@ -1,0 +1,1781 @@
+{
+  "name": "New Lead Response",
+  "nodes": [
+    {
+      "position": [
+        440,
+        0
+      ],
+      "id": "nlr-webhook-1",
+      "name": "Webhook: new-lead-response-trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "automation-35-trigger",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "webhookId": "nlr-webhook-01",
+      "notes": "responseMode=onReceived — this run can take days (real Wait nodes), so it acks the dispatcher immediately instead of holding the connection.",
+      "notesInFlow": true
+    },
+    {
+      "position": [
+        660,
+        0
+      ],
+      "id": "nlr-parse-2",
+      "name": "Parse Trigger Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || {};\nconst contactId = parseInt(body.contact_id, 10);\nif (!Number.isInteger(contactId)) throw new Error('\"contact_id\" is required.');\nreturn [{ json: { contactId } }];"
+      }
+    },
+    {
+      "position": [
+        880,
+        0
+      ],
+      "id": "nlr-fetch-3",
+      "name": "Fetch Contact",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.*, u.name AS owner_name, u.email AS owner_email, u.phone AS owner_phone,\n  EXISTS (\n    SELECT 1 FROM jsonb_array_elements(COALESCE(c.email_logs, '[]'::jsonb)) e\n    WHERE e->>'type' = 'received' AND (e->>'sent_at')::timestamptz > c.created_at\n  ) AS email_replied\nFROM contacts c LEFT JOIN users u ON u.id = c.owner_id WHERE c.id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.contactId ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "position": [
+        1100,
+        0
+      ],
+      "id": "nlr-lookup-4",
+      "name": "Look Up Template: Thank You",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT subject, body FROM email_templates WHERE id = 12;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "position": [
+        1320,
+        0
+      ],
+      "id": "nlr-fill-5",
+      "name": "Fill Email: Thank You",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "\nfunction toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction fill(template, row) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, toTitleCase(row.last_name))\n    .replace(/{{\\s*email\\s*}}/gi, row.email || '')\n    .replace(/{{[^{}]*}}/g, '');\n}\n\nconst tmpl = $input.item.json;\nconst row = $('Fetch Contact').item.json;\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject, row), htmlBody: fill(tmpl.body, row).replace(/\\n/g, '<br>') } }];"
+      }
+    },
+    {
+      "position": [
+        1540,
+        0
+      ],
+      "id": "nlr-send-6",
+      "name": "Send Email: Thank You",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.htmlBody }}",
+        "options": {}
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "position": [
+        1760,
+        0
+      ],
+      "id": "nlr-wait-7",
+      "name": "Wait 24h: after thank you",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": 24,
+        "unit": "hours"
+      },
+      "webhookId": "nlr-waitresume-8"
+    },
+    {
+      "position": [
+        1980,
+        0
+      ],
+      "id": "nlr-refetch-9",
+      "name": "Refetch Contact: after thank you",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.*, u.name AS owner_name, u.email AS owner_email, u.phone AS owner_phone,\n  EXISTS (\n    SELECT 1 FROM jsonb_array_elements(COALESCE(c.email_logs, '[]'::jsonb)) e\n    WHERE e->>'type' = 'received' AND (e->>'sent_at')::timestamptz > c.created_at\n  ) AS email_replied\nFROM contacts c LEFT JOIN users u ON u.id = c.owner_id WHERE c.id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Fetch Contact').item.json.id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "position": [
+        2200,
+        0
+      ],
+      "id": "nlr-cond-10",
+      "name": "Replied? after thank you",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "nlr-cond-c-11",
+              "leftValue": "={{ $('Refetch Contact: after thank you').item.json.email_replied }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "position": [
+        2420,
+        0
+      ],
+      "id": "nlr-tag-12",
+      "name": "Resolve Tag: Hot Lead",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO tags (name) VALUES ('Hot Lead') ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "position": [
+        2640,
+        0
+      ],
+      "id": "nlr-taggable-13",
+      "name": "Insert Taggable: Hot Lead",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO taggables (tag_id, entity_type, entity_id) VALUES ($1, 'contact', $2) ON CONFLICT (tag_id, entity_type, entity_id) DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id, $('Refetch Contact: after thank you').item.json.id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "position": [
+        2860,
+        0
+      ],
+      "id": "nlr-assign-14",
+      "name": "Assign Owner (Round Robin)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts SET owner_id = (\n  SELECT u.id FROM users u\n  LEFT JOIN contacts c2 ON c2.owner_id = u.id AND c2.is_archived = false\n  WHERE u.role = 'user' AND u.active = true\n  GROUP BY u.id\n  ORDER BY COUNT(c2.id) ASC, u.id ASC\n  LIMIT 1\n), updated_at = now()\nWHERE id = $1\nRETURNING owner_id;",
+        "options": {
+          "queryReplacement": "={{ [ $('Refetch Contact: after thank you').item.json.id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "notes": "Least-loaded among active role='user' reps — self-balancing, no cursor table needed.",
+      "notesInFlow": true
+    },
+    {
+      "position": [
+        3080,
+        0
+      ],
+      "id": "nlr-dmkey-15",
+      "name": "Build DM Key",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "const NOTIFIER_USER_ID = 1;\nconst ownerId = $input.item.json.owner_id;\nconst dmKey = [NOTIFIER_USER_ID, ownerId].sort((a, b) => a - b).join('-');\nreturn [{ json: { notifierUserId: NOTIFIER_USER_ID, ownerId, dmKey } }];"
+      }
+    },
+    {
+      "position": [
+        3300,
+        0
+      ],
+      "id": "nlr-dmcreate-16",
+      "name": "Create DM If Missing",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO conversations (type, dm_key, created_by) VALUES ('dm', $1, $2) ON CONFLICT (dm_key) WHERE type = 'dm' DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ [ $json.dmKey, $json.notifierUserId ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "position": [
+        3520,
+        0
+      ],
+      "id": "nlr-dmgetid-17",
+      "name": "Get DM Id",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id FROM conversations WHERE type = 'dm' AND dm_key = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Build DM Key').item.json.dmKey ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "position": [
+        3740,
+        0
+      ],
+      "id": "nlr-dmmembers-18",
+      "name": "Ensure DM Members",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO conversation_members (conversation_id, user_id) VALUES ($1, $2), ($1, $3) ON CONFLICT DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id, $('Build DM Key').item.json.notifierUserId, $('Build DM Key').item.json.ownerId ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "position": [
+        3960,
+        0
+      ],
+      "id": "nlr-dmtext-19",
+      "name": "Prepare DM Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "\nfunction toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction fill(template, row) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, toTitleCase(row.last_name))\n    .replace(/{{\\s*email\\s*}}/gi, row.email || '')\n    .replace(/{{[^{}]*}}/g, '');\n}\n\nconst row = $('Refetch Contact: after thank you').item.json;\nconst name = [row.first_name, row.last_name].filter(Boolean).join(' ') || 'A lead';\nreturn [{ json: { text: `🔥 ${name} just replied and looks hot — assigned to you. Follow up ASAP: ${row.email || row.phone || ''}` } }];"
+      }
+    },
+    {
+      "position": [
+        4180,
+        0
+      ],
+      "id": "nlr-dmmsg-20",
+      "name": "Insert DM Message",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO messages (conversation_id, sender_id, body) VALUES ($1, $2, $3);",
+        "options": {
+          "queryReplacement": "={{ [ $('Get DM Id').item.json.id, $('Build DM Key').item.json.notifierUserId, $json.text ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "position": [
+        4400,
+        0
+      ],
+      "id": "nlr-lookup-21",
+      "name": "Look Up Template: Book Inspection (hot lead)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT subject, body FROM email_templates WHERE id = 14;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "position": [
+        4620,
+        0
+      ],
+      "id": "nlr-fill-22",
+      "name": "Fill Email: Book Inspection (hot lead)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "\nfunction toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction fill(template, row) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, toTitleCase(row.last_name))\n    .replace(/{{\\s*email\\s*}}/gi, row.email || '')\n    .replace(/{{[^{}]*}}/g, '');\n}\n\nconst tmpl = $input.item.json;\nconst row = $('Refetch Contact: after thank you').item.json;\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject, row), htmlBody: fill(tmpl.body, row).replace(/\\n/g, '<br>') } }];"
+      }
+    },
+    {
+      "position": [
+        4840,
+        0
+      ],
+      "id": "nlr-send-23",
+      "name": "Send Email: Book Inspection (hot lead)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.htmlBody }}",
+        "options": {}
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "position": [
+        5060,
+        0
+      ],
+      "id": "nlr-lookup-24",
+      "name": "Look Up Template: Follow-up",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT subject, body FROM email_templates WHERE id = 13;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "position": [
+        5280,
+        0
+      ],
+      "id": "nlr-fill-25",
+      "name": "Fill Email: Follow-up",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "\nfunction toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction fill(template, row) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, toTitleCase(row.last_name))\n    .replace(/{{\\s*email\\s*}}/gi, row.email || '')\n    .replace(/{{[^{}]*}}/g, '');\n}\n\nconst tmpl = $input.item.json;\nconst row = $('Refetch Contact: after thank you').item.json;\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject, row), htmlBody: fill(tmpl.body, row).replace(/\\n/g, '<br>') } }];"
+      }
+    },
+    {
+      "position": [
+        5500,
+        0
+      ],
+      "id": "nlr-send-26",
+      "name": "Send Email: Follow-up",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.htmlBody }}",
+        "options": {}
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "position": [
+        5720,
+        0
+      ],
+      "id": "nlr-wait-27",
+      "name": "Wait 24h: after follow-up",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": 24,
+        "unit": "hours"
+      },
+      "webhookId": "nlr-waitresume-28"
+    },
+    {
+      "position": [
+        5940,
+        0
+      ],
+      "id": "nlr-refetch-29",
+      "name": "Refetch Contact: after follow-up",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.*, u.name AS owner_name, u.email AS owner_email, u.phone AS owner_phone,\n  EXISTS (\n    SELECT 1 FROM jsonb_array_elements(COALESCE(c.email_logs, '[]'::jsonb)) e\n    WHERE e->>'type' = 'received' AND (e->>'sent_at')::timestamptz > c.created_at\n  ) AS email_replied\nFROM contacts c LEFT JOIN users u ON u.id = c.owner_id WHERE c.id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Refetch Contact: after thank you').item.json.id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "position": [
+        6160,
+        0
+      ],
+      "id": "nlr-cond-30",
+      "name": "Replied? after follow-up",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "nlr-cond-c-31",
+              "leftValue": "={{ $('Refetch Contact: after follow-up').item.json.email_replied }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "position": [
+        6380,
+        0
+      ],
+      "id": "nlr-lookup-32",
+      "name": "Look Up Template: Book Inspection (after follow-up)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT subject, body FROM email_templates WHERE id = 14;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "position": [
+        6600,
+        0
+      ],
+      "id": "nlr-fill-33",
+      "name": "Fill Email: Book Inspection (after follow-up)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "\nfunction toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction fill(template, row) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, toTitleCase(row.last_name))\n    .replace(/{{\\s*email\\s*}}/gi, row.email || '')\n    .replace(/{{[^{}]*}}/g, '');\n}\n\nconst tmpl = $input.item.json;\nconst row = $('Refetch Contact: after follow-up').item.json;\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject, row), htmlBody: fill(tmpl.body, row).replace(/\\n/g, '<br>') } }];"
+      }
+    },
+    {
+      "position": [
+        6820,
+        0
+      ],
+      "id": "nlr-send-34",
+      "name": "Send Email: Book Inspection (after follow-up)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.htmlBody }}",
+        "options": {}
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "position": [
+        7040,
+        0
+      ],
+      "id": "nlr-lookup-35",
+      "name": "Look Up Template: Nurture 1",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT subject, body FROM email_templates WHERE id = 15;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "position": [
+        7260,
+        0
+      ],
+      "id": "nlr-fill-36",
+      "name": "Fill Email: Nurture 1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "\nfunction toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction fill(template, row) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, toTitleCase(row.last_name))\n    .replace(/{{\\s*email\\s*}}/gi, row.email || '')\n    .replace(/{{[^{}]*}}/g, '');\n}\n\nconst tmpl = $input.item.json;\nconst row = $('Refetch Contact: after follow-up').item.json;\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject, row), htmlBody: fill(tmpl.body, row).replace(/\\n/g, '<br>') } }];"
+      }
+    },
+    {
+      "position": [
+        7480,
+        0
+      ],
+      "id": "nlr-send-37",
+      "name": "Send Email: Nurture 1",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.htmlBody }}",
+        "options": {}
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "position": [
+        7700,
+        0
+      ],
+      "id": "nlr-wait-38",
+      "name": "Wait 24h: after nurture 1",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": 24,
+        "unit": "hours"
+      },
+      "webhookId": "nlr-waitresume-39"
+    },
+    {
+      "position": [
+        7920,
+        0
+      ],
+      "id": "nlr-refetch-40",
+      "name": "Refetch Contact: after nurture 1",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.*, u.name AS owner_name, u.email AS owner_email, u.phone AS owner_phone,\n  EXISTS (\n    SELECT 1 FROM jsonb_array_elements(COALESCE(c.email_logs, '[]'::jsonb)) e\n    WHERE e->>'type' = 'received' AND (e->>'sent_at')::timestamptz > c.created_at\n  ) AS email_replied\nFROM contacts c LEFT JOIN users u ON u.id = c.owner_id WHERE c.id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Refetch Contact: after follow-up').item.json.id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "position": [
+        8140,
+        0
+      ],
+      "id": "nlr-cond-41",
+      "name": "Replied? after nurture 1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "nlr-cond-c-42",
+              "leftValue": "={{ $('Refetch Contact: after nurture 1').item.json.email_replied }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "position": [
+        8360,
+        0
+      ],
+      "id": "nlr-lookup-43",
+      "name": "Look Up Template: Book Inspection (after nurture 1)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT subject, body FROM email_templates WHERE id = 14;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "position": [
+        8580,
+        0
+      ],
+      "id": "nlr-fill-44",
+      "name": "Fill Email: Book Inspection (after nurture 1)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "\nfunction toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction fill(template, row) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, toTitleCase(row.last_name))\n    .replace(/{{\\s*email\\s*}}/gi, row.email || '')\n    .replace(/{{[^{}]*}}/g, '');\n}\n\nconst tmpl = $input.item.json;\nconst row = $('Refetch Contact: after nurture 1').item.json;\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject, row), htmlBody: fill(tmpl.body, row).replace(/\\n/g, '<br>') } }];"
+      }
+    },
+    {
+      "position": [
+        8800,
+        0
+      ],
+      "id": "nlr-send-45",
+      "name": "Send Email: Book Inspection (after nurture 1)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.htmlBody }}",
+        "options": {}
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "position": [
+        9020,
+        0
+      ],
+      "id": "nlr-lookup-46",
+      "name": "Look Up Template: Nurture 2",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT subject, body FROM email_templates WHERE id = 16;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "position": [
+        9240,
+        0
+      ],
+      "id": "nlr-fill-47",
+      "name": "Fill Email: Nurture 2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "\nfunction toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction fill(template, row) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, toTitleCase(row.last_name))\n    .replace(/{{\\s*email\\s*}}/gi, row.email || '')\n    .replace(/{{[^{}]*}}/g, '');\n}\n\nconst tmpl = $input.item.json;\nconst row = $('Refetch Contact: after nurture 1').item.json;\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject, row), htmlBody: fill(tmpl.body, row).replace(/\\n/g, '<br>') } }];"
+      }
+    },
+    {
+      "position": [
+        9460,
+        0
+      ],
+      "id": "nlr-send-48",
+      "name": "Send Email: Nurture 2",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.htmlBody }}",
+        "options": {}
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "position": [
+        9680,
+        0
+      ],
+      "id": "nlr-wait-49",
+      "name": "Wait 24h: after nurture 2",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": 24,
+        "unit": "hours"
+      },
+      "webhookId": "nlr-waitresume-50"
+    },
+    {
+      "position": [
+        9900,
+        0
+      ],
+      "id": "nlr-refetch-51",
+      "name": "Refetch Contact: after nurture 2",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.*, u.name AS owner_name, u.email AS owner_email, u.phone AS owner_phone,\n  EXISTS (\n    SELECT 1 FROM jsonb_array_elements(COALESCE(c.email_logs, '[]'::jsonb)) e\n    WHERE e->>'type' = 'received' AND (e->>'sent_at')::timestamptz > c.created_at\n  ) AS email_replied\nFROM contacts c LEFT JOIN users u ON u.id = c.owner_id WHERE c.id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Refetch Contact: after nurture 1').item.json.id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "position": [
+        10120,
+        0
+      ],
+      "id": "nlr-cond-52",
+      "name": "Replied? after nurture 2",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "nlr-cond-c-53",
+              "leftValue": "={{ $('Refetch Contact: after nurture 2').item.json.email_replied }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "position": [
+        10340,
+        0
+      ],
+      "id": "nlr-lookup-54",
+      "name": "Look Up Template: Book Inspection (after nurture 2)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT subject, body FROM email_templates WHERE id = 14;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "position": [
+        10560,
+        0
+      ],
+      "id": "nlr-fill-55",
+      "name": "Fill Email: Book Inspection (after nurture 2)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "\nfunction toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction fill(template, row) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, toTitleCase(row.last_name))\n    .replace(/{{\\s*email\\s*}}/gi, row.email || '')\n    .replace(/{{[^{}]*}}/g, '');\n}\n\nconst tmpl = $input.item.json;\nconst row = $('Refetch Contact: after nurture 2').item.json;\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject, row), htmlBody: fill(tmpl.body, row).replace(/\\n/g, '<br>') } }];"
+      }
+    },
+    {
+      "position": [
+        10780,
+        0
+      ],
+      "id": "nlr-send-56",
+      "name": "Send Email: Book Inspection (after nurture 2)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.htmlBody }}",
+        "options": {}
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "position": [
+        11000,
+        0
+      ],
+      "id": "nlr-lookup-57",
+      "name": "Look Up Template: Nurture 3",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT subject, body FROM email_templates WHERE id = 17;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "position": [
+        11220,
+        0
+      ],
+      "id": "nlr-fill-58",
+      "name": "Fill Email: Nurture 3",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "\nfunction toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction fill(template, row) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, toTitleCase(row.last_name))\n    .replace(/{{\\s*email\\s*}}/gi, row.email || '')\n    .replace(/{{[^{}]*}}/g, '');\n}\n\nconst tmpl = $input.item.json;\nconst row = $('Refetch Contact: after nurture 2').item.json;\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject, row), htmlBody: fill(tmpl.body, row).replace(/\\n/g, '<br>') } }];"
+      }
+    },
+    {
+      "position": [
+        11440,
+        0
+      ],
+      "id": "nlr-send-59",
+      "name": "Send Email: Nurture 3",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.htmlBody }}",
+        "options": {}
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "position": [
+        11660,
+        0
+      ],
+      "id": "nlr-wait-60",
+      "name": "Wait 24h: after nurture 3",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": 24,
+        "unit": "hours"
+      },
+      "webhookId": "nlr-waitresume-61"
+    },
+    {
+      "position": [
+        11880,
+        0
+      ],
+      "id": "nlr-refetch-62",
+      "name": "Refetch Contact: after nurture 3",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.*, u.name AS owner_name, u.email AS owner_email, u.phone AS owner_phone,\n  EXISTS (\n    SELECT 1 FROM jsonb_array_elements(COALESCE(c.email_logs, '[]'::jsonb)) e\n    WHERE e->>'type' = 'received' AND (e->>'sent_at')::timestamptz > c.created_at\n  ) AS email_replied\nFROM contacts c LEFT JOIN users u ON u.id = c.owner_id WHERE c.id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Refetch Contact: after nurture 2').item.json.id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "position": [
+        12100,
+        0
+      ],
+      "id": "nlr-cond-63",
+      "name": "Replied? after nurture 3",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "nlr-cond-c-64",
+              "leftValue": "={{ $('Refetch Contact: after nurture 3').item.json.email_replied }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "position": [
+        12320,
+        0
+      ],
+      "id": "nlr-lookup-65",
+      "name": "Look Up Template: Book Inspection (after nurture 3)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT subject, body FROM email_templates WHERE id = 14;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "position": [
+        12540,
+        0
+      ],
+      "id": "nlr-fill-66",
+      "name": "Fill Email: Book Inspection (after nurture 3)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "\nfunction toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction fill(template, row) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, toTitleCase(row.last_name))\n    .replace(/{{\\s*email\\s*}}/gi, row.email || '')\n    .replace(/{{[^{}]*}}/g, '');\n}\n\nconst tmpl = $input.item.json;\nconst row = $('Refetch Contact: after nurture 3').item.json;\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject, row), htmlBody: fill(tmpl.body, row).replace(/\\n/g, '<br>') } }];"
+      }
+    },
+    {
+      "position": [
+        12760,
+        0
+      ],
+      "id": "nlr-send-67",
+      "name": "Send Email: Book Inspection (after nurture 3)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.htmlBody }}",
+        "options": {}
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Webhook: new-lead-response-trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse Trigger Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Trigger Payload": {
+      "main": [
+        [
+          {
+            "node": "Fetch Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Contact": {
+      "main": [
+        [
+          {
+            "node": "Look Up Template: Thank You",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Template: Thank You": {
+      "main": [
+        [
+          {
+            "node": "Fill Email: Thank You",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fill Email: Thank You": {
+      "main": [
+        [
+          {
+            "node": "Send Email: Thank You",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email: Thank You": {
+      "main": [
+        [
+          {
+            "node": "Wait 24h: after thank you",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 24h: after thank you": {
+      "main": [
+        [
+          {
+            "node": "Refetch Contact: after thank you",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Refetch Contact: after thank you": {
+      "main": [
+        [
+          {
+            "node": "Replied? after thank you",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Replied? after thank you": {
+      "main": [
+        [
+          {
+            "node": "Resolve Tag: Hot Lead",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Assign Owner (Round Robin)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Look Up Template: Book Inspection (hot lead)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Look Up Template: Follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Tag: Hot Lead": {
+      "main": [
+        [
+          {
+            "node": "Insert Taggable: Hot Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assign Owner (Round Robin)": {
+      "main": [
+        [
+          {
+            "node": "Build DM Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build DM Key": {
+      "main": [
+        [
+          {
+            "node": "Create DM If Missing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create DM If Missing": {
+      "main": [
+        [
+          {
+            "node": "Get DM Id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get DM Id": {
+      "main": [
+        [
+          {
+            "node": "Ensure DM Members",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ensure DM Members": {
+      "main": [
+        [
+          {
+            "node": "Prepare DM Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare DM Text": {
+      "main": [
+        [
+          {
+            "node": "Insert DM Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Template: Book Inspection (hot lead)": {
+      "main": [
+        [
+          {
+            "node": "Fill Email: Book Inspection (hot lead)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fill Email: Book Inspection (hot lead)": {
+      "main": [
+        [
+          {
+            "node": "Send Email: Book Inspection (hot lead)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Template: Follow-up": {
+      "main": [
+        [
+          {
+            "node": "Fill Email: Follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fill Email: Follow-up": {
+      "main": [
+        [
+          {
+            "node": "Send Email: Follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email: Follow-up": {
+      "main": [
+        [
+          {
+            "node": "Wait 24h: after follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 24h: after follow-up": {
+      "main": [
+        [
+          {
+            "node": "Refetch Contact: after follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Refetch Contact: after follow-up": {
+      "main": [
+        [
+          {
+            "node": "Replied? after follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Replied? after follow-up": {
+      "main": [
+        [
+          {
+            "node": "Look Up Template: Book Inspection (after follow-up)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Look Up Template: Nurture 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Template: Book Inspection (after follow-up)": {
+      "main": [
+        [
+          {
+            "node": "Fill Email: Book Inspection (after follow-up)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fill Email: Book Inspection (after follow-up)": {
+      "main": [
+        [
+          {
+            "node": "Send Email: Book Inspection (after follow-up)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Template: Nurture 1": {
+      "main": [
+        [
+          {
+            "node": "Fill Email: Nurture 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fill Email: Nurture 1": {
+      "main": [
+        [
+          {
+            "node": "Send Email: Nurture 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email: Nurture 1": {
+      "main": [
+        [
+          {
+            "node": "Wait 24h: after nurture 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 24h: after nurture 1": {
+      "main": [
+        [
+          {
+            "node": "Refetch Contact: after nurture 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Refetch Contact: after nurture 1": {
+      "main": [
+        [
+          {
+            "node": "Replied? after nurture 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Replied? after nurture 1": {
+      "main": [
+        [
+          {
+            "node": "Look Up Template: Book Inspection (after nurture 1)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Look Up Template: Nurture 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Template: Book Inspection (after nurture 1)": {
+      "main": [
+        [
+          {
+            "node": "Fill Email: Book Inspection (after nurture 1)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fill Email: Book Inspection (after nurture 1)": {
+      "main": [
+        [
+          {
+            "node": "Send Email: Book Inspection (after nurture 1)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Template: Nurture 2": {
+      "main": [
+        [
+          {
+            "node": "Fill Email: Nurture 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fill Email: Nurture 2": {
+      "main": [
+        [
+          {
+            "node": "Send Email: Nurture 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email: Nurture 2": {
+      "main": [
+        [
+          {
+            "node": "Wait 24h: after nurture 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 24h: after nurture 2": {
+      "main": [
+        [
+          {
+            "node": "Refetch Contact: after nurture 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Refetch Contact: after nurture 2": {
+      "main": [
+        [
+          {
+            "node": "Replied? after nurture 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Replied? after nurture 2": {
+      "main": [
+        [
+          {
+            "node": "Look Up Template: Book Inspection (after nurture 2)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Look Up Template: Nurture 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Template: Book Inspection (after nurture 2)": {
+      "main": [
+        [
+          {
+            "node": "Fill Email: Book Inspection (after nurture 2)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fill Email: Book Inspection (after nurture 2)": {
+      "main": [
+        [
+          {
+            "node": "Send Email: Book Inspection (after nurture 2)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Template: Nurture 3": {
+      "main": [
+        [
+          {
+            "node": "Fill Email: Nurture 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fill Email: Nurture 3": {
+      "main": [
+        [
+          {
+            "node": "Send Email: Nurture 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email: Nurture 3": {
+      "main": [
+        [
+          {
+            "node": "Wait 24h: after nurture 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 24h: after nurture 3": {
+      "main": [
+        [
+          {
+            "node": "Refetch Contact: after nurture 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Refetch Contact: after nurture 3": {
+      "main": [
+        [
+          {
+            "node": "Replied? after nurture 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Replied? after nurture 3": {
+      "main": [
+        [
+          {
+            "node": "Look Up Template: Book Inspection (after nurture 3)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Look Up Template: Book Inspection (after nurture 3)": {
+      "main": [
+        [
+          {
+            "node": "Fill Email: Book Inspection (after nurture 3)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fill Email: Book Inspection (after nurture 3)": {
+      "main": [
+        [
+          {
+            "node": "Send Email: Book Inspection (after nurture 3)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

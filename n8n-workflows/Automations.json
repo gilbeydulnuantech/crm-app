@@ -16,7 +16,8 @@
         960,
         80
       ],
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "webhookId": "a1b73429-13e7-483c-8210-c80367591ca0"
     },
     {
       "parameters": {
@@ -73,7 +74,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT a.id, a.name, a.trigger_type, a.trigger_config, a.condition_tree, a.is_active, a.created_at,\n  (SELECT MAX(r.ran_at) FROM automation_runs r WHERE r.automation_id = a.id) AS last_run_at,\n  (SELECT COUNT(*) FROM automation_runs r WHERE r.automation_id = a.id AND r.status = 'success') AS run_count,\n  COALESCE(\n    json_agg(\n      json_build_object('id', ac.id, 'branch', ac.branch, 'action_type', ac.action_type, 'action_config', ac.action_config, 'sort_order', ac.sort_order)\n      ORDER BY ac.sort_order\n    ) FILTER (WHERE ac.id IS NOT NULL),\n    '[]'::json\n  ) AS actions\nFROM automations a\nLEFT JOIN automation_actions ac ON ac.automation_id = a.id\nGROUP BY a.id\nORDER BY a.created_at DESC;",
+        "query": "SELECT a.id, a.name, a.trigger_type, a.trigger_config, a.condition_tree, a.trigger_event, a.n8n_workflow_id, a.is_active, a.created_at,\n  (SELECT MAX(r.ran_at) FROM automation_runs r WHERE r.automation_id = a.id) AS last_run_at,\n  (SELECT COUNT(*) FROM automation_runs r WHERE r.automation_id = a.id AND r.status = 'success') AS run_count,\n  COALESCE(\n    json_agg(\n      json_build_object('id', ac.id, 'branch', ac.branch, 'action_type', ac.action_type, 'action_config', ac.action_config, 'sort_order', ac.sort_order)\n      ORDER BY ac.sort_order\n    ) FILTER (WHERE ac.id IS NOT NULL),\n    '[]'::json\n  ) AS actions\nFROM automations a\nLEFT JOIN automation_actions ac ON ac.automation_id = a.id\nGROUP BY a.id\nORDER BY a.created_at DESC;",
         "options": {}
       },
       "id": "aut1p0005-0000-4a5a-9b1a-automation005",
@@ -121,7 +122,8 @@
         960,
         320
       ],
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "webhookId": "61a8effb-d4aa-42b7-bcca-1bab8ecda322"
     },
     {
       "parameters": {
@@ -163,7 +165,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Save Automation').first().json.body || {};\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst VALID_TRIGGER_TYPES = ['contact', 'company', 'task', 'calendar', 'pipeline'];\nconst VALID_ACTION_TYPES = ['add_tag', 'send_email', 'send_team_notification', 'send_sms', 'wait', 'update_field'];\n\nconst id = body.id ? parseInt(body.id, 10) : null;\nconst name = (body.name || '').toString().trim();\nconst triggerType = (body.trigger_type || '').toString();\nif (!name) throw new Error('\"name\" is required.');\nif (!VALID_TRIGGER_TYPES.includes(triggerType)) throw new Error('\"trigger_type\" is invalid.');\n\nconst triggerConfig = body.trigger_config;\nif (!triggerConfig || !triggerConfig.field || !triggerConfig.operator || triggerConfig.value === undefined || triggerConfig.value === '') {\n  throw new Error('A fully configured trigger is required.');\n}\n\nconst conditionTree = (body.condition_tree && body.condition_tree.field) ? body.condition_tree : null;\n\nconst rawActions = Array.isArray(body.actions) ? body.actions : [];\nif (rawActions.length === 0) throw new Error('At least one action is required.');\nconst actions = rawActions.map((a, i) => {\n  if (!VALID_ACTION_TYPES.includes(a.action_type)) throw new Error(`Action ${i + 1}: invalid action_type.`);\n  return {\n    branch: (a.branch || 'default').toString(),\n    action_type: a.action_type,\n    action_config: a.action_config || {},\n    sort_order: i,\n  };\n});\n\nreturn [{ json: { id, name, triggerType, triggerConfig, conditionTree, actions, requesterId: requester.id } }];"
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Save Automation').first().json.body || {};\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst VALID_TRIGGER_TYPES = ['contact', 'company', 'task', 'calendar', 'pipeline'];\nconst VALID_ACTION_TYPES = ['add_tag', 'send_email', 'send_team_notification', 'send_sms', 'wait', 'update_field', 'branch_if', 'assign_owner_round_robin', 'send_dm', 'enroll_nurture'];\n// 'created' (webhook-triggered) and 'inactive' (schedule-triggered, polls\n// on its own dedicated Schedule Trigger) are compiler-supported today.\nconst VALID_TRIGGER_EVENTS = ['created', 'inactive'];\n\nconst id = body.id ? parseInt(body.id, 10) : null;\nconst name = (body.name || '').toString().trim();\nconst triggerType = (body.trigger_type || '').toString();\nif (!name) throw new Error('\"name\" is required.');\nif (!VALID_TRIGGER_TYPES.includes(triggerType)) throw new Error('\"trigger_type\" is invalid.');\n\nconst triggerEvent = body.trigger_event ? body.trigger_event.toString() : null;\nif (triggerEvent && !VALID_TRIGGER_EVENTS.includes(triggerEvent)) throw new Error('\"trigger_event\" is invalid.');\n\n// 'created' doesn't use the old field/operator/value condition at all \u2014 the\n// event itself is the trigger. Everything else (no event, or 'inactive',\n// which uses trigger_config to express \"N days since last activity\") keeps\n// requiring a fully configured condition, exactly as before.\nconst triggerConfig = body.trigger_config || {};\nif (triggerEvent !== 'created' && (!triggerConfig.field || !triggerConfig.operator || triggerConfig.value === undefined || triggerConfig.value === '')) {\n  throw new Error('A fully configured trigger is required.');\n}\n\nconst conditionTree = (body.condition_tree && body.condition_tree.field) ? body.condition_tree : null;\n\nconst rawActions = Array.isArray(body.actions) ? body.actions : [];\nif (rawActions.length === 0) throw new Error('At least one action is required.');\nconst actions = rawActions.map((a, i) => {\n  if (!VALID_ACTION_TYPES.includes(a.action_type)) throw new Error(`Action ${i + 1}: invalid action_type.`);\n  return {\n    branch: (a.branch || 'default').toString(),\n    action_type: a.action_type,\n    action_config: a.action_config || {},\n    sort_order: i,\n  };\n});\n\nreturn [{ json: { id, name, triggerType, triggerEvent, triggerConfig, conditionTree, actions, requesterId: requester.id } }];"
       },
       "id": "aut2c0004-0000-4a5a-9b1a-automation104",
       "name": "Validate & Payload (Save)",
@@ -178,9 +180,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO automations (id, name, trigger_type, trigger_config, condition_tree, is_active, created_by, created_at, updated_at)\nVALUES (COALESCE($1, nextval(pg_get_serial_sequence('automations', 'id'))), $2, $3, $4::jsonb, $5::jsonb, true, $6, now(), now())\nON CONFLICT (id) DO UPDATE SET\n  name = EXCLUDED.name,\n  trigger_type = EXCLUDED.trigger_type,\n  trigger_config = EXCLUDED.trigger_config,\n  condition_tree = EXCLUDED.condition_tree,\n  updated_at = now()\nRETURNING id;",
+        "query": "INSERT INTO automations (id, name, trigger_type, trigger_config, condition_tree, trigger_event, is_active, created_by, created_at, updated_at)\nVALUES (COALESCE($1, nextval(pg_get_serial_sequence('automations', 'id'))), $2, $3, $4::jsonb, $5::jsonb, $7, true, $6, now(), now())\nON CONFLICT (id) DO UPDATE SET\n  name = EXCLUDED.name,\n  trigger_type = EXCLUDED.trigger_type,\n  trigger_config = EXCLUDED.trigger_config,\n  condition_tree = EXCLUDED.condition_tree,\n  trigger_event = EXCLUDED.trigger_event,\n  updated_at = now()\nRETURNING id;",
         "options": {
-          "queryReplacement": "={{ [ $json.id, $json.name, $json.triggerType, JSON.stringify($json.triggerConfig), $json.conditionTree ? JSON.stringify($json.conditionTree) : null, $json.requesterId ] }}"
+          "queryReplacement": "={{ [ $json.id, $json.name, $json.triggerType, JSON.stringify($json.triggerConfig), $json.conditionTree ? JSON.stringify($json.conditionTree) : null, $json.requesterId, $json.triggerEvent ] }}"
         }
       },
       "id": "aut2p0005-0000-4a5a-9b1a-automation105",
@@ -261,8 +263,100 @@
     },
     {
       "parameters": {
+        "jsCode": "const triggerType = $('Validate & Payload (Save)').first().json.triggerType;\nconst triggerEvent = $('Validate & Payload (Save)').first().json.triggerEvent;\nreturn [{ json: {\n  automationId: $('Upsert Automation').first().json.id,\n  triggerType,\n  triggerEvent,\n  shouldCompile: triggerType === 'contact' && ['created', 'inactive'].includes(triggerEvent),\n} }];"
+      },
+      "id": "aut2c0010-0000-4a5a-9b1a-automation110",
+      "name": "Prepare Compile Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2752,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "aut2if0011-1",
+              "leftValue": "={{ $json.shouldCompile }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "aut2if0011-0000-4a5a-9b1a-automation111",
+      "name": "Should Compile?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2976,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://localhost:5682/compile/{{ $json.automationId }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "aut2h0012-0000-4a5a-9b1a-automation112",
+      "name": "Call Compiler",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3200,
+        240
+      ],
+      "onError": "continueRegularOutput",
+      "notesInFlow": true,
+      "notes": "Calls the local compiler-server (n8n-workflows/scripts/compiler-server.cjs, port 5682) which must be running for auto-compile-on-save to work. If it's down, this just fails softly \u2014 the automation still saves, it's simply not compiled to a live n8n workflow yet."
+    },
+    {
+      "parameters": {
+        "jsCode": "const automationId = $('Prepare Compile Check').first().json.automationId;\nconst res = $input.first().json;\n// Connection-level failure (compiler-server.cjs not running at all) lands\n// here as an n8n HTTP node error object; a reachable-but-failed compile\n// lands as { success: false, error }. Both should degrade the same way \u2014\n// the automation still saved, it's just not compiled to a live workflow.\nif (res.error && typeof res.error === 'object') {\n  return [{ json: { success: true, id: automationId, compiled: false, compile_error: (res.error.message || 'Compiler unreachable \u2014 is compiler-server.cjs running?') } }];\n}\nif (res.success === false) {\n  return [{ json: { success: true, id: automationId, compiled: false, compile_error: res.error || 'Compile failed.' } }];\n}\nreturn [{ json: { success: true, id: automationId, compiled: true, n8n_workflow_id: res.n8n_workflow_id } }];"
+      },
+      "id": "aut2c0013-0000-4a5a-9b1a-automation113",
+      "name": "Prepare Response (Compiled)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3424,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: true, id: $('Prepare Compile Check').first().json.automationId, compiled: false } }];"
+      },
+      "id": "aut2c0014-0000-4a5a-9b1a-automation114",
+      "name": "Prepare Response (Not Compiled)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3200,
+        400
+      ]
+    },
+    {
+      "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: true, id: $('Upsert Automation').first().json.id } }}",
+        "responseBody": "={{ $json }}",
         "options": {}
       },
       "id": "aut2r0009-0000-4a5a-9b1a-automation109",
@@ -270,7 +364,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        2752,
+        3648,
         320
       ]
     },
@@ -289,7 +383,8 @@
         960,
         560
       ],
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "webhookId": "21063da4-d42f-4fe5-a16f-c54a28ae07eb"
     },
     {
       "parameters": {
@@ -411,7 +506,8 @@
         960,
         800
       ],
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "webhookId": "26e28d90-7fc6-436c-a727-1b34e3cd2e06"
     },
     {
       "parameters": {
@@ -533,7 +629,8 @@
         960,
         1040
       ],
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "webhookId": "b753c8eb-72ae-475b-a0c4-3565d2c333d3"
     },
     {
       "parameters": {
@@ -979,7 +1076,7 @@
       "main": [
         [
           {
-            "node": "Respond - Save Success",
+            "node": "Prepare Compile Check",
             "type": "main",
             "index": 0
           }
@@ -987,6 +1084,68 @@
         [
           {
             "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Compile Check": {
+      "main": [
+        [
+          {
+            "node": "Should Compile?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Compile?": {
+      "main": [
+        [
+          {
+            "node": "Call Compiler",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Response (Not Compiled)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Compiler": {
+      "main": [
+        [
+          {
+            "node": "Prepare Response (Compiled)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Response (Compiled)": {
+      "main": [
+        [
+          {
+            "node": "Respond - Save Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Response (Not Compiled)": {
+      "main": [
+        [
+          {
+            "node": "Respond - Save Success",
             "type": "main",
             "index": 0
           }

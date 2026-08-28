@@ -1,136 +1,159 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAutomations, useSetAutomationActive, useDeleteAutomation } from '../hooks/useAutomations';
-import { TriggerType } from '../api/automations';
-import ConfirmDialog from '../components/ConfirmDialog';
+import { useN8nWorkflows, useTestAutomation } from '../hooks/useN8nWorkflows';
+import { useAuth } from '../context/AuthContext';
+import AutomationTestResultModal from '../components/automations/AutomationTestResultModal';
 
-const TRIGGER_LABELS: Record<TriggerType, string> = {
-  contact: 'Contact',
-  company: 'Company',
-  task: 'Task',
-  calendar: 'Calendar',
-  pipeline: 'Deal',
-  ticket: 'Ticket',
-};
-
-const TRIGGER_BADGE_CLASS: Record<TriggerType, string> = {
-  contact: 'bg-indigo-100 text-indigo-700',
-  company: 'bg-purple-100 text-purple-700',
-  task: 'bg-amber-100 text-amber-700',
-  calendar: 'bg-emerald-100 text-emerald-700',
-  pipeline: 'bg-blue-100 text-blue-700',
-  ticket: 'bg-rose-100 text-rose-700',
-};
-
+// Automations are built and run entirely in n8n now — this page is a
+// read-only mirror of what's live there (name, active/paused, node count),
+// not a logic editor. The CRM's own job is limited to firing events at n8n
+// (Contact Public Form, Automation Dispatch, etc.) with a payload; the
+// logic that reacts to that payload lives in n8n's own workflows. Clicking
+// a row opens the one thing reps DO edit from here — each step's email
+// copy (see AutomationEmailStepsPage) — not the workflow itself.
+//
+// The "Test" button (admin-only) actually runs the automation for real
+// against live data — it's not a sandboxed dry run. A schedule-based
+// engine that finds real due contacts/deals will act on them exactly like
+// its normal scheduled run would (real emails, real stage moves). Only
+// schedule-triggered automations support this; event-triggered ones
+// (inbound email, calendar booking) report back that they can't be
+// manually test-run.
 export default function Automations() {
   const navigate = useNavigate();
-  const { data: automations = [], isLoading } = useAutomations();
-  const setActive = useSetAutomationActive();
-  const deleteAutomation = useDeleteAutomation();
+  const { isAdmin } = useAuth();
+  const { data: workflows = [], isLoading, isError } = useN8nWorkflows();
+  const testAutomation = useTestAutomation();
+  const [confirmTarget, setConfirmTarget] = useState<{ id: string; name: string } | null>(null);
+  const [resultTarget, setResultTarget] = useState<{ id: string; name: string } | null>(null);
 
-  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  function formatDateTime(iso: string) {
+    return new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  }
 
-  function handleDelete() {
-    if (confirmDeleteId == null) return;
-    setDeleteError(null);
-    deleteAutomation.mutate(confirmDeleteId, {
-      onSuccess: () => setConfirmDeleteId(null),
-      onError: (err) => setDeleteError(err instanceof Error ? err.message : 'Failed to delete.'),
-    });
+  function runTest(id: string, name: string) {
+    setConfirmTarget(null);
+    setResultTarget({ id, name });
+    testAutomation.mutate(id);
   }
 
   return (
     <div className="flex-1 overflow-y-auto p-6">
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-lg font-bold text-slate-800">Automations</h1>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => navigate('/automations/logs')}
-              className="px-3 py-2 text-sm font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg"
-            >
-              <i className="fa-solid fa-clock-rotate-left mr-1.5" />
-              View Logs
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/automations/new')}
-              className="px-4 py-2 text-sm font-semibold text-white bg-[var(--theme-accent)] hover:opacity-90 rounded-lg"
-            >
-              + Create
-            </button>
+          <div>
+            <h1 className="text-lg font-bold text-slate-800">Automations</h1>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Built and run in n8n — this is a live read-only list, not an editor.
+            </p>
           </div>
+          <button
+            type="button"
+            onClick={() => navigate('/automations/logs')}
+            className="px-3 py-2 text-sm font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg shrink-0"
+          >
+            <i className="fa-solid fa-clock-rotate-left mr-1.5" />
+            View Logs
+          </button>
         </div>
 
         {isLoading ? (
           <p className="text-sm text-slate-400">Loading...</p>
-        ) : automations.length === 0 ? (
-          <p className="text-sm text-slate-400 italic">No automations yet.</p>
+        ) : isError ? (
+          <p className="text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
+            Failed to load workflows from n8n.
+          </p>
+        ) : workflows.length === 0 ? (
+          <p className="text-sm text-slate-400 italic">No workflows found.</p>
         ) : (
           <div className="space-y-2">
-            {automations.map((a) => (
-              <div key={a.id} className="bg-white px-4 py-3 border border-slate-200 rounded-lg">
-                <div className="flex items-center gap-3">
+            {workflows.map((w) => (
+              <div
+                key={w.id}
+                className="w-full bg-white px-4 py-3 border border-slate-200 hover:border-slate-300 rounded-lg flex items-center gap-3"
+              >
+                <button
+                  type="button"
+                  onClick={() => navigate(`/automations/${w.id}?name=${encodeURIComponent(w.name)}`)}
+                  className="min-w-0 flex-1 text-left flex items-center gap-3"
+                >
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-slate-800 truncate">{a.name}</p>
+                    <p className="text-sm font-medium text-slate-800 truncate">{w.name}</p>
                     <p className="text-[11px] text-slate-400 truncate">
-                      {a.actions.length} action{a.actions.length === 1 ? '' : 's'}
-                      {a.condition_tree ? ' · If/Else' : ''}
+                      {w.node_count} node{w.node_count === 1 ? '' : 's'} · updated {formatDateTime(w.updated_at)}
                     </p>
                   </div>
                   <span
-                    className={`shrink-0 px-1.5 py-0.5 text-[10px] font-semibold rounded-full ${TRIGGER_BADGE_CLASS[a.trigger_type]}`}
-                  >
-                    {TRIGGER_LABELS[a.trigger_type]}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setActive.mutate({ id: a.id, isActive: !a.is_active })}
                     className={`shrink-0 px-1.5 py-0.5 text-[10px] font-semibold rounded-full ${
-                      a.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
+                      w.active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
                     }`}
                   >
-                    {a.is_active ? 'Active' : 'Paused'}
-                  </button>
+                    {w.active ? 'Active' : 'Inactive'}
+                  </span>
+                </button>
+                {isAdmin && (
                   <button
                     type="button"
-                    onClick={() => navigate(`/automations/${a.id}/edit`)}
-                    title="Edit"
-                    className="shrink-0 text-slate-400 hover:text-[var(--theme-accent)]"
+                    onClick={() => setConfirmTarget({ id: w.id, name: w.name })}
+                    className="shrink-0 px-2.5 py-1.5 text-xs font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg"
+                    title="Run this automation now against live data"
                   >
-                    <i className="fa-solid fa-pen text-xs" />
+                    <i className="fa-solid fa-flask mr-1" />
+                    Test
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDeleteError(null);
-                      setConfirmDeleteId(a.id);
-                    }}
-                    title="Delete"
-                    className="shrink-0 text-slate-400 hover:text-rose-600"
-                  >
-                    <i className="fa-solid fa-trash text-xs" />
-                  </button>
-                </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => navigate(`/automations/${w.id}?name=${encodeURIComponent(w.name)}`)}
+                  className="shrink-0 text-slate-300 hover:text-slate-400"
+                >
+                  <i className="fa-solid fa-chevron-right text-xs" />
+                </button>
               </div>
             ))}
           </div>
         )}
       </div>
 
-      <ConfirmDialog
-        open={confirmDeleteId != null}
-        title="Delete this automation?"
-        body="This can't be undone. Its run history will be deleted too."
-        confirmLabel="Delete"
-        danger
-        isSubmitting={deleteAutomation.isPending}
-        error={deleteError}
-        onConfirm={handleDelete}
-        onCancel={() => setConfirmDeleteId(null)}
-      />
+      {confirmTarget && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <h3 className="text-base font-bold text-slate-800 mb-2">Run "{confirmTarget.name}" now?</h3>
+            <p className="text-sm text-slate-500 mb-5">
+              This runs for real against live data — if real contacts or deals are currently due, this automation
+              will act on them exactly like its normal scheduled run would (real emails sent, real stage moves,
+              real tags applied). This is not a sandboxed test.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setConfirmTarget(null)}
+                className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => runTest(confirmTarget.id, confirmTarget.name)}
+                className="px-4 py-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-lg"
+              >
+                Run it now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {resultTarget && (
+        <AutomationTestResultModal
+          workflowName={resultTarget.name}
+          result={testAutomation.data ?? null}
+          isRunning={testAutomation.isPending}
+          error={testAutomation.error instanceof Error ? testAutomation.error.message : null}
+          onClose={() => {
+            setResultTarget(null);
+            testAutomation.reset();
+          }}
+        />
+      )}
     </div>
   );
 }

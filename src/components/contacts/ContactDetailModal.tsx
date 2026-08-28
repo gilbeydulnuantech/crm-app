@@ -35,6 +35,7 @@ import EventFormModal from '../calendar/EventFormModal';
 import ActivityTimeline from '../ActivityTimeline';
 import ActivityLogModal from '../ActivityLogModal';
 import LogCallModal from '../LogCallModal';
+import { triggerAiCall } from '../../api/calls';
 import OwnerBadge from '../OwnerBadge';
 import ApprovedProposalViewModal from '../pipeline/ApprovedProposalViewModal';
 import SignedContractViewModal from '../pipeline/SignedContractViewModal';
@@ -172,6 +173,8 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
     'opportunities' | 'tasks' | 'events' | 'tickets' | 'invoices' | 'payments' | 'documents'
   >('tasks');
   const [logCallOpen, setLogCallOpen] = useState(false);
+  const [aiCallStatus, setAiCallStatus] = useState<'idle' | 'calling' | 'success' | 'error'>('idle');
+  const [aiCallError, setAiCallError] = useState<string | null>(null);
   const [selectedLog, setSelectedLog] = useState<EmailLog | null>(null);
   const [selectedActivity, setSelectedActivity] = useState<ActivityLogEntry | null>(null);
   const [quickViewCompanyId, setQuickViewCompanyId] = useState<number | null>(null);
@@ -183,6 +186,24 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
   const [deleteNoteTargetId, setDeleteNoteTargetId] = useState<number | null>(null);
   const [deleteNoteError, setDeleteNoteError] = useState<string | null>(null);
   const [mergeError, setMergeError] = useState<string | null>(null);
+
+  async function handleAiCall() {
+    if (!contact) return;
+    setAiCallStatus('calling');
+    setAiCallError(null);
+    try {
+      const res = await triggerAiCall(contact.id);
+      if (res.success) {
+        setAiCallStatus('success');
+      } else {
+        setAiCallStatus('error');
+        setAiCallError(res.error || 'No AI call integration is configured yet.');
+      }
+    } catch (err) {
+      setAiCallStatus('error');
+      setAiCallError(err instanceof Error ? err.message : 'Failed to start the call.');
+    }
+  }
 
   const { data: companies = [] } = useCompanies();
   const quickViewCompany = useMemo(
@@ -656,10 +677,21 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                 />
                 <ActionButton
                   icon="fa-phone"
-                  label="Call"
+                  label="Log Call"
                   onClick={() => setLogCallOpen(true)}
                   disabled={!!contact.dnc_call}
                   title={contact.dnc_call ? 'Marked Do Not Contact: Call' : 'Log a call'}
+                />
+                <ActionButton
+                  icon="fa-robot"
+                  label={aiCallStatus === 'calling' ? 'Calling...' : 'AI Call'}
+                  onClick={!contact.dnc_call && aiCallStatus !== 'calling' ? handleAiCall : undefined}
+                  disabled={!!contact.dnc_call || aiCallStatus === 'calling'}
+                  title={
+                    contact.dnc_call
+                      ? 'Marked Do Not Contact: Call'
+                      : 'Have Vapi/Retell place an AI-driven call to this contact'
+                  }
                 />
                 <ActionButton
                   icon="fa-comment-sms"
@@ -699,6 +731,18 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                   }
                 />
               </div>
+              {aiCallStatus === 'success' && (
+                <p className="mt-1.5 text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-2 py-1">
+                  <i className="fa-solid fa-check mr-1" />
+                  AI call started.
+                </p>
+              )}
+              {aiCallStatus === 'error' && (
+                <p className="mt-1.5 text-[11px] text-rose-600 bg-rose-50 border border-rose-200 rounded-md px-2 py-1">
+                  <i className="fa-solid fa-circle-exclamation mr-1" />
+                  {aiCallError}
+                </p>
+              )}
             </div>
 
             <div>
@@ -711,7 +755,20 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                 {/* Full width — a long email would otherwise overflow into
                     Phone's column and visually overlap it. */}
                 <DetailField label="Email" value={contact.email} className="col-span-2" />
-                <DetailField label="Phone" value={toTitleCase(contact.phone)} />
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-500 mb-1">Phone</label>
+                  {contact.phone ? (
+                    <a
+                      href={`tel:${contact.phone}`}
+                      className="text-xs text-[var(--theme-accent)] hover:underline break-words"
+                    >
+                      <i className="fa-solid fa-phone mr-1 text-[10px]" />
+                      {contact.phone}
+                    </a>
+                  ) : (
+                    <p className="text-xs text-slate-700">--</p>
+                  )}
+                </div>
                 <DetailField label="Secondary Phone" value={toTitleCase(contact.secondary_phone)} />
                 <DetailField label="Company" value={toTitleCase(contact.company_name)} />
                 <DetailField label="Position" value={toTitleCase(contact.job_title)} />
@@ -722,6 +779,19 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                   className="col-span-2"
                 />
                 <DetailField label="Timezone" value={contact.timezone} className="col-span-2" />
+                <DetailField
+                  label="Birthdate"
+                  value={
+                    contact.birthdate
+                      ? new Date(contact.birthdate + 'T00:00:00').toLocaleDateString(undefined, {
+                          month: 'long',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })
+                      : undefined
+                  }
+                  className="col-span-2"
+                />
                 <DetailField label="LinkedIn Profile" value={contact.linkedin_url} className="col-span-2" />
                 <DetailField label="Lead Source" value={toTitleCase(contact.lead_source)} className="col-span-2" />
                 <DetailField

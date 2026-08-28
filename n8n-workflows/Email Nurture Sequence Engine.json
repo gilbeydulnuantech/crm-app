@@ -310,7 +310,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT delay_days, email_subject, email_body FROM nurture_sequence_steps WHERE sequence_id = $1 AND step_number = $2;",
+        "query": "SELECT nss.delay_days, et.subject AS email_subject, et.body AS email_body\nFROM nurture_sequence_steps nss\nJOIN email_templates et ON et.id = nss.email_template_id\nWHERE nss.sequence_id = $1 AND nss.step_number = $2;",
         "options": {
           "queryReplacement": "={{ [ $json.sequence_id, $json.nextStep ] }}"
         }

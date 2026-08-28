@@ -26,7 +26,7 @@ import PagesListPage from './pages/PagesListPage';
 import PageEditorPage from './pages/PageEditorPage';
 import Automations from './pages/Automations';
 import AutomationLogsPage from './pages/AutomationLogsPage';
-import AutomationEditorPage from './pages/AutomationEditorPage';
+import AutomationEmailStepsPage from './pages/AutomationEmailStepsPage';
 import Settings from './pages/Settings';
 import ObservabilityDashboard from './pages/ObservabilityDashboard';
 import Tickets from './pages/Tickets';
@@ -38,6 +38,8 @@ import InvoiceDetailPage from './pages/InvoiceDetailPage';
 import CreateInvoicePage from './pages/CreateInvoicePage';
 import PublicProposalPage from './pages/PublicProposalPage';
 import PublicContractPage from './pages/PublicContractPage';
+import PublicPayInvoicePage from './pages/PublicPayInvoicePage';
+import PublicUnsubscribePage from './pages/PublicUnsubscribePage';
 import PrintContractPage from './pages/PrintContractPage';
 import PublicTicketPage from './pages/PublicTicketPage';
 
@@ -56,6 +58,8 @@ export default function App() {
           <Route path="/login" element={<LoginRoute />} />
           <Route path="/documents/proposal/:token" element={<PublicProposalPage />} />
           <Route path="/documents/contract/:token" element={<PublicContractPage />} />
+          <Route path="/documents/invoice/:token" element={<PublicPayInvoicePage />} />
+          <Route path="/unsubscribe/:token" element={<PublicUnsubscribePage />} />
           <Route path="/print/contract/:token" element={<PrintContractPage />} />
           <Route path="/support/new" element={<PublicTicketPage />} />
 
@@ -95,8 +99,7 @@ export default function App() {
             <Route path="/documents/pages/:id/edit" element={<PageEditorPage />} />
             <Route path="/automations" element={<Automations />} />
             <Route path="/automations/logs" element={<AutomationLogsPage />} />
-            <Route path="/automations/new" element={<AutomationEditorPage />} />
-            <Route path="/automations/:id/edit" element={<AutomationEditorPage />} />
+            <Route path="/automations/:workflowId" element={<AutomationEmailStepsPage />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/observability" element={<ObservabilityDashboard />} />
             <Route path="/tickets" element={<Tickets />} />
