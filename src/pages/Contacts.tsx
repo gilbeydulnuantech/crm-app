@@ -350,8 +350,11 @@ export default function Contacts() {
           <i className="fa-solid fa-spinner fa-spin text-2xl text-indigo-500" />
         </div>
       )}
-      <div className="px-4 py-4 flex items-center justify-between shrink-0 border-b border-slate-200">
-        <h1 className="text-lg font-bold text-slate-800">Contacts</h1>
+      <div className="px-4 py-3 flex items-center justify-between shrink-0 border-b border-slate-200">
+        <div className="flex items-center gap-4">
+          <h1 className="text-lg font-bold text-slate-800">Contacts</h1>
+          <ContactsTabs view={view} onChange={changeView} />
+        </div>
         <AddContactDropdown onAddContact={openAddModal} onImportCsv={() => setImportOpen(true)} />
       </div>
 
@@ -367,8 +370,6 @@ export default function Contacts() {
           </button>
         </div>
       )}
-
-      <ContactsTabs view={view} onChange={changeView} />
 
       {view !== 'archived' && (
         <>

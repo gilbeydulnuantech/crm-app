@@ -13,7 +13,7 @@ const TABS: { key: CompaniesView; label: string }[] = [
 
 export default function CompaniesTabs({ view, onChange }: Props) {
   return (
-    <div className="px-4 pt-3 pb-3 flex items-center gap-2 shrink-0 border-b border-slate-200">
+    <div className="flex items-center gap-2 shrink-0">
       {TABS.map((t) => (
         <button
           key={t.key}

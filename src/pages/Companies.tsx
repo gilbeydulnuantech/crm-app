@@ -256,8 +256,11 @@ export default function Companies() {
           <i className="fa-solid fa-spinner fa-spin text-2xl text-indigo-500" />
         </div>
       )}
-      <div className="px-4 py-4 flex items-center justify-between shrink-0 border-b border-slate-200">
-        <h1 className="text-lg font-bold text-slate-800">Companies</h1>
+      <div className="px-4 py-3 flex items-center justify-between shrink-0 border-b border-slate-200">
+        <div className="flex items-center gap-4">
+          <h1 className="text-lg font-bold text-slate-800">Companies</h1>
+          <CompaniesTabs view={view} onChange={changeView} />
+        </div>
         <button
           onClick={openAddModal}
           className="bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] text-white text-sm font-medium px-3 py-1.5 rounded-lg flex items-center space-x-2 shadow-sm transition-all"
@@ -266,8 +269,6 @@ export default function Companies() {
           <span>Add Company</span>
         </button>
       </div>
-
-      <CompaniesTabs view={view} onChange={changeView} />
 
       <SearchToolbar
         search={search}
