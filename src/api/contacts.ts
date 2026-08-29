@@ -174,6 +174,7 @@ export interface TeamUser {
   role?: 'admin' | 'user';
   notification_preferences?: NotificationPreferences;
   avatar_url?: string | null;
+  timezone?: string | null;
 }
 
 export function fetchUsers() {
@@ -226,6 +227,13 @@ export function updateUserPhone(userId: number, phone: string) {
   return apiFetch<{ success: boolean; user?: TeamUser; error?: string }>('/webhook/update-user-phone', {
     method: 'POST',
     body: JSON.stringify({ user_id: userId, phone }),
+  });
+}
+
+export function updateUserTimezone(userId: number, timezone: string) {
+  return apiFetch<{ success: boolean; user?: TeamUser; error?: string }>('/webhook/update-user-timezone', {
+    method: 'POST',
+    body: JSON.stringify({ user_id: userId, timezone }),
   });
 }
 

@@ -3,12 +3,17 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toTitleCase } from '../utils/text';
 import { useUnreadEmailContacts, useUsers } from '../hooks/useContacts';
+import { useCompanyProfile } from '../hooks/useCompanyProfile';
 import { useConversations } from '../hooks/useChat';
 import { useTasks } from '../hooks/useTasks';
 import { useTickets } from '../hooks/useTickets';
 import { stripRefTokens } from '../utils/chatRefs';
 
-export default function TopBar() {
+interface Props {
+  sidebarCollapsed: boolean;
+}
+
+export default function TopBar({ sidebarCollapsed }: Props) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -23,6 +28,7 @@ export default function TopBar() {
   const [seenUnreadCount, setSeenUnreadCount] = useState(0);
   const [globalSearch, setGlobalSearch] = useState('');
 
+  const { data: companyProfile } = useCompanyProfile();
   const { data: users = [] } = useUsers();
   const prefs = users.find((u) => u.id === user?.id)?.notification_preferences;
   const emailEnabled = prefs?.email !== false;
@@ -93,17 +99,34 @@ export default function TopBar() {
 
   return (
     <header
-      className="h-12 border-b border-slate-200 flex items-center justify-between px-4 shrink-0 gap-4"
+      className={`h-12 border-b border-slate-200 grid items-center px-4 shrink-0 gap-4 ${
+        sidebarCollapsed ? 'grid-cols-[1.75rem_1fr_auto]' : 'grid-cols-[15rem_1fr_auto]'
+      }`}
       style={{ backgroundColor: 'var(--theme-header)' }}
     >
-      <div className="flex items-center gap-3 shrink-0">
-        <span className="font-bold text-slate-800 text-sm tracking-wide">CRM</span>
+      <div className="flex items-center gap-3 shrink-0 overflow-hidden">
+        {companyProfile?.logo_url ? (
+          <>
+            <img
+              src={companyProfile.logo_url}
+              alt={companyProfile.company_name || 'Company logo'}
+              className="h-7 max-w-[140px] object-contain object-left"
+            />
+            {companyProfile.company_name && (
+              <span className="font-bold text-slate-800 text-sm tracking-wide">{companyProfile.company_name}</span>
+            )}
+          </>
+        ) : (
+          <span className="font-bold text-slate-800 text-sm tracking-wide">
+            {companyProfile?.company_name || 'CRM'}
+          </span>
+        )}
       </div>
 
       {hideSearch ? (
-        <div className="flex-1" />
+        <div />
       ) : (
-        <form onSubmit={runGlobalSearch} className="relative flex-1 max-w-sm">
+        <form onSubmit={runGlobalSearch} className="relative w-full max-w-sm justify-self-start -ml-[19px]">
           <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
           <input
             type="text"

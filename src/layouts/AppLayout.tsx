@@ -17,7 +17,7 @@ export default function AppLayout() {
 
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden">
-      <TopBar />
+      <TopBar sidebarCollapsed={hideSidebar || !navOpen} />
       <div className="flex-1 flex min-h-0">
         {!hideSidebar && <Sidebar collapsed={!navOpen} onToggleCollapsed={() => setNavOpen((v) => !v)} />}
         <main

@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import ThemeModal from '../components/settings/ThemeModal';
 import MyProfileModal from '../components/settings/MyProfileModal';
 import NotificationPreferencesModal from '../components/settings/NotificationPreferencesModal';
+import TimezoneModal from '../components/settings/TimezoneModal';
 import AuditLogModal from '../components/settings/AuditLogModal';
 import UserManagementModal from '../components/settings/UserManagementModal';
 import CalendarIntegrationsModal from '../components/settings/CalendarIntegrationsModal';
@@ -16,6 +17,7 @@ export default function Settings() {
   const [themeOpen, setThemeOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [timezoneOpen, setTimezoneOpen] = useState(false);
   const [auditLogOpen, setAuditLogOpen] = useState(false);
   const [userMgmtOpen, setUserMgmtOpen] = useState(false);
   const [calendarIntegrationsOpen, setCalendarIntegrationsOpen] = useState(false);
@@ -74,6 +76,23 @@ export default function Settings() {
           >
             <i className="fa-solid fa-bell text-[var(--theme-accent)]" />
             Notifications
+          </button>
+        </div>
+
+        <div className="p-5 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-800">Timezone</h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Shows dates and times — meetings, reminders, due dates — in your local time.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setTimezoneOpen(true)}
+            className="shrink-0 px-4 py-2 text-sm font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg flex items-center gap-2"
+          >
+            <i className="fa-solid fa-earth-americas text-[var(--theme-accent)]" />
+            Timezone
           </button>
         </div>
       </div>
@@ -190,6 +209,7 @@ export default function Settings() {
       <MyProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
       <ThemeModal open={themeOpen} onClose={() => setThemeOpen(false)} />
       <NotificationPreferencesModal open={notificationsOpen} onClose={() => setNotificationsOpen(false)} />
+      <TimezoneModal open={timezoneOpen} onClose={() => setTimezoneOpen(false)} />
       <AuditLogModal open={auditLogOpen} onClose={() => setAuditLogOpen(false)} />
       <UserManagementModal open={userMgmtOpen} onClose={() => setUserMgmtOpen(false)} />
       <CalendarIntegrationsModal open={calendarIntegrationsOpen} onClose={() => setCalendarIntegrationsOpen(false)} />
