@@ -7,11 +7,19 @@ interface Props {
 
 export default function AddContactDropdown({ onAddContact, onImportCsv }: Props) {
   const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const run = (fn: () => void) => {
     fn();
     setOpen(false);
   };
+
+  function copyBookingLink() {
+    navigator.clipboard.writeText(`${window.location.origin}/book`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+    setTimeout(() => setOpen(false), 600);
+  }
 
   return (
     <div className="relative">
@@ -41,6 +49,14 @@ export default function AddContactDropdown({ onAddContact, onImportCsv }: Props)
             >
               <i className="fa-solid fa-file-csv text-xs w-4 text-slate-400" />
               Import CSV
+            </button>
+            <div className="my-1 border-t border-slate-100" />
+            <button
+              onClick={copyBookingLink}
+              className="w-full text-left px-3 py-2 hover:bg-slate-50 text-slate-700 flex items-center gap-2"
+            >
+              <i className={`fa-solid ${copied ? 'fa-check text-emerald-500' : 'fa-link text-slate-400'} text-xs w-4`} />
+              {copied ? 'Link copied!' : 'Copy Booking Link'}
             </button>
           </div>
         </>

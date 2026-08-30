@@ -31,3 +31,23 @@ export function bookInspection(token: string, startAt: string) {
     body: JSON.stringify({ token, start_at: startAt }),
   });
 }
+
+export function fetchGenericBookingAvailability() {
+  return apiFetch<BookingAvailability>('/webhook/get-availability-generic');
+}
+
+export interface GenericBookingPayload {
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  start_at: string;
+  website_hp?: string;
+}
+
+export function bookGenericInspection(payload: GenericBookingPayload) {
+  return apiFetch<{ success: boolean; error?: string }>('/webhook/book-inspection-generic', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
