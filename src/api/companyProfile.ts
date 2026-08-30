@@ -10,6 +10,7 @@ export interface CompanyProfile {
   address: string;
   website: string;
   brand_color: string;
+  timezone: string;
 }
 
 export function fetchCompanyProfile() {
@@ -23,6 +24,7 @@ export interface SaveCompanyProfilePayload {
   address: string;
   website: string;
   brand_color: string;
+  timezone: string;
 }
 
 export function saveCompanyProfile(payload: SaveCompanyProfilePayload) {

@@ -20,6 +20,7 @@ export default function CompanyProfileModal({ open, onClose }: Props) {
   const [address, setAddress] = useState('');
   const [website, setWebsite] = useState('');
   const [brandColor, setBrandColor] = useState('#2563EB');
+  const [timezone, setTimezone] = useState('America/New_York');
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
@@ -48,6 +49,7 @@ export default function CompanyProfileModal({ open, onClose }: Props) {
       setAddress(data.address || '');
       setWebsite(data.website || '');
       setBrandColor(data.brand_color || '#2563EB');
+      setTimezone(data.timezone || 'America/New_York');
     }
   }, [data]);
 
@@ -65,6 +67,7 @@ export default function CompanyProfileModal({ open, onClose }: Props) {
         address: address.trim(),
         website: website.trim(),
         brand_color: brandColor,
+        timezone,
       },
       {
         onSuccess: () => setSaved(true),

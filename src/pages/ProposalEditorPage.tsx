@@ -18,14 +18,15 @@ const inputClass =
 // this template is cloned into a real, deal-bound proposal (via an
 // Automation or the deal-triggered Document Flow).
 const PROPOSAL_DYNAMIC_FIELDS = [
-  { token: '{{client_name}}', label: 'Client Name' },
-  { token: '{{client_company_name}}', label: 'Client Company' },
-  { token: '{{client_address}}', label: 'Client Address' },
-  { token: '{{client_email}}', label: 'Client Email' },
-  { token: '{{client_phone}}', label: 'Client Phone' },
-  { token: '{{owner_name}}', label: 'Owner Name' },
-  { token: '{{owner_email}}', label: 'Owner Email' },
-  { token: '{{owner_phone}}', label: 'Owner Phone' },
+  { token: '{{client_name}}', label: 'Client Name', group: 'Client' },
+  { token: '{{client_company_name}}', label: 'Client Company', group: 'Client' },
+  { token: '{{client_address}}', label: 'Client Address', group: 'Client' },
+  { token: '{{client_email}}', label: 'Client Email', group: 'Client' },
+  { token: '{{client_phone}}', label: 'Client Phone', group: 'Client' },
+  { token: '{{owner_name}}', label: 'Owner Name', group: 'User' },
+  { token: '{{owner_email}}', label: 'Owner Email', group: 'User' },
+  { token: '{{owner_phone}}', label: 'Owner Phone', group: 'User' },
+  { token: '{{company_name}}', label: 'Company Name', group: 'User' },
 ];
 
 interface ProposalForm {
@@ -287,16 +288,28 @@ export default function ProposalEditorPage() {
 
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1.5">Insert dynamic field</label>
-            <div className="flex flex-col gap-1.5">
-              {PROPOSAL_DYNAMIC_FIELDS.map((f) => (
-                <button
-                  key={f.token}
-                  type="button"
-                  onClick={() => editorRef.current?.insertText(f.token)}
-                  className="w-full text-left text-[11px] font-medium border border-slate-200 rounded-md px-2 py-1 text-slate-600 bg-white hover:border-[var(--theme-accent)] hover:text-[var(--theme-accent)]"
-                >
-                  {f.label}
-                </button>
+            <div className="flex flex-col gap-2.5">
+              {Object.entries(
+                PROPOSAL_DYNAMIC_FIELDS.reduce<Record<string, typeof PROPOSAL_DYNAMIC_FIELDS>>((acc, f) => {
+                  (acc[f.group] ||= []).push(f);
+                  return acc;
+                }, {})
+              ).map(([group, groupFields]) => (
+                <div key={group}>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">{group}</p>
+                  <div className="flex flex-col gap-1.5">
+                    {groupFields.map((f) => (
+                      <button
+                        key={f.token}
+                        type="button"
+                        onClick={() => editorRef.current?.insertText(f.token)}
+                        className="w-full text-left text-[11px] font-medium border border-slate-200 rounded-md px-2 py-1 text-slate-600 bg-white hover:border-[var(--theme-accent)] hover:text-[var(--theme-accent)]"
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
             <p className="text-[10px] text-slate-400 italic mt-2">

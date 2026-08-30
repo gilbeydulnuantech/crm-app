@@ -13,6 +13,7 @@ interface Props {
   onOpenOpportunity?: (opportunityId: number) => void;
   isAdmin: boolean;
   currentUserId?: number;
+  timezone?: string;
 }
 
 export default function EventDetailModal({
@@ -24,6 +25,7 @@ export default function EventDetailModal({
   onOpenOpportunity,
   isAdmin,
   currentUserId,
+  timezone,
 }: Props) {
   const updateEvent = useUpdateEvent();
   const deleteEvent = useDeleteEvent();
@@ -115,19 +117,19 @@ export default function EventDetailModal({
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
-          <Field label="Date" value={new Date(event.due_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })} />
+          <Field label="Date" value={new Date(event.due_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric', timeZone: timezone })} />
           <Field
             label={event.is_all_day ? 'Time' : 'Start Time'}
             value={
               event.is_all_day
                 ? 'All Day'
-                : new Date(event.due_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+                : new Date(event.due_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZone: timezone })
             }
           />
           {event.end_at && !event.is_all_day && (
             <Field
               label="End Time"
-              value={new Date(event.end_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+              value={new Date(event.end_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZone: timezone })}
             />
           )}
           {event.location && <Field label="Location" value={event.location} />}

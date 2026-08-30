@@ -6,6 +6,7 @@ import { Opportunity } from '../types/opportunity';
 import { useEvents } from '../hooks/useEvents';
 import { useAllOpportunities, useAllStages, usePipelines, useUpdateOpportunity } from '../hooks/useOpportunities';
 import { useUsers } from '../hooks/useContacts';
+import { useCompanyProfile } from '../hooks/useCompanyProfile';
 import { useAddNote } from '../hooks/useNotes';
 import { useAddTask } from '../hooks/useTasks';
 import { useResources } from '../hooks/useResources';
@@ -84,6 +85,8 @@ export default function Calendar() {
   const [statFilter, setStatFilter] = useState<CalendarStatFilter | null>(null);
 
   const { data: users = [] } = useUsers();
+  const { data: companyProfile } = useCompanyProfile();
+  const crmTimezone = companyProfile?.timezone || undefined;
   const { data: resources = [] } = useResources();
   const resourceColorById = useMemo(
     () => new Map(resources.map((r) => [r.id, r.color || DEFAULT_RESOURCE_COLOR])),
@@ -563,6 +566,7 @@ export default function Calendar() {
               checkedResourceIds={checkedResourceIds}
               resourceColorById={resourceColorById}
               onEventClick={setQuickViewEvent}
+              timezone={crmTimezone}
             />
           )}
           {viewMode === 'day' && (
@@ -572,6 +576,7 @@ export default function Calendar() {
               resourceColorById={resourceColorById}
               onEventClick={setQuickViewEvent}
               emptyLabel="No events on this day."
+              timezone={crmTimezone}
             />
           )}
           {viewMode === 'agenda' && (
@@ -581,6 +586,7 @@ export default function Calendar() {
               resourceColorById={resourceColorById}
               onEventClick={setQuickViewEvent}
               emptyLabel="No events this month."
+              timezone={crmTimezone}
             />
           )}
         </>
@@ -636,6 +642,7 @@ export default function Calendar() {
         }}
         isAdmin={isAdmin}
         currentUserId={user?.id}
+        timezone={crmTimezone}
       />
 
       <EventDetailModal
@@ -656,6 +663,7 @@ export default function Calendar() {
         }}
         isAdmin={isAdmin}
         currentUserId={user?.id}
+        timezone={crmTimezone}
       />
 
       <DealQuickView

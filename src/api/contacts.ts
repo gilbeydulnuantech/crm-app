@@ -230,13 +230,6 @@ export function updateUserPhone(userId: number, phone: string) {
   });
 }
 
-export function updateUserTimezone(userId: number, timezone: string) {
-  return apiFetch<{ success: boolean; user?: TeamUser; error?: string }>('/webhook/update-user-timezone', {
-    method: 'POST',
-    body: JSON.stringify({ user_id: userId, timezone }),
-  });
-}
-
 function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();

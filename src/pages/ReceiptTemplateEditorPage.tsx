@@ -7,14 +7,15 @@ import DynamicFieldsPanel from '../components/DynamicFieldsPanel';
 const inputClass =
   'w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]';
 
-// Payments' "Send Receipt" action only fills these five tokens — deal/
-// contact tokens elsewhere in the app don't apply to a payment record.
+// Payments' "Send Receipt" action only fills these tokens — deal/contact
+// tokens elsewhere in the app don't apply to a payment record.
 const RECEIPT_FIELDS: DynamicField[] = [
-  { token: '{{first_name}}', label: 'First Name' },
-  { token: '{{payment_number}}', label: 'Payment Number' },
-  { token: '{{amount}}', label: 'Amount' },
-  { token: '{{payment_date}}', label: 'Payment Date' },
-  { token: '{{deal_name}}', label: 'Deal Name' },
+  { token: '{{first_name}}', label: 'First Name', group: 'Contact' },
+  { token: '{{deal_name}}', label: 'Deal Name', group: 'Deal' },
+  { token: '{{payment_number}}', label: 'Payment Number', group: 'Payment' },
+  { token: '{{amount}}', label: 'Amount', group: 'Payment' },
+  { token: '{{payment_date}}', label: 'Payment Date', group: 'Payment' },
+  { token: '{{company_name}}', label: 'Company Name', group: 'User' },
 ];
 
 export default function ReceiptTemplateEditorPage() {

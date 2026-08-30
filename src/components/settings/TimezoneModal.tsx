@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { useUsers, useUpdateUserTimezone } from '../../hooks/useContacts';
+import { useCompanyProfile, useSaveCompanyProfile } from '../../hooks/useCompanyProfile';
 
 interface Props {
   open: boolean;
@@ -19,8 +19,6 @@ const TIMEZONES: string[] = (() => {
   }
 })();
 
-const BROWSER_TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
 function formatOffset(tz: string): string {
   try {
     const parts = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'shortOffset' }).formatToParts(new Date());
@@ -32,22 +30,32 @@ function formatOffset(tz: string): string {
 }
 
 export default function TimezoneModal({ open, onClose }: Props) {
-  const { user } = useAuth();
-  const { data: users = [] } = useUsers();
-  const updateTimezone = useUpdateUserTimezone();
-  const currentUser = users.find((u) => u.id === user?.id);
+  const { isAdmin } = useAuth();
+  const { data } = useCompanyProfile(open);
+  const saveProfile = useSaveCompanyProfile();
 
   const [timezone, setTimezone] = useState('');
 
   useEffect(() => {
-    setTimezone(currentUser?.timezone || BROWSER_TIMEZONE);
-  }, [currentUser?.timezone, open]);
+    setTimezone(data?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
+  }, [data?.timezone, open]);
 
   if (!open) return null;
 
   function handleSave() {
-    if (!user || !timezone) return;
-    updateTimezone.mutate({ userId: user.id, timezone });
+    if (!data || !timezone) return;
+    saveProfile.mutate(
+      {
+        company_name: data.company_name,
+        email: data.email,
+        phone: data.phone,
+        address: data.address,
+        website: data.website,
+        brand_color: data.brand_color,
+        timezone,
+      },
+      { onSuccess: onClose }
+    );
   }
 
   return (
@@ -67,14 +75,17 @@ export default function TimezoneModal({ open, onClose }: Props) {
         </div>
 
         <p className="text-xs text-slate-500 mb-4">
-          Used to display dates and times — meetings, reminders, task due dates — in your local time.
+          The single timezone your whole CRM operates on — used to display and schedule dates and
+          times (meetings, reminders, task due dates, booking availability) consistently for
+          everyone, regardless of where they're logged in from.
         </p>
 
-        <label className="block text-xs font-medium text-slate-600 mb-1">Your timezone</label>
+        <label className="block text-xs font-medium text-slate-600 mb-1">CRM timezone</label>
         <select
           value={timezone}
           onChange={(e) => setTimezone(e.target.value)}
-          className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
+          disabled={!isAdmin}
+          className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] disabled:bg-slate-50 disabled:text-slate-400"
         >
           {!TIMEZONES.includes(timezone) && timezone && <option value={timezone}>{timezone}</option>}
           {TIMEZONES.map((tz) => (
@@ -84,12 +95,10 @@ export default function TimezoneModal({ open, onClose }: Props) {
           ))}
         </select>
 
-        {currentUser?.timezone && (
-          <p className="text-[11px] text-slate-400 mt-1.5">
-            Currently set to {currentUser.timezone.replace(/_/g, ' ')}.
-          </p>
+        {!isAdmin && (
+          <p className="text-[11px] text-slate-400 mt-1.5">Only an admin can change the CRM timezone.</p>
         )}
-        {updateTimezone.isError && (
+        {saveProfile.isError && (
           <p className="text-[11px] text-rose-600 mt-1.5">Failed to save timezone. Try again.</p>
         )}
 
@@ -101,15 +110,17 @@ export default function TimezoneModal({ open, onClose }: Props) {
           >
             Close
           </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={updateTimezone.isPending || !timezone}
-            className="px-4 py-2 text-sm font-semibold text-white rounded-lg disabled:opacity-50"
-            style={{ backgroundColor: 'var(--theme-accent)' }}
-          >
-            {updateTimezone.isPending ? 'Saving...' : 'Save'}
-          </button>
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saveProfile.isPending || !timezone}
+              className="px-4 py-2 text-sm font-semibold text-white rounded-lg disabled:opacity-50"
+              style={{ backgroundColor: 'var(--theme-accent)' }}
+            >
+              {saveProfile.isPending ? 'Saving...' : 'Save'}
+            </button>
+          )}
         </div>
       </div>
     </div>

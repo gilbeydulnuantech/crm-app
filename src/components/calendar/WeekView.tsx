@@ -8,6 +8,7 @@ interface Props {
   checkedResourceIds: Set<number>;
   resourceColorById: Map<number, string>;
   onEventClick: (event: CalendarEvent) => void;
+  timezone?: string;
 }
 
 export default function WeekView({
@@ -16,6 +17,7 @@ export default function WeekView({
   checkedResourceIds,
   resourceColorById,
   onEventClick,
+  timezone,
 }: Props) {
   const days = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => {
@@ -63,6 +65,7 @@ export default function WeekView({
                         {new Date(e.due_at).toLocaleTimeString(undefined, {
                           hour: 'numeric',
                           minute: '2-digit',
+                          timeZone: timezone,
                         })}
                       </div>
                       <div className="truncate">{e.subject}</div>

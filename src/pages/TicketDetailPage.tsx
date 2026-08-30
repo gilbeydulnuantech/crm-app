@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTicket, useUpdateTicket, useAddTicketComment } from '../hooks/useTickets';
 import { useContacts } from '../hooks/useContacts';
@@ -64,6 +64,14 @@ export default function TicketDetailPage() {
   const [resolving, setResolving] = useState(false);
   const [resolutionNotes, setResolutionNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const resolutionRef = useRef<HTMLDivElement>(null);
+
+  // Clicking "Resolve" (up in the header) just reveals the notes panel down
+  // near the reply box — with a long conversation thread in between, that
+  // change happens off-screen and looks like the click did nothing.
+  useEffect(() => {
+    if (resolving) resolutionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [resolving]);
 
   if (isLoading || !ticket) {
     return <div className="flex-1 flex items-center justify-center text-sm text-slate-400">Loading...</div>;
@@ -346,7 +354,7 @@ export default function TicketDetailPage() {
 
           {/* Resolution */}
           {(resolving || ticket.status === 'resolved' || ticket.status === 'closed') && (
-            <div className="bg-white border border-slate-200 rounded-xl p-4">
+            <div ref={resolutionRef} className="bg-white border border-slate-200 rounded-xl p-4">
               <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Resolution</h2>
               {ticket.status === 'resolved' || ticket.status === 'closed' ? (
                 <div className="text-xs text-slate-600 space-y-1">
@@ -359,6 +367,7 @@ export default function TicketDetailPage() {
               ) : (
                 <>
                   <textarea
+                    autoFocus
                     value={resolutionNotes}
                     onChange={(e) => setResolutionNotes(e.target.value)}
                     placeholder="What was the resolution?"

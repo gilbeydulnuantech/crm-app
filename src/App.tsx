@@ -42,6 +42,7 @@ import PublicPayInvoicePage from './pages/PublicPayInvoicePage';
 import PublicUnsubscribePage from './pages/PublicUnsubscribePage';
 import PrintContractPage from './pages/PrintContractPage';
 import PublicTicketPage from './pages/PublicTicketPage';
+import PublicBookingPage from './pages/PublicBookingPage';
 
 function LoginRoute() {
   const { user, isLoading } = useAuth();
@@ -62,6 +63,7 @@ export default function App() {
           <Route path="/unsubscribe/:token" element={<PublicUnsubscribePage />} />
           <Route path="/print/contract/:token" element={<PrintContractPage />} />
           <Route path="/support/new" element={<PublicTicketPage />} />
+          <Route path="/book/:token" element={<PublicBookingPage />} />
 
           <Route
             element={

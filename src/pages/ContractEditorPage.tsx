@@ -16,11 +16,12 @@ const inputClass =
 // contact fields resolve once this template is cloned into a real, deal-
 // bound contract (from an approved proposal, or an automation).
 const CONTRACT_DYNAMIC_FIELDS = [
-  { token: '{{first_name}}', label: 'First Name' },
-  { token: '{{last_name}}', label: 'Last Name' },
-  { token: '{{deal_name}}', label: 'Deal Name' },
-  { token: '{{contract_link}}', label: 'Contract Link' },
-  { token: '{{owner_name}}', label: 'Owner' },
+  { token: '{{first_name}}', label: 'First Name', group: 'Contact' },
+  { token: '{{last_name}}', label: 'Last Name', group: 'Contact' },
+  { token: '{{deal_name}}', label: 'Deal Name', group: 'Deal' },
+  { token: '{{contract_link}}', label: 'Contract Link', group: 'Deal' },
+  { token: '{{owner_name}}', label: 'Owner', group: 'User' },
+  { token: '{{company_name}}', label: 'Company Name', group: 'User' },
 ];
 
 interface ContractForm {
@@ -266,16 +267,28 @@ export default function ContractEditorPage() {
 
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1.5">Insert dynamic field</label>
-            <div className="flex flex-col gap-1.5">
-              {CONTRACT_DYNAMIC_FIELDS.map((f) => (
-                <button
-                  key={f.token}
-                  type="button"
-                  onClick={() => editorRef.current?.insertText(f.token)}
-                  className="w-full text-left text-[11px] font-medium border border-slate-200 rounded-md px-2 py-1 text-slate-600 bg-white hover:border-[var(--theme-accent)] hover:text-[var(--theme-accent)]"
-                >
-                  {f.label}
-                </button>
+            <div className="flex flex-col gap-2.5">
+              {Object.entries(
+                CONTRACT_DYNAMIC_FIELDS.reduce<Record<string, typeof CONTRACT_DYNAMIC_FIELDS>>((acc, f) => {
+                  (acc[f.group] ||= []).push(f);
+                  return acc;
+                }, {})
+              ).map(([group, groupFields]) => (
+                <div key={group}>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">{group}</p>
+                  <div className="flex flex-col gap-1.5">
+                    {groupFields.map((f) => (
+                      <button
+                        key={f.token}
+                        type="button"
+                        onClick={() => editorRef.current?.insertText(f.token)}
+                        className="w-full text-left text-[11px] font-medium border border-slate-200 rounded-md px-2 py-1 text-slate-600 bg-white hover:border-[var(--theme-accent)] hover:text-[var(--theme-accent)]"
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
             <p className="text-[10px] text-slate-400 italic mt-2">

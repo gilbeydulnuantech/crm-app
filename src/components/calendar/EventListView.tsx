@@ -8,6 +8,7 @@ interface Props {
   resourceColorById: Map<number, string>;
   onEventClick: (event: CalendarEvent) => void;
   emptyLabel?: string;
+  timezone?: string;
 }
 
 export function EventListView({
@@ -16,6 +17,7 @@ export function EventListView({
   resourceColorById,
   onEventClick,
   emptyLabel = 'No events.',
+  timezone,
 }: Props) {
   const sorted = [...events].sort(
     (a, b) => new Date(a.due_at).getTime() - new Date(b.due_at).getTime()
@@ -56,7 +58,7 @@ export function EventListView({
             />
             <span className={`w-2 h-2 rounded-full shrink-0 ${EVENT_TYPE_META[e.type]?.dot ?? 'bg-slate-400'}`} />
             <div className="w-20 shrink-0 text-xs text-slate-500">
-              {new Date(e.due_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+              {new Date(e.due_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZone: timezone })}
             </div>
             <div className="flex-1 min-w-0">
               <div className={`text-sm font-medium truncate ${e.is_completed ? 'text-slate-400 line-through' : 'text-slate-800'}`}>

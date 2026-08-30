@@ -85,6 +85,7 @@ export const AUTOMATION_DYNAMIC_FIELDS: DynamicField[] = [
   { token: '{{user.full_name}}', label: 'Full Name', group: 'User' },
   { token: '{{user.email}}', label: 'Email', group: 'User' },
   { token: '{{user.phone}}', label: 'Phone', group: 'User' },
+  { token: '{{company_name}}', label: 'Company Name', group: 'User' },
 
   { token: '{{system.current_date}}', label: 'Current Date', group: 'System' },
   { token: '{{system.current_time}}', label: 'Current Time', group: 'System' },

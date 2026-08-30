@@ -68,14 +68,6 @@ export function useUpdateUserPhone() {
   });
 }
 
-export function useUpdateUserTimezone() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ userId, timezone }: { userId: number; timezone: string }) => api.updateUserTimezone(userId, timezone),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
-  });
-}
-
 export function useUploadAvatar() {
   const qc = useQueryClient();
   return useMutation({

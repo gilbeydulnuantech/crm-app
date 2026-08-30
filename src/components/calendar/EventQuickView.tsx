@@ -12,6 +12,7 @@ interface Props {
   onEdit: (event: CalendarEvent) => void;
   isAdmin: boolean;
   currentUserId?: number;
+  timezone?: string;
 }
 
 function Row({ icon, children }: { icon: string; children: ReactNode }) {
@@ -23,7 +24,7 @@ function Row({ icon, children }: { icon: string; children: ReactNode }) {
   );
 }
 
-export default function EventQuickView({ event, onClose, onViewFullDetails, onEdit, isAdmin, currentUserId }: Props) {
+export default function EventQuickView({ event, onClose, onViewFullDetails, onEdit, isAdmin, currentUserId, timezone }: Props) {
   const navigate = useNavigate();
   const deleteEvent = useDeleteEvent();
 
@@ -31,10 +32,10 @@ export default function EventQuickView({ event, onClose, onViewFullDetails, onEd
 
   const canEdit = isAdmin || event.user_id === currentUserId;
 
-  const dateLabel = new Date(event.due_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  const startLabel = new Date(event.due_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  const dateLabel = new Date(event.due_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: timezone });
+  const startLabel = new Date(event.due_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZone: timezone });
   const endLabel = event.end_at
-    ? new Date(event.end_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+    ? new Date(event.end_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZone: timezone })
     : null;
 
   function handleDelete() {
