@@ -1,9 +1,11 @@
 import { FormEvent, useRef, useState } from 'react';
-import { useSignedContract, useSendSignedContractEmail } from '../../hooks/useContracts';
+import { useSignedContract, useSendSignedContractEmail, useCosignContract } from '../../hooks/useContracts';
 import { useAuth } from '../../context/AuthContext';
 import { generateContractPdf } from '../../api/contracts';
 import FillableFieldsRenderer, { FieldValue } from '../richtext/FillableFieldsRenderer';
+import SignatureField, { SignatureFieldHandle } from '../SignatureField';
 import { fillMergeFields } from '../../utils/mergeFields';
+import { toTitleCase } from '../../utils/text';
 
 function downloadBase64Pdf(base64: string, filename: string) {
   const byteChars = atob(base64);
@@ -35,9 +37,10 @@ function money(n: number) {
 // Download PDF actions. This is the internal counterpart to the client's
 // public signing page, which itself shows nothing further once signed.
 export default function SignedContractViewModal({ contractId, onClose }: Props) {
-  const { isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { data, isLoading, error } = useSignedContract(contractId, contractId != null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const cosignPadRef = useRef<SignatureFieldHandle>(null);
   const [sendOpen, setSendOpen] = useState(false);
   const [sendTo, setSendTo] = useState('');
   const [sendSubject, setSendSubject] = useState('');
@@ -46,7 +49,14 @@ export default function SignedContractViewModal({ contractId, onClose }: Props) 
   const [sendDone, setSendDone] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [cosignError, setCosignError] = useState<string | null>(null);
+  // Values the owner types into their own non-signature fields (e.g. a date
+  // next to the contractor signature) while countersigning — kept separate
+  // from `data.field_values` (the client's already-submitted values) so only
+  // what the owner actually touches gets sent to the cosign endpoint.
+  const [ownerFieldEdits, setOwnerFieldEdits] = useState<Record<string, FieldValue>>({});
   const sendEmail = useSendSignedContractEmail();
+  const cosign = useCosignContract();
 
   if (contractId == null) return null;
 
@@ -55,9 +65,9 @@ export default function SignedContractViewModal({ contractId, onClose }: Props) 
     setSendTo(data.signature_email || data.contact_email || '');
     setSendSubject(`Your signed contract — ${data.title}`);
     setSendBody(
-      `Hi ${data.first_name || 'there'},\n\nAttached is a copy of your signed contract, "${data.title}", signed on ${
+      `Hi ${data.first_name ? toTitleCase(data.first_name) : 'there'},\n\nAttached is a copy of your signed contract, "${data.title}", signed on ${
         data.signed_at ? new Date(data.signed_at).toLocaleDateString() : ''
-      }.\n\nThanks,\n${data.owner_name || ''}`
+      }.\n\nThanks,\n${data.owner_name ? toTitleCase(data.owner_name) : ''}`
     );
     setSendError(null);
     setSendDone(false);
@@ -96,12 +106,36 @@ export default function SignedContractViewModal({ contractId, onClose }: Props) 
   const resolvedHtml = data
     ? fillMergeFields(data.content_html, {
         client_name: `${data.first_name || ''} ${data.last_name || ''}`.trim(),
+        first_name: data.first_name,
+        last_name: data.last_name,
         client_email: data.contact_email,
         owner_name: data.owner_name,
         owner_email: data.owner_email,
         owner_phone: data.owner_phone,
+        company_name: data.company_name,
       })
     : '';
+
+  // Only contracts built with a dedicated "Owner Signature" field need a
+  // co-sign step at all — one with no owner field behaves exactly as before
+  // (Send/Download available immediately once the client has signed).
+  const hasOwnerField = /data-field-type="signature"[^>]*data-signer-role="owner"/.test(resolvedHtml);
+  const isCosigned = !!data?.cosigned_at;
+  const canCosign = !!user && (isAdmin || (data?.assigned_user != null && data.assigned_user === user.id));
+  const awaitingCosign = hasOwnerField && !isCosigned;
+
+  function handleCosign() {
+    setCosignError(null);
+    if (!data || contractId == null) return;
+    if (!cosignPadRef.current || cosignPadRef.current.isEmpty()) return setCosignError('Please draw your signature.');
+    const ownerFieldId = contentRef.current?.querySelector<HTMLElement>('[data-field-type="signature"][data-signer-role="owner"]')
+      ?.dataset.fieldId;
+    if (!ownerFieldId) return setCosignError('Could not find the owner signature field on this contract.');
+    cosign.mutate(
+      { contractId, ownerFieldId, signatureData: cosignPadRef.current.toDataURL(), fieldValues: ownerFieldEdits },
+      { onError: (err) => setCosignError(err instanceof Error ? err.message : 'Failed to countersign.') }
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-slate-900/70 z-[130] flex items-start justify-center overflow-y-auto py-10 px-4" onClick={onClose}>
@@ -114,7 +148,9 @@ export default function SignedContractViewModal({ contractId, onClose }: Props) 
             <button
               type="button"
               onClick={openSend}
-              className="px-3 py-1.5 text-xs font-semibold text-white bg-[var(--theme-accent)] hover:opacity-90 rounded-lg"
+              disabled={awaitingCosign}
+              title={awaitingCosign ? 'Waiting on the owner countersignature before this can be sent.' : undefined}
+              className="px-3 py-1.5 text-xs font-semibold text-white bg-[var(--theme-accent)] hover:opacity-90 rounded-lg disabled:opacity-50"
             >
               <i className="fa-solid fa-paper-plane mr-1.5" />
               Send
@@ -122,7 +158,8 @@ export default function SignedContractViewModal({ contractId, onClose }: Props) 
             <button
               type="button"
               onClick={handleDownload}
-              disabled={isDownloading || isLoading || !data}
+              disabled={isDownloading || isLoading || !data || awaitingCosign}
+              title={awaitingCosign ? 'Waiting on the owner countersignature before this can be downloaded.' : undefined}
               className="px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 hover:bg-slate-50 rounded-lg disabled:opacity-50"
             >
               <i className="fa-solid fa-download mr-1.5" />
@@ -151,24 +188,57 @@ export default function SignedContractViewModal({ contractId, onClose }: Props) 
             <FillableFieldsRenderer
               containerRef={contentRef}
               contentHtml={resolvedHtml}
-              values={(data.field_values as Record<string, FieldValue>) || {}}
-              onChange={() => {}}
+              values={{ ...((data.field_values as Record<string, FieldValue>) || {}), ...ownerFieldEdits }}
+              onChange={(fieldId, value) => setOwnerFieldEdits((v) => ({ ...v, [fieldId]: value }))}
               readOnly
+              editableSignerRole={!isCosigned && canCosign ? 'owner' : undefined}
             />
             <p className="text-right text-lg font-bold text-slate-800 mt-3">Total: {money(data.total_amount)}</p>
 
-            <div className="mt-6 pt-6 border-t border-slate-100">
-              <p className="text-xs font-medium text-slate-500 mb-2">Signed by</p>
-              {data.signature_data && (
-                <img src={data.signature_data} alt="Signature" className="h-16 border border-slate-100 rounded bg-white" />
-              )}
-              <p className="text-sm font-semibold text-slate-800 mt-2">{data.signature_name}</p>
-              <p className="text-xs text-slate-400">
-                {data.signature_email} · {data.signature_date}
-                {data.signed_at ? ` · ${new Date(data.signed_at).toLocaleString()}` : ''}
+            {/* Audit trail only — the actual signature images already render
+                inline in the document above (via field_values), so a second
+                copy of them here would just be duplicate visual noise. */}
+            <div className="mt-6 pt-4 border-t border-slate-100 space-y-1">
+              <p className="text-xs text-slate-500">
+                <i className="fa-solid fa-signature mr-1.5 text-slate-400" />
+                Signed by <span className="font-medium text-slate-700">{toTitleCase(data.signature_name)}</span>
+                {data.signature_email ? ` (${data.signature_email})` : ''}
+                {data.signed_at ? ` on ${new Date(data.signed_at).toLocaleString()}` : ''}
+                {isAdmin && data.signature_ip ? ` · IP ${data.signature_ip}` : ''}
               </p>
-              {isAdmin && data.signature_ip && <p className="text-[11px] text-slate-400 mt-1">IP: {data.signature_ip}</p>}
+              {isCosigned && (
+                <p className="text-xs text-slate-500">
+                  <i className="fa-solid fa-signature mr-1.5 text-slate-400" />
+                  Countersigned by <span className="font-medium text-slate-700">{toTitleCase(data.cosigned_by_name)}</span>
+                  {data.cosigned_at ? ` on ${new Date(data.cosigned_at).toLocaleString()}` : ''}
+                </p>
+              )}
             </div>
+
+            {hasOwnerField && !isCosigned && (
+              <div className="mt-6 pt-6 border-t border-slate-100">
+                {canCosign ? (
+                  <div className="space-y-2.5">
+                    <p className="text-xs text-slate-500">
+                      This contract has an owner signature field awaiting your countersignature before it can be sent.
+                      Any other fields reserved for you in the document above (like a date) are now editable too.
+                    </p>
+                    <SignatureField ref={cosignPadRef} />
+                    {cosignError && <p className="text-xs text-rose-600">{cosignError}</p>}
+                    <button
+                      type="button"
+                      onClick={handleCosign}
+                      disabled={cosign.isPending}
+                      className="px-3 py-1.5 text-xs font-semibold text-white bg-[var(--theme-accent)] hover:opacity-90 rounded-lg disabled:opacity-50"
+                    >
+                      {cosign.isPending ? 'Countersigning...' : 'Countersign'}
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400 italic">Awaiting the assigned owner's countersignature.</p>
+                )}
+              </div>
+            )}
           </>
         )}
       </div>

@@ -68,8 +68,14 @@ export const AUTOMATION_DYNAMIC_FIELDS: DynamicField[] = [
   { token: '{{opportunity.source}}', label: 'Source', group: 'Opportunity' },
   { token: '{{opportunity.created_at}}', label: 'Created At', group: 'Opportunity' },
   { token: '{{opportunity.updated_at}}', label: 'Updated At', group: 'Opportunity' },
+  { token: '{{opportunity.due_at}}', label: 'Due At', group: 'Opportunity' },
   { token: '{{proposal_link}}', label: 'Proposal Link', group: 'Opportunity' },
   { token: '{{contract_link}}', label: 'Contract Link', group: 'Opportunity' },
+
+  { token: '{{payment.down_payment_amount}}', label: 'Down Payment Amount', group: 'Payment' },
+  { token: '{{payment.down_payment_paid_at}}', label: 'Down Payment Paid At', group: 'Payment' },
+  { token: '{{payment.balance_amount}}', label: 'Balance Amount', group: 'Payment' },
+  { token: '{{payment.balance_paid_at}}', label: 'Balance Paid At', group: 'Payment' },
 
   { token: '{{appointment.id}}', label: 'Appointment ID', group: 'Appointment' },
   { token: '{{appointment.title}}', label: 'Title', group: 'Appointment' },

@@ -8,13 +8,24 @@ const inputClass =
   'w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]';
 
 // Payments' "Send Receipt" action only fills these tokens — deal/contact
-// tokens elsewhere in the app don't apply to a payment record.
+// tokens elsewhere in the app don't apply to a payment record. The
+// deal_value/created_at/due_at/down_payment/balance tokens below are
+// offered for consistency with the other document editors but are NOT YET
+// wired into that resolver — they'll render literally until the Send
+// Receipt action is updated to fill them.
 const RECEIPT_FIELDS: DynamicField[] = [
   { token: '{{first_name}}', label: 'First Name', group: 'Contact' },
   { token: '{{deal_name}}', label: 'Deal Name', group: 'Deal' },
+  { token: '{{deal_value}}', label: 'Deal Value', group: 'Deal' },
+  { token: '{{deal_created_at}}', label: 'Created At', group: 'Deal' },
+  { token: '{{deal_due_at}}', label: 'Due At', group: 'Deal' },
   { token: '{{payment_number}}', label: 'Payment Number', group: 'Payment' },
   { token: '{{amount}}', label: 'Amount', group: 'Payment' },
   { token: '{{payment_date}}', label: 'Payment Date', group: 'Payment' },
+  { token: '{{down_payment_amount}}', label: 'Down Payment Amount', group: 'Payment' },
+  { token: '{{down_payment_paid_at}}', label: 'Down Payment Paid At', group: 'Payment' },
+  { token: '{{balance_amount}}', label: 'Balance Amount', group: 'Payment' },
+  { token: '{{balance_paid_at}}', label: 'Balance Paid At', group: 'Payment' },
   { token: '{{company_name}}', label: 'Company Name', group: 'User' },
 ];
 

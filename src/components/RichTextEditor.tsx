@@ -15,7 +15,7 @@ import AlignableTable from './richtext/extensions/AlignableTable';
 import PageBreak from './richtext/extensions/PageBreak';
 import VideoEmbed, { toEmbedUrl } from './richtext/extensions/VideoEmbed';
 import ProductList from './richtext/extensions/ProductList';
-import FillableField, { FillableFieldType } from './richtext/extensions/FillableField';
+import FillableField, { FillableFieldType, SignerRole } from './richtext/extensions/FillableField';
 import FontSize from './richtext/extensions/FontSize';
 import Indent from './richtext/extensions/Indent';
 import EditorToolbar from './richtext/EditorToolbar';
@@ -43,11 +43,20 @@ export interface RichTextEditorHandle {
 }
 
 const FILLABLE_TYPE_MAP: Partial<Record<AddElementType, FillableFieldType>> = {
-  signature: 'signature',
+  signatureClient: 'signature',
+  signatureOwner: 'signature',
   textField: 'text',
   date: 'date',
   initials: 'initials',
   checkbox: 'checkbox',
+};
+
+// Only 'signatureClient'/'signatureOwner' carry a signer role — every other
+// fillable field type is role-agnostic (not gated by viewer on the public
+// page), so this stays undefined for them.
+const SIGNER_ROLE_MAP: Partial<Record<AddElementType, SignerRole>> = {
+  signatureClient: 'client',
+  signatureOwner: 'owner',
 };
 
 const RichTextEditor = forwardRef<RichTextEditorHandle, Props>(function RichTextEditor(
@@ -159,10 +168,14 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, Props>(function RichText
 
     const fieldType = FILLABLE_TYPE_MAP[type];
     if (fieldType) {
+      const signerRole = SIGNER_ROLE_MAP[type];
       editor
         .chain()
         .focus()
-        .insertContent({ type: 'fillableField', attrs: { fieldId: generateId(), fieldType, label: '' } })
+        .insertContent({
+          type: 'fillableField',
+          attrs: { fieldId: generateId(), fieldType, label: '', ...(signerRole ? { signerRole } : {}) },
+        })
         .run();
     }
   }

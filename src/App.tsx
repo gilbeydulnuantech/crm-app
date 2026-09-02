@@ -27,6 +27,8 @@ import PageEditorPage from './pages/PageEditorPage';
 import Automations from './pages/Automations';
 import AutomationLogsPage from './pages/AutomationLogsPage';
 import AutomationEmailStepsPage from './pages/AutomationEmailStepsPage';
+import PipelineStageRemindersPage from './pages/PipelineStageRemindersPage';
+import StageReminderEditorPage from './pages/StageReminderEditorPage';
 import Settings from './pages/Settings';
 import ObservabilityDashboard from './pages/ObservabilityDashboard';
 import Tickets from './pages/Tickets';
@@ -103,6 +105,9 @@ export default function App() {
             <Route path="/documents/pages/:id/edit" element={<PageEditorPage />} />
             <Route path="/automations" element={<Automations />} />
             <Route path="/automations/logs" element={<AutomationLogsPage />} />
+            <Route path="/automations/stage-reminders" element={<PipelineStageRemindersPage />} />
+            <Route path="/automations/stage-reminders/new" element={<StageReminderEditorPage />} />
+            <Route path="/automations/stage-reminders/:id" element={<StageReminderEditorPage />} />
             <Route path="/automations/:workflowId" element={<AutomationEmailStepsPage />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/observability" element={<ObservabilityDashboard />} />

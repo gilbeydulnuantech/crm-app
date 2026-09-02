@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { fetchBookingAvailability, bookInspection, BookingDay, BookingSlot } from '../api/booking';
 import BookingCalendarPicker from '../components/booking/BookingCalendarPicker';
+import { toTitleCase } from '../utils/text';
 
 export default function PublicBookingPage() {
   const { token = '' } = useParams();
@@ -43,7 +44,7 @@ export default function PublicBookingPage() {
             <div className="w-14 h-14 mx-auto rounded-full bg-emerald-100 flex items-center justify-center mb-4">
               <i className="fa-solid fa-circle-check text-2xl text-emerald-600" />
             </div>
-            <h1 className="text-xl font-bold text-slate-800">You're all set{data.contact_first_name ? `, ${data.contact_first_name}` : ''}!</h1>
+            <h1 className="text-xl font-bold text-slate-800">You're all set{data.contact_first_name ? `, ${toTitleCase(data.contact_first_name)}` : ''}!</h1>
             <p className="text-sm text-slate-500 mt-1.5">
               Your inspection is confirmed. We've sent a confirmation to your email with the details.
             </p>
@@ -51,10 +52,10 @@ export default function PublicBookingPage() {
         ) : (
           <>
             <h1 className="text-xl font-bold text-slate-800">
-              Book your inspection{data.contact_first_name ? `, ${data.contact_first_name}` : ''}
+              Book your inspection{data.contact_first_name ? `, ${toTitleCase(data.contact_first_name)}` : ''}
             </h1>
             <p className="text-sm text-slate-500 mt-1.5 mb-5">
-              Pick a day that works for you{data.owner_name ? ` with ${data.owner_name}` : ''}. All times shown in{' '}
+              Pick a day that works for you{data.owner_name ? ` with ${toTitleCase(data.owner_name)}` : ''}. All times shown in{' '}
               <span className="font-medium text-slate-700">{data.timezone}</span>.
             </p>
 

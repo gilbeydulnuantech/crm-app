@@ -3,12 +3,14 @@ import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 
-// The full-page proposal/contract/page document editors — and the
-// automation builder — want maximum width, same idea as GHL's builder
-// going full-screen — hide the nav only there, not on the Documents/
-// Automations list pages, which keep the main nav like the rest of the app.
+// The full-page document editors want maximum width, same idea as GHL's
+// builder going full-screen — hide the nav only there, not on the
+// Documents/Automations list pages, which keep the main nav like the rest
+// of the app. Proposal/Contract/Email/Invoice/Receipt template editors keep
+// the collapsible sidebar (same as every other page) — only the Pages
+// editor and the automation/ticket/payment builders still go full-bleed.
 const NO_SIDEBAR_PATTERN =
-  /^\/documents\/(proposals|contracts|pages)\/(new|\d+\/edit)$|^\/documents\/templates\/(email|invoice|receipt)\/(new|\d+\/edit)$|^\/automations\/(new|\d+\/edit)$|^\/tickets\/\d+$|^\/payments\/\d+$|^\/payments\/invoices\/(new|\d+)$/;
+  /^\/documents\/pages\/(new|\d+\/edit)$|^\/automations\/(new|\d+\/edit)$|^\/tickets\/\d+$|^\/payments\/\d+$|^\/payments\/invoices\/(new|\d+)$/;
 
 export default function AppLayout() {
   const [navOpen, setNavOpen] = useState(true);

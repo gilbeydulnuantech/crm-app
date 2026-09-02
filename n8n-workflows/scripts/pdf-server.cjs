@@ -10,6 +10,27 @@ const puppeteer = require('puppeteer');
 
 const PORT = 5680;
 
+// Launching Chromium from scratch is most of the latency on every request
+// (measured 24s+ of a ~28s total PDF-fetch step) — keep one browser warm for
+// the life of this process and just open/close a page per request instead.
+// Re-launches lazily if the browser ever crashes/disconnects.
+let browserPromise = null;
+function getBrowser() {
+  if (!browserPromise) {
+    browserPromise = puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
+  }
+  return browserPromise;
+}
+
+async function launchBrowser() {
+  const browser = await getBrowser();
+  if (!browser.isConnected()) {
+    browserPromise = null;
+    return getBrowser();
+  }
+  return browser;
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   if (url.pathname !== '/generate-pdf') {
@@ -29,10 +50,26 @@ const server = http.createServer(async (req, res) => {
   const printUrl = new URL(`http://localhost:5173/print/contract/${token}`);
   if (proposalToken) printUrl.searchParams.set('proposal', proposalToken);
 
-  let browser;
+  let page;
   try {
-    browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
-    const page = await browser.newPage();
+    const browser = await launchBrowser();
+    page = await browser.newPage();
+    // Stripe's fraud-detection script (js.stripe.com plus its
+    // m.stripe.network/m.stripe.com telemetry follow-ups) was a large chunk
+    // of the render time here — one of those requests alone measured 12.5s,
+    // almost certainly Stripe slow-walking a detected headless/automated
+    // browser. This page is a static snapshot of an already-signed
+    // document — nothing on it is ever interactive, so there's no
+    // legitimate reason for Stripe to load here at all; block it outright.
+    await page.setRequestInterception(true);
+    page.on('request', (r) => {
+      const host = new URL(r.url()).hostname;
+      if (/(^|\.)(js\.stripe\.com|m\.stripe\.network|m\.stripe\.com)$/.test(host)) {
+        r.abort();
+      } else {
+        r.continue();
+      }
+    });
     await page.goto(printUrl.toString(), { waitUntil: 'networkidle0', timeout: 30000 });
     const pdfBuffer = await page.pdf({
       format: 'Letter',
@@ -46,8 +83,25 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(500, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: err.message || 'Failed to generate PDF.' }));
   } finally {
-    if (browser) await browser.close();
+    if (page) await page.close();
   }
 });
 
 server.listen(PORT, () => console.log(`PDF server listening on http://localhost:${PORT}`));
+
+// Launch eagerly so the first real request doesn't pay the cold-start cost.
+getBrowser().catch((err) => console.error('Failed to pre-launch browser:', err));
+
+async function shutdown() {
+  if (browserPromise) {
+    try {
+      const browser = await browserPromise;
+      await browser.close();
+    } catch {
+      // already gone
+    }
+  }
+  process.exit(0);
+}
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);

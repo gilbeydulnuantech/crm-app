@@ -12,14 +12,24 @@ import { buildDraftPdf } from '../utils/contractPdf';
 const inputClass =
   'w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]';
 
-// Standalone template — no deal/pipeline/stage. {{contract_link}} and the
-// contact fields resolve once this template is cloned into a real, deal-
-// bound contract (from an approved proposal, or an automation).
+// Standalone template — no deal/pipeline/stage. The contact fields resolve
+// once this template is cloned into a real, deal-bound contract (from an
+// approved proposal, or an automation). {{deal_name}}/{{contract_link}} and
+// the new deal_*/down_payment_*/balance_* tokens are offered here but
+// aren't wired into fillMergeFields (utils/mergeFields.ts) yet — they'll
+// render literally until that resolver is extended to fill them.
 const CONTRACT_DYNAMIC_FIELDS = [
   { token: '{{first_name}}', label: 'First Name', group: 'Contact' },
   { token: '{{last_name}}', label: 'Last Name', group: 'Contact' },
   { token: '{{deal_name}}', label: 'Deal Name', group: 'Deal' },
+  { token: '{{deal_value}}', label: 'Deal Value', group: 'Deal' },
+  { token: '{{deal_created_at}}', label: 'Created At', group: 'Deal' },
+  { token: '{{deal_due_at}}', label: 'Due At', group: 'Deal' },
   { token: '{{contract_link}}', label: 'Contract Link', group: 'Deal' },
+  { token: '{{down_payment_amount}}', label: 'Down Payment Amount', group: 'Payment' },
+  { token: '{{down_payment_paid_at}}', label: 'Down Payment Paid At', group: 'Payment' },
+  { token: '{{balance_amount}}', label: 'Balance Amount', group: 'Payment' },
+  { token: '{{balance_paid_at}}', label: 'Balance Paid At', group: 'Payment' },
   { token: '{{owner_name}}', label: 'Owner', group: 'User' },
   { token: '{{company_name}}', label: 'Company Name', group: 'User' },
 ];

@@ -11,10 +11,12 @@ import {
   useOpportunities,
   usePipelines,
   useStages,
+  useTagOpportunity,
+  useUntagOpportunity,
   useUpdateOpportunity,
 } from '../hooks/useOpportunities';
 import { hiddenStagesKey, loadHiddenStageIds } from '../utils/pipelineStageVisibility';
-import { useTags, useUsers } from '../hooks/useContacts';
+import { useCreateTag, useTags, useUsers } from '../hooks/useContacts';
 import { useAddNote } from '../hooks/useNotes';
 import { useAddTask } from '../hooks/useTasks';
 import { useAuth } from '../context/AuthContext';
@@ -176,6 +178,9 @@ export default function Pipeline() {
   }, [highlightDealId]);
 
   const moveStage = useMoveOpportunityStage(pipelineId);
+  const tagOpportunity = useTagOpportunity(pipelineId);
+  const untagOpportunity = useUntagOpportunity(pipelineId);
+  const createTag = useCreateTag();
   const updateOpportunity = useUpdateOpportunity(pipelineId);
   const deleteOpportunities = useDeleteOpportunities(pipelineId);
   const archiveOpportunities = useArchiveOpportunities(pipelineId);
@@ -274,8 +279,34 @@ export default function Pipeline() {
     setFormOpen(true);
   }
 
-  function handleMoveStage(opportunityId: number, stageId: number) {
+  async function handleMoveStage(opportunityId: number, stageId: number) {
+    const opportunity = opportunities.find((o) => o.id === opportunityId);
+    const oldStage = opportunity ? stagesById.get(opportunity.stage_id) : undefined;
+    const newStage = stagesById.get(stageId);
+
     moveStage.mutate({ id: opportunityId, stage_id: stageId });
+
+    if (!opportunity || !newStage || oldStage?.id === newStage.id) return;
+
+    // Keep the deal's tags in sync with its stage for instant card feedback
+    // — the move-opportunity-stage n8n workflow does the same swap
+    // server-side (authoritative), this just avoids waiting on a refetch.
+    // Only the specific tag matching the deal's previous stage is removed;
+    // any other tag (VIP, Customer, etc.) is left alone.
+    const oldTag = oldStage
+      ? opportunity.tags?.find((t) => t.name.toLowerCase() === oldStage.name.toLowerCase())
+      : undefined;
+    if (oldTag) {
+      untagOpportunity.mutate({ opportunityId, tagId: oldTag.id });
+    }
+
+    let newTag = tags.find((t) => t.name.toLowerCase() === newStage.name.toLowerCase());
+    if (!newTag) {
+      newTag = await createTag.mutateAsync(newStage.name);
+    }
+    if (!opportunity.tags?.some((t) => t.id === newTag!.id)) {
+      tagOpportunity.mutate({ opportunityId, tagId: newTag.id });
+    }
   }
 
   function handleMarkWon(opportunity: Opportunity) {

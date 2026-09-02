@@ -73,6 +73,15 @@ export default function BulkActionsMenu({
                 >
                   Archive Contacts
                 </button>
+                {isAdmin && (
+                  <button
+                    disabled={selectedCount === 0}
+                    onClick={() => run(onDeletePermanently)}
+                    className="w-full text-left px-3 py-1.5 hover:bg-rose-50 text-rose-600 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Delete Permanently
+                  </button>
+                )}
                 <div className="border-t border-slate-100 my-1" />
                 <button onClick={() => run(onExport)} className="w-full text-left px-3 py-1.5 hover:bg-slate-50 text-slate-700">
                   Export

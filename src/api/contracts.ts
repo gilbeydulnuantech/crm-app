@@ -86,12 +86,15 @@ export interface PublicContract {
   owner_name: string | null;
   owner_email: string | null;
   owner_phone: string | null;
+  company_name: string | null;
   field_values: Record<string, string | boolean> | null;
   thank_you_page_id: number | null;
   thank_you_page_content_html: string | null;
   down_payment_token: string | null;
   down_payment_amount: number | null;
   down_payment_paid: boolean;
+  cosigned_by_name: string | null;
+  cosigned_at: string | null;
   error?: string;
 }
 
@@ -140,14 +143,38 @@ export interface SignedContract {
   owner_name: string | null;
   owner_email: string | null;
   owner_phone: string | null;
+  company_name: string | null;
   field_values: Record<string, string | boolean> | null;
   // Only populated for admins — the backend nulls this out for reps.
   signature_ip: string | null;
+  // Needed so the frontend can decide whether the current user may co-sign.
+  assigned_user: number | null;
+  cosign_signature_data: string | null;
+  cosigned_by: number | null;
+  cosigned_by_name: string | null;
+  cosigned_at: string | null;
   error?: string;
 }
 
 export function fetchSignedContract(id: number) {
   return apiFetch<SignedContract>(`/webhook/get-contract-signed?id=${id}`);
+}
+
+export function cosignContract(
+  contractId: number,
+  ownerFieldId: string,
+  signatureData: string,
+  fieldValues?: Record<string, string | boolean>
+) {
+  return apiFetch<{ success: boolean; error?: string }>('/webhook/cosign-contract', {
+    method: 'POST',
+    body: JSON.stringify({
+      contract_id: contractId,
+      owner_field_id: ownerFieldId,
+      signature_data: signatureData,
+      field_values: fieldValues || {},
+    }),
+  });
 }
 
 export interface SendSignedContractEmailPayload {

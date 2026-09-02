@@ -5,6 +5,7 @@ import { fetchPublicContract } from '../api/contracts';
 import { fetchPublicProposal } from '../api/proposals';
 import FillableFieldsRenderer, { FieldValue } from '../components/richtext/FillableFieldsRenderer';
 import { fillMergeFields } from '../utils/mergeFields';
+import { toTitleCase } from '../utils/text';
 
 function money(n: number) {
   return `$${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -31,6 +32,12 @@ export default function PrintContractPage() {
     queryFn: () => fetchPublicContract(token),
     enabled: !!token,
     retry: false,
+    // This is a one-shot render for Puppeteer to snapshot into a PDF, not a
+    // page anyone actually leaves open — the app's global 15s
+    // refetchInterval default was firing a background refetch that kept
+    // Puppeteer's networkidle0 wait from ever settling, adding ~15-20s to
+    // every PDF generation for no benefit (nothing here needs to stay live).
+    refetchInterval: false,
   });
   // preview=true — this is an internal render for PDF generation, not the
   // client viewing their proposal, so it must not count as a lead view.
@@ -38,6 +45,7 @@ export default function PrintContractPage() {
     queryKey: ['public-proposal', proposalToken],
     queryFn: () => fetchPublicProposal(proposalToken, true),
     enabled: !!proposalToken,
+    refetchInterval: false,
     retry: false,
   });
   const contentRef = useRef<HTMLDivElement>(null);
@@ -48,10 +56,13 @@ export default function PrintContractPage() {
 
   const resolvedHtml = fillMergeFields(data.content_html, {
     client_name: `${data.first_name || ''} ${data.last_name || ''}`.trim(),
+    first_name: data.first_name,
+    last_name: data.last_name,
     client_email: data.contact_email,
     owner_name: data.owner_name,
     owner_email: data.owner_email,
     owner_phone: data.owner_phone,
+    company_name: data.company_name,
   });
   const resolvedProposalHtml =
     proposal && proposal.success
@@ -103,14 +114,21 @@ export default function PrintContractPage() {
         <p className="text-right text-lg font-bold text-slate-800 mt-3">Total: {money(data.total_amount)}</p>
 
         {data.status === 'signed' && (
-          <div className="mt-6 pt-6 border-t border-slate-100">
-            <p className="text-xs font-medium text-slate-500 mb-2">Signed by</p>
-            {data.signature_data && <img src={data.signature_data} alt="Signature" className="h-16" />}
-            <p className="text-sm font-semibold text-slate-800 mt-2">{data.signature_name}</p>
-            <p className="text-xs text-slate-400">
-              {data.signature_email} · {data.signature_date}
-              {data.signed_at ? ` · ${new Date(data.signed_at).toLocaleString()}` : ''}
+          // Audit trail only — the actual signature images already render
+          // inline in the document above (via field_values), so a second
+          // copy of them here would just be duplicate visual noise.
+          <div className="mt-6 pt-4 border-t border-slate-100 space-y-1">
+            <p className="text-xs text-slate-500">
+              Signed by <span className="font-medium text-slate-700">{toTitleCase(data.signature_name)}</span>
+              {data.signature_email ? ` (${data.signature_email})` : ''}
+              {data.signed_at ? ` on ${new Date(data.signed_at).toLocaleString()}` : ''}
             </p>
+            {data.cosigned_at && (
+              <p className="text-xs text-slate-500">
+                Countersigned by <span className="font-medium text-slate-700">{toTitleCase(data.cosigned_by_name)}</span>
+                {` on ${new Date(data.cosigned_at).toLocaleString()}`}
+              </p>
+            )}
           </div>
         )}
       </div>

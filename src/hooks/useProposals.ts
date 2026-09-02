@@ -29,6 +29,14 @@ export function useSendProposal() {
   });
 }
 
+export function useMarkProposalEmailed() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (proposalId: number) => api.markProposalEmailed(proposalId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['proposals'] }),
+  });
+}
+
 export function useArchiveProposal() {
   const qc = useQueryClient();
   return useMutation({

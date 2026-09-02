@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { confirmUnsubscribe } from '../api/unsubscribe';
+import { toTitleCase } from '../utils/text';
 
 // One-click unsubscribe landing — the link itself is the action (matches
 // CAN-SPAM's "clear and conspicuous" opt-out requirement); this page just
@@ -33,7 +34,7 @@ export default function PublicUnsubscribePage() {
               <i className="fa-solid fa-circle-check text-2xl text-emerald-600" />
             </div>
             <h1 className="text-xl font-bold text-slate-800">
-              You're unsubscribed{data.first_name ? `, ${data.first_name}` : ''}
+              You're unsubscribed{data.first_name ? `, ${toTitleCase(data.first_name)}` : ''}
             </h1>
             <p className="text-sm text-slate-500 mt-1.5">
               You won't receive any more marketing emails from us. If you have an active project with us, we may

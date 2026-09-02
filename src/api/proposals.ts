@@ -20,6 +20,7 @@ export interface Proposal {
   contractor_company_name: string | null;
   contractor_email: string | null;
   contractor_phone: string | null;
+  linked_contract_template_id: number | null;
   status: 'draft' | 'emailed' | 'viewed' | 'approved';
   created_at: string;
   emailed_at: string | null;
@@ -49,6 +50,7 @@ export interface SaveProposalPayload {
   contractor_company_name?: string;
   contractor_email?: string;
   contractor_phone?: string;
+  linked_contract_template_id: number;
 }
 
 export function saveProposal(payload: SaveProposalPayload) {
@@ -60,6 +62,16 @@ export function saveProposal(payload: SaveProposalPayload) {
 
 export function sendProposal(proposalId: number) {
   return apiFetch<{ success: boolean; error?: string }>('/webhook/send-proposal', {
+    method: 'POST',
+    body: JSON.stringify({ proposal_id: proposalId }),
+  });
+}
+
+// Syncs status/emailed_at without sending another email — for the
+// proposal editor's own Send flow, which delivers the email itself via
+// the generic contact-email workflow and only needs the status to follow.
+export function markProposalEmailed(proposalId: number) {
+  return apiFetch<{ success: boolean; error?: string }>('/webhook/mark-proposal-emailed', {
     method: 'POST',
     body: JSON.stringify({ proposal_id: proposalId }),
   });

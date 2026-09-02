@@ -99,6 +99,16 @@ export default function Calendar() {
   const rangeEnd = endOfMonth(cursorDate);
   const { data: allEvents = [], isLoading: eventsLoading } = useEvents(toISODate(rangeStart), toISODate(rangeEnd));
 
+  // activeEvent is a snapshot passed to EventDetailModal — without this, a
+  // mutation made inside the modal (Complete, Reschedule) invalidates and
+  // refetches allEvents, but the modal keeps showing the stale snapshot, so
+  // actions that clearly succeeded appear to do nothing.
+  useEffect(() => {
+    if (!activeEvent) return;
+    const fresh = allEvents.find((e) => e.id === activeEvent.id);
+    if (fresh && fresh !== activeEvent) setActiveEvent(fresh);
+  }, [allEvents, activeEvent]);
+
   // get-opportunities is per-pipeline — fan out across every pipeline so
   // "all deals" really means all of them, not just the default pipeline.
   const { data: pipelines = [] } = usePipelines();

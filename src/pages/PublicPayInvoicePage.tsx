@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { fetchDownPayment } from '../api/payments';
 import DownPaymentForm from '../components/DownPaymentForm';
 import ChatWidget from '../components/ChatWidget';
+import { toTitleCase } from '../utils/text';
 
 function money(n: number) {
   return `$${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -37,7 +38,7 @@ export default function PublicPayInvoicePage() {
             <div className="w-14 h-14 mx-auto rounded-full bg-emerald-100 flex items-center justify-center mb-4">
               <i className="fa-solid fa-circle-check text-2xl text-emerald-600" />
             </div>
-            <h1 className="text-xl font-bold text-slate-800">Thank you{data.first_name ? `, ${data.first_name}` : ''}!</h1>
+            <h1 className="text-xl font-bold text-slate-800">Thank you{data.first_name ? `, ${toTitleCase(data.first_name)}` : ''}!</h1>
             <p className="text-sm text-slate-500 mt-1.5">
               Your payment of {money(data.total)} has been received.
             </p>

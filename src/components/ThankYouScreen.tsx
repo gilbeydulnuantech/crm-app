@@ -1,3 +1,5 @@
+import { toTitleCase } from '../utils/text';
+
 interface Props {
   signatureName: string | null;
   signedAt: string | null;
@@ -14,7 +16,7 @@ export default function ThankYouScreen({ signatureName, signedAt }: Props) {
       <div className="w-14 h-14 mx-auto rounded-full bg-emerald-100 flex items-center justify-center mb-4">
         <i className="fa-solid fa-circle-check text-2xl text-emerald-600" />
       </div>
-      <h1 className="text-xl font-bold text-slate-800">Thank you{signatureName ? `, ${signatureName}` : ''}!</h1>
+      <h1 className="text-xl font-bold text-slate-800">Thank you{signatureName ? `, ${toTitleCase(signatureName)}` : ''}!</h1>
       <p className="text-sm text-slate-500 mt-1.5">
         Your contract has been signed{signedAt ? ` on ${new Date(signedAt).toLocaleDateString()}` : ''}. We'll be in
         touch shortly with next steps.

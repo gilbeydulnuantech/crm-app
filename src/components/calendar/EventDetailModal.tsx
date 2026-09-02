@@ -32,6 +32,7 @@ export default function EventDetailModal({
   const [rescheduling, setRescheduling] = useState(false);
   const [newDate, setNewDate] = useState('');
   const [rescheduleError, setRescheduleError] = useState<string | null>(null);
+  const [completeError, setCompleteError] = useState<string | null>(null);
   const reschedulePanelRef = useRef<HTMLDivElement>(null);
 
   // The reschedule panel renders at the bottom of a scrollable content area,
@@ -54,10 +55,14 @@ export default function EventDetailModal({
   const meta = EVENT_TYPE_META[event.type];
 
   function handleComplete() {
-    updateEvent.mutate({
-      id: event!.id,
-      payload: { is_completed: true, completed_at: new Date().toISOString() },
-    });
+    setCompleteError(null);
+    updateEvent.mutate(
+      {
+        id: event!.id,
+        payload: { is_completed: true, completed_at: new Date().toISOString() },
+      },
+      { onError: (err) => setCompleteError(err instanceof Error ? err.message : 'Failed to mark complete.') }
+    );
   }
 
   // Local getters, not .toISOString() — reading the UTC date/time here would
@@ -255,13 +260,15 @@ export default function EventDetailModal({
                 Reschedule
               </button>
             </div>
+            {completeError && <p className="text-xs text-rose-600">{completeError}</p>}
             <div className="flex gap-2">
               {!event.is_completed && (
                 <button
                   onClick={handleComplete}
-                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold py-2 rounded-lg"
+                  disabled={updateEvent.isPending}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold py-2 rounded-lg disabled:opacity-50"
                 >
-                  Complete
+                  {updateEvent.isPending ? 'Completing...' : 'Complete'}
                 </button>
               )}
               <button

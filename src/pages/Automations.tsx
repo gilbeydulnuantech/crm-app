@@ -47,14 +47,24 @@ export default function Automations() {
               Built and run in n8n — this is a live read-only list, not an editor.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => navigate('/automations/logs')}
-            className="px-3 py-2 text-sm font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg shrink-0"
-          >
-            <i className="fa-solid fa-clock-rotate-left mr-1.5" />
-            View Logs
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => navigate('/automations/stage-reminders')}
+              className="px-3 py-2 text-sm font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg"
+            >
+              <i className="fa-solid fa-bell mr-1.5" />
+              Stage Reminders
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/automations/logs')}
+              className="px-3 py-2 text-sm font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg"
+            >
+              <i className="fa-solid fa-clock-rotate-left mr-1.5" />
+              View Logs
+            </button>
+          </div>
         </div>
 
         {isLoading ? (

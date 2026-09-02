@@ -3,12 +3,12 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { fetchPublicProposal, approveProposal } from '../api/proposals';
 import { fetchPublicContract, signContract } from '../api/contracts';
-import SignatureField, { SignatureFieldHandle } from '../components/SignatureField';
 import SignedOutcomeScreen from '../components/SignedOutcomeScreen';
 import DownPaymentForm from '../components/DownPaymentForm';
 import ChatWidget from '../components/ChatWidget';
 import FillableFieldsRenderer, { FieldValue, FillableFieldsRendererHandle } from '../components/richtext/FillableFieldsRenderer';
 import { fillMergeFields } from '../utils/mergeFields';
+import { toTitleCase } from '../utils/text';
 
 function money(n: number) {
   return `$${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -17,6 +17,14 @@ function money(n: number) {
 function today() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Formats a YYYY-MM-DD string for display without going through `new
+// Date(isoString)`, which parses as UTC midnight and can display as the
+// previous day in timezones behind UTC.
+function formatDisplayDate(isoDate: string) {
+  const [y, m, d] = isoDate.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString();
 }
 
 export default function PublicProposalPage() {
@@ -72,12 +80,7 @@ export default function PublicProposalPage() {
     retry: false,
   });
 
-  const [signatureName, setSignatureName] = useState('');
-  const [signatureEmail, setSignatureEmail] = useState('');
-  const [signatureDate, setSignatureDate] = useState(today());
   const [signError, setSignError] = useState<string | null>(null);
-  const [hasSignature, setHasSignature] = useState(false);
-  const padRef = useRef<SignatureFieldHandle>(null);
   const contractContentRef = useRef<HTMLDivElement>(null);
   const contractFieldsRef = useRef<FillableFieldsRendererHandle>(null);
   const [contractFieldValues, setContractFieldValues] = useState<Record<string, FieldValue>>({});
@@ -86,9 +89,13 @@ export default function PublicProposalPage() {
     if (contract?.field_values) setContractFieldValues(contract.field_values);
   }, [contract?.field_values]);
 
-  useEffect(() => {
-    if (data?.contact_email) setSignatureEmail(data.contact_email);
-  }, [data?.contact_email]);
+  // No manual Name/Email/Date entry form — the proposal link already
+  // identifies who's approving/signing (via the token, resolved server-side
+  // to the linked contact), so those are taken straight from the known
+  // contact instead of re-asking for them.
+  const signatureName = data ? toTitleCase(`${data.first_name || ''} ${data.last_name || ''}`.trim()) : '';
+  const signatureEmail = data?.contact_email || '';
+  const signatureDate = today();
 
   const sign = useMutation({
     mutationFn: (payload: { signature_name: string; signature_email: string; signature_date: string; signature_data: string }) =>
@@ -101,22 +108,6 @@ export default function PublicProposalPage() {
     onError: (err) => setSignError(err instanceof Error ? err.message : 'Failed to sign.'),
   });
 
-  function handleSignAndSend() {
-    setSignError(null);
-    if (!data || !contract || !contract.success || !contract.id) return;
-    if (!signatureName.trim()) return setSignError('Enter your full name.');
-    if (!signatureEmail.trim()) return setSignError('Enter your email.');
-    if (!signatureDate) return setSignError('Enter the date.');
-    if (!padRef.current || padRef.current.isEmpty()) return setSignError('Please draw your signature.');
-
-    sign.mutate({
-      signature_name: signatureName.trim(),
-      signature_email: signatureEmail.trim(),
-      signature_date: signatureDate,
-      signature_data: padRef.current.toDataURL(),
-    });
-  }
-
   const mergeValues = data
     ? {
         client_name: data.client_name,
@@ -127,12 +118,56 @@ export default function PublicProposalPage() {
         owner_name: data.owner_name,
         owner_email: data.owner_email,
         owner_phone: data.owner_phone,
+        company_name: data.contractor_company_name,
       }
     : {};
   const resolvedProposalHtml = data ? fillMergeFields(data.content_html, mergeValues) : '';
-  // The contract auto-generated from this proposal shares the same
-  // client/owner — reuse the proposal's merge values for its content too.
-  const resolvedContractHtml = contract ? fillMergeFields(contract.content_html, mergeValues) : '';
+  // The contract has its own live-linked contact/owner data (same pattern as
+  // PublicContractPage/PrintContractPage/SignedContractViewModal) — resolved
+  // independently from the proposal's merge values (which are a frozen
+  // snapshot taken when the proposal was created/sent) so the exact same
+  // contract always shows the same names no matter which page it's viewed
+  // from, and reflects a contact-name correction made after the proposal
+  // was sent instead of silently disagreeing with every other view of it.
+  const contractMergeValues = contract
+    ? {
+        client_name: `${contract.first_name || ''} ${contract.last_name || ''}`.trim(),
+        first_name: contract.first_name,
+        last_name: contract.last_name,
+        client_email: contract.contact_email,
+        owner_name: contract.owner_name,
+        owner_email: contract.owner_email,
+        owner_phone: contract.owner_phone,
+        company_name: contract.company_name,
+      }
+    : {};
+  const resolvedContractHtml = contract ? fillMergeFields(contract.content_html, contractMergeValues) : '';
+
+  // No standalone signature pad — signing happens through a `signature`-type
+  // fillable field the rep drops into the contract template itself (Add
+  // Element -> Fillable Fields -> Signature), same as PublicContractPage.
+  // Narrowed to a field that's both type=signature AND signerRole=client (on
+  // the same tag — every fillable field carries a data-signer-role,
+  // defaulting to "client", even non-signature ones) so an owner-role field
+  // (muted for this viewer) never gates Sign & Send.
+  const hasSignatureField = /data-field-type="signature"[^>]*data-signer-role="client"/.test(resolvedContractHtml);
+
+  function handleSignAndSend() {
+    setSignError(null);
+    if (!data || !contract || !contract.success || !contract.id) return;
+    if (!signatureName) return setSignError("We're missing a name on file for this contact — please contact us to fix this before signing.");
+    if (!signatureEmail) return setSignError("We're missing an email on file for this contact — please contact us to fix this before signing.");
+    const signatureValues = contractFieldsRef.current?.collectSignatureValues() || {};
+    const signatureData = Object.values(signatureValues)[0] as string | undefined;
+    if (hasSignatureField && !signatureData) return setSignError('Please draw your signature.');
+
+    sign.mutate({
+      signature_name: signatureName.trim(),
+      signature_email: signatureEmail.trim(),
+      signature_date: signatureDate,
+      signature_data: signatureData || '',
+    });
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-start justify-center py-10 px-4">
@@ -148,7 +183,7 @@ export default function PublicProposalPage() {
                 <i className="fa-solid fa-circle-check text-2xl text-emerald-600" />
               </div>
               <h1 className="text-xl font-bold text-slate-800">
-                Thank you{contract.signature_name ? `, ${contract.signature_name}` : ''}!
+                Thank you{contract.signature_name ? `, ${toTitleCase(contract.signature_name)}` : ''}!
               </h1>
               <p className="text-sm text-slate-500 mt-1.5">Your contract is signed. One last step below.</p>
             </div>
@@ -230,47 +265,21 @@ export default function PublicProposalPage() {
                     values={contractFieldValues}
                     onChange={(fieldId, value) => setContractFieldValues((v) => ({ ...v, [fieldId]: value }))}
                     readOnly={false}
+                    viewerSignerRole="client"
+                    otherPartyName={data.owner_name ? toTitleCase(data.owner_name) : undefined}
                   />
 
                   <div className="space-y-3 mt-5">
-                    <div className="flex gap-3">
-                      <div className="flex-1">
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Full Name</label>
-                        <input
-                          type="text"
-                          value={signatureName}
-                          onChange={(e) => setSignatureName(e.target.value)}
-                          placeholder="Jane Doe"
-                          className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Date</label>
-                        <input
-                          type="date"
-                          value={signatureDate}
-                          onChange={(e) => setSignatureDate(e.target.value)}
-                          className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Email</label>
-                      <input
-                        type="email"
-                        value={signatureEmail}
-                        onChange={(e) => setSignatureEmail(e.target.value)}
-                        placeholder="you@example.com"
-                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      />
-                    </div>
-                    <SignatureField ref={padRef} onChange={setHasSignature} />
+                    <p className="text-xs text-slate-500">
+                      Signing as{' '}
+                      <span className="font-medium text-slate-700">{signatureName || 'Unknown'}</span>
+                      {signatureEmail ? ` (${signatureEmail})` : ''} on {formatDisplayDate(signatureDate)}.
+                    </p>
                     {signError && <p className="text-xs text-rose-600">{signError}</p>}
                     <button
                       type="button"
                       onClick={handleSignAndSend}
-                      disabled={sign.isPending || !hasSignature || !signatureName.trim() || !signatureEmail.trim() || !signatureDate}
-                      title={!hasSignature ? 'Draw or type your signature to enable submitting' : undefined}
+                      disabled={sign.isPending}
                       className="w-full px-6 py-2.5 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg disabled:opacity-50"
                     >
                       {sign.isPending ? 'Sending...' : 'Sign & Send'}

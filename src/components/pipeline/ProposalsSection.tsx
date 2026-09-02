@@ -1,6 +1,7 @@
 import { FormEvent, useRef, useState } from 'react';
 import { useProposals, useSaveProposal, useSendProposal, useArchiveProposal, useDeleteProposal } from '../../hooks/useProposals';
 import { useEmailTemplates } from '../../hooks/useEmailTemplates';
+import { useContractTemplates } from '../../hooks/useContractTemplates';
 import { Proposal } from '../../api/proposals';
 import ScopeOfWorkEditor from '../ScopeOfWorkEditor';
 import ConfirmDialog from '../ConfirmDialog';
@@ -30,6 +31,7 @@ interface ProposalForm {
   contractor_company_name: string;
   contractor_email: string;
   contractor_phone: string;
+  linked_contract_template_id: string;
 }
 
 const EMPTY_FORM: ProposalForm = {
@@ -46,6 +48,7 @@ const EMPTY_FORM: ProposalForm = {
   contractor_company_name: '',
   contractor_email: '',
   contractor_phone: '',
+  linked_contract_template_id: '',
 };
 
 function money(n: number) {
@@ -69,6 +72,7 @@ const STATUS_CLASS: Record<Proposal['status'], string> = {
 export default function ProposalsSection({ opportunityId, canEdit, onCreateNew }: Props) {
   const { data: proposals = [], isLoading } = useProposals(opportunityId);
   const { data: emailTemplates = [] } = useEmailTemplates();
+  const { data: contractTemplates = [] } = useContractTemplates();
   const saveProposal = useSaveProposal();
   const sendProposal = useSendProposal();
   const archiveProposal = useArchiveProposal();
@@ -105,6 +109,7 @@ export default function ProposalsSection({ opportunityId, canEdit, onCreateNew }
       contractor_company_name: p.contractor_company_name || '',
       contractor_email: p.contractor_email || '',
       contractor_phone: p.contractor_phone || '',
+      linked_contract_template_id: p.linked_contract_template_id ? String(p.linked_contract_template_id) : '',
     });
     setError(null);
     setFormOpen(true);
@@ -119,6 +124,7 @@ export default function ProposalsSection({ opportunityId, canEdit, onCreateNew }
     if (!plainText) return setError('Write the proposal content.');
     const totalAmount = form.total_amount ? Number(form.total_amount) : 0;
     if (!Number.isFinite(totalAmount) || totalAmount < 0) return setError('Total must be 0 or more.');
+    if (!form.linked_contract_template_id) return setError('Choose a linked contract template.');
 
     saveProposal.mutate(
       {
@@ -137,6 +143,7 @@ export default function ProposalsSection({ opportunityId, canEdit, onCreateNew }
         contractor_company_name: form.contractor_company_name.trim() || undefined,
         contractor_email: form.contractor_email.trim() || undefined,
         contractor_phone: form.contractor_phone.trim() || undefined,
+        linked_contract_template_id: Number(form.linked_contract_template_id),
       },
       {
         onSuccess: () => setFormOpen(false),
@@ -199,6 +206,27 @@ export default function ProposalsSection({ opportunityId, canEdit, onCreateNew }
                 className={inputClass}
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-medium text-slate-500 mb-1">Linked contract template</label>
+            <select
+              value={form.linked_contract_template_id}
+              onChange={(e) => setForm((f) => ({ ...f, linked_contract_template_id: e.target.value }))}
+              className={inputClass}
+            >
+              <option value="" disabled>
+                {contractTemplates.length === 0 ? 'No contract templates yet — create one first' : 'Select a contract template...'}
+              </option>
+              {contractTemplates.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.title}
+                </option>
+              ))}
+            </select>
+            <p className="text-[10px] text-slate-400 italic mt-1">
+              Required — when this proposal gets approved, this is the contract it auto-generates.
+            </p>
           </div>
 
           <details className="text-xs" open>

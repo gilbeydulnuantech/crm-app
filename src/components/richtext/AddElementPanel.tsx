@@ -7,7 +7,8 @@ export type AddElementType =
   | 'table'
   | 'productList'
   | 'pageBreak'
-  | 'signature'
+  | 'signatureClient'
+  | 'signatureOwner'
   | 'textField'
   | 'date'
   | 'initials'
@@ -23,7 +24,8 @@ const BLOCKS: { type: AddElementType; icon: string; label: string }[] = [
 ];
 
 const FILLABLE_FIELDS: { type: AddElementType; icon: string; label: string }[] = [
-  { type: 'signature', icon: 'fa-signature', label: 'Signature' },
+  { type: 'signatureClient', icon: 'fa-signature', label: 'Client Signature' },
+  { type: 'signatureOwner', icon: 'fa-file-signature', label: 'Owner Signature' },
   { type: 'textField', icon: 'fa-i-cursor', label: 'Text Field' },
   { type: 'date', icon: 'fa-calendar-day', label: 'Date' },
   { type: 'initials', icon: 'fa-pen-nib', label: 'Initials' },

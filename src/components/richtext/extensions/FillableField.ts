@@ -3,6 +3,11 @@ import { ReactNodeViewRenderer } from '@tiptap/react';
 import FillableFieldView from './FillableFieldView';
 
 export type FillableFieldType = 'signature' | 'text' | 'date' | 'initials' | 'checkbox';
+// Only meaningful for fieldType 'signature' — which party this pad belongs
+// to. Defaults to 'client' so every signature field placed before this
+// concept existed keeps behaving exactly as it did (open to the client,
+// nothing muted) until a rep deliberately re-picks "Owner Signature" for it.
+export type SignerRole = 'client' | 'owner';
 
 // An inline placeholder the REP drops into the document while building it.
 // It carries no value of its own — the client fills the real control in on
@@ -20,6 +25,7 @@ const FillableField = Node.create({
       fieldId: { default: '' },
       fieldType: { default: 'text' },
       label: { default: '' },
+      signerRole: { default: 'client' },
     };
   },
 
@@ -31,6 +37,7 @@ const FillableField = Node.create({
           fieldId: element.getAttribute('data-field-id') || '',
           fieldType: element.getAttribute('data-field-type') || 'text',
           label: element.getAttribute('data-label') || '',
+          signerRole: element.getAttribute('data-signer-role') || 'client',
         }),
       },
     ];
@@ -44,6 +51,7 @@ const FillableField = Node.create({
         'data-field-id': node.attrs.fieldId,
         'data-field-type': node.attrs.fieldType,
         'data-label': node.attrs.label,
+        'data-signer-role': node.attrs.signerRole,
         class: 'fillable-field-placeholder',
       }),
       `[${node.attrs.label || node.attrs.fieldType}]`,

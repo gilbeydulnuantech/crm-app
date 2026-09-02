@@ -3,10 +3,11 @@
   "nodes": [
     {
       "parameters": {
-        "httpMethod": "GET",
         "path": "get-contract-public",
         "responseMode": "responseNode",
-        "options": {}
+        "options": {
+          "allowedOrigins": "*"
+        }
       },
       "id": "cont0001-1111-4a5a-9b1a-contract000001",
       "name": "Webhook - Get Contract Public",
@@ -14,14 +15,15 @@
       "typeVersion": 2,
       "position": [
         960,
-        400
+        456
       ],
+      "webhookId": "7e39780e-435b-49df-bfe2-b54b95fff94b",
       "notes": "Public \u2014 no auth. Access is controlled entirely by the unguessable public_token, same trust model as the proposal magic-link flow."
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT ct.id, ct.title, ct.content_html, ct.total_amount, ct.status, ct.public_token, ct.signature_name, ct.signature_email, ct.signature_date, ct.signature_data, ct.pdf_base64, ct.signed_at, ct.field_values,\n  o.name AS opportunity_name, c.first_name, c.last_name, c.email AS contact_email,\n  u.name AS owner_name, u.email AS owner_email, u.phone AS owner_phone,\n  ct.thank_you_page_id, tp.content_html AS thank_you_page_content_html\nFROM (SELECT $1::text AS tok) dummy\nLEFT JOIN contracts ct ON ct.public_token::text = dummy.tok\nLEFT JOIN opportunities o ON o.id = ct.opportunity_id\nLEFT JOIN contacts c ON c.id = o.contact_id\nLEFT JOIN users u ON u.id = o.assigned_user\nLEFT JOIN pages tp ON tp.id = ct.thank_you_page_id;",
+        "query": "SELECT ct.id, ct.title, ct.content_html, ct.total_amount, ct.status, ct.public_token, ct.signature_name, ct.signature_email, ct.signature_date, ct.signature_data, ct.pdf_base64, ct.signed_at, ct.field_values,\n  o.name AS opportunity_name, c.first_name, c.last_name, c.email AS contact_email,\n  u.name AS owner_name, u.email AS owner_email, u.phone AS owner_phone,\n  cp.company_name,\n  ct.thank_you_page_id, tp.content_html AS thank_you_page_content_html,\n  dp.public_token AS down_payment_token, dp.total AS down_payment_amount,\n  EXISTS (SELECT 1 FROM payments p WHERE p.invoice_id = dp.id AND p.status = 'succeeded') AS down_payment_paid,\n  ct.cosigned_at, u2.name AS cosigned_by_name\nFROM (SELECT $1::text AS tok) dummy\nLEFT JOIN contracts ct ON ct.public_token::text = dummy.tok\nLEFT JOIN opportunities o ON o.id = ct.opportunity_id\nLEFT JOIN contacts c ON c.id = o.contact_id\nLEFT JOIN users u ON u.id = o.assigned_user\nLEFT JOIN users u2 ON u2.id = ct.cosigned_by\nLEFT JOIN company_profile cp ON cp.id = 1\nLEFT JOIN pages tp ON tp.id = ct.thank_you_page_id\nLEFT JOIN invoices dp ON dp.opportunity_id = ct.opportunity_id AND dp.invoice_type = 'down_payment';",
         "options": {
           "queryReplacement": "={{ [ $json.query.token || '' ] }}"
         }
@@ -32,7 +34,7 @@
       "typeVersion": 2.5,
       "position": [
         1184,
-        400
+        456
       ],
       "credentials": {
         "postgres": {
@@ -71,12 +73,11 @@
       "typeVersion": 2,
       "position": [
         1408,
-        400
+        384
       ]
     },
     {
       "parameters": {
-        "respondWith": "firstIncomingItem",
         "options": {}
       },
       "id": "cont0004-4444-4a5a-9b1a-contract000004",
@@ -84,7 +85,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        1632,
+        1856,
         336
       ]
     },
@@ -102,7 +103,7 @@
       "typeVersion": 1.5,
       "position": [
         1632,
-        464
+        552
       ]
     },
     {
@@ -117,16 +118,17 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        960,
-        688
+        2080,
+        7496
       ],
+      "webhookId": "d9c49eee-7ddc-4b24-a619-f16920f40d4e",
       "onError": "continueErrorOutput",
       "notes": "Public \u2014 no auth. The lead generates the PDF client-side (browser) and uploads it as base64; n8n never has to handle binary attachments."
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT ct.id, ct.opportunity_id, ct.flow_id, ct.status, ct.public_token, f.contract_signed_stage_id,\n  o.name AS deal_name,\n  c.email, c.first_name, c.last_name,\n  u.name AS owner_name, u.email AS owner_email\nFROM (SELECT $1::text AS tok) dummy\nLEFT JOIN contracts ct ON ct.public_token::text = dummy.tok\nLEFT JOIN deal_document_flows f ON f.id = ct.flow_id\nLEFT JOIN opportunities o ON o.id = ct.opportunity_id\nLEFT JOIN contacts c ON c.id = o.contact_id\nLEFT JOIN users u ON u.id = o.assigned_user;",
+        "query": "SELECT ct.id, ct.opportunity_id, ct.flow_id, ct.status, ct.public_token, ct.total_amount, o.contact_id, f.contract_signed_stage_id,\n  o.name AS deal_name,\n  c.email, c.first_name, c.last_name,\n  u.name AS owner_name, u.email AS owner_email\nFROM (SELECT $1::text AS tok) dummy\nLEFT JOIN contracts ct ON ct.public_token::text = dummy.tok\nLEFT JOIN deal_document_flows f ON f.id = ct.flow_id\nLEFT JOIN opportunities o ON o.id = ct.opportunity_id\nLEFT JOIN contacts c ON c.id = o.contact_id\nLEFT JOIN users u ON u.id = o.assigned_user;",
         "options": {
           "queryReplacement": "={{ [ $('Webhook - Sign Contract Public').first().json.body.token || '' ] }}"
         }
@@ -136,8 +138,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1184,
-        688
+        2304,
+        7424
       ],
       "credentials": {
         "postgres": {
@@ -149,15 +151,15 @@
     },
     {
       "parameters": {
-        "jsCode": "const row = $input.item.json;\nconst trigger = $('Webhook - Sign Contract Public').first().json;\nconst body = trigger.body || {};\nconst forwardedFor = (trigger.headers && trigger.headers['x-forwarded-for']) || '';\nconst signatureIp = forwardedFor.split(',')[0].trim() || null;\nif (!row.id) throw new Error('Contract not found.');\n\nconst signatureName = (body.signature_name || '').toString().trim();\nconst signatureEmail = (body.signature_email || '').toString().trim();\nconst signatureDate = (body.signature_date || '').toString().trim();\nconst signatureData = (body.signature_data || '').toString();\nconst fieldValues = body.field_values && typeof body.field_values === 'object' ? body.field_values : {};\n\nif (row.status !== 'signed') {\n  if (!signatureName) throw new Error('Full name is required.');\n  if (!signatureEmail || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(signatureEmail)) throw new Error('A valid email is required.');\n  if (!signatureDate) throw new Error('Date is required.');\n  if (!signatureData) throw new Error('A signature is required.');\n}\n\nreturn [{\n  json: {\n    contractId: row.id,\n    opportunityId: row.opportunity_id,\n    contractSignedStageId: row.contract_signed_stage_id,\n    alreadySigned: row.status === 'signed',\n    signatureName, signatureEmail, signatureDate, signatureData, fieldValues, signatureIp,\n    publicToken: row.public_token,\n    email: row.email,\n    firstName: row.first_name,\n    dealName: row.deal_name,\n    ownerName: row.owner_name,\n    ownerEmail: row.owner_email,\n  },\n}];"
+        "jsCode": "const row = $input.item.json;\nconst trigger = $('Webhook - Sign Contract Public').first().json;\nconst body = trigger.body || {};\nconst forwardedFor = (trigger.headers && trigger.headers['x-forwarded-for']) || '';\nconst signatureIp = forwardedFor.split(',')[0].trim() || null;\nif (!row.id) throw new Error('Contract not found.');\n\nconst signatureName = (body.signature_name || '').toString().trim();\nconst signatureEmail = (body.signature_email || '').toString().trim();\nconst signatureDate = (body.signature_date || '').toString().trim();\nconst signatureData = (body.signature_data || '').toString();\nconst fieldValues = body.field_values && typeof body.field_values === 'object' ? body.field_values : {};\n\nif (row.status !== 'signed') {\n  if (!signatureName) throw new Error('Full name is required.');\n  if (!signatureEmail || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(signatureEmail)) throw new Error('A valid email is required.');\n  if (!signatureDate) throw new Error('Date is required.');\n  if (!signatureData) throw new Error('A signature is required.');\n}\n\nreturn [{\n  json: {\n    contractId: row.id,\n    opportunityId: row.opportunity_id,\n    contractSignedStageId: row.contract_signed_stage_id,\n    alreadySigned: row.status === 'signed',\n    signatureName, signatureEmail, signatureDate, signatureData, fieldValues, signatureIp,\n    publicToken: row.public_token,\n    contactId: row.contact_id,\n    totalAmount: row.total_amount,\n    email: row.email,\n    firstName: row.first_name,\n    dealName: row.deal_name,\n    ownerName: row.owner_name,\n    ownerEmail: row.owner_email,\n  },\n}];"
       },
       "id": "cont0008-8888-4a5a-9b1a-contract000008",
       "name": "Validate & Prepare Sign",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1408,
-        688
+        2528,
+        7352
       ],
       "onError": "continueErrorOutput"
     },
@@ -190,8 +192,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        1632,
-        688
+        2752,
+        7400
       ]
     },
     {
@@ -207,8 +209,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1856,
-        624
+        2976,
+        7328
       ],
       "credentials": {
         "postgres": {
@@ -226,26 +228,29 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2080,
-        624
+        2752,
+        7640
       ]
     },
     {
       "parameters": {
-        "sendTo": "={{ $json.to }}",
-        "subject": "={{ $json.subject }}",
+        "sendTo": "={{ $('Prepare Signed Confirmation Email').item.json.to }}",
+        "subject": "={{ ($('Prepare Signed Confirmation Email').item.json.subject).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Signed Confirmation Email').item.json.company_name) }}",
         "emailType": "text",
-        "message": "={{ $json.body }}",
-        "options": {}
+        "message": "={{ (($('Prepare Signed Confirmation Email').item.json.body).replace(/The Team/g, $('Get Company Name: Signed Confirmation Email').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Signed Confirmation Email').item.json.company_name) }}",
+        "options": {
+          "senderName": "={{ $('Get Company Name: Signed Confirmation Email').item.json.company_name }}"
+        }
       },
       "id": "cont0012-1212-4a5a-9b1a-contract000012",
       "name": "Send Signed Confirmation Email",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        2304,
-        624
+        2976,
+        7640
       ],
+      "webhookId": "bf0cd9da-5463-48bf-afae-6ff0d1652133",
       "credentials": {
         "gmailOAuth2": {
           "id": "VKDbMYV2U0WoSc16",
@@ -257,7 +262,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: true } }}",
+        "responseBody": "={{ { success: true, down_payment_token: $('Finalize Invoice Number & Fetch Token').item.json.public_token, down_payment_amount: $('Finalize Invoice Number & Fetch Token').item.json.total } }}",
         "options": {}
       },
       "id": "cont0013-1313-4a5a-9b1a-contract000013",
@@ -265,25 +270,27 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        2528,
-        688
+        3648,
+        7400
       ]
     },
     {
       "parameters": {
-        "httpMethod": "GET",
         "path": "get-contracts",
         "responseMode": "responseNode",
-        "options": {}
+        "options": {
+          "allowedOrigins": "*"
+        }
       },
       "id": "cont0015-1515-4a5a-9b1a-contract000015",
       "name": "Webhook - Get Contracts",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        960,
-        1120
+        1632,
+        5216
       ],
+      "webhookId": "cf6bba47-bc95-4a15-b343-1b71c5eac5d5",
       "onError": "continueErrorOutput"
     },
     {
@@ -295,8 +302,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1184,
-        1120
+        1856,
+        5288
       ],
       "onError": "continueErrorOutput"
     },
@@ -313,8 +320,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1408,
-        1120
+        2080,
+        5360
       ],
       "credentials": {
         "postgres": {
@@ -333,8 +340,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1632,
-        1120
+        2304,
+        5432
       ],
       "onError": "continueErrorOutput"
     },
@@ -351,8 +358,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1856,
-        1120
+        2528,
+        5504
       ],
       "credentials": {
         "postgres": {
@@ -371,8 +378,8 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        2080,
-        1120
+        2752,
+        5984
       ]
     },
     {
@@ -388,8 +395,9 @@
       "typeVersion": 2,
       "position": [
         960,
-        1344
+        776
       ],
+      "webhookId": "15842257-ee73-46b7-91c8-3dfd783dae2e",
       "onError": "continueErrorOutput"
     },
     {
@@ -402,7 +410,7 @@
       "typeVersion": 2,
       "position": [
         1184,
-        1344
+        920
       ],
       "onError": "continueErrorOutput"
     },
@@ -420,7 +428,7 @@
       "typeVersion": 2.5,
       "position": [
         1408,
-        1344
+        1064
       ],
       "credentials": {
         "postgres": {
@@ -444,7 +452,7 @@
       "typeVersion": 2.5,
       "position": [
         1632,
-        1344
+        1208
       ],
       "credentials": {
         "postgres": {
@@ -464,7 +472,7 @@
       "typeVersion": 2,
       "position": [
         1856,
-        1344
+        1352
       ],
       "onError": "continueErrorOutput"
     },
@@ -481,8 +489,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1984,
-        1344
+        2080,
+        1424
       ],
       "credentials": {
         "postgres": {
@@ -501,8 +509,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2000,
-        1344
+        2304,
+        1424
       ]
     },
     {
@@ -518,8 +526,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        2080,
-        1344
+        2528,
+        1424
       ],
       "credentials": {
         "postgres": {
@@ -540,8 +548,8 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        2304,
-        1344
+        2752,
+        3080
       ]
     },
     {
@@ -556,9 +564,10 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        960,
-        1568
+        1632,
+        5912
       ],
+      "webhookId": "1449faaf-df20-44a8-906d-717d5651d8f6",
       "onError": "continueErrorOutput"
     },
     {
@@ -570,8 +579,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1184,
-        1568
+        1856,
+        5984
       ],
       "onError": "continueErrorOutput"
     },
@@ -588,8 +597,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1408,
-        1568
+        2080,
+        6056
       ],
       "credentials": {
         "postgres": {
@@ -612,8 +621,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1632,
-        1568
+        2304,
+        6128
       ],
       "credentials": {
         "postgres": {
@@ -631,27 +640,30 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1856,
-        1568
+        2528,
+        6200
       ],
       "onError": "continueErrorOutput"
     },
     {
       "parameters": {
-        "sendTo": "={{ $json.to }}",
-        "subject": "={{ $json.subject }}",
+        "sendTo": "={{ $('Validate & Personalize (Send)').item.json.to }}",
+        "subject": "={{ ($('Validate & Personalize (Send)').item.json.subject).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Contract Email (Manual)').item.json.company_name) }}",
         "emailType": "text",
-        "message": "={{ $json.body }}",
-        "options": {}
+        "message": "={{ (($('Validate & Personalize (Send)').item.json.body).replace(/The Team/g, $('Get Company Name: Contract Email (Manual)').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Contract Email (Manual)').item.json.company_name) }}",
+        "options": {
+          "senderName": "={{ $('Get Company Name: Contract Email (Manual)').item.json.company_name }}"
+        }
       },
       "id": "cont0033-3333-4a5a-9b1a-contract000033",
       "name": "Send Contract Email (Manual)",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        2080,
-        1568
+        2752,
+        6464
       ],
+      "webhookId": "97736797-9659-4deb-acb3-e8d5811a5403",
       "credentials": {
         "gmailOAuth2": {
           "id": "VKDbMYV2U0WoSc16",
@@ -673,8 +685,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        2304,
-        1568
+        2976,
+        6464
       ],
       "credentials": {
         "postgres": {
@@ -694,8 +706,8 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        2528,
-        1568
+        3200,
+        6464
       ]
     },
     {
@@ -710,9 +722,10 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        960,
-        1792
+        1408,
+        2744
       ],
+      "webhookId": "d7b05d2f-e2e2-4cd4-ad34-9368c3ea5161",
       "onError": "continueErrorOutput"
     },
     {
@@ -724,8 +737,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1184,
-        1792
+        1632,
+        2888
       ],
       "onError": "continueErrorOutput"
     },
@@ -742,8 +755,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1408,
-        1792
+        1856,
+        2960
       ],
       "credentials": {
         "postgres": {
@@ -766,8 +779,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1632,
-        1792
+        2080,
+        3032
       ],
       "credentials": {
         "postgres": {
@@ -785,8 +798,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1856,
-        1792
+        2304,
+        3104
       ],
       "onError": "continueErrorOutput"
     },
@@ -803,8 +816,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        2080,
-        1792
+        2528,
+        3176
       ],
       "credentials": {
         "postgres": {
@@ -824,8 +837,8 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        2304,
-        1792
+        2752,
+        4256
       ]
     },
     {
@@ -840,9 +853,10 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        960,
-        2016
+        1408,
+        4448
       ],
+      "webhookId": "797843d0-a78a-4c2c-8447-55beba9bdd04",
       "onError": "continueErrorOutput"
     },
     {
@@ -854,8 +868,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1184,
-        2016
+        1632,
+        4520
       ],
       "onError": "continueErrorOutput"
     },
@@ -872,8 +886,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1408,
-        2016
+        1856,
+        4592
       ],
       "credentials": {
         "postgres": {
@@ -896,8 +910,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1632,
-        2016
+        2080,
+        4664
       ],
       "credentials": {
         "postgres": {
@@ -915,8 +929,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1856,
-        2016
+        2304,
+        4736
       ],
       "onError": "continueErrorOutput"
     },
@@ -933,8 +947,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        2080,
-        2016
+        2528,
+        4808
       ],
       "credentials": {
         "postgres": {
@@ -952,8 +966,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2304,
-        2016
+        2752,
+        5504
       ],
       "onError": "continueErrorOutput"
     },
@@ -968,8 +982,8 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        2528,
-        2016
+        2976,
+        5504
       ]
     },
     {
@@ -985,8 +999,8 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        1408,
-        928
+        2752,
+        2768
       ]
     },
     {
@@ -998,8 +1012,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2304,
-        480
+        3200,
+        7328
       ]
     },
     {
@@ -1015,9 +1029,10 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        2528,
-        480
+        3424,
+        7328
       ],
+      "webhookId": "25e3b84f-a598-4d3d-8193-48b5b391b6c6",
       "credentials": {
         "gmailOAuth2": {
           "id": "VKDbMYV2U0WoSc16",
@@ -1035,25 +1050,27 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1520,
+        1632,
         336
       ]
     },
     {
       "parameters": {
-        "httpMethod": "GET",
         "path": "get-contract-signed",
         "responseMode": "responseNode",
-        "options": {}
+        "options": {
+          "allowedOrigins": "*"
+        }
       },
       "id": "cont0060-6060-4a5a-9b1a-contract000060",
       "name": "Webhook - Get Contract Signed",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        960,
-        1760
+        1632,
+        6608
       ],
+      "webhookId": "a40fa15c-20e3-4be0-a0fd-2a430777673b",
       "onError": "continueErrorOutput"
     },
     {
@@ -1065,8 +1082,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1184,
-        1760
+        1856,
+        6680
       ],
       "onError": "continueErrorOutput"
     },
@@ -1083,16 +1100,16 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1408,
-        1760
+        2080,
+        6752
       ],
-      "onError": "continueErrorOutput",
       "credentials": {
         "postgres": {
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -1103,15 +1120,15 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1632,
-        1760
+        2304,
+        6824
       ],
       "onError": "continueErrorOutput"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT ct.id, ct.title, ct.content_html, ct.total_amount, ct.public_token,\n  ct.signature_name, ct.signature_email, ct.signature_date, ct.signature_data, ct.signed_at, ct.field_values,\n  o.name AS opportunity_name, c.first_name, c.last_name, c.email AS contact_email,\n  u.name AS owner_name, u.email AS owner_email, u.phone AS owner_phone,\n  CASE WHEN $2 = 'admin' THEN ct.signature_ip ELSE NULL END AS signature_ip\nFROM contracts ct\nJOIN opportunities o ON o.id = ct.opportunity_id\nLEFT JOIN contacts c ON c.id = o.contact_id\nLEFT JOIN users u ON u.id = o.assigned_user\nWHERE ct.id = $1 AND ct.is_archived = false AND ($2 = 'admin' OR o.assigned_user = $3);",
+        "query": "SELECT ct.id, ct.title, ct.content_html, ct.total_amount, ct.public_token,\n  ct.signature_name, ct.signature_email, ct.signature_date, ct.signature_data, ct.signed_at, ct.field_values,\n  ct.cosign_signature_data, ct.cosigned_by, ct.cosigned_at, u2.name AS cosigned_by_name,\n  o.name AS opportunity_name, o.assigned_user, c.first_name, c.last_name, c.email AS contact_email,\n  u.name AS owner_name, u.email AS owner_email, u.phone AS owner_phone, cp.company_name,\n  CASE WHEN $2 = 'admin' THEN ct.signature_ip ELSE NULL END AS signature_ip\nFROM contracts ct\nJOIN opportunities o ON o.id = ct.opportunity_id\nLEFT JOIN contacts c ON c.id = o.contact_id\nLEFT JOIN users u ON u.id = o.assigned_user\nLEFT JOIN users u2 ON u2.id = ct.cosigned_by\nLEFT JOIN company_profile cp ON cp.id = 1\nWHERE ct.id = $1 AND ct.is_archived = false AND ($2 = 'admin' OR o.assigned_user = $3);",
         "options": {
           "queryReplacement": "={{ [ $json.contractId, $json.requesterRole, $json.requesterId ] }}"
         }
@@ -1121,16 +1138,16 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1856,
-        1760
+        2528,
+        6896
       ],
-      "onError": "continueErrorOutput",
       "credentials": {
         "postgres": {
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -1160,8 +1177,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        2080,
-        1760
+        2752,
+        7040
       ]
     },
     {
@@ -1173,13 +1190,12 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2304,
-        1680
+        2976,
+        6944
       ]
     },
     {
       "parameters": {
-        "respondWith": "firstIncomingItem",
         "options": {}
       },
       "id": "cont0067-6767-4a5a-9b1a-contract000067",
@@ -1187,8 +1203,8 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        2528,
-        1680
+        3200,
+        6944
       ]
     },
     {
@@ -1204,8 +1220,8 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        2304,
-        1840
+        2976,
+        7136
       ]
     },
     {
@@ -1220,9 +1236,10 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        960,
-        2000
+        1408,
+        3632
       ],
+      "webhookId": "b82df24c-1e00-4a1d-a6ac-6f848eb5588d",
       "onError": "continueErrorOutput"
     },
     {
@@ -1234,8 +1251,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1184,
-        2000
+        1632,
+        3704
       ],
       "onError": "continueErrorOutput"
     },
@@ -1252,21 +1269,21 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1408,
-        2000
+        1856,
+        3776
       ],
-      "onError": "continueErrorOutput",
       "credentials": {
         "postgres": {
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT ct.id AS contract_id, o.assigned_user\nFROM contracts ct\nJOIN opportunities o ON o.id = ct.opportunity_id\nWHERE ct.id = $1 AND ct.status = 'signed';",
+        "query": "SELECT ct.id AS contract_id, ct.public_token, ct.proposal_id, p.public_token AS proposal_token, o.assigned_user\nFROM contracts ct\nJOIN opportunities o ON o.id = ct.opportunity_id\nLEFT JOIN proposals p ON p.id = ct.proposal_id\nWHERE ct.id = $1 AND ct.status = 'signed';",
         "options": {
           "queryReplacement": "={{ [ $('Parse Token & Payload (Send Signed)').item.json.contractId ] }}"
         }
@@ -1276,47 +1293,57 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1632,
-        2000
+        2080,
+        3848
       ],
-      "onError": "continueErrorOutput",
       "credentials": {
         "postgres": {
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
-        "jsCode": "const row = $input.item.json;\nconst requester = $('Look Up Requester (Send Signed)').first().json;\nconst payload = $('Parse Token & Payload (Send Signed)').first().json;\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (!row.contract_id) throw new Error('Signed contract not found.');\nif (requester.role !== 'admin' && row.assigned_user !== requester.id) throw new Error('You do not have access to this deal.');\n\nreturn [{ json: { to: payload.to, subject: payload.subject, body: payload.message } }];"
+        "jsCode": "const row = $input.item.json;\nconst requester = $('Look Up Requester (Send Signed)').first().json;\nconst payload = $('Parse Token & Payload (Send Signed)').first().json;\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (!row.contract_id) throw new Error('Signed contract not found.');\nif (requester.role !== 'admin' && row.assigned_user !== requester.id) throw new Error('You do not have access to this deal.');\n\nreturn [{ json: { to: payload.to, subject: payload.subject, body: payload.message, publicToken: row.public_token, proposalToken: row.proposal_token || null } }];"
       },
       "id": "cont0074-7474-4a5a-9b1a-contract000074",
       "name": "Validate & Prepare (Send Signed)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1856,
-        2000
+        2304,
+        3920
       ],
       "onError": "continueErrorOutput"
     },
     {
       "parameters": {
-        "sendTo": "={{ $json.to }}",
-        "subject": "={{ $json.subject }}",
+        "sendTo": "={{ $('Validate & Prepare (Send Signed)').item.json.to }}",
+        "subject": "={{ ($('Validate & Prepare (Send Signed)').item.json.subject).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Signed Contract Email').item.json.company_name) }}",
         "emailType": "text",
-        "message": "={{ $json.body }}",
-        "options": {}
+        "message": "={{ (($('Validate & Prepare (Send Signed)').item.json.body).replace(/The Team/g, $('Get Company Name: Signed Contract Email').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Signed Contract Email').item.json.company_name) }}",
+        "options": {
+          "senderName": "={{ $('Get Company Name: Signed Contract Email').item.json.company_name }}",
+          "attachmentsUi": {
+            "attachmentsBinary": [
+              {
+                "property": "={{ Object.keys($binary).join(',') }}"
+              }
+            ]
+          }
+        }
       },
       "id": "cont0075-7575-4a5a-9b1a-contract000075",
       "name": "Send Signed Contract Email",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        2080,
-        2000
+        2528,
+        3992
       ],
+      "webhookId": "38d77f1d-5d58-4769-9602-04edd5eef50f",
       "credentials": {
         "gmailOAuth2": {
           "id": "VKDbMYV2U0WoSc16",
@@ -1336,8 +1363,8 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        2304,
-        2000
+        2752,
+        4808
       ]
     },
     {
@@ -1352,9 +1379,10 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        960,
-        2240
+        1184,
+        1688
       ],
+      "webhookId": "e6e0add2-be73-42fb-8119-593a14521498",
       "onError": "continueErrorOutput"
     },
     {
@@ -1366,8 +1394,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1184,
-        2240
+        1408,
+        1832
       ],
       "onError": "continueErrorOutput"
     },
@@ -1384,16 +1412,16 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1408,
-        2240
+        1632,
+        1976
       ],
-      "onError": "continueErrorOutput",
       "credentials": {
         "postgres": {
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -1408,16 +1436,16 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1632,
-        2240
+        1856,
+        2120
       ],
-      "onError": "continueErrorOutput",
       "credentials": {
         "postgres": {
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -1428,14 +1456,13 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1856,
-        2240
+        2080,
+        2216
       ],
       "onError": "continueErrorOutput"
     },
     {
       "parameters": {
-        "respondWith": "firstIncomingItem",
         "options": {}
       },
       "id": "cont0086-8686-4a5a-9b1a-contract000086",
@@ -1443,8 +1470,8 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        2304,
-        2240
+        2752,
+        3704
       ]
     },
     {
@@ -1463,8 +1490,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2080,
-        2240
+        2304,
+        2288
       ],
       "onError": "continueErrorOutput"
     },
@@ -1477,8 +1504,339 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2192,
-        2240
+        2528,
+        2360
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "ct-tag-signed",
+      "name": "Resolve Tag: Contract Signed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1520,
+        500
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO tags (name) VALUES ('contract signed') ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "ct-taggable-signed",
+      "name": "Insert Taggable: Contract Signed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1740,
+        500
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO taggables (tag_id, entity_type, entity_id) VALUES ($1, 'contact', (SELECT contact_id FROM opportunities WHERE id = $2)) ON CONFLICT (tag_id, entity_type, entity_id) DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id, $('Validate & Prepare Sign').item.json.opportunityId ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "ct-dp-compute",
+      "name": "Compute Down Payment Amount",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        -100
+      ],
+      "parameters": {
+        "jsCode": "const row = $('Validate & Prepare Sign').item.json;\nconst amount = Math.round((Number(row.totalAmount) || 0) * 0.30 * 100) / 100;\nconst lineItems = [{ product: 'Down Payment (30%)', qty: 1, unit_price: amount, discount: 0, tax: 0, total: amount }];\nreturn [{ json: { amount, lineItemsJson: JSON.stringify(lineItems) } }];"
+      }
+    },
+    {
+      "id": "ct-dp-getorcreate",
+      "name": "Get Or Create Down Payment Invoice",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1520,
+        -100
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH existing AS (\n  SELECT id FROM invoices WHERE opportunity_id = $1 AND invoice_type = 'down_payment' LIMIT 1\n),\ninserted AS (\n  INSERT INTO invoices (opportunity_id, contact_id, amount, tax, discount, total, line_items, issue_date, due_date, invoice_type, invoice_number)\n  SELECT $1, $2, $3, 0, 0, $3, $4::jsonb, CURRENT_DATE, CURRENT_DATE + 7, 'down_payment', ''\n  WHERE NOT EXISTS (SELECT 1 FROM existing)\n  RETURNING id\n)\nSELECT id FROM inserted UNION ALL SELECT id FROM existing LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Validate & Prepare Sign').item.json.opportunityId, $('Validate & Prepare Sign').item.json.contactId, $('Compute Down Payment Amount').item.json.amount, $('Compute Down Payment Amount').item.json.lineItemsJson ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "ct-dp-finalize",
+      "name": "Finalize Invoice Number & Fetch Token",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1740,
+        -100
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE invoices SET invoice_number = COALESCE(NULLIF(invoice_number, ''), 'INV-' || (2000 + id)) WHERE id = $1 RETURNING id, public_token, total;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "cname-tmjcjgod",
+      "name": "Get Company Name: Signed Confirmation Email",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2826,
+        7760
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT company_name FROM company_profile LIMIT 1;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "cname-qpcbrimf",
+      "name": "Get Company Name: Contract Email (Manual)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2602,
+        6584
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT company_name FROM company_profile LIMIT 1;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "cname-i2vksjq7",
+      "name": "Get Company Name: Signed Contract Email",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2378,
+        4112
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT company_name FROM company_profile LIMIT 1;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cosign-contract",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "cont0090-9090-4a5a-9b1a-contract000090",
+      "name": "Webhook - Cosign Contract",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        7440
+      ],
+      "onError": "continueErrorOutput",
+      "webhookId": "d9492e3c-0438-4515-9b9b-3d9cc8741602"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst body = $input.first().json.body || {};\nconst contractId = parseInt(body.contract_id, 10);\nif (!Number.isInteger(contractId)) throw new Error('\"contract_id\" must be an integer.');\nconst ownerFieldId = String(body.owner_field_id || '').trim();\nif (!ownerFieldId) throw new Error('\"owner_field_id\" is required.');\nconst signatureData = String(body.signature_data || '').trim();\nif (!signatureData) throw new Error('\"signature_data\" is required.');\n// Any other owner-role fields (e.g. a date next to the signature) the\n// countersigner filled in on the same document \u2014 merged into\n// field_values alongside the signature so they land the same way the\n// client's own field_values do at sign time.\nconst fieldValues = (body.field_values && typeof body.field_values === 'object') ? body.field_values : {};\n\nreturn [{ json: { requesterId: parseInt(match[1], 10), contractId, ownerFieldId, signatureData, fieldValues } }];"
+      },
+      "id": "cont0091-9191-4a5a-9b1a-contract000091",
+      "name": "Parse Token & Payload (Cosign)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        7440
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "cont0092-9292-4a5a-9b1a-contract000092",
+      "name": "Look Up Requester (Cosign)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1856,
+        7440
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT ct.id, ct.cosigned_at, ct.signed_at, o.assigned_user\nFROM (SELECT $1::int AS cid) dummy\nLEFT JOIN contracts ct ON ct.id = dummy.cid\nLEFT JOIN opportunities o ON o.id = ct.opportunity_id;",
+        "options": {
+          "queryReplacement": "={{ [ $('Parse Token & Payload (Cosign)').item.json.contractId ] }}"
+        }
+      },
+      "id": "cont0093-9393-4a5a-9b1a-contract000093",
+      "name": "Look Up Contract (Cosign)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2080,
+        7440
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.item.json;\nconst requester = $('Look Up Requester (Cosign)').first().json;\nconst { ownerFieldId, signatureData, fieldValues } = $('Parse Token & Payload (Cosign)').first().json;\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (!row.id) throw new Error('Contract not found.');\nif (requester.role !== 'admin' && row.assigned_user !== requester.id) throw new Error('You do not have access to this deal.');\nif (!row.signed_at) throw new Error('This contract has not been signed by the client yet.');\nif (row.cosigned_at) throw new Error('This contract has already been countersigned.');\n\n// The countersignature represents the deal's assigned owner (matches\n// the {{owner_name}} merge token already printed in the document body,\n// e.g. \"Apex Roofing Representative: Juan Smith\") \u2014 always attributed\n// to them even when an admin is the one physically clicking Countersign\n// on their behalf, so the audit trail never disagrees with the document\n// text. Falls back to the acting admin only if the deal somehow has no\n// assigned owner.\nconst cosignedBy = row.assigned_user || requester.id;\n\nreturn [{ json: { contractId: row.id, cosignedBy, ownerFieldId, signatureData, fieldValues: JSON.stringify(fieldValues || {}) } }];"
+      },
+      "id": "cont0094-9494-4a5a-9b1a-contract000094",
+      "name": "Validate (Cosign)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2304,
+        7440
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contracts SET cosign_signature_data = $1, cosigned_by = $2, cosigned_at = now(),\n  field_values = (jsonb_set(COALESCE(field_values, '{}'::jsonb), ARRAY[$3], to_jsonb($1::text)) || $5::jsonb)\nWHERE id = $4 AND cosigned_at IS NULL RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.signatureData, $json.cosignedBy, $json.ownerFieldId, $json.contractId, $json.fieldValues ] }}"
+        }
+      },
+      "id": "cont0095-9595-4a5a-9b1a-contract000095",
+      "name": "Cosign Contract",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2528,
+        7440
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) throw new Error('Failed to save the countersignature \u2014 it may have already been signed.');\nreturn [{ json: { success: true } }];"
+      },
+      "id": "cont0096-9696-4a5a-9b1a-contract000096",
+      "name": "Check Cosign Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2752,
+        7440
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true } }}",
+        "options": {}
+      },
+      "id": "cont0097-9797-4a5a-9b1a-contract000097",
+      "name": "Respond - Cosign Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2976,
+        7440
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ 'http://localhost:5680/generate-pdf?token=' + $('Validate & Prepare (Send Signed)').item.json.publicToken + ($('Validate & Prepare (Send Signed)').item.json.proposalToken ? '&proposalToken=' + $('Validate & Prepare (Send Signed)').item.json.proposalToken : '') }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "cont0098-9898-4a5a-9b1a-contract000098",
+      "name": "Fetch Generated PDF (Send Signed)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2440,
+        4112
       ],
       "onError": "continueErrorOutput"
     }
@@ -1607,7 +1965,12 @@
       "main": [
         [
           {
-            "node": "Prepare Owner Notification Email",
+            "node": "Compute Down Payment Amount",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Resolve Tag: Contract Signed",
             "type": "main",
             "index": 0
           }
@@ -1618,7 +1981,7 @@
       "main": [
         [
           {
-            "node": "Send Signed Confirmation Email",
+            "node": "Get Company Name: Signed Confirmation Email",
             "type": "main",
             "index": 0
           }
@@ -1939,7 +2302,7 @@
       "main": [
         [
           {
-            "node": "Send Contract Email (Manual)",
+            "node": "Get Company Name: Contract Email (Manual)",
             "type": "main",
             "index": 0
           }
@@ -2438,7 +2801,7 @@
       "main": [
         [
           {
-            "node": "Send Signed Contract Email",
+            "node": "Get Company Name: Signed Contract Email",
             "type": "main",
             "index": 0
           }
@@ -2595,14 +2958,230 @@
           }
         ]
       ]
+    },
+    "Resolve Tag: Contract Signed": {
+      "main": [
+        [
+          {
+            "node": "Insert Taggable: Contract Signed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Down Payment Amount": {
+      "main": [
+        [
+          {
+            "node": "Get Or Create Down Payment Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Or Create Down Payment Invoice": {
+      "main": [
+        [
+          {
+            "node": "Finalize Invoice Number & Fetch Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finalize Invoice Number & Fetch Token": {
+      "main": [
+        [
+          {
+            "node": "Prepare Owner Notification Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Company Name: Signed Confirmation Email": {
+      "main": [
+        [
+          {
+            "node": "Send Signed Confirmation Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Company Name: Contract Email (Manual)": {
+      "main": [
+        [
+          {
+            "node": "Send Contract Email (Manual)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Company Name: Signed Contract Email": {
+      "main": [
+        [
+          {
+            "node": "Fetch Generated PDF (Send Signed)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Cosign Contract": {
+      "main": [
+        [
+          {
+            "node": "Parse Token & Payload (Cosign)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token & Payload (Cosign)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester (Cosign)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester (Cosign)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Contract (Cosign)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Contract (Cosign)": {
+      "main": [
+        [
+          {
+            "node": "Validate (Cosign)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate (Cosign)": {
+      "main": [
+        [
+          {
+            "node": "Cosign Contract",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cosign Contract": {
+      "main": [
+        [
+          {
+            "node": "Check Cosign Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Cosign Result": {
+      "main": [
+        [
+          {
+            "node": "Respond - Cosign Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Generated PDF (Send Signed)": {
+      "main": [
+        [
+          {
+            "node": "Send Signed Contract Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "pinData": {},
   "active": true,
   "settings": {
     "executionOrder": "v1",
+    "binaryMode": "separate",
     "availableInMCP": false,
     "timeSavedMode": "fixed",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
     "callerPolicy": "workflowsFromSameOwner"
   }
 }

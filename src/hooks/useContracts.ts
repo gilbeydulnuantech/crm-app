@@ -63,3 +63,21 @@ export function useSendSignedContractEmail() {
     mutationFn: api.sendSignedContractEmail,
   });
 }
+
+export function useCosignContract() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      contractId,
+      ownerFieldId,
+      signatureData,
+      fieldValues,
+    }: {
+      contractId: number;
+      ownerFieldId: string;
+      signatureData: string;
+      fieldValues?: Record<string, string | boolean>;
+    }) => api.cosignContract(contractId, ownerFieldId, signatureData, fieldValues),
+    onSuccess: (_data, { contractId }) => qc.invalidateQueries({ queryKey: ['signed-contract', contractId] }),
+  });
+}
