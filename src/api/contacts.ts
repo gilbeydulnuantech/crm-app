@@ -2,6 +2,29 @@ import { apiFetch } from './client';
 import { ArchivedContact, Contact, DncChannel, DO_NOT_CONTACT_STATUS, ImportContactRow } from '../types/contact';
 import { ContactRelated } from '../types/contactRelated';
 
+// Fire-and-forget call into the Contact status system webhook (n8n) — a
+// rules engine that recomputes lead_status from whatever context the caller
+// knows (deal stage, last activity). Every field but contact_id is optional:
+// a caller only passes what it actually knows, and rules keyed on missing
+// fields simply don't fire (see Contact status system.json). Deliberately
+// has no DNC-related field — do_not_contact/dnc_email/dnc_call/dnc_sms are
+// only ever set by a rep directly checking a DNC checkbox, never by this
+// engine. Never throws — this is a best-effort background sync, never the
+// reason a UI action (stage move, unsubscribe) should appear to fail.
+export function syncContactStatus(payload: {
+  contact_id: number;
+  contact_name?: string;
+  contact_created_at?: string | null;
+  last_activity?: string | null;
+  deal_stage?: string;
+  deal_tag?: string;
+}) {
+  return apiFetch<{ success: boolean; error?: string }>('/webhook/contact-status-system', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }).catch(() => undefined);
+}
+
 export function fetchContacts() {
   return apiFetch<Contact[]>('/webhook/get-contacts?archived=false');
 }

@@ -149,14 +149,14 @@ function TreeRow({
     <div className={depth > 0 ? 'ml-6 pl-4 border-l border-slate-200 mt-3' : ''}>
       <div
         className={`rounded-lg border p-3 ${
-          isCurrent ? 'border-indigo-300 bg-indigo-50' : 'border-slate-200 bg-white'
+          isCurrent ? 'border-[var(--theme-accent-tint)] bg-[var(--theme-accent-tint)]' : 'border-slate-200 bg-white'
         }`}
       >
         <div className="flex items-center gap-2">
           <i className={`fa-solid ${isRoot ? 'fa-building-columns' : 'fa-industry'} text-slate-400 text-xs`} />
           <button
             onClick={() => onSelectCompany(company)}
-            className="text-sm font-semibold text-indigo-600 hover:underline truncate"
+            className="text-sm font-semibold text-[var(--theme-accent)] hover:underline truncate"
           >
             {toTitleCase(company.name)}
           </button>
@@ -164,7 +164,7 @@ function TreeRow({
             {isRoot ? '(Ultimate Parent)' : company.parent_company_id ? '(Subsidiary)' : '(Independent)'}
           </span>
           {isCurrent && (
-            <span className="text-[10px] font-semibold text-indigo-600 shrink-0">&larr; CURRENT RECORD</span>
+            <span className="text-[10px] font-semibold text-[var(--theme-accent)] shrink-0">&larr; CURRENT RECORD</span>
           )}
         </div>
 

@@ -66,7 +66,7 @@ export default function OwnerDropdown({ contact, disabled }: Props) {
                   type="checkbox"
                   checked={!contact.owner_id}
                   onChange={() => handleSelect(null)}
-                  className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
+                  className="rounded border-slate-300 text-[var(--theme-accent)] focus:ring-[var(--theme-accent)]"
                 />
                 <span className="text-slate-500">Unassigned</span>
               </label>
@@ -79,7 +79,7 @@ export default function OwnerDropdown({ contact, disabled }: Props) {
                     type="checkbox"
                     checked={contact.owner_id === u.id}
                     onChange={() => handleSelect(u.id)}
-                    className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
+                    className="rounded border-slate-300 text-[var(--theme-accent)] focus:ring-[var(--theme-accent)]"
                   />
                   <Avatar name={u.name} size="xs" avatarUrl={u.avatar_url} />
                   <span className="text-slate-700 truncate">{toTitleCase(u.name)}</span>

@@ -35,7 +35,7 @@ export default function ArchivedContactsTable({
             type="checkbox"
             checked={allSelected}
             onChange={onToggleSelectAll}
-            className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
+            className="rounded border-slate-300 text-[var(--theme-accent)] focus:ring-[var(--theme-accent)]"
           />
         ),
         cell: ({ row }) => (
@@ -43,7 +43,7 @@ export default function ArchivedContactsTable({
             type="checkbox"
             checked={selectedIds.has(row.original.id)}
             onChange={() => onToggleSelect(row.original.id)}
-            className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
+            className="rounded border-slate-300 text-[var(--theme-accent)] focus:ring-[var(--theme-accent)]"
           />
         ),
         size: 36,

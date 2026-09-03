@@ -25,7 +25,7 @@ export default function ReportTabs({ tab, onChange, isAdmin }: Props) {
           key={t.key}
           onClick={() => onChange(t.key)}
           className={`px-3 py-1.5 text-sm font-semibold rounded-lg transition-colors ${
-            tab === t.key ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+            tab === t.key ? 'bg-[var(--theme-accent)] text-white' : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
           {t.label}

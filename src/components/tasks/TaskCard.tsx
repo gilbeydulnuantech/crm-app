@@ -77,8 +77,8 @@ export default function TaskCard({
       title={canEdit ? undefined : 'View only — assigned to someone else'}
       className={`bg-white border border-slate-200 rounded-lg p-2.5 shadow-sm hover:shadow-md transition-all ${
         canEdit ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
-      } ${isDragging ? 'opacity-40 ring-2 ring-indigo-400 border-transparent scale-105' : ''} ${
-        highlighted ? 'ring-2 ring-indigo-500 ring-offset-2 shadow-lg' : ''
+      } ${isDragging ? 'opacity-40 ring-2 ring-[var(--theme-accent)] border-transparent scale-105' : ''} ${
+        highlighted ? 'ring-2 ring-[var(--theme-accent)] ring-offset-2 shadow-lg' : ''
       }`}
     >
       <div className="flex items-center gap-1.5">

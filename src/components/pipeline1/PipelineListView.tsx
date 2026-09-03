@@ -46,7 +46,7 @@ export default function PipelineListView({ opportunities, stages, onRowClick, is
         id: 'stage',
         header: 'Stage',
         cell: (info) => (
-          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-indigo-50 text-indigo-700">
+          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-[var(--theme-accent-tint)] text-[var(--theme-accent-hover)]">
             {info.getValue()}
           </span>
         ),

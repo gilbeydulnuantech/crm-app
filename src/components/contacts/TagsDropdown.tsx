@@ -89,7 +89,7 @@ export default function TagsDropdown({ contact, disabled }: Props) {
           <div className="relative">
           <button
             onClick={() => setOpen((v) => !v)}
-            className="flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-slate-500 border border-dashed border-slate-300 rounded-full hover:border-indigo-400 hover:text-indigo-600"
+            className="flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-slate-500 border border-dashed border-slate-300 rounded-full hover:border-[var(--theme-accent)] hover:text-[var(--theme-accent)]"
           >
             <i className="fa-solid fa-plus text-[9px]" />
             Add Tag
@@ -121,7 +121,7 @@ export default function TagsDropdown({ contact, disabled }: Props) {
                     <button
                       onClick={handleCreateAndAssign}
                       disabled={createTag.isPending}
-                      className="w-full text-left px-2 py-1 text-xs rounded hover:bg-indigo-50 text-indigo-600 font-medium"
+                      className="w-full text-left px-2 py-1 text-xs rounded hover:bg-[var(--theme-accent-tint)] text-[var(--theme-accent)] font-medium"
                     >
                       + Create "{query.trim()}"
                     </button>

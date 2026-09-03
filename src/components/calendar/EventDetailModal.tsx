@@ -153,7 +153,7 @@ export default function EventDetailModal({
               <label className="block text-[11px] font-medium text-slate-500 mb-1">Company</label>
               <button
                 onClick={() => event.company_id && onOpenCompany?.(event.company_id)}
-                className="text-sm text-indigo-600 hover:underline"
+                className="text-sm text-[var(--theme-accent)] hover:underline"
               >
                 {toTitleCase(event.company_name)}
               </button>
@@ -165,7 +165,7 @@ export default function EventDetailModal({
               <label className="block text-[11px] font-medium text-slate-500 mb-1">Contact</label>
               <button
                 onClick={() => event.contact_id && onOpenContact?.(event.contact_id)}
-                className="text-sm text-indigo-600 hover:underline"
+                className="text-sm text-[var(--theme-accent)] hover:underline"
               >
                 {toTitleCase(event.contact_name)}
               </button>
@@ -177,7 +177,7 @@ export default function EventDetailModal({
               <label className="block text-[11px] font-medium text-slate-500 mb-1">Pipeline / Deal</label>
               <button
                 onClick={() => event.opportunity_id && onOpenOpportunity?.(event.opportunity_id)}
-                className="text-sm text-indigo-600 hover:underline"
+                className="text-sm text-[var(--theme-accent)] hover:underline"
               >
                 {event.opportunity_name}
               </button>
@@ -191,7 +191,7 @@ export default function EventDetailModal({
                 {event.resources.map((r) => (
                   <span
                     key={r.id}
-                    className="px-2 py-0.5 text-xs font-medium bg-indigo-50 text-indigo-700 rounded-full"
+                    className="px-2 py-0.5 text-xs font-medium bg-[var(--theme-accent-tint)] text-[var(--theme-accent-hover)] rounded-full"
                   >
                     {r.name}
                   </span>

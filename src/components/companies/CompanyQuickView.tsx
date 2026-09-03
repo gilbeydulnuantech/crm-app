@@ -12,7 +12,7 @@ import { Contact } from '../../types/contact';
 import { COMPANY_HEALTH_DISPLAY } from '../../utils/companyHealth';
 
 const TIER_BADGE_COLORS: Record<string, string> = {
-  'Tier 1 (Enterprise)': 'bg-indigo-100 text-indigo-700',
+  'Tier 1 (Enterprise)': 'bg-[var(--theme-accent-tint)] text-[var(--theme-accent-hover)]',
   'Tier 2': 'bg-blue-100 text-blue-700',
   'Tier 3': 'bg-slate-100 text-slate-600',
 };
@@ -149,7 +149,7 @@ export default function CompanyQuickView({ company, onClose, onOpenFullRecord, o
               {companyContacts.length > 2 && (
                 <button
                   onClick={() => onOpenFullRecord(company)}
-                  className="text-xs font-semibold text-indigo-600 hover:underline"
+                  className="text-xs font-semibold text-[var(--theme-accent)] hover:underline"
                 >
                   + View All Contacts
                 </button>
@@ -180,7 +180,7 @@ export default function CompanyQuickView({ company, onClose, onOpenFullRecord, o
           {canEdit && (
             <button
               onClick={() => setDealFormOpen(true)}
-              className="mt-1.5 text-xs font-semibold text-indigo-600 hover:underline"
+              className="mt-1.5 text-xs font-semibold text-[var(--theme-accent)] hover:underline"
             >
               + Create New Opportunity
             </button>
@@ -210,7 +210,7 @@ export default function CompanyQuickView({ company, onClose, onOpenFullRecord, o
         <div className="px-5 py-3">
           <button
             onClick={() => onOpenFullRecord(company)}
-            className="w-full text-center text-sm font-semibold text-indigo-600 hover:underline"
+            className="w-full text-center text-sm font-semibold text-[var(--theme-accent)] hover:underline"
           >
             Open Full Company Record &rarr;
           </button>
@@ -288,7 +288,7 @@ function IconButton({
       title={title}
       onClick={onClick}
       disabled={disabled}
-      className="w-6 h-6 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-indigo-600 disabled:opacity-30 disabled:hover:bg-transparent"
+      className="w-6 h-6 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-[var(--theme-accent)] disabled:opacity-30 disabled:hover:bg-transparent"
     >
       <i className={`fa-solid ${icon} text-[10px]`} />
     </button>

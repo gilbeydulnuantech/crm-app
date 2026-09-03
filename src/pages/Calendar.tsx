@@ -510,9 +510,9 @@ export default function Calendar() {
         placeholder={mode === 'events' ? 'Search events...' : 'Search deals...'}
         rightExtra={
           statFilter && (
-            <span className="flex items-center gap-1.5 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-full px-2.5 py-1">
+            <span className="flex items-center gap-1.5 text-xs font-medium text-[var(--theme-accent-hover)] bg-[var(--theme-accent-tint)] border border-[var(--theme-accent-tint)] rounded-full px-2.5 py-1">
               Filter: {STAT_FILTER_LABELS[statFilter]}
-              <button onClick={() => setStatFilter(null)} className="hover:text-indigo-900">
+              <button onClick={() => setStatFilter(null)} className="hover:text-[var(--theme-accent-hover)]">
                 <i className="fa-solid fa-xmark text-[10px]" />
               </button>
             </span>

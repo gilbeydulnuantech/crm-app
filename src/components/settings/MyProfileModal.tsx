@@ -94,7 +94,7 @@ export default function MyProfileModal({ open, onClose }: Props) {
               onClick={() => fileInputRef.current?.click()}
               disabled={uploadAvatar.isPending}
               title="Change photo"
-              className="absolute -bottom-1 -right-1 w-6 h-6 flex items-center justify-center rounded-full bg-white border border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-300 shadow-sm disabled:opacity-50"
+              className="absolute -bottom-1 -right-1 w-6 h-6 flex items-center justify-center rounded-full bg-white border border-slate-200 text-slate-500 hover:text-[var(--theme-accent)] hover:border-[var(--theme-accent-tint)] shadow-sm disabled:opacity-50"
             >
               <i className={`fa-solid ${uploadAvatar.isPending ? 'fa-spinner fa-spin' : 'fa-camera'} text-[10px]`} />
             </button>
@@ -146,7 +146,7 @@ export default function MyProfileModal({ open, onClose }: Props) {
           <button
             type="button"
             onClick={() => setChangePasswordOpen(true)}
-            className="flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-indigo-600"
+            className="flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-[var(--theme-accent)]"
           >
             <i className="fa-solid fa-key text-slate-400" />
             Change Password

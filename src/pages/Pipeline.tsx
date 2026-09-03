@@ -17,6 +17,7 @@ import {
 } from '../hooks/useOpportunities';
 import { hiddenStagesKey, loadHiddenStageIds } from '../utils/pipelineStageVisibility';
 import { useCreateTag, useTags, useUsers } from '../hooks/useContacts';
+import { syncContactStatus } from '../api/contacts';
 import { useAddNote } from '../hooks/useNotes';
 import { useAddTask } from '../hooks/useTasks';
 import { useAuth } from '../context/AuthContext';
@@ -287,6 +288,13 @@ export default function Pipeline() {
     moveStage.mutate({ id: opportunityId, stage_id: stageId });
 
     if (!opportunity || !newStage || oldStage?.id === newStage.id) return;
+
+    // Best-effort — recomputes the linked contact's lead_status against the
+    // deal's new stage (e.g. "inspection done" -> Active). Silently no-ops
+    // server-side if the deal has no linked contact.
+    if (opportunity.contact_id) {
+      syncContactStatus({ contact_id: opportunity.contact_id, deal_stage: newStage.name });
+    }
 
     // Keep the deal's tags in sync with its stage for instant card feedback
     // — the move-opportunity-stage n8n workflow does the same swap

@@ -144,7 +144,7 @@ export default function Sidebar({ collapsed, onToggleCollapsed }: Props) {
             <button
               onClick={onToggleCollapsed}
               title="Hide navigation"
-              className="text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded p-1"
+              className="text-slate-400 hover:text-[var(--theme-accent)] hover:bg-slate-100 rounded p-1"
             >
               <i className="fa-solid fa-chevron-left text-xs" />
             </button>

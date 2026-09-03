@@ -20,7 +20,7 @@ export default function ContactsTabs({ view, onChange }: Props) {
           onClick={() => onChange(tab.key)}
           className={`px-3 py-1.5 text-sm font-semibold rounded-lg transition-colors ${
             view === tab.key
-              ? 'bg-indigo-600 text-white'
+              ? 'bg-[var(--theme-accent)] text-white'
               : 'text-slate-600 hover:bg-slate-100'
           }`}
         >

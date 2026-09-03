@@ -4,7 +4,7 @@ import { createTicketPublic } from '../api/tickets';
 import { TicketPriority } from '../types/ticket';
 
 const inputClass =
-  'w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500';
+  'w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]';
 
 const PRIORITY_OPTIONS: { value: TicketPriority; label: string }[] = [
   { value: 'low', label: 'Low — just a question' },
@@ -126,7 +126,7 @@ export default function PublicTicketPage() {
         <button
           type="submit"
           disabled={submit.isPending}
-          className="w-full mt-5 px-4 py-2.5 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg disabled:opacity-50"
+          className="w-full mt-5 px-4 py-2.5 text-sm font-semibold bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] text-white rounded-lg disabled:opacity-50"
         >
           {submit.isPending ? 'Sending...' : 'Submit Request'}
         </button>

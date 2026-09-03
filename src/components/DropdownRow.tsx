@@ -21,7 +21,7 @@ export default function DropdownRow({
         type="checkbox"
         checked={checked}
         onChange={onToggle}
-        className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
+        className="rounded border-slate-300 text-[var(--theme-accent)] focus:ring-[var(--theme-accent)]"
       />
     </label>
   );

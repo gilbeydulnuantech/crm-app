@@ -153,7 +153,7 @@ export default function ComposeEmailPopover({ contact, open, onClose }: Props) {
                 accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx"
                 onChange={(e) => handleFilesSelected(e.target.files)}
                 disabled={attachments.length >= MAX_FILES}
-                className="block w-full text-xs text-slate-500 file:mr-2 file:px-2.5 file:py-1.5 file:rounded-md file:border file:border-dashed file:border-slate-300 file:bg-white file:text-xs file:text-slate-600 hover:file:border-indigo-400 hover:file:text-indigo-600 disabled:opacity-50"
+                className="block w-full text-xs text-slate-500 file:mr-2 file:px-2.5 file:py-1.5 file:rounded-md file:border file:border-dashed file:border-slate-300 file:bg-white file:text-xs file:text-slate-600 hover:file:border-[var(--theme-accent)] hover:file:text-[var(--theme-accent)] disabled:opacity-50"
               />
               <p className="text-[10px] text-slate-400 mt-1">
                 Up to {MAX_FILES} files, {MAX_FILE_BYTES / (1024 * 1024)}MB each.

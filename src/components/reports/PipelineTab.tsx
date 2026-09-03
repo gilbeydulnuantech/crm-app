@@ -28,7 +28,7 @@ export default function PipelineTab() {
               <span className="w-32 text-xs text-slate-500 shrink-0 truncate">{s.stage_name}</span>
               <div className="flex-1 h-6 bg-slate-100 rounded overflow-hidden">
                 <div
-                  className="h-full bg-indigo-500 rounded flex items-center px-2"
+                  className="h-full bg-[var(--theme-accent)] rounded flex items-center px-2"
                   style={{ width: `${(s.count / maxCount) * 100}%` }}
                 >
                   <span className="text-[10px] text-white font-semibold">{s.count}</span>

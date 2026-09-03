@@ -73,7 +73,7 @@ export default function ProposalsListPage() {
                     type="button"
                     onClick={() => setPreviewId(t.id)}
                     title="View"
-                    className="shrink-0 text-slate-400 hover:text-indigo-600"
+                    className="shrink-0 text-slate-400 hover:text-[var(--theme-accent)]"
                   >
                     <i className="fa-solid fa-eye text-xs" />
                   </button>
@@ -81,7 +81,7 @@ export default function ProposalsListPage() {
                     type="button"
                     onClick={() => navigate(`/documents/proposals/${t.id}/edit`)}
                     title="Edit"
-                    className="shrink-0 text-slate-400 hover:text-indigo-600"
+                    className="shrink-0 text-slate-400 hover:text-[var(--theme-accent)]"
                   >
                     <i className="fa-solid fa-pen text-xs" />
                   </button>

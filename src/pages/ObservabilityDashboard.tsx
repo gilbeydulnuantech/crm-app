@@ -327,7 +327,7 @@ export default function ObservabilityDashboard() {
                         href={e.executionUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-[11px] text-indigo-600 hover:underline"
+                        className="text-[11px] text-[var(--theme-accent)] hover:underline"
                       >
                         View execution
                       </a>

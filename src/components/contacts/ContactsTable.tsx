@@ -213,7 +213,7 @@ export default function ContactsTable({
             type="checkbox"
             checked={allSelected}
             onChange={onToggleSelectAll}
-            className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
+            className="rounded border-slate-300 text-[var(--theme-accent)] focus:ring-[var(--theme-accent)]"
           />
         ),
         cell: ({ row }) => (
@@ -225,7 +225,7 @@ export default function ContactsTable({
               onToggleSelect(row.original.id);
             }}
             onClick={(e) => e.stopPropagation()}
-            className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
+            className="rounded border-slate-300 text-[var(--theme-accent)] focus:ring-[var(--theme-accent)]"
           />
         ),
         size: 36,
@@ -382,7 +382,7 @@ export default function ContactsTable({
                   e.stopPropagation();
                   onEdit(row.original);
                 }}
-                className="text-slate-400 hover:text-indigo-600"
+                className="text-slate-400 hover:text-[var(--theme-accent)]"
                 title="Edit"
               >
                 <i className="fa-solid fa-pen text-xs" />
@@ -510,7 +510,7 @@ export default function ContactsTable({
               key={row.id}
               onClick={() => onRowClick(row.original)}
               className={`border-b border-slate-100 cursor-pointer hover:bg-slate-50 ${
-                selectedIds.has(row.original.id) ? 'bg-indigo-50/40' : ''
+                selectedIds.has(row.original.id) ? 'bg-[var(--theme-accent-tint)]' : ''
               }`}
             >
               {row.getVisibleCells().map((cell) => (

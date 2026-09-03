@@ -149,7 +149,7 @@ export default function MarkLostModal({ open, dealName, dealValue, onConfirm, on
             type="checkbox"
             checked={scheduleFollowUp}
             onChange={(e) => setScheduleFollowUp(e.target.checked)}
-            className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
+            className="rounded border-slate-300 text-[var(--theme-accent)] focus:ring-[var(--theme-accent)]"
           />
           Schedule Follow-up / Re-engagement Task
         </label>

@@ -131,7 +131,15 @@ export function useTags() {
 
 function useInvalidateContacts() {
   const qc = useQueryClient();
-  return () => {
+  return async () => {
+    // Cancel any in-flight ['contacts'] request (most commonly the global
+    // 15s background poll, src/main.tsx's refetchInterval) before
+    // invalidating. Without this, a stale poll response that happens to
+    // resolve AFTER this mutation's own fresh refetch silently overwrites
+    // the just-saved value in the cache — which looks exactly like an edit
+    // (e.g. checking Do Not Contact) "reverting" ~15s later, even though
+    // the database itself is correct the whole time.
+    await qc.cancelQueries({ queryKey: ['contacts'] });
     qc.invalidateQueries({ queryKey: ['contacts'] });
   };
 }

@@ -54,7 +54,7 @@ export default function SignedContractsListPage() {
                   <button
                     type="button"
                     onClick={() => setViewSignedId(c.id)}
-                    className="shrink-0 text-xs font-semibold text-indigo-600 hover:underline"
+                    className="shrink-0 text-xs font-semibold text-[var(--theme-accent)] hover:underline"
                   >
                     View
                   </button>

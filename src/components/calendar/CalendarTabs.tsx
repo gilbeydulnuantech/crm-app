@@ -59,7 +59,7 @@ function AllEventsTab({
     <div ref={ref} className="relative">
       <div
         className={`flex items-center rounded-lg overflow-hidden transition-colors ${
-          active ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+          active ? 'bg-[var(--theme-accent)] text-white' : 'text-slate-600 hover:bg-slate-100'
         }`}
       >
         <button onClick={onSelectAll} className="pl-3 pr-1.5 py-1.5 text-sm font-semibold">
@@ -67,7 +67,7 @@ function AllEventsTab({
         </button>
         <button
           onClick={() => setOpen((v) => !v)}
-          className={`pr-2.5 pl-1 py-1.5 ${active ? 'hover:bg-indigo-700' : 'hover:bg-slate-200'}`}
+          className={`pr-2.5 pl-1 py-1.5 ${active ? 'hover:bg-[var(--theme-accent-hover)]' : 'hover:bg-slate-200'}`}
           title="Filter by team member"
         >
           <i className="fa-solid fa-chevron-down text-[10px]" />
@@ -133,7 +133,7 @@ function ResourcesTab({
       <button
         onClick={() => setOpen((v) => !v)}
         className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-lg transition-colors ${
-          active ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+          active ? 'bg-[var(--theme-accent)] text-white' : 'text-slate-600 hover:bg-slate-100'
         }`}
       >
         Resources
@@ -208,7 +208,7 @@ export default function CalendarTabs({
       <button
         onClick={onSelectOnlyMe}
         className={`px-3 py-1.5 text-sm font-semibold rounded-lg transition-colors ${
-          onlyMeChecked ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+          onlyMeChecked ? 'bg-[var(--theme-accent)] text-white' : 'text-slate-600 hover:bg-slate-100'
         }`}
       >
         My Events

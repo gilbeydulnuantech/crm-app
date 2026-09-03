@@ -77,7 +77,7 @@ export default function PublicBookingPage() {
               type="button"
               disabled={!selectedSlot || book.isPending}
               onClick={() => book.mutate()}
-              className="w-full mt-6 py-2.5 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg disabled:opacity-40"
+              className="w-full mt-6 py-2.5 text-sm font-semibold bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] text-white rounded-lg disabled:opacity-40"
             >
               {book.isPending ? 'Booking...' : selectedSlot ? `Confirm ${selectedSlot.label}` : 'Select a date and time above'}
             </button>

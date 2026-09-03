@@ -1,0 +1,797 @@
+{
+  "name": "Deal Lost Engine",
+  "nodes": [
+    {
+      "id": "dl-sched",
+      "name": "Schedule Trigger: every 30 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        200,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "dl-select",
+      "name": "Select Newly Lost Deals",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        420,
+        220
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT o.id AS opportunity_id, o.name AS deal_name, o.assigned_user, o.lost_reason, c.id AS contact_id, c.first_name, c.last_name, c.email FROM opportunities o JOIN contacts c ON c.id = o.contact_id LEFT JOIN deal_lost_actions dla ON dla.opportunity_id = o.id WHERE o.stage_id = 33 AND o.is_archived = false AND dla.id IS NULL;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "dl-set-status",
+      "name": "Set Lead Status: Unqualified",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        640,
+        140
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts SET lead_status = 'Unqualified', updated_at = now() WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.contact_id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "dl-dmkey",
+      "name": "Build DM Key",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        460
+      ],
+      "parameters": {
+        "jsCode": "const NOTIFIER_USER_ID = 1;\nconst ownerId = $input.item.json.assigned_user;\nconst dmKey = [NOTIFIER_USER_ID, ownerId].sort((a, b) => a - b).join('-');\nreturn [{ json: { notifierUserId: NOTIFIER_USER_ID, ownerId, dmKey } }];"
+      }
+    },
+    {
+      "id": "dl-dmcreate",
+      "name": "Create DM If Missing",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        860,
+        460
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO conversations (type, dm_key, created_by) VALUES ('dm', $1, $2) ON CONFLICT (dm_key) WHERE type = 'dm' DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ [ $json.dmKey, $json.notifierUserId ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "dl-dmgetid",
+      "name": "Get DM Id",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1080,
+        460
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id FROM conversations WHERE type = 'dm' AND dm_key = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Build DM Key').item.json.dmKey ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "dl-dmmembers",
+      "name": "Ensure DM Members",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1300,
+        460
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO conversation_members (conversation_id, user_id) VALUES ($1, $2), ($1, $3) ON CONFLICT DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id, $('Build DM Key').item.json.notifierUserId, $('Build DM Key').item.json.ownerId ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "dl-dmtext",
+      "name": "Prepare DM Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        460
+      ],
+      "parameters": {
+        "jsCode": "const row = $('Select Newly Lost Deals').item.json;\nconst name = row.deal_name || [row.first_name, row.last_name].filter(Boolean).join(' ') || 'A deal';\nreturn [{ json: { text: '\u274c Deal LOST: ' + name + ' - reason: ' + (row.lost_reason || 'not specified') } }];"
+      }
+    },
+    {
+      "id": "dl-dmmsg",
+      "name": "Insert DM Message",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1740,
+        460
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO messages (conversation_id, sender_id, body) SELECT $1, $2, $3 WHERE EXISTS (SELECT 1 FROM users WHERE id = $4 AND COALESCE((notification_preferences->>'automation_dms')::boolean, true) = true);",
+        "options": {
+          "queryReplacement": "={{ [ $('Get DM Id').item.json.id, $('Build DM Key').item.json.notifierUserId, $json.text, $('Build DM Key').item.json.ownerId ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "dl-record",
+      "name": "Record Lost Action",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1960,
+        220
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO deal_lost_actions (opportunity_id, contact_id) VALUES ($1, $2) ON CONFLICT (opportunity_id) DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ [ $('Select Newly Lost Deals').item.json.opportunity_id, $('Select Newly Lost Deals').item.json.contact_id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "dl-select-winback",
+      "name": "Select Due Win-Backs",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        420,
+        700
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT dla.id AS lost_action_id, c.id AS contact_id, c.first_name, c.last_name, c.email, c.phone, c.dnc_sms, c.unsubscribe_token FROM deal_lost_actions dla JOIN contacts c ON c.id = dla.contact_id WHERE dla.processed_at <= now() - interval '6 months' AND dla.winback_sent_at IS NULL AND c.is_archived = false AND c.email IS NOT NULL AND c.email <> '' AND NOT EXISTS (SELECT 1 FROM taggables tg JOIN tags t ON t.id = tg.tag_id WHERE tg.entity_type = 'contact' AND tg.entity_id = c.id AND t.name = 'Customer');",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "dl-lookup-tmpl",
+      "name": "Look Up Template: Win-Back",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        640,
+        700
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT subject, body FROM email_templates WHERE id = 21;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "dl-fill",
+      "name": "Fill Email: Win-Back",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        860,
+        700
+      ],
+      "parameters": {
+        "jsCode": "\nfunction toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction fill(template, row) {\n  let base = '';\n  try { base = $env.FRONTEND_BASE_URL || ''; } catch (e) { base = ''; }\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*email\\s*}}/gi, row.email || '')\n    .replace(/{{\\s*unsubscribe_link\\s*}}/gi, base + '/unsubscribe/' + row.unsubscribe_token)\n    .replace(/{{(?!\\s*company_name\\s*}})[^{}]*}}/gi, '');\n}\n\nconst tmpl = $input.item.json;\nconst row = $('Select Due Win-Backs').item.json;\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject, row), htmlBody: fill(tmpl.body, row).replace(/\\n/g, '<br>') } }];"
+      }
+    },
+    {
+      "id": "dl-send-winback",
+      "name": "Send Email: Win-Back",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1080,
+        700
+      ],
+      "parameters": {
+        "sendTo": "={{ $('Fill Email: Win-Back').item.json.to }}",
+        "subject": "={{ ($('Fill Email: Win-Back').item.json.subject).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Email: Win-Back').item.json.company_name) }}",
+        "emailType": "html",
+        "message": "={{ (($('Fill Email: Win-Back').item.json.htmlBody).replace(/The Team/g, $('Get Company Name: Email: Win-Back').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Email: Win-Back').item.json.company_name) }}",
+        "options": {
+          "senderName": "={{ $('Get Company Name: Email: Win-Back').item.json.company_name }}"
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "dl-log-winback",
+      "name": "Log Sent Email: Win-Back",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1300,
+        700
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts SET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object('id', gen_random_uuid()::text, 'type', 'sent', 'subject', $1::text, 'message', $2::text, 'sent_at', NOW(), 'is_read', true) WHERE id = $3;",
+        "options": {
+          "queryReplacement": "={{ [ ($('Fill Email: Win-Back').item.json.subject).replace(/\\{\\{\\s*company[._]name\\s*\\}\\}/gi, $('Get Company Name: Email: Win-Back').item.json.company_name), $('Fill Email: Win-Back').item.json.htmlBody.replace(/<br\\s*\\/?\\s*>/gi, '\\n').replace(/<[^>]+>/g, '').replace(/The Team/g, $('Get Company Name: Email: Win-Back').item.json.company_name + ' Team').replace(/\\{\\{\\s*company[._]name\\s*\\}\\}/gi, $('Get Company Name: Email: Win-Back').item.json.company_name), $('Select Due Win-Backs').item.json.contact_id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "dl-mark-winback",
+      "name": "Mark Win-Back Sent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1520,
+        700
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE deal_lost_actions SET winback_sent_at = now() WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Select Due Win-Backs').item.json.lost_action_id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "mt-webhook-IaLTrB4tmffZ7FvJ",
+      "name": "Webhook: manual-test",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "webhookId": "dfa9736f-ddf3-491f-835c-63bcf7f384bc",
+      "position": [
+        200,
+        500
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "manual-test-IaLTrB4tmffZ7FvJ",
+        "responseMode": "onReceived",
+        "options": {}
+      }
+    },
+    {
+      "id": "dl-create-task",
+      "name": "Create Task: Review Lost Deal",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        640,
+        60
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO activities (contact_id, opportunity_id, user_id, type, subject, due_at, priority, task_type, status) VALUES ($1, $2, $3, 'task', $4, now(), 'Low', 'Other', 'Not Started');",
+        "options": {
+          "queryReplacement": "={{ [ $('Select Newly Lost Deals').item.json.contact_id, $('Select Newly Lost Deals').item.json.opportunity_id, $('Select Newly Lost Deals').item.json.assigned_user, 'Review lost deal: ' + ($('Select Newly Lost Deals').item.json.deal_name || 'deal') + ' - ' + ($('Select Newly Lost Deals').item.json.lost_reason || 'no reason given') ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "log-stuohmd4",
+      "name": "Log Automation Run",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2160,
+        370
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO automation_runs (automation_id, action_id, entity_type, entity_id, branch, status, detail) VALUES (43, 120, 'pipeline', $1, 'default', 'success', $2);",
+        "options": {
+          "queryReplacement": "={{ [ $('Select Newly Lost Deals').item.json.opportunity_id, 'Deal marked Closed Lost \u2014 tagged and owner notified' ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "sms-twcfg-imvd16",
+      "name": "Get Twilio Config: Win-Back",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1720,
+        850
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT (SELECT value FROM integration_secrets WHERE key='twilio_account_sid') AS account_sid, (SELECT value FROM integration_secrets WHERE key='twilio_from_number') AS from_number;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "sms-if-kbyg90",
+      "name": "Can Send SMS: Win-Back",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1920,
+        850
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ !!($('Select Due Win-Backs').item.json.phone) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "c2",
+              "leftValue": "={{ ($('Select Due Win-Backs').item.json.dnc_sms) === true }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "sms-send-96akv6",
+      "name": "Send SMS: Win-Back",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2120,
+        850
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.twilio.com/2010-04-01/Accounts/' + $('Get Twilio Config: Win-Back').item.json.account_sid + '/Messages.json' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "To",
+              "value": "={{ $('Select Due Win-Backs').item.json.phone }}"
+            },
+            {
+              "name": "From",
+              "value": "={{ $('Get Twilio Config: Win-Back').item.json.from_number }}"
+            },
+            {
+              "name": "Body",
+              "value": "={{ 'Hi ' + ($('Select Due Win-Backs').item.json.first_name || 'there') + ', we would love another chance to earn your business - reply here anytime! Reply STOP to opt out.' }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "xELUPXoNdBY2j9Eu",
+          "name": "Twilio Auth (PLACEHOLDER - replace me)"
+        }
+      }
+    },
+    {
+      "id": "sms-log-su67jr",
+      "name": "Log Automation Run: SMS Win-Back",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2320,
+        850
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO automation_runs (automation_id, action_id, entity_type, entity_id, branch, status, detail) VALUES (43, 131, 'contact', $1, 'default', 'success', $2);",
+        "options": {
+          "queryReplacement": "={{ [ $('Select Due Win-Backs').item.json.contact_id, 'Win-Back SMS sent' ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "cname-sicq1o9v",
+      "name": "Get Company Name: Email: Win-Back",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        930,
+        820
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT company_name FROM company_profile LIMIT 1;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger: every 30 min": {
+      "main": [
+        [
+          {
+            "node": "Select Newly Lost Deals",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Select Due Win-Backs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Newly Lost Deals": {
+      "main": [
+        [
+          {
+            "node": "Set Lead Status: Unqualified",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build DM Key",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Record Lost Action",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create Task: Review Lost Deal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build DM Key": {
+      "main": [
+        [
+          {
+            "node": "Create DM If Missing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create DM If Missing": {
+      "main": [
+        [
+          {
+            "node": "Get DM Id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get DM Id": {
+      "main": [
+        [
+          {
+            "node": "Ensure DM Members",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ensure DM Members": {
+      "main": [
+        [
+          {
+            "node": "Prepare DM Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare DM Text": {
+      "main": [
+        [
+          {
+            "node": "Insert DM Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Due Win-Backs": {
+      "main": [
+        [
+          {
+            "node": "Look Up Template: Win-Back",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Template: Win-Back": {
+      "main": [
+        [
+          {
+            "node": "Fill Email: Win-Back",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fill Email: Win-Back": {
+      "main": [
+        [
+          {
+            "node": "Get Company Name: Email: Win-Back",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email: Win-Back": {
+      "main": [
+        [
+          {
+            "node": "Log Sent Email: Win-Back",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Log Sent Email: Win-Back": {
+      "main": [
+        [
+          {
+            "node": "Mark Win-Back Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: manual-test": {
+      "main": [
+        [
+          {
+            "node": "Select Newly Lost Deals",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Select Due Win-Backs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Lost Action": {
+      "main": [
+        [
+          {
+            "node": "Log Automation Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Win-Back Sent": {
+      "main": [
+        [
+          {
+            "node": "Get Twilio Config: Win-Back",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Twilio Config: Win-Back": {
+      "main": [
+        [
+          {
+            "node": "Can Send SMS: Win-Back",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Can Send SMS: Win-Back": {
+      "main": [
+        [
+          {
+            "node": "Send SMS: Win-Back",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Send SMS: Win-Back": {
+      "main": [
+        [
+          {
+            "node": "Log Automation Run: SMS Win-Back",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Company Name: Email: Win-Back": {
+      "main": [
+        [
+          {
+            "node": "Send Email: Win-Back",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  }
+}

@@ -1,7 +1,7 @@
 import { InvoiceLineItemInput } from '../../api/payments';
 
 const inputClass =
-  'px-2 py-1 text-xs border border-slate-200 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500';
+  'px-2 py-1 text-xs border border-slate-200 rounded focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]';
 
 function money(n: number) {
   return `$${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -106,7 +106,7 @@ export default function InvoiceLineItemsEditor({ items, onChange }: Props) {
           ))}
         </tbody>
       </table>
-      <button type="button" onClick={addItem} className="text-xs font-semibold text-indigo-600 hover:underline mt-2">
+      <button type="button" onClick={addItem} className="text-xs font-semibold text-[var(--theme-accent)] hover:underline mt-2">
         <i className="fa-solid fa-plus mr-1" /> Add line item
       </button>
 

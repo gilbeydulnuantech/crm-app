@@ -90,7 +90,7 @@ export default function MonthView({
                   <>
                     <div
                       className={`text-xs font-semibold mb-1 w-5 h-5 flex items-center justify-center rounded-full ${
-                        isToday ? 'bg-indigo-600 text-white' : 'text-slate-600'
+                        isToday ? 'bg-[var(--theme-accent)] text-white' : 'text-slate-600'
                       }`}
                     >
                       {date.getDate()}
@@ -108,7 +108,7 @@ export default function MonthView({
                               onEventClick(e);
                             }}
                             className={`text-[10px] px-1 py-0.5 rounded truncate ${EVENT_TYPE_META[e.type]?.color ?? 'bg-slate-100 text-slate-700'} ${
-                              isHighlighted ? 'ring-2 ring-indigo-500 ring-offset-1' : ''
+                              isHighlighted ? 'ring-2 ring-[var(--theme-accent)] ring-offset-1' : ''
                             }`}
                             style={highlight ? { boxShadow: `inset 0 0 0 1.5px ${highlight}` } : undefined}
                             title={e.subject}

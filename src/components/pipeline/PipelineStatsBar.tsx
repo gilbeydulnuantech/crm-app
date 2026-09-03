@@ -74,11 +74,11 @@ export default function PipelineStatsBar({ opportunities, activeFilter, onSelect
               clickable ? 'cursor-pointer hover:shadow-sm' : 'cursor-default'
             } ${
               isActive
-                ? 'border-indigo-400 ring-1 ring-indigo-100 bg-indigo-50 text-indigo-700'
+                ? 'border-[var(--theme-accent)] ring-1 ring-[var(--theme-accent-tint)] bg-[var(--theme-accent-tint)] text-[var(--theme-accent-hover)]'
                 : `border-slate-200 text-slate-600 ${clickable ? 'hover:border-slate-300' : ''}`
             }`}
           >
-            <span className={`font-bold ${c.tone ?? (isActive ? 'text-indigo-700' : 'text-slate-800')}`}>
+            <span className={`font-bold ${c.tone ?? (isActive ? 'text-[var(--theme-accent-hover)]' : 'text-slate-800')}`}>
               {c.value}
             </span>
             {c.label}

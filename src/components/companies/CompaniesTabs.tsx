@@ -19,7 +19,7 @@ export default function CompaniesTabs({ view, onChange }: Props) {
           key={t.key}
           onClick={() => onChange(t.key)}
           className={`px-3 py-1.5 text-sm font-semibold rounded-lg transition-colors ${
-            view === t.key ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+            view === t.key ? 'bg-[var(--theme-accent)] text-white' : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
           {t.label}

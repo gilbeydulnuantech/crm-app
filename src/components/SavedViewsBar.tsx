@@ -68,7 +68,7 @@ function EditPopover<TFilters>({
             type="checkbox"
             checked={updateFilters}
             onChange={(e) => setUpdateFilters(e.target.checked)}
-            className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
+            className="rounded border-slate-300 text-[var(--theme-accent)] focus:ring-[var(--theme-accent)]"
           />
           Also update to your current filters
         </label>
@@ -77,7 +77,7 @@ function EditPopover<TFilters>({
             type="checkbox"
             checked={shared}
             onChange={(e) => setShared(e.target.checked)}
-            className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
+            className="rounded border-slate-300 text-[var(--theme-accent)] focus:ring-[var(--theme-accent)]"
           />
           Share with team
         </label>

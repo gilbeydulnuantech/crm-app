@@ -180,7 +180,9 @@ export default function ProposalEditorPage() {
     // and proposals are separate id sequences) — clear it so Save always
     // creates a fresh, correctly deal-scoped proposal row instead of risking
     // an id collision or silently not matching this deal's proposals list.
-    setForm((f) => ({ ...f, id: undefined }));
+    // Total $ prefills from the deal's own value — still just a starting
+    // point, the rep can override it before saving/sending.
+    setForm((f) => ({ ...f, id: undefined, total_amount: deal.deal_value != null ? String(deal.deal_value) : f.total_amount }));
     setSaveConfirmation(null);
     setReceiverOpen(false);
   }
@@ -363,7 +365,7 @@ export default function ProposalEditorPage() {
               type="button"
               onClick={() => setReceiverOpen((o) => !o)}
               className={`text-[11px] font-medium px-2.5 py-1 rounded-full flex items-center gap-1.5 ${
-                selectedDeal ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                selectedDeal ? 'bg-[var(--theme-accent-tint)] text-[var(--theme-accent-hover)]' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
               }`}
             >
               <i className="fa-solid fa-user-tag text-[10px]" />
@@ -447,7 +449,7 @@ export default function ProposalEditorPage() {
           <button
             type="button"
             onClick={() => setPreviewOpen(true)}
-            className="text-xs font-semibold text-indigo-600 hover:underline"
+            className="text-xs font-semibold text-[var(--theme-accent)] hover:underline"
           >
             Preview
           </button>

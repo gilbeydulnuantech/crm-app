@@ -84,7 +84,7 @@ export default function AutomationLogsPage() {
                 type="button"
                 onClick={() => handleAutomationChange(String(s.automation_id))}
                 className={`text-left bg-white border rounded-xl p-3 hover:border-slate-300 ${
-                  automationId === s.automation_id ? 'border-[var(--theme-accent)] ring-2 ring-indigo-100' : 'border-slate-200'
+                  automationId === s.automation_id ? 'border-[var(--theme-accent)] ring-2 ring-[var(--theme-accent-tint)]' : 'border-slate-200'
                 }`}
               >
                 <p className="text-sm font-semibold text-slate-800 truncate">{s.automation_name}</p>

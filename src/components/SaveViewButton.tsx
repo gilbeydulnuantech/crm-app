@@ -59,7 +59,7 @@ export default function SaveViewButton<TFilters>({ entityType, currentFilters }:
             type="checkbox"
             checked={shared}
             onChange={(e) => setShared(e.target.checked)}
-            className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
+            className="rounded border-slate-300 text-[var(--theme-accent)] focus:ring-[var(--theme-accent)]"
           />
           Share with team
         </label>
@@ -81,7 +81,7 @@ export default function SaveViewButton<TFilters>({ entityType, currentFilters }:
   return (
     <button
       onClick={() => setNaming(true)}
-      className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-indigo-600 py-1.5 px-2.5 border border-slate-200 rounded-md bg-white transition-colors"
+      className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-[var(--theme-accent)] py-1.5 px-2.5 border border-slate-200 rounded-md bg-white transition-colors"
     >
       <i className="fa-solid fa-plus text-[10px]" />
       <span>Save Current View</span>

@@ -25,6 +25,7 @@ import { useTickets } from '../../hooks/useTickets';
 import { useInvoices, usePayments } from '../../hooks/usePayments';
 import { useProposals } from '../../hooks/useProposals';
 import { useContracts } from '../../hooks/useContracts';
+import { syncContactStatus } from '../../api/contacts';
 import TagsDropdown from './TagsDropdown';
 import OwnerDropdown from './OwnerDropdown';
 import AddContactModal from './AddContactModal';
@@ -267,6 +268,26 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
   const [visibleDealsCount, setVisibleDealsCount] = useState<Record<string, number>>({});
   const [visibleTasksCount, setVisibleTasksCount] = useState(LINKED_PAGE_SIZE);
   const [visibleEventsCount, setVisibleEventsCount] = useState(LINKED_PAGE_SIZE);
+  // Best-effort — gives the inactivity/DND/unsubscribed rules a real trigger
+  // moment even though nothing else in the app fires when time just passes.
+  // Deliberately keyed only on contact?.id (not allOpportunities/allStages,
+  // which refetch every 15s) so this fires once per contact opened, not on
+  // every background poll.
+  useEffect(() => {
+    if (!contact?.id) return;
+    const openDeals = allOpportunities.filter((o) => o.contact_id === contact.id && o.status === 'Open');
+    const deal = [...openDeals].sort(
+      (a, b) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime()
+    )[0];
+    const stage = deal ? allStages.find((s) => s.id === deal.stage_id) : undefined;
+    syncContactStatus({
+      contact_id: contact.id,
+      contact_created_at: contact.created_at,
+      last_activity: contact.last_contacted_at,
+      deal_stage: stage?.name,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contact?.id]);
   useEffect(() => {
     setActivityEverLoaded(false);
     setRequestSentConversationId(null);
@@ -510,7 +531,7 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
             )}
             <div className="border border-slate-200 rounded-xl p-4 space-y-4">
               <div className="flex items-start gap-3">
-                <div className="w-14 h-14 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-lg shrink-0">
+                <div className="w-14 h-14 rounded-full bg-[var(--theme-accent-tint)] text-[var(--theme-accent-hover)] font-bold flex items-center justify-center text-lg shrink-0">
                   {initials}
                 </div>
                 <div className="min-w-0 flex-1 pt-1">
@@ -519,7 +540,7 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                     {!isReadOnly && (
                       <button
                         onClick={() => setQuickEditOpen(true)}
-                        className="text-slate-300 hover:text-indigo-600"
+                        className="text-slate-300 hover:text-[var(--theme-accent)]"
                         title="Edit contact"
                       >
                         <i className="fa-solid fa-pen text-xs" />
@@ -575,7 +596,7 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                         <button
                           type="button"
                           onClick={openCompanyView}
-                          className="inline text-indigo-600 hover:underline"
+                          className="inline text-[var(--theme-accent)] hover:underline"
                         >
                           {toTitleCase(contact.company_name)}
                         </button>
@@ -820,7 +841,7 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                     onClick={() => setRelatedTab(key)}
                     className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold border-b-2 whitespace-nowrap transition-colors -mb-px ${
                       relatedTab === key
-                        ? 'border-indigo-600 text-indigo-600'
+                        ? 'border-[var(--theme-accent)] text-[var(--theme-accent)]'
                         : 'border-transparent text-slate-400 hover:text-slate-600'
                     }`}
                   >
@@ -888,7 +909,7 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                                 )}
                                 <button
                                   onClick={() => openPipelineView(d.id, d.pipeline_id)}
-                                  className="w-full mt-1.5 text-xs font-semibold text-indigo-600 border border-indigo-200 rounded-lg py-1.5 hover:bg-indigo-50"
+                                  className="w-full mt-1.5 text-xs font-semibold text-[var(--theme-accent)] border border-[var(--theme-accent-tint)] rounded-lg py-1.5 hover:bg-[var(--theme-accent-tint)]"
                                 >
                                   View Deal
                                 </button>
@@ -943,7 +964,7 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                           </div>
                           <button
                             onClick={() => openTaskView(t.id)}
-                            className="w-full mt-1.5 text-xs font-semibold text-indigo-600 border border-indigo-200 rounded-lg py-1.5 hover:bg-indigo-50"
+                            className="w-full mt-1.5 text-xs font-semibold text-[var(--theme-accent)] border border-[var(--theme-accent-tint)] rounded-lg py-1.5 hover:bg-[var(--theme-accent-tint)]"
                           >
                             View Task
                           </button>
@@ -979,7 +1000,7 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                           </p>
                           <button
                             onClick={() => openEventView(e)}
-                            className="w-full mt-1.5 text-xs font-semibold text-indigo-600 border border-indigo-200 rounded-lg py-1.5 hover:bg-indigo-50"
+                            className="w-full mt-1.5 text-xs font-semibold text-[var(--theme-accent)] border border-[var(--theme-accent-tint)] rounded-lg py-1.5 hover:bg-[var(--theme-accent-tint)]"
                           >
                             View Event
                           </button>
@@ -1049,7 +1070,7 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                             onClick={() => openInvoiceView(inv.id)}
                             className="w-full flex items-center justify-between gap-2 px-3 py-2.5 hover:bg-slate-50 text-left"
                           >
-                            <span className="text-sm font-medium text-indigo-600 shrink-0">{inv.invoice_number}</span>
+                            <span className="text-sm font-medium text-[var(--theme-accent)] shrink-0">{inv.invoice_number}</span>
                             <span className="text-sm font-semibold text-slate-700">{money(inv.total)}</span>
                             <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 ${INVOICE_STATUS_BADGE[status]}`}>
                               {toTitleCase(status.replace('_', ' '))}
@@ -1077,7 +1098,7 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                           onClick={() => openPaymentView(p.id)}
                           className="w-full flex items-center justify-between gap-2 px-3 py-2.5 hover:bg-slate-50 text-left"
                         >
-                          <span className="text-sm font-medium text-indigo-600 shrink-0">{p.payment_number}</span>
+                          <span className="text-sm font-medium text-[var(--theme-accent)] shrink-0">{p.payment_number}</span>
                           <span className="text-sm font-semibold text-slate-700">{money(p.amount_received)}</span>
                           <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 ${PAYMENT_STATUS_BADGE[p.status]}`}>
                             {toTitleCase(p.status.replace('_', ' '))}
@@ -1172,7 +1193,7 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                   }
                 );
               }}
-              className="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-[var(--theme-accent-tint)] hover:bg-[var(--theme-accent-tint)] text-[var(--theme-accent-hover)] text-xs font-semibold py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {addNote.isPending ? 'Adding...' : '+ Add Note'}
             </button>
@@ -1269,7 +1290,7 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                                   setEditingNoteId(note.id);
                                   setEditDraft(note.body);
                                 }}
-                                className="text-[10px] font-medium text-slate-400 hover:text-indigo-600"
+                                className="text-[10px] font-medium text-slate-400 hover:text-[var(--theme-accent)]"
                               >
                                 Edit
                               </button>
@@ -1457,7 +1478,7 @@ function EmailLogModal({ log, onClose }: { log: EmailLog | null; onClose: () => 
                     href={a.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium bg-slate-50 text-slate-600 border border-slate-200 rounded-full hover:border-indigo-300 hover:text-indigo-600"
+                    className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium bg-slate-50 text-slate-600 border border-slate-200 rounded-full hover:border-[var(--theme-accent-tint)] hover:text-[var(--theme-accent)]"
                   >
                     <i className="fa-solid fa-paperclip text-[10px]" />
                     <span className="max-w-[180px] truncate">{a.name}</span>

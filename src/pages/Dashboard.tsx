@@ -110,13 +110,13 @@ function StatTile({
 }) {
   return (
     <Card className="relative overflow-hidden">
-      <div className="absolute top-0 left-0 right-0 h-0.5 bg-indigo-500" />
+      <div className="absolute top-0 left-0 right-0 h-0.5 bg-[var(--theme-accent)]" />
       <div className="flex items-start justify-between">
         <span className="text-xs font-medium text-slate-500">{label}</span>
-        <i className={`fa-solid ${icon} text-indigo-400 text-xs`} />
+        <i className={`fa-solid ${icon} text-[var(--theme-accent)] text-xs`} />
       </div>
       <div className="text-2xl font-bold text-slate-800 mt-1 tabular-nums">{value}</div>
-      {sub && <div className="text-xs font-medium text-indigo-600 mt-1">{sub}</div>}
+      {sub && <div className="text-xs font-medium text-[var(--theme-accent)] mt-1">{sub}</div>}
     </Card>
   );
 }
@@ -470,7 +470,7 @@ export default function Dashboard() {
                     </div>
                     <button
                       onClick={() => document.getElementById('deals-requiring-attention')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                      className="text-xs font-semibold text-indigo-600 hover:underline shrink-0"
+                      className="text-xs font-semibold text-[var(--theme-accent)] hover:underline shrink-0"
                     >
                       Jump to list →
                     </button>
@@ -511,7 +511,7 @@ export default function Dashboard() {
                   ))}
                 </div>
               )}
-              <button onClick={() => navigate('/tasks')} className="text-xs font-semibold mt-3 text-indigo-600 hover:underline">
+              <button onClick={() => navigate('/tasks')} className="text-xs font-semibold mt-3 text-[var(--theme-accent)] hover:underline">
                 View all tasks →
               </button>
             </Card>
@@ -524,7 +524,7 @@ export default function Dashboard() {
                 <div className="space-y-1">
                   {data.upcoming_events.map((e) => (
                     <div key={e.id} className="flex items-center gap-2 text-sm text-slate-800 py-1">
-                      <i className="fa-solid fa-circle w-4 text-[6px] text-indigo-400" />
+                      <i className="fa-solid fa-circle w-4 text-[6px] text-[var(--theme-accent)]" />
                       <span className="flex-1 truncate">{e.subject}</span>
                       {e.due_at && (
                         <span className="text-xs shrink-0 text-slate-400">
@@ -535,7 +535,7 @@ export default function Dashboard() {
                   ))}
                 </div>
               )}
-              <button onClick={() => navigate('/calendar')} className="text-xs font-semibold mt-3 text-indigo-600 hover:underline">
+              <button onClick={() => navigate('/calendar')} className="text-xs font-semibold mt-3 text-[var(--theme-accent)] hover:underline">
                 View calendar →
               </button>
             </Card>
@@ -553,7 +553,7 @@ export default function Dashboard() {
                     <div key={a.id} className="flex items-start justify-between gap-3 text-sm">
                       <div className="min-w-0">
                         <p className="truncate text-slate-800">{main}</p>
-                        {detail && <p className="text-xs mt-0.5 text-indigo-600">{detail}</p>}
+                        {detail && <p className="text-xs mt-0.5 text-[var(--theme-accent)]">{detail}</p>}
                       </div>
                       <span className="text-xs shrink-0 text-slate-400">{formatRelativeTime(a.created_at)}</span>
                     </div>
@@ -603,7 +603,7 @@ export default function Dashboard() {
                   </tbody>
                 </table>
                 <div className="text-right mt-2">
-                  <button onClick={() => navigate('/pipeline')} className="text-xs font-semibold text-indigo-600 hover:underline">
+                  <button onClick={() => navigate('/pipeline')} className="text-xs font-semibold text-[var(--theme-accent)] hover:underline">
                     View Pipeline →
                   </button>
                 </div>

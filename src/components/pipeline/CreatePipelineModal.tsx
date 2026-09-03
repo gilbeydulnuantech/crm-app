@@ -94,7 +94,7 @@ export default function CreatePipelineModal({ open, onClose, onCreated }: Props)
             >
               <span
                 className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
-                  isDefault ? 'bg-indigo-600' : 'bg-slate-300'
+                  isDefault ? 'bg-[var(--theme-accent)]' : 'bg-slate-300'
                 }`}
               >
                 <span

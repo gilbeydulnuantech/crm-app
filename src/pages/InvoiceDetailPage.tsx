@@ -209,7 +209,7 @@ export default function InvoiceDetailPage() {
                   key={t.id}
                   type="button"
                   onClick={() => navigate(`/tickets/${t.id}`)}
-                  className="block text-indigo-600 hover:underline truncate w-full text-left"
+                  className="block text-[var(--theme-accent)] hover:underline truncate w-full text-left"
                 >
                   {t.subject}
                 </button>
@@ -220,7 +220,7 @@ export default function InvoiceDetailPage() {
             <button
               type="button"
               onClick={() => navigate(`/contacts?contactId=${invoice.contact_id}`)}
-              className="block text-indigo-600 hover:underline pt-1"
+              className="block text-[var(--theme-accent)] hover:underline pt-1"
             >
               View Customer
             </button>
@@ -277,7 +277,7 @@ export default function InvoiceDetailPage() {
                   type="button"
                   onClick={handleSaveEdit}
                   disabled={updateInvoice.isPending}
-                  className="px-3 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg disabled:opacity-50"
+                  className="px-3 py-1.5 text-xs font-semibold bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] text-white rounded-lg disabled:opacity-50"
                 >
                   Save
                 </button>
@@ -326,7 +326,7 @@ export default function InvoiceDetailPage() {
                     onClick={() => navigate(`/payments/${p.id}`)}
                     className="w-full flex items-center justify-between text-xs px-2 py-1.5 rounded-lg hover:bg-slate-50 text-left"
                   >
-                    <span className="font-medium text-indigo-600">{p.payment_number}</span>
+                    <span className="font-medium text-[var(--theme-accent)]">{p.payment_number}</span>
                     <span className="text-slate-500">{p.method ? toTitleCase(p.method.replace('_', ' ')) : '--'}</span>
                     <span className="font-semibold">{money(p.amount_received)}</span>
                     <span className="text-slate-400">{formatDate(p.payment_date)}</span>

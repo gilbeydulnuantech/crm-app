@@ -48,7 +48,7 @@ export default function WeekView({
           const isToday = day.toDateString() === new Date().toDateString();
           return (
             <div key={day.toISOString()} className="border border-slate-200 rounded-lg p-2 min-h-[300px]">
-              <div className={`text-xs font-semibold mb-2 ${isToday ? 'text-indigo-600' : 'text-slate-600'}`}>
+              <div className={`text-xs font-semibold mb-2 ${isToday ? 'text-[var(--theme-accent)]' : 'text-slate-600'}`}>
                 {day.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}
               </div>
               <div className="space-y-1">

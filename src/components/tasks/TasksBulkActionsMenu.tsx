@@ -26,7 +26,7 @@ export default function TasksBulkActionsMenu({
     <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-indigo-600 py-1.5 px-2.5 border border-slate-200 rounded-md bg-white transition-colors"
+        className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-[var(--theme-accent)] py-1.5 px-2.5 border border-slate-200 rounded-md bg-white transition-colors"
       >
         <span>Bulk Actions</span>
         <i className="fa-solid fa-chevron-down text-[10px]" />

@@ -59,7 +59,7 @@ export default function DealListView({ deals, stagesById, onDealClick, emptyLabe
           </div>
           {/* Pipeline stage shown above the deal value, matching the Pipeline board's card. */}
           <div className="shrink-0 text-right space-y-0.5">
-            <div className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700">
+            <div className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-[var(--theme-accent-tint)] text-[var(--theme-accent-hover)]">
               {stagesById.get(d.stage_id)?.name ?? '--'}
             </div>
             <div className="text-sm font-bold text-emerald-600">{currency(d.deal_value)}</div>

@@ -307,21 +307,21 @@ export default function CompanyDetailModal({
           <div className="border-r border-slate-200 overflow-y-auto p-5 space-y-5">
             <div className="border border-slate-200 rounded-xl p-4 space-y-1.5">
               <div className="flex items-start gap-3">
-                <div className="w-14 h-14 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-lg shrink-0">
+                <div className="w-14 h-14 rounded-full bg-[var(--theme-accent-tint)] text-[var(--theme-accent-hover)] font-bold flex items-center justify-center text-lg shrink-0">
                   <i className="fa-solid fa-building" />
                 </div>
                 <div className="min-w-0 flex-1 pt-1">
               <h2 className="text-base font-bold text-slate-800 truncate flex items-center gap-1.5">
                 {toTitleCase(company.name)}
                 {company.tier && (
-                  <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded-full bg-indigo-50 text-indigo-700 shrink-0">
+                  <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded-full bg-[var(--theme-accent-tint)] text-[var(--theme-accent-hover)] shrink-0">
                     {company.tier}
                   </span>
                 )}
                 {canEdit && (
                   <button
                     onClick={() => onEdit(company)}
-                    className="text-slate-300 hover:text-indigo-600"
+                    className="text-slate-300 hover:text-[var(--theme-accent)]"
                     title="Edit company"
                   >
                     <i className="fa-solid fa-pen text-xs" />
@@ -330,7 +330,7 @@ export default function CompanyDetailModal({
                 {onViewHierarchy && (
                   <button
                     onClick={() => onViewHierarchy(company)}
-                    className="text-slate-300 hover:text-indigo-600"
+                    className="text-slate-300 hover:text-[var(--theme-accent)]"
                     title="View account hierarchy"
                   >
                     <i className="fa-solid fa-sitemap text-xs" />
@@ -342,7 +342,7 @@ export default function CompanyDetailModal({
                   <span>
                     Parent:{' '}
                     {company.parent_company_id ? (
-                      <button onClick={openParentCompany} className="text-indigo-600 hover:underline font-medium">
+                      <button onClick={openParentCompany} className="text-[var(--theme-accent)] hover:underline font-medium">
                         {toTitleCase(company.parent_company_name)}
                       </button>
                     ) : (
@@ -566,7 +566,7 @@ export default function CompanyDetailModal({
                 {canEdit && (
                   <button
                     onClick={() => setAddContactOpen(true)}
-                    className="text-xs font-semibold text-indigo-600 hover:underline"
+                    className="text-xs font-semibold text-[var(--theme-accent)] hover:underline"
                   >
                     + Add
                   </button>
@@ -592,7 +592,7 @@ export default function CompanyDetailModal({
                         className="w-full text-left px-3 py-2.5 space-y-1 hover:bg-slate-50"
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <p className="text-sm font-medium text-slate-800 truncate hover:text-indigo-600">
+                          <p className="text-sm font-medium text-slate-800 truncate hover:text-[var(--theme-accent)]">
                             {fullName}
                             {(c.company_role || c.job_title) && (
                               <span className="text-slate-400 font-normal">
@@ -619,7 +619,7 @@ export default function CompanyDetailModal({
                                 setLogCallOpen(true);
                               }}
                               title="Log a call"
-                              className="w-6 h-6 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-indigo-600"
+                              className="w-6 h-6 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-[var(--theme-accent)]"
                             >
                               <i className="fa-solid fa-phone text-[10px]" />
                             </span>
@@ -630,7 +630,7 @@ export default function CompanyDetailModal({
                                 if (c.email) setEmailContact(c);
                               }}
                               title="Email"
-                              className={`w-6 h-6 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-indigo-600 ${
+                              className={`w-6 h-6 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-[var(--theme-accent)] ${
                                 !c.email ? 'opacity-30 pointer-events-none' : ''
                               }`}
                             >
@@ -659,7 +659,7 @@ export default function CompanyDetailModal({
                     onClick={() => setRelatedTab(key)}
                     className={`px-2.5 py-1.5 text-xs font-semibold border-b-2 whitespace-nowrap transition-colors -mb-px ${
                       relatedTab === key
-                        ? 'border-indigo-600 text-indigo-600'
+                        ? 'border-[var(--theme-accent)] text-[var(--theme-accent)]'
                         : 'border-transparent text-slate-400 hover:text-slate-600'
                     }`}
                   >
@@ -713,7 +713,7 @@ export default function CompanyDetailModal({
                                 )}
                                 <button
                                   onClick={() => openPipelineView(d.id, d.pipeline_id)}
-                                  className="w-full mt-1.5 text-xs font-semibold text-indigo-600 border border-indigo-200 rounded-lg py-1.5 hover:bg-indigo-50"
+                                  className="w-full mt-1.5 text-xs font-semibold text-[var(--theme-accent)] border border-[var(--theme-accent-tint)] rounded-lg py-1.5 hover:bg-[var(--theme-accent-tint)]"
                                 >
                                   View Deal
                                 </button>
@@ -758,7 +758,7 @@ export default function CompanyDetailModal({
                           </div>
                           <button
                             onClick={() => openTaskView(t.id)}
-                            className="w-full mt-1.5 text-xs font-semibold text-indigo-600 border border-indigo-200 rounded-lg py-1.5 hover:bg-indigo-50"
+                            className="w-full mt-1.5 text-xs font-semibold text-[var(--theme-accent)] border border-[var(--theme-accent-tint)] rounded-lg py-1.5 hover:bg-[var(--theme-accent-tint)]"
                           >
                             View Task
                           </button>
@@ -803,7 +803,7 @@ export default function CompanyDetailModal({
                           </div>
                           <button
                             onClick={() => openEventView(e)}
-                            className="w-full mt-1.5 text-xs font-semibold text-indigo-600 border border-indigo-200 rounded-lg py-1.5 hover:bg-indigo-50"
+                            className="w-full mt-1.5 text-xs font-semibold text-[var(--theme-accent)] border border-[var(--theme-accent-tint)] rounded-lg py-1.5 hover:bg-[var(--theme-accent-tint)]"
                           >
                             View Event
                           </button>
@@ -865,7 +865,7 @@ export default function CompanyDetailModal({
                     }
                   );
                 }}
-                className="w-full mt-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full mt-1.5 bg-[var(--theme-accent-tint)] hover:bg-[var(--theme-accent-tint)] text-[var(--theme-accent-hover)] text-xs font-semibold py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {addNote.isPending ? 'Adding...' : '+ Add Note'}
               </button>
@@ -959,7 +959,7 @@ export default function CompanyDetailModal({
                                     setEditingNoteId(note.id);
                                     setEditDraft(note.body);
                                   }}
-                                  className="text-[10px] font-medium text-slate-400 hover:text-indigo-600"
+                                  className="text-[10px] font-medium text-slate-400 hover:text-[var(--theme-accent)]"
                                 >
                                   Edit
                                 </button>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Contact, LEAD_STATUS_OPTIONS } from '../../types/contact';
+import { Contact, DO_NOT_CONTACT_STATUS, LEAD_STATUS_OPTIONS } from '../../types/contact';
 import { useAddContact, useContacts, useUpdateContact, useUsers } from '../../hooks/useContacts';
 import { useAuth } from '../../context/AuthContext';
 import { toTitleCase } from '../../utils/text';
@@ -138,7 +138,17 @@ export default function AddContactModal({
     }
     setError(null);
     setJustAdded(false);
-  }, [contact, open, defaultAccountId, defaultCompanyName, user]);
+    // Keyed on contact?.id, not `contact` itself — the contacts list
+    // refetches every 15s (src/main.tsx's global refetchInterval), handing
+    // down a brand-new Contact object reference each time even when nothing
+    // changed. Depending on the whole object re-ran this effect on every
+    // poll, silently resetting the form back to the last-saved values —
+    // wiping out any unsaved edit (e.g. a just-checked "Do Not Contact" box)
+    // if the poll landed between checking it and clicking Save. Same bug
+    // class as the activityLoading/eventsEverLoaded 15s-poll issue elsewhere
+    // in this file/ContactDetailModal.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contact?.id, open, defaultAccountId, defaultCompanyName, user]);
 
   if (!open) return null;
 
@@ -168,11 +178,17 @@ export default function AddContactModal({
       state: form.state,
       zip_code: form.zip_code,
       country: form.country,
-      lead_status: form.lead_status,
+      // Checking Do Not Contact also blocks email and flips the status in
+      // this same save — one round trip, no separate follow-up call.
+      // Unchecking it doesn't guess what either should revert to (a rep
+      // might still want the email block off but stay Unqualified, etc.) —
+      // same convention as the old toggleDoNotContact.
+      lead_status: form.do_not_contact ? DO_NOT_CONTACT_STATUS : form.lead_status,
       lead_source: form.lead_source,
       timezone: form.timezone,
       birthdate: form.birthdate,
       do_not_contact: form.do_not_contact,
+      ...(form.do_not_contact ? { dnc_email: true } : {}),
       // The backend only honors this for admins — anyone else's new
       // contacts stay self-owned regardless of what's sent here.
       ...(isEdit ? {} : { owner_id: form.owner_id }),
@@ -428,8 +444,11 @@ export default function AddContactModal({
             <input
               type="checkbox"
               checked={form.do_not_contact}
-              onChange={(e) => update('do_not_contact', e.target.checked)}
-              className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setForm((f) => ({ ...f, do_not_contact: checked, ...(checked ? { lead_status: DO_NOT_CONTACT_STATUS } : {}) }));
+              }}
+              className="rounded border-slate-300 text-[var(--theme-accent)] focus:ring-[var(--theme-accent)]"
             />
             Do Not Contact
           </label>

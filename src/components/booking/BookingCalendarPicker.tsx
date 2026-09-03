@@ -101,8 +101,8 @@ export default function BookingCalendarPicker({ days, selectedDate, selectedSlot
                   : !day
                     ? 'text-slate-300 cursor-default'
                     : isSelected
-                      ? 'bg-indigo-600 text-white font-semibold'
-                      : 'text-slate-700 font-medium hover:bg-indigo-50 border border-indigo-200'
+                      ? 'bg-[var(--theme-accent)] text-white font-semibold'
+                      : 'text-slate-700 font-medium hover:bg-[var(--theme-accent-tint)] border border-[var(--theme-accent-tint)]'
               }`}
             >
               {date.getDate()}
@@ -122,8 +122,8 @@ export default function BookingCalendarPicker({ days, selectedDate, selectedSlot
                 onClick={() => onSelectSlot(slot)}
                 className={`px-2 py-2 text-sm font-medium rounded-lg border transition-colors ${
                   selectedSlot?.start_at === slot.start_at
-                    ? 'bg-indigo-600 border-indigo-600 text-white'
-                    : 'border-slate-200 text-slate-700 hover:border-indigo-400'
+                    ? 'bg-[var(--theme-accent)] border-[var(--theme-accent)] text-white'
+                    : 'border-slate-200 text-slate-700 hover:border-[var(--theme-accent)]'
                 }`}
               >
                 {slot.label}

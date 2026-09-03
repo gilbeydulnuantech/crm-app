@@ -112,7 +112,7 @@ function RowActionsMenu({
           e.stopPropagation();
           onEdit();
         }}
-        className="text-slate-400 hover:text-indigo-600"
+        className="text-slate-400 hover:text-[var(--theme-accent)]"
         title="Edit"
       >
         <i className="fa-solid fa-pen text-xs" />
@@ -222,7 +222,7 @@ export function CompaniesColumnsMenu({
     <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-indigo-600 py-1.5 px-2.5 border border-slate-200 rounded-md bg-white transition-colors"
+        className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-[var(--theme-accent)] py-1.5 px-2.5 border border-slate-200 rounded-md bg-white transition-colors"
       >
         <span>Columns</span>
         <i className="fa-solid fa-gear text-[10px]" />
@@ -240,7 +240,7 @@ export function CompaniesColumnsMenu({
                   type="checkbox"
                   checked={visibility[id] !== false}
                   onChange={() => onToggle(id)}
-                  className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
+                  className="rounded border-slate-300 text-[var(--theme-accent)] focus:ring-[var(--theme-accent)]"
                 />
                 {LABELS[id]}
               </label>
@@ -310,7 +310,7 @@ export default function CompaniesTable({
               type="checkbox"
               checked={allSelected}
               onChange={onToggleSelectAll}
-              className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
+              className="rounded border-slate-300 text-[var(--theme-accent)] focus:ring-[var(--theme-accent)]"
             />
           ) : null,
         cell: ({ row }) =>
@@ -320,7 +320,7 @@ export default function CompaniesTable({
               checked={selectedIds.has(row.original.id)}
               onClick={(e) => e.stopPropagation()}
               onChange={() => onToggleSelect(row.original.id)}
-              className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
+              className="rounded border-slate-300 text-[var(--theme-accent)] focus:ring-[var(--theme-accent)]"
             />
           ) : null,
         size: 36,
@@ -512,7 +512,7 @@ export default function CompaniesTable({
                   key={row.id}
                   onClick={() => onRowClick(row.original)}
                   className={`border-b border-slate-100 cursor-pointer hover:bg-slate-50 ${
-                    selectedIds.has(row.original.id) ? 'bg-indigo-50/40' : ''
+                    selectedIds.has(row.original.id) ? 'bg-[var(--theme-accent-tint)]' : ''
                   }`}
                 >
                   {row.getVisibleCells().map((cell) => (

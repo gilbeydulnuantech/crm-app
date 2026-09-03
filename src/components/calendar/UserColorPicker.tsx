@@ -21,7 +21,7 @@ export default function UserColorPicker({ color, onChange, disabled }: Props) {
         type="button"
         onClick={() => setOpen((v) => !v)}
         title="Change color"
-        className="w-4 h-4 rounded-full ring-1 ring-black/10 hover:ring-2 hover:ring-indigo-400 transition-all"
+        className="w-4 h-4 rounded-full ring-1 ring-black/10 hover:ring-2 hover:ring-[var(--theme-accent)] transition-all"
         style={{ backgroundColor: color }}
       />
       {open && (
@@ -48,7 +48,7 @@ export default function UserColorPicker({ color, onChange, disabled }: Props) {
                     onChange(c);
                     setOpen(false);
                   }}
-                  className={`w-6 h-6 rounded-full ring-1 ring-black/10 ${c === color ? 'ring-2 ring-indigo-500' : ''}`}
+                  className={`w-6 h-6 rounded-full ring-1 ring-black/10 ${c === color ? 'ring-2 ring-[var(--theme-accent)]' : ''}`}
                   style={{ backgroundColor: c }}
                   title={c}
                 />

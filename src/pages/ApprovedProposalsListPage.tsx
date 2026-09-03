@@ -53,7 +53,7 @@ export default function ApprovedProposalsListPage() {
                   <button
                     type="button"
                     onClick={() => setViewId(p.id)}
-                    className="shrink-0 text-xs font-semibold text-indigo-600 hover:underline"
+                    className="shrink-0 text-xs font-semibold text-[var(--theme-accent)] hover:underline"
                   >
                     View
                   </button>

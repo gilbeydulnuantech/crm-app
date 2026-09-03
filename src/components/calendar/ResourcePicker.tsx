@@ -54,7 +54,7 @@ export default function ResourcePicker({ selectedIds, onChange, bookedIds }: Pro
   return (
     <div className="relative">
       <label className="block text-xs font-medium text-slate-600 mb-1">Equipment/Resources</label>
-      <div className="border border-slate-200 rounded-lg p-1.5 flex flex-wrap items-center gap-1.5 focus-within:ring-2 focus-within:ring-indigo-500">
+      <div className="border border-slate-200 rounded-lg p-1.5 flex flex-wrap items-center gap-1.5 focus-within:ring-2 focus-within:ring-[var(--theme-accent)]">
         {selected.map((r) => {
           const isBooked = bookedIds?.has(r.id);
           return (
@@ -62,7 +62,7 @@ export default function ResourcePicker({ selectedIds, onChange, bookedIds }: Pro
               key={r.id}
               title={isBooked ? 'Already booked at this date/time' : undefined}
               className={`flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${
-                isBooked ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-indigo-50 text-indigo-700'
+                isBooked ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-[var(--theme-accent-tint)] text-[var(--theme-accent-hover)]'
               }`}
             >
               {isBooked && <i className="fa-solid fa-triangle-exclamation text-[9px]" />}
@@ -117,7 +117,7 @@ export default function ResourcePicker({ selectedIds, onChange, bookedIds }: Pro
                 type="button"
                 onClick={handleCreate}
                 disabled={addResource.isPending}
-                className="w-full text-left px-3 py-1.5 text-sm hover:bg-indigo-50 text-indigo-600 font-medium border-t border-slate-100"
+                className="w-full text-left px-3 py-1.5 text-sm hover:bg-[var(--theme-accent-tint)] text-[var(--theme-accent)] font-medium border-t border-slate-100"
               >
                 {addResource.isPending ? 'Creating...' : `+ Create "${query.trim()}" (as Equipment)`}
               </button>

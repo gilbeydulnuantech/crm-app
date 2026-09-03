@@ -45,7 +45,7 @@ export function PipelineColumnsMenu({
     <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-indigo-600 py-1.5 px-2.5 border border-slate-200 rounded-md bg-white transition-colors"
+        className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-[var(--theme-accent)] py-1.5 px-2.5 border border-slate-200 rounded-md bg-white transition-colors"
       >
         <span>Columns</span>
         <i className="fa-solid fa-gear text-[10px]" />
@@ -63,7 +63,7 @@ export function PipelineColumnsMenu({
                   type="checkbox"
                   checked={visibility[id] !== false}
                   onChange={() => onToggle(id)}
-                  className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
+                  className="rounded border-slate-300 text-[var(--theme-accent)] focus:ring-[var(--theme-accent)]"
                 />
                 {COLUMN_LABELS[id]}
               </label>
@@ -117,7 +117,7 @@ export default function PipelineListView({
         id: 'stage',
         header: 'Stage',
         cell: (info) => (
-          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-indigo-50 text-indigo-700">
+          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-[var(--theme-accent-tint)] text-[var(--theme-accent-hover)]">
             {info.getValue()}
           </span>
         ),

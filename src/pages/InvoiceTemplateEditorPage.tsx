@@ -54,7 +54,7 @@ function ToggleField({ label, checked, onChange }: { label: string; checked: boo
       <button
         type="button"
         onClick={() => onChange(!checked)}
-        className={`shrink-0 ${checked ? 'text-indigo-600' : 'text-slate-300'}`}
+        className={`shrink-0 ${checked ? 'text-[var(--theme-accent)]' : 'text-slate-300'}`}
       >
         <i className={`fa-solid ${checked ? 'fa-toggle-on' : 'fa-toggle-off'} text-lg`} />
       </button>
@@ -138,7 +138,7 @@ export default function InvoiceTemplateEditorPage() {
 
         <div className="flex items-center gap-3 shrink-0">
           <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
-            <button type="button" onClick={() => setIsActive((v) => !v)} className={isActive ? 'text-indigo-600' : 'text-slate-300'}>
+            <button type="button" onClick={() => setIsActive((v) => !v)} className={isActive ? 'text-[var(--theme-accent)]' : 'text-slate-300'}>
               <i className={`fa-solid ${isActive ? 'fa-toggle-on' : 'fa-toggle-off'} text-lg`} />
             </button>
             Active template
@@ -194,7 +194,7 @@ export default function InvoiceTemplateEditorPage() {
                     type="button"
                     onClick={() => patchSettings({ orientation: o })}
                     className={`flex-1 text-xs px-2 py-1.5 rounded-lg border capitalize ${
-                      settings.orientation === o ? 'border-[var(--theme-accent)] text-[var(--theme-accent)] bg-indigo-50' : 'border-slate-200 text-slate-500'
+                      settings.orientation === o ? 'border-[var(--theme-accent)] text-[var(--theme-accent)] bg-[var(--theme-accent-tint)]' : 'border-slate-200 text-slate-500'
                     }`}
                   >
                     {o}

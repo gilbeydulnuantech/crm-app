@@ -485,7 +485,7 @@ export default function EventFormModal({
                 type="checkbox"
                 checked={form.sendConfirmation}
                 onChange={(e) => update('sendConfirmation', e.target.checked)}
-                className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
+                className="rounded border-slate-300 text-[var(--theme-accent)] focus:ring-[var(--theme-accent)]"
               />
               Send confirmation to contact
             </label>

@@ -132,7 +132,7 @@ export default function ContractsSection({ opportunityId, canEdit, onCreateNew }
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Contracts</h3>
         {canEdit && !formOpen && (
-          <button type="button" onClick={onCreateNew} className="text-xs font-semibold text-indigo-600 hover:underline">
+          <button type="button" onClick={onCreateNew} className="text-xs font-semibold text-[var(--theme-accent)] hover:underline">
             + New Contract
           </button>
         )}
@@ -221,7 +221,7 @@ export default function ContractsSection({ opportunityId, canEdit, onCreateNew }
                 <span className={`shrink-0 px-1.5 py-0.5 text-[10px] font-semibold rounded-full ${STATUS_CLASS[c.status]}`}>
                   {STATUS_LABEL[c.status]}
                 </span>
-                <button type="button" onClick={() => handleCopyLink(c)} title="Copy link" className="shrink-0 text-slate-400 hover:text-indigo-600">
+                <button type="button" onClick={() => handleCopyLink(c)} title="Copy link" className="shrink-0 text-slate-400 hover:text-[var(--theme-accent)]">
                   <i className={`fa-solid ${copiedId === c.id ? 'fa-check' : 'fa-link'} text-[11px]`} />
                 </button>
                 {c.status === 'signed' ? (
@@ -244,7 +244,7 @@ export default function ContractsSection({ opportunityId, canEdit, onCreateNew }
                 )}
                 {canEdit && (
                   <>
-                    <button type="button" onClick={() => openEdit(c)} title="Edit" className="shrink-0 text-slate-400 hover:text-indigo-600">
+                    <button type="button" onClick={() => openEdit(c)} title="Edit" className="shrink-0 text-slate-400 hover:text-[var(--theme-accent)]">
                       <i className="fa-solid fa-pen text-[11px]" />
                     </button>
                     {c.status === 'draft' && (

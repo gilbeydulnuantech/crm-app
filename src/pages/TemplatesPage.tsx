@@ -27,7 +27,7 @@ export default function TemplatesPage() {
               type="button"
               onClick={() => setTab(key)}
               className={`flex items-center gap-1.5 px-3 py-2 text-sm font-semibold border-b-2 transition-colors -mb-px ${
-                tab === key ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'
+                tab === key ? 'border-[var(--theme-accent)] text-[var(--theme-accent)]' : 'border-transparent text-slate-400 hover:text-slate-600'
               }`}
             >
               <i className={`fa-solid ${icon} text-xs`} />

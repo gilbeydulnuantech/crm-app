@@ -46,7 +46,7 @@ export default function DealWeekView({ weekStart, deals, stagesById, onDealClick
           const isToday = day.toDateString() === new Date().toDateString();
           return (
             <div key={day.toISOString()} className="border border-slate-200 rounded-lg p-2 min-h-[300px]">
-              <div className={`text-xs font-semibold mb-2 ${isToday ? 'text-indigo-600' : 'text-slate-600'}`}>
+              <div className={`text-xs font-semibold mb-2 ${isToday ? 'text-[var(--theme-accent)]' : 'text-slate-600'}`}>
                 {day.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}
               </div>
               <div className="space-y-1.5">
@@ -57,7 +57,7 @@ export default function DealWeekView({ weekStart, deals, stagesById, onDealClick
                       key={d.id}
                       onClick={() => onDealClick(d)}
                       className={`text-[11px] px-1.5 py-1.5 rounded cursor-pointer border ${
-                        ownerColor ? '' : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border-indigo-100'
+                        ownerColor ? '' : 'bg-[var(--theme-accent-tint)] hover:bg-[var(--theme-accent-tint)] text-[var(--theme-accent-hover)] border-[var(--theme-accent-tint)]'
                       }`}
                       style={
                         ownerColor
@@ -72,8 +72,8 @@ export default function DealWeekView({ weekStart, deals, stagesById, onDealClick
                       <div className="font-semibold truncate" style={ownerColor ? { color: ownerColor } : undefined}>
                         {d.name}
                       </div>
-                      {d.contact_name && <div className="truncate text-indigo-700">{toTitleCase(d.contact_name)}</div>}
-                      <div className="mt-1 inline-block px-1.5 py-0.5 rounded-full bg-white text-indigo-700 text-[9px] font-medium truncate">
+                      {d.contact_name && <div className="truncate text-[var(--theme-accent-hover)]">{toTitleCase(d.contact_name)}</div>}
+                      <div className="mt-1 inline-block px-1.5 py-0.5 rounded-full bg-white text-[var(--theme-accent-hover)] text-[9px] font-medium truncate">
                         {stagesById.get(d.stage_id)?.name ?? '--'}
                       </div>
                       <div className="font-bold text-emerald-700">{currency(d.deal_value)}</div>

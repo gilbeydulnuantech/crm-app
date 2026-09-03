@@ -68,7 +68,7 @@ export default function DealMonthView({ monthDate, deals, onDealClick }: Props) 
                 <>
                   <div
                     className={`text-xs font-semibold mb-1 w-5 h-5 flex items-center justify-center rounded-full ${
-                      isToday ? 'bg-indigo-600 text-white' : 'text-slate-600'
+                      isToday ? 'bg-[var(--theme-accent)] text-white' : 'text-slate-600'
                     }`}
                   >
                     {date.getDate()}
@@ -84,7 +84,7 @@ export default function DealMonthView({ monthDate, deals, onDealClick }: Props) 
                             onDealClick(d);
                           }}
                           className={`text-[10px] px-1 py-0.5 rounded truncate cursor-pointer border-l-2 ${
-                            ownerColor ? '' : 'bg-indigo-100 text-indigo-800'
+                            ownerColor ? '' : 'bg-[var(--theme-accent-tint)] text-[var(--theme-accent-hover)]'
                           }`}
                           style={
                             ownerColor

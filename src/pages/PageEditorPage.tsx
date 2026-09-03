@@ -83,7 +83,7 @@ export default function PageEditorPage() {
           <button
             type="button"
             onClick={() => setPreviewOpen(true)}
-            className="text-xs font-semibold text-indigo-600 hover:underline"
+            className="text-xs font-semibold text-[var(--theme-accent)] hover:underline"
           >
             Preview
           </button>

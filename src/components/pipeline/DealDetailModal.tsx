@@ -205,7 +205,7 @@ export default function DealDetailModal({
                     disabled={!canEdit || !onMoveStage || deal.status !== 'Open'}
                     className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap ${
                       i === currentStageIndex
-                        ? 'bg-indigo-600 text-white'
+                        ? 'bg-[var(--theme-accent)] text-white'
                         : i < currentStageIndex
                           ? 'bg-emerald-100 text-emerald-700'
                           : 'bg-slate-100 text-slate-500'
@@ -245,7 +245,7 @@ export default function DealDetailModal({
                   placeholder="Add a comment or update..."
                   className="flex-1 px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[var(--theme-accent)]"
                 />
-                <button onClick={handleAddComment} className="text-xs font-semibold text-indigo-600 hover:underline px-1 shrink-0">
+                <button onClick={handleAddComment} className="text-xs font-semibold text-[var(--theme-accent)] hover:underline px-1 shrink-0">
                   Post
                 </button>
               </div>

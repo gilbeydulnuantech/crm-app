@@ -9,13 +9,13 @@
           "allowedOrigins": "*"
         }
       },
-      "id": "d885b806-5027-49af-8976-4fa695e0f0e1",
+      "id": "1b888893-9eb9-42a4-b909-e2b12974f939",
       "name": "Webhook: get-pipelines",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        816,
-        512
+        42480,
+        36272
       ],
       "webhookId": "129b077d-8136-4f15-b74d-b6177ba24fa2"
     },
@@ -25,13 +25,13 @@
         "query": "SELECT id, name, is_default FROM pipelines ORDER BY is_default DESC, name ASC;",
         "options": {}
       },
-      "id": "2af4a8af-9323-4e81-b2c1-77f93be0a803",
+      "id": "33530a20-3e94-47af-9270-bd3a1b6870d8",
       "name": "Postgres: Select Pipelines",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1040,
-        512
+        42704,
+        36272
       ],
       "credentials": {
         "postgres": {
@@ -45,13 +45,13 @@
         "respondWith": "allIncomingItems",
         "options": {}
       },
-      "id": "c45df098-98d0-4b98-9898-ec9946f43157",
+      "id": "a2639d27-552a-42d8-9777-4c6786b6853c",
       "name": "Respond: get-pipelines",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        1264,
-        512
+        42928,
+        36272
       ]
     },
     {
@@ -62,13 +62,13 @@
           "allowedOrigins": "*"
         }
       },
-      "id": "d90e9e71-32f9-493d-a768-7b64dcf32aa4",
+      "id": "ca78d35f-0b38-48c4-a221-6abe8737ae4e",
       "name": "Webhook: get-stages",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        816,
-        704
+        42480,
+        36496
       ],
       "webhookId": "c7b07016-6692-4fbc-a91e-f19cbecec889"
     },
@@ -80,13 +80,13 @@
           "queryReplacement": "={{ [$json.query.pipeline_id] }}"
         }
       },
-      "id": "a8067643-f26b-486a-b84b-1bf36176c7df",
+      "id": "3230c542-2e17-431c-8693-dcbda6d84e41",
       "name": "Postgres: Select Stages",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1040,
-        704
+        42704,
+        36496
       ],
       "credentials": {
         "postgres": {
@@ -100,13 +100,13 @@
         "respondWith": "allIncomingItems",
         "options": {}
       },
-      "id": "f7b5ed45-44bb-4f3a-b70f-947a76c3c9ef",
+      "id": "86c8a400-ebcb-456d-aabf-6919f9489400",
       "name": "Respond: get-stages",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        1264,
-        704
+        42928,
+        36496
       ]
     },
     {
@@ -117,13 +117,13 @@
           "allowedOrigins": "*"
         }
       },
-      "id": "f5c7a640-c524-409f-90be-dc6b39ffbaf6",
+      "id": "0750f340-6bcf-46e0-b5df-ccb78493bed3",
       "name": "Webhook: get-opportunities",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        816,
-        880
+        42480,
+        36720
       ],
       "webhookId": "1ba03016-051c-4a33-95d8-4f21140ec007"
     },
@@ -135,13 +135,13 @@
           "queryReplacement": "={{ [ $('Webhook: get-opportunities').first().json.query.pipeline_id ] }}"
         }
       },
-      "id": "2d3387c2-2ba5-413e-bd81-642ce2d56c07",
+      "id": "8a6e8300-e57a-4ceb-a680-8f2c672c7dcc",
       "name": "Postgres: Select Opportunities",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1040,
-        880
+        42928,
+        36720
       ],
       "credentials": {
         "postgres": {
@@ -155,13 +155,13 @@
         "respondWith": "allIncomingItems",
         "options": {}
       },
-      "id": "06e0cb1b-cd60-4279-90d3-558a2652ed9d",
+      "id": "a7a10c2e-0935-450a-b252-52d6897fc7d1",
       "name": "Respond: get-opportunities",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        1264,
-        880
+        43152,
+        36720
       ]
     },
     {
@@ -173,13 +173,13 @@
           "allowedOrigins": "*"
         }
       },
-      "id": "cadd356b-984f-42ee-97f0-1c154e14fe76",
+      "id": "32a2ff3f-c4c3-4ee4-b5e6-51314004a489",
       "name": "Webhook: add-opportunity",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        816,
-        1056
+        42480,
+        37040
       ],
       "webhookId": "d660879e-dde1-4775-a132-55371291fc79"
     },
@@ -191,13 +191,13 @@
           "queryReplacement": "={{ [$json.body.name, $json.body.contact_id, $json.body.account_id || null, $json.body.pipeline_id, $json.body.stage_id, $json.body.assigned_user || $json.body.requester_id || null, $json.body.requester_id || null, $json.body.deal_value || null, $json.body.probability || 0, $json.body.expected_close || null, $json.body.description || null, $json.body.source || null, $json.body.priority || null] }}"
         }
       },
-      "id": "14d80507-0856-4732-8f22-4d2ce018133d",
+      "id": "ef469be0-736a-4908-863b-8ba7e5f951a7",
       "name": "Postgres: Insert Opportunity",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1040,
-        1056
+        42704,
+        37040
       ],
       "credentials": {
         "postgres": {
@@ -214,13 +214,13 @@
           "queryReplacement": "={{ [ $('Webhook: add-opportunity').first().json.body.requester_id || null, $json.id, $json.name ] }}"
         }
       },
-      "id": "a3f1c2b0-1a2b-4c3d-9e5f-6a7b8c9d0e1f",
+      "id": "5099a489-97af-42dc-acb5-06423ffc0333",
       "name": "Postgres: Log Activity (created)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1152,
-        1056
+        42928,
+        37136
       ],
       "credentials": {
         "postgres": {
@@ -237,13 +237,13 @@
           "queryReplacement": "={{ [ $json.contact_id, $json.name, $json.account_id, $('Webhook: add-opportunity').first().json.body.requester_id || null, $json.id ] }}"
         }
       },
-      "id": "f6a7b8c9-d0e1-42f3-a4b5-c6d7e8f9a0b1",
+      "id": "5e6e333f-377d-40de-97ba-9028a416d01c",
       "name": "Postgres: Log System Audit (created-opportunity)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1152,
-        980
+        42928,
+        36944
       ],
       "credentials": {
         "postgres": {
@@ -258,13 +258,13 @@
         "responseBody": "={{ { \"success\": true, \"id\": $('Postgres: Insert Opportunity').first().json.id } }}",
         "options": {}
       },
-      "id": "56c4d4cc-b828-42a1-a8e8-54da28844b84",
+      "id": "f2d349f7-5e10-4de3-8f67-37ff86cddbcb",
       "name": "Respond: add-opportunity",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        1264,
-        1056
+        43152,
+        37136
       ]
     },
     {
@@ -274,31 +274,31 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "fa32b790-54a1-4335-a684-22c7cfe80cb1",
+      "id": "fbb675b8-11e2-45e7-a7b6-219d91226642",
       "name": "Webhook: update-opportunity",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        816,
-        1232
+        42480,
+        37528
       ],
       "webhookId": "3591281b-53e4-4d7f-9b16-e51bbb44e09c"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE opportunities SET name = COALESCE($1, name), contact_id = COALESCE($2, contact_id), account_id = COALESCE($3, account_id), stage_id = COALESCE($4, stage_id), assigned_user = COALESCE($5, assigned_user), deal_value = COALESCE($6, deal_value), probability = COALESCE($7, probability), status = COALESCE($8, status), lost_reason = COALESCE($9, lost_reason), expected_close = COALESCE($10, expected_close), closed_at = COALESCE($11, closed_at), description = COALESCE($12, description), source = COALESCE($13, source), priority = COALESCE($14, priority), stage_entered_at = CASE WHEN $4::int IS NOT NULL AND $4::int IS DISTINCT FROM stage_id THEN now() ELSE stage_entered_at END, updated_at = now() WHERE id = $15 AND ($16 = 'admin' OR assigned_user = $17) RETURNING id, name, assigned_user, pipeline_id;",
+        "query": "UPDATE opportunities SET name = COALESCE($1, name), contact_id = COALESCE($2, contact_id), account_id = COALESCE($3, account_id), stage_id = COALESCE($4, stage_id), assigned_user = COALESCE($5, assigned_user), deal_value = COALESCE($6, deal_value), probability = COALESCE($7, probability), status = COALESCE($8, status), lost_reason = COALESCE($9, lost_reason), expected_close = COALESCE($10, expected_close), closed_at = COALESCE($11, closed_at), description = COALESCE($12, description), source = COALESCE($13, source), priority = COALESCE($14, priority), updated_at = now() WHERE id = $15 AND ($16 = 'admin' OR assigned_user = $17) RETURNING id, name, assigned_user, pipeline_id;",
         "options": {
           "queryReplacement": "={{ [ $('Webhook: update-opportunity').first().json.body.name || null, $('Webhook: update-opportunity').first().json.body.contact_id || null, $('Webhook: update-opportunity').first().json.body.account_id || null, $('Webhook: update-opportunity').first().json.body.stage_id || null, $('Webhook: update-opportunity').first().json.body.assigned_user || null, $('Webhook: update-opportunity').first().json.body.deal_value !== undefined ? $('Webhook: update-opportunity').first().json.body.deal_value : null, $('Webhook: update-opportunity').first().json.body.probability !== undefined ? $('Webhook: update-opportunity').first().json.body.probability : null, $('Webhook: update-opportunity').first().json.body.status || null, $('Webhook: update-opportunity').first().json.body.lost_reason || null, $('Webhook: update-opportunity').first().json.body.expected_close || null, $('Webhook: update-opportunity').first().json.body.closed_at || null, $('Webhook: update-opportunity').first().json.body.description !== undefined ? $('Webhook: update-opportunity').first().json.body.description : null, $('Webhook: update-opportunity').first().json.body.source !== undefined ? $('Webhook: update-opportunity').first().json.body.source : null, $('Webhook: update-opportunity').first().json.body.priority !== undefined ? $('Webhook: update-opportunity').first().json.body.priority : null, $('Webhook: update-opportunity').first().json.body.id, $('Look Up Requester: update-opportunity').first().json.role, $('Look Up Requester: update-opportunity').first().json.id ] }}"
         }
       },
-      "id": "ada2c882-6de2-422e-8faf-c2fa3fcbdb93",
+      "id": "d3b858ee-34a6-492d-9443-b6366d77169e",
       "name": "Postgres: Update Opportunity",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1040,
-        1232
+        43376,
+        37528
       ],
       "credentials": {
         "postgres": {
@@ -313,13 +313,13 @@
         "responseBody": "={{ { \"success\": true } }}",
         "options": {}
       },
-      "id": "44d60ba9-1b2c-42d3-9926-493fabc32e7c",
+      "id": "e63b25ad-795f-4868-b860-a09a42207f9c",
       "name": "Respond: update-opportunity",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        1700,
-        1232
+        45392,
+        37432
       ]
     },
     {
@@ -330,13 +330,13 @@
           "queryReplacement": "={{ [ $('Look Up Requester: update-opportunity').first().json.id, $('Webhook: update-opportunity').first().json.body.id, $('Postgres: Capture Before Stage: update-opportunity').first().json.deal_name, $('Postgres: Capture Before Stage: update-opportunity').first().json.before_stage_id, $('Webhook: update-opportunity').first().json.body.stage_id || $('Postgres: Capture Before Stage: update-opportunity').first().json.before_stage_id ] }}"
         }
       },
-      "id": "c2d3e4f5-a6b7-4c8d-9e0f-1a2b3c4d5e6f",
+      "id": "49b1aac1-4254-4493-9409-b69da9521d10",
       "name": "Postgres: Log Stage Change: update-opportunity",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1516,
-        1232
+        43824,
+        37432
       ],
       "credentials": {
         "postgres": {
@@ -354,31 +354,31 @@
           "allowedOrigins": "*"
         }
       },
-      "id": "d9cfc7bb-c84b-475b-9e30-65380f19177b",
+      "id": "1afaf77f-8444-41fb-8714-3fcd2d208840",
       "name": "Webhook: move-opportunity-stage",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        816,
-        1424
+        42480,
+        37944
       ],
       "webhookId": "a57f12b7-2cc7-4826-b174-3a7cf377d428"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE opportunities o SET stage_id = $1, status = CASE WHEN s.name ILIKE '%won%' THEN 'Won' WHEN s.name ILIKE '%lost%' THEN 'Lost' ELSE 'Open' END, closed_at = CASE WHEN s.name ILIKE '%won%' OR s.name ILIKE '%lost%' THEN now() ELSE NULL END, probability = COALESCE(s.win_probability, o.probability), stage_entered_at = CASE WHEN o.stage_id IS DISTINCT FROM $1 THEN now() ELSE o.stage_entered_at END, updated_at = now() FROM stages s WHERE s.id = $1 AND o.id = $2 AND ($3 = 'admin' OR o.assigned_user = $4) RETURNING o.id, o.stage_id, o.status;",
+        "query": "UPDATE opportunities o SET stage_id = $1, status = CASE WHEN s.name ILIKE '%won%' THEN 'Won' WHEN s.name ILIKE '%lost%' THEN 'Lost' ELSE 'Open' END, closed_at = CASE WHEN s.name ILIKE '%won%' OR s.name ILIKE '%lost%' THEN now() ELSE NULL END, probability = COALESCE(s.win_probability, o.probability), updated_at = now() FROM stages s WHERE s.id = $1 AND o.id = $2 AND ($3 = 'admin' OR o.assigned_user = $4) RETURNING o.id, o.stage_id, o.status;",
         "options": {
           "queryReplacement": "={{ [ $('Webhook: move-opportunity-stage').first().json.body.stage_id, $('Webhook: move-opportunity-stage').first().json.body.id, $('Look Up Requester: move-opportunity-stage').first().json.role, $('Look Up Requester: move-opportunity-stage').first().json.id ] }}"
         }
       },
-      "id": "3695263b-129a-4edf-b2d3-16b309e72440",
+      "id": "fce29fd2-01de-4492-ae54-230e8f4c4244",
       "name": "Postgres: Move Stage (auto Won/Lost)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1040,
-        1424
+        43376,
+        37944
       ],
       "credentials": {
         "postgres": {
@@ -393,13 +393,13 @@
         "responseBody": "={{ { \"success\": true, \"status\": $('Check Result: move-opportunity-stage').first().json.status } }}",
         "options": {}
       },
-      "id": "975da9e7-ef15-43a6-a450-8aa5bcba1f64",
+      "id": "c3073e83-104b-4978-bf28-1b40234319da",
       "name": "Respond: move-opportunity-stage",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        1700,
-        1424
+        44048,
+        37848
       ]
     },
     {
@@ -410,13 +410,13 @@
           "queryReplacement": "={{ [ $('Look Up Requester: move-opportunity-stage').first().json.id, $('Webhook: move-opportunity-stage').first().json.body.id, $('Postgres: Capture Before Stage: move-opportunity-stage').first().json.deal_name, $('Postgres: Capture Before Stage: move-opportunity-stage').first().json.before_stage_id, $('Webhook: move-opportunity-stage').first().json.body.stage_id ] }}"
         }
       },
-      "id": "e4f5a6b7-c8d9-4e0f-1a2b-3c4d5e6f7a8b",
+      "id": "6509c7ef-9c49-457f-a329-ae1e61bacfa3",
       "name": "Postgres: Log Stage Change: move-opportunity-stage",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1516,
-        1424
+        43824,
+        37848
       ],
       "credentials": {
         "postgres": {
@@ -434,13 +434,13 @@
           "allowedOrigins": "*"
         }
       },
-      "id": "97e32b69-5eb4-4a34-bf92-dca7415b1488",
+      "id": "8c16f068-a719-424b-b0ac-2a54aad2ae70",
       "name": "Webhook: delete-opportunities",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        816,
-        1600
+        42480,
+        38384
       ],
       "webhookId": "b8a1fe8c-4467-49d5-b675-372957ca556b"
     },
@@ -452,13 +452,13 @@
           "queryReplacement": "={{ [ $('Webhook: delete-opportunities').first().json.body.ids, $('Look Up Requester: delete-opportunities').first().json.role, $('Look Up Requester: delete-opportunities').first().json.id ] }}"
         }
       },
-      "id": "3af790b7-b9d7-4a55-b682-897ddc23b01c",
+      "id": "34ad342c-52ce-466f-a343-28b093c3d67d",
       "name": "Postgres: Delete Opportunities",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1040,
-        1600
+        43152,
+        38264
       ],
       "credentials": {
         "postgres": {
@@ -473,13 +473,13 @@
         "responseBody": "={{ { \"success\": true } }}",
         "options": {}
       },
-      "id": "9067dc3a-7c93-4f59-a412-7b26d270886c",
+      "id": "fb141b45-8b5d-48d6-bf46-b0297c22e4e4",
       "name": "Respond: delete-opportunities",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        1264,
-        1600
+        43376,
+        38264
       ]
     },
     {
@@ -491,13 +491,13 @@
           "allowedOrigins": "*"
         }
       },
-      "id": "c9e1a001-1111-4a5a-9b1a-pipecreatenew1",
+      "id": "073a8f13-9fe5-49b2-a368-fc03f8d0a96a",
       "name": "Webhook: pipeline-create-new",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        816,
-        1808
+        42480,
+        38704
       ],
       "webhookId": "c9e1a001-1111-4a5a-9b1a-webhookpcn001"
     },
@@ -505,13 +505,13 @@
       "parameters": {
         "jsCode": "// No auth chain elsewhere in this workflow (add-opportunity, delete-\n// opportunities etc. are all unauthenticated too) \u2014 matching that existing\n// convention rather than introducing an inconsistent new pattern here.\nconst body = $json.body || {};\n\nconst name = (body.name || '').toString().trim();\nif (!name) {\n  throw new Error('\"name\" is required.');\n}\n\nconst isDefault = body.is_default === true || body.is_default === 'true';\n\nconst stagesInput = Array.isArray(body.stages) ? body.stages : [];\nconst stages = stagesInput\n  .map((s, i) => ({\n    name: (s.name || '').toString().trim(),\n    win_probability: Number(s.win_probability) || 0,\n    display_order: i + 1,\n  }))\n  .filter((s) => s.name);\n\nif (stages.length === 0) {\n  throw new Error('At least one stage is required.');\n}\n\nreturn [{ json: { name, isDefault, stages } }];"
       },
-      "id": "c9e1a002-2222-4a5a-9b1a-pipecreatenew2",
+      "id": "3a6ef98d-d6c6-4933-bd7a-48a51e23cc98",
       "name": "Validate & Build Stages",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1040,
-        1808
+        42704,
+        38704
       ]
     },
     {
@@ -522,13 +522,13 @@
           "queryReplacement": "={{ [$json.isDefault] }}"
         }
       },
-      "id": "c9e1a003-3333-4a5a-9b1a-pipecreatenew3",
+      "id": "dfec1f13-8d14-428b-97d8-121824b85de7",
       "name": "Postgres: Unset Other Defaults",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1264,
-        1808
+        42928,
+        38704
       ],
       "credentials": {
         "postgres": {
@@ -545,13 +545,13 @@
           "queryReplacement": "={{ [$('Validate & Build Stages').item.json.name, $('Validate & Build Stages').item.json.isDefault] }}"
         }
       },
-      "id": "c9e1a004-4444-4a5a-9b1a-pipecreatenew4",
+      "id": "d4898351-a1c3-4811-8c47-2c2451f4046d",
       "name": "Postgres: Insert Pipeline",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1488,
-        1808
+        43152,
+        38704
       ],
       "credentials": {
         "postgres": {
@@ -564,13 +564,13 @@
       "parameters": {
         "jsCode": "// pipelines only has (id, name, is_default) as far as any query in this\n// app has ever selected \u2014 no confirmed created_by/created_at columns, so\n// those aren't written here (add them if your schema actually has them).\nconst pipelineId = $json.id;\nconst validated = $('Validate & Build Stages').item.json;\nconst stages = validated.stages;\n\nconst valuesSql = [];\nconst queryParams = [];\nlet idx = 1;\nfor (const s of stages) {\n  valuesSql.push(`($${idx}, $${idx + 1}, $${idx + 2}, $${idx + 3})`);\n  queryParams.push(pipelineId, s.name, s.win_probability, s.display_order);\n  idx += 4;\n}\n\nconst sqlQuery = `INSERT INTO stages (pipeline_id, name, win_probability, display_order) VALUES ${valuesSql.join(', ')} RETURNING id, pipeline_id, name, win_probability, display_order;`;\n\nreturn [{\n  json: {\n    sqlQuery,\n    queryParams,\n    pipeline_id: pipelineId,\n    pipeline_name: validated.name,\n    is_default: validated.isDefault,\n  },\n}];"
       },
-      "id": "c9e1a005-5555-4a5a-9b1a-pipecreatenew5",
+      "id": "9dc49e23-4731-492c-82c5-2670a189ed97",
       "name": "Build Stage Insert Query",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1712,
-        1808
+        43376,
+        38704
       ]
     },
     {
@@ -581,13 +581,13 @@
           "queryReplacement": "={{ $json.queryParams }}"
         }
       },
-      "id": "c9e1a006-6666-4a5a-9b1a-pipecreatenew6",
+      "id": "80c15da3-4e3b-4386-a73b-d3827c7d9dd1",
       "name": "Postgres: Insert Stages",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1936,
-        1808
+        43600,
+        38704
       ],
       "credentials": {
         "postgres": {
@@ -600,13 +600,13 @@
       "parameters": {
         "jsCode": "const stageRows = $input.all().map((item) => item.json);\nconst meta = $('Build Stage Insert Query').first().json;\n\nreturn [{\n  json: {\n    id: meta.pipeline_id,\n    name: meta.pipeline_name,\n    is_default: meta.is_default,\n    stages: stageRows,\n  },\n}];"
       },
-      "id": "c9e1a007-7777-4a5a-9b1a-pipecreatenew7",
+      "id": "a8de19c5-ee48-479f-a94e-bf919b9fd026",
       "name": "Format Pipeline Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2160,
-        1808
+        43824,
+        38704
       ]
     },
     {
@@ -617,26 +617,26 @@
           "responseCode": 201
         }
       },
-      "id": "c9e1a008-8888-4a5a-9b1a-pipecreatenew8",
+      "id": "c48b88d3-24d0-4ec0-b5a6-1ef867fe3049",
       "name": "Respond: pipeline-create-new",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        2384,
-        1808
+        44048,
+        38704
       ]
     },
     {
       "parameters": {
         "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
       },
-      "id": "08e61a56-3cda-48ad-af9b-cadd71a74962",
+      "id": "0e503d68-ef5c-4dce-9ce9-6d2343a3bd35",
       "name": "Parse Token: update-opportunity",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        916,
-        1132
+        42704,
+        37528
       ]
     },
     {
@@ -647,13 +647,13 @@
           "queryReplacement": "={{ [ $json.requesterId ] }}"
         }
       },
-      "id": "9cc10f19-1712-49c3-a179-30824c0ee110",
+      "id": "9b9e80ac-ba10-41e4-9ed9-5147959b9b7f",
       "name": "Look Up Requester: update-opportunity",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1116,
-        1132
+        42928,
+        37528
       ],
       "credentials": {
         "postgres": {
@@ -670,13 +670,13 @@
           "queryReplacement": "={{ [ $('Webhook: update-opportunity').first().json.body.id ] }}"
         }
       },
-      "id": "b1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d5e",
+      "id": "ae594261-1004-43de-b45e-14cfc141a569",
       "name": "Postgres: Capture Before Stage: update-opportunity",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1300,
-        1132
+        43152,
+        37528
       ],
       "credentials": {
         "postgres": {
@@ -689,15 +689,15 @@
       "parameters": {
         "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) {\n  throw new Error(\"Deal not found or you do not have permission to edit it.\");\n}\nreturn [{ json: { success: true, ...result.json } }];"
       },
-      "id": "290375c6-2df2-430b-8eb0-a6e180f297b3",
+      "id": "61785e98-61f6-4f4e-9327-67c86be6ff73",
       "name": "Check Result: update-opportunity",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "onError": "continueErrorOutput",
       "position": [
-        1516,
-        1132
-      ]
+        43600,
+        37528
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -707,26 +707,26 @@
           "responseCode": 400
         }
       },
-      "id": "45e9b7fc-c4e5-412c-b96a-632095ecd733",
+      "id": "80349b5f-2233-439d-8708-521b688509ad",
       "name": "Respond - Error: update-opportunity",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        1116,
-        1382
+        43824,
+        37624
       ]
     },
     {
       "parameters": {
         "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
       },
-      "id": "d024f2be-1023-4435-9512-71fa014dc2d7",
+      "id": "fcc8d00c-bc68-4dfd-89e0-4b2b3c81c53e",
       "name": "Parse Token: move-opportunity-stage",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        916,
-        1324
+        42704,
+        37944
       ]
     },
     {
@@ -737,13 +737,13 @@
           "queryReplacement": "={{ [ $json.requesterId ] }}"
         }
       },
-      "id": "585afea0-2fdd-4124-b6d8-e05250c3b10d",
+      "id": "c70eac20-7b60-43ee-9159-75bc0a1e6bfd",
       "name": "Look Up Requester: move-opportunity-stage",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1116,
-        1324
+        42928,
+        37944
       ],
       "credentials": {
         "postgres": {
@@ -760,13 +760,13 @@
           "queryReplacement": "={{ [ $('Webhook: move-opportunity-stage').first().json.body.id, $('Webhook: move-opportunity-stage').first().json.body.stage_id ] }}"
         }
       },
-      "id": "d3e4f5a6-b7c8-4d9e-0f1a-2b3c4d5e6f7a",
+      "id": "c8c53e28-3353-4bed-8831-3c4c07571e32",
       "name": "Postgres: Capture Before Stage: move-opportunity-stage",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1300,
-        1324
+        43152,
+        37944
       ],
       "credentials": {
         "postgres": {
@@ -779,15 +779,15 @@
       "parameters": {
         "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) {\n  throw new Error(\"Deal not found or you do not have permission to move it.\");\n}\nreturn [{ json: { success: true, ...result.json } }];"
       },
-      "id": "2648354b-e334-46f2-9691-f1020a08ae92",
+      "id": "4ecdc3f7-83c0-483f-af43-637b6d38f91f",
       "name": "Check Result: move-opportunity-stage",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "onError": "continueErrorOutput",
       "position": [
-        1516,
-        1324
-      ]
+        43600,
+        37944
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -797,72 +797,26 @@
           "responseCode": 400
         }
       },
-      "id": "95bac055-69d5-4e34-923a-74368218ccc7",
+      "id": "c24e2a9e-5aa2-4cef-abae-21b049f57e97",
       "name": "Respond - Error: move-opportunity-stage",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        1116,
-        1574
+        43824,
+        38040
       ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "DELETE FROM taggables WHERE entity_type = 'opportunity' AND entity_id = $1 AND tag_id IN (SELECT id FROM tags WHERE lower(name) = lower($2)) AND $2 IS NOT NULL AND $2 IS DISTINCT FROM $3;",
-        "options": {
-          "queryReplacement": "={{ [ $('Webhook: move-opportunity-stage').first().json.body.id, $('Postgres: Capture Before Stage: move-opportunity-stage').first().json.old_stage_name, $('Postgres: Capture Before Stage: move-opportunity-stage').first().json.new_stage_name ] }}"
-        }
-      },
-      "id": "f1a2b3c4-d5e6-4f7a-8b9c-0d1e2f3a4b5c",
-      "name": "Postgres: Untag Previous Stage: move-opportunity-stage",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1700,
-        1600
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "WITH ins AS (INSERT INTO tags (name) VALUES ($1) ON CONFLICT (name) DO NOTHING RETURNING id) INSERT INTO taggables (tag_id, entity_type, entity_id) SELECT COALESCE((SELECT id FROM ins), (SELECT id FROM tags WHERE lower(name) = lower($1))), 'opportunity', $2 WHERE $1 IS NOT NULL ON CONFLICT (tag_id, entity_type, entity_id) DO NOTHING RETURNING tag_id;",
-        "options": {
-          "queryReplacement": "={{ [ $('Postgres: Capture Before Stage: move-opportunity-stage').first().json.new_stage_name, $('Webhook: move-opportunity-stage').first().json.body.id ] }}"
-        }
-      },
-      "id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
-      "name": "Postgres: Tag New Stage: move-opportunity-stage",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1924,
-        1600
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
     },
     {
       "parameters": {
         "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
       },
-      "id": "e7cde19d-eb14-4e13-8155-5f725f928fb8",
+      "id": "7712c678-a41d-4de6-910b-90e98feaded9",
       "name": "Parse Token: delete-opportunities",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        916,
-        1500
+        42704,
+        38384
       ],
       "onError": "continueErrorOutput"
     },
@@ -874,13 +828,13 @@
           "queryReplacement": "={{ [ $json.requesterId ] }}"
         }
       },
-      "id": "4d583971-5772-4d4e-b1ab-2b34b10f0a11",
+      "id": "d988d404-73a1-46c1-b8aa-b02f38b12c08",
       "name": "Look Up Requester: delete-opportunities",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1116,
-        1500
+        42928,
+        38312
       ],
       "credentials": {
         "postgres": {
@@ -898,13 +852,13 @@
           "responseCode": 400
         }
       },
-      "id": "d2361c20-0c87-447d-ab0c-05a015a7e3fc",
+      "id": "95e1bd03-c470-422c-944b-873df761be96",
       "name": "Respond - Error: delete-opportunities",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        1116,
-        1750
+        43152,
+        38480
       ]
     },
     {
@@ -916,13 +870,13 @@
           "allowedOrigins": "*"
         }
       },
-      "id": "ee69d58b-cd92-438d-80ed-ceb77732055b",
+      "id": "4cca42b7-1349-4a09-8358-48c900701ba3",
       "name": "Webhook: update-pipeline",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        816,
-        1800
+        42480,
+        39408
       ],
       "webhookId": "e0c80a82-1b21-4cd5-a203-616983ff0961"
     },
@@ -930,13 +884,13 @@
       "parameters": {
         "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
       },
-      "id": "dbea7422-edd2-4e54-9b68-d12941091633",
+      "id": "da8713a0-0417-4cf9-acce-d461af40a1c7",
       "name": "Parse Token: update-pipeline",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1016,
-        1800
+        42704,
+        39408
       ],
       "onError": "continueErrorOutput"
     },
@@ -948,13 +902,13 @@
           "queryReplacement": "={{ [ $json.requesterId ] }}"
         }
       },
-      "id": "bf11373f-6563-49c0-8da7-de639181e732",
+      "id": "df6e02b3-1b42-4413-b6c3-f0daf6f522ea",
       "name": "Look Up Requester: update-pipeline",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1216,
-        1800
+        42928,
+        39336
       ],
       "credentials": {
         "postgres": {
@@ -968,13 +922,13 @@
       "parameters": {
         "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Only admins can edit pipelines.');\n\nconst body = $('Webhook: update-pipeline').first().json.body || {};\nconst pipelineId = parseInt(body.id, 10);\nif (!Number.isInteger(pipelineId)) throw new Error('\"id\" must be an integer.');\n\nconst name = (body.name || '').toString().trim();\nif (!name) throw new Error('\"name\" is required.');\n\nconst isDefault = body.is_default === true || body.is_default === 'true';\n\nreturn [{ json: { pipelineId, name, isDefault } }];"
       },
-      "id": "47213502-0d38-4921-9037-dc2b5c70fa64",
+      "id": "24d184b8-9f50-4f27-9589-5e03e2014990",
       "name": "Check Admin & Payload: update-pipeline",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1416,
-        1800
+        43152,
+        39264
       ],
       "onError": "continueErrorOutput"
     },
@@ -986,13 +940,13 @@
           "queryReplacement": "={{ [ $json.pipelineId, $json.isDefault ] }}"
         }
       },
-      "id": "e2cae01e-84f9-4edb-81dc-648b5b4e3d92",
+      "id": "cb62529a-a8f8-49d8-bd47-632e94fe9782",
       "name": "Postgres: Unset Other Pipeline Defaults",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1616,
-        1800
+        43376,
+        39192
       ],
       "credentials": {
         "postgres": {
@@ -1006,13 +960,13 @@
       "parameters": {
         "jsCode": "// Unset Other Pipeline Defaults returns 0 rows on the (common) no-op\n// path, which would starve the next node of input \u2014 re-emit the\n// payload from the actual source of truth so the chain always continues.\nreturn [{ json: $('Check Admin & Payload: update-pipeline').first().json }];"
       },
-      "id": "32c8cc6a-fec8-4a96-9c87-6c450ce80d10",
+      "id": "4d8ba16a-8a74-4a96-afdb-3105b9a676b9",
       "name": "Bridge After Unset Defaults",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1816,
-        1800
+        43600,
+        39120
       ],
       "onError": "continueErrorOutput"
     },
@@ -1024,13 +978,13 @@
           "queryReplacement": "={{ [ $json.name, $json.isDefault, $json.pipelineId ] }}"
         }
       },
-      "id": "377fa20c-faa7-420c-9635-9e6ed86dd721",
+      "id": "32cac7d7-2a35-4366-9c82-2ce1bf99bab1",
       "name": "Postgres: Update Pipeline",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        2016,
-        1800
+        43824,
+        39048
       ],
       "credentials": {
         "postgres": {
@@ -1044,13 +998,13 @@
       "parameters": {
         "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) {\n  throw new Error('Pipeline not found.');\n}\nreturn [{ json: { success: true, pipeline: result.json } }];"
       },
-      "id": "950e7cb9-2c5a-4916-a358-5afdf7704fd8",
+      "id": "b4d5c623-a869-4764-b94b-e0d9058aaf70",
       "name": "Check Result: update-pipeline",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2216,
-        1800
+        44048,
+        38976
       ],
       "onError": "continueErrorOutput"
     },
@@ -1062,13 +1016,13 @@
           "responseCode": 200
         }
       },
-      "id": "59053da5-90cd-4664-85f6-28e3c3835c26",
+      "id": "e40f5f9a-16b9-4ff3-9943-79082fbdec0c",
       "name": "Respond: update-pipeline",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        2416,
-        1800
+        44272,
+        38928
       ]
     },
     {
@@ -1079,13 +1033,13 @@
           "responseCode": 400
         }
       },
-      "id": "18997dc3-acb8-4fef-a85f-1eb27b2137c9",
+      "id": "7ddf7040-b081-4e75-9e1e-b4884449ecde",
       "name": "Respond - Error: update-pipeline",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        1616,
-        2020
+        44272,
+        39384
       ]
     },
     {
@@ -1097,13 +1051,13 @@
           "allowedOrigins": "*"
         }
       },
-      "id": "4384d290-56d5-4b33-a98e-be198ee914b7",
+      "id": "5108dea3-d83c-4164-b264-442b38e6162b",
       "name": "Webhook: delete-pipeline",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        816,
-        2200
+        42480,
+        41112
       ],
       "webhookId": "d9400ea3-9235-48b6-9d35-3decff2b2ea9"
     },
@@ -1111,13 +1065,13 @@
       "parameters": {
         "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
       },
-      "id": "0e910226-6f97-40b0-bca9-50c209124838",
+      "id": "dea4ceb0-7d40-4e65-a5dc-377cd7062317",
       "name": "Parse Token: delete-pipeline",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1016,
-        2200
+        42704,
+        41112
       ],
       "onError": "continueErrorOutput"
     },
@@ -1129,13 +1083,13 @@
           "queryReplacement": "={{ [ $json.requesterId ] }}"
         }
       },
-      "id": "6711b61a-9fb1-4086-b2cc-e6def93e744e",
+      "id": "cc443a5a-254f-4102-af15-6f5ae1c95454",
       "name": "Look Up Requester: delete-pipeline",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1216,
-        2200
+        42928,
+        41040
       ],
       "credentials": {
         "postgres": {
@@ -1149,13 +1103,13 @@
       "parameters": {
         "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Only admins can delete pipelines.');\n\nconst body = $('Webhook: delete-pipeline').first().json.body || {};\nconst pipelineId = parseInt(body.id, 10);\nif (!Number.isInteger(pipelineId)) throw new Error('\"id\" must be an integer.');\n\nreturn [{ json: { pipelineId } }];"
       },
-      "id": "67726021-eb32-4c36-8ae3-8d66fc60df81",
+      "id": "3b4e27ad-d8f0-4111-bf30-2bab6fae7c38",
       "name": "Check Admin & Payload: delete-pipeline",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1416,
-        2200
+        43152,
+        40968
       ],
       "onError": "continueErrorOutput"
     },
@@ -1167,13 +1121,13 @@
           "queryReplacement": "={{ [ $json.pipelineId ] }}"
         }
       },
-      "id": "f29a4db3-fc20-4903-8c5c-e6dbde52e060",
+      "id": "e39ac95f-cb33-434f-a5fc-2b09a9a7d5ca",
       "name": "Postgres: Delete Safety Counts",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1616,
-        2200
+        43376,
+        40896
       ],
       "credentials": {
         "postgres": {
@@ -1187,13 +1141,13 @@
       "parameters": {
         "jsCode": "const counts = $json;\nif (Number(counts.pipeline_count) <= 1) {\n  throw new Error('Cannot delete the only pipeline.');\n}\nif (Number(counts.deal_count) > 0) {\n  throw new Error(`Cannot delete a pipeline with ${counts.deal_count} deal(s) still in it. Move or delete them first.`);\n}\nreturn [{ json: { pipelineId: $('Check Admin & Payload: delete-pipeline').first().json.pipelineId } }];"
       },
-      "id": "ca8dd7a9-b4a3-4e57-a9c6-d45527073a86",
+      "id": "34d908f5-48c3-4453-a8b4-f87a3540a7e8",
       "name": "Check Delete Safety",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1816,
-        2200
+        43600,
+        40824
       ],
       "onError": "continueErrorOutput"
     },
@@ -1205,13 +1159,13 @@
           "queryReplacement": "={{ [ $json.pipelineId ] }}"
         }
       },
-      "id": "b3d102fc-03e5-4f68-b4ae-1e37a8bfa9ae",
+      "id": "d74cee54-386a-4685-b912-7bde110ac996",
       "name": "Postgres: Delete Stages",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        2016,
-        2200
+        43824,
+        40752
       ],
       "credentials": {
         "postgres": {
@@ -1225,13 +1179,13 @@
       "parameters": {
         "jsCode": "// Delete Stages can return 0..N rows depending on stage count, which\n// would either starve the next node (0 rows) or run it multiple times\n// (N rows) \u2014 collapse to exactly one item before deleting the pipeline.\nreturn [{ json: { pipelineId: $('Check Delete Safety').first().json.pipelineId } }];"
       },
-      "id": "cfce03f3-3938-4c74-8928-02d0c925a283",
+      "id": "1bdbcb96-dcc4-4f0a-820a-2abf176f8cf5",
       "name": "Bridge After Stage Delete",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2216,
-        2200
+        44048,
+        40680
       ],
       "onError": "continueErrorOutput"
     },
@@ -1243,13 +1197,13 @@
           "queryReplacement": "={{ [ $json.pipelineId ] }}"
         }
       },
-      "id": "51f3b7b4-1f44-4e9a-9197-28a831b78657",
+      "id": "e67ca94a-9196-47f9-b215-cdc02c4b6b44",
       "name": "Postgres: Delete Pipeline",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        2416,
-        2200
+        44272,
+        40608
       ],
       "credentials": {
         "postgres": {
@@ -1263,13 +1217,13 @@
       "parameters": {
         "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) {\n  throw new Error('Pipeline not found.');\n}\nreturn [{ json: { success: true, id: result.json.id } }];"
       },
-      "id": "6bf1016f-3243-4b03-ad24-3458cf35be9b",
+      "id": "bc20525c-ce2c-4f01-92a5-a2208df9cfe6",
       "name": "Check Result: delete-pipeline",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2616,
-        2200
+        44496,
+        40536
       ],
       "onError": "continueErrorOutput"
     },
@@ -1281,13 +1235,13 @@
           "responseCode": 200
         }
       },
-      "id": "1d407aa6-91be-4b11-9751-0cb420294342",
+      "id": "9374a912-267d-4cf8-b162-d5acb65cf9f2",
       "name": "Respond: delete-pipeline",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        2816,
-        2200
+        44720,
+        40488
       ]
     },
     {
@@ -1298,13 +1252,13 @@
           "responseCode": 400
         }
       },
-      "id": "d199a762-51b9-4b61-9520-efe4824d138e",
+      "id": "83db9da6-f8ab-492a-81b9-98ec8fa4bb92",
       "name": "Respond - Error: delete-pipeline",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        1816,
-        2420
+        44720,
+        41064
       ]
     },
     {
@@ -1316,13 +1270,13 @@
           "allowedOrigins": "*"
         }
       },
-      "id": "5db2e835-5f0b-4dec-8e84-c4c697692111",
+      "id": "27ae6e86-1e60-4fe3-b2e8-340a2144bc12",
       "name": "Webhook: update-pipeline-stages",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        816,
-        2600
+        42480,
+        42088
       ],
       "webhookId": "7253344e-ead8-4e18-be1a-c731b2a3d6a5"
     },
@@ -1330,13 +1284,13 @@
       "parameters": {
         "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
       },
-      "id": "ebf3a460-2950-4c43-9f47-e464fa7ec2d8",
+      "id": "b8d5ae4c-07c5-4edf-978a-959065e7918e",
       "name": "Parse Token: update-pipeline-stages",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1016,
-        2600
+        42704,
+        42088
       ]
     },
     {
@@ -1347,13 +1301,13 @@
           "queryReplacement": "={{ [ $json.requesterId ] }}"
         }
       },
-      "id": "4e04a0bf-7601-4604-a472-1be9a1f81225",
+      "id": "ad4334f9-d43f-4355-be8a-a57f1f9177c2",
       "name": "Look Up Requester: update-pipeline-stages",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1216,
-        2600
+        42928,
+        42088
       ],
       "credentials": {
         "postgres": {
@@ -1366,15 +1320,15 @@
       "parameters": {
         "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Only admins can manage pipeline stages.');\n\nconst body = $('Webhook: update-pipeline-stages').first().json.body || {};\nconst pipelineId = parseInt(body.pipeline_id, 10);\nif (!Number.isInteger(pipelineId)) throw new Error('\"pipeline_id\" must be an integer.');\n\nconst stagesInput = Array.isArray(body.stages) ? body.stages : [];\nconst stages = stagesInput\n  .map((s, i) => ({\n    id: (s.id === null || s.id === undefined || s.id === '') ? null : parseInt(s.id, 10),\n    name: (s.name || '').toString().trim(),\n    win_probability: Number(s.win_probability) || 0,\n    display_order: i + 1,\n  }))\n  .filter((s) => s.name);\n\nif (stages.length === 0) throw new Error('At least one stage is required.');\n\nconst keepIds = stages.filter((s) => s.id !== null).map((s) => s.id);\n\nreturn [{ json: { pipelineId, stages, keepIds } }];"
       },
-      "id": "2c0c4803-fdf7-453c-8ab4-ca28e1b9cb1b",
+      "id": "00e76cbc-8cbf-4f76-bbc2-864f229a6abd",
       "name": "Check Admin & Payload: update-pipeline-stages",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "onError": "continueErrorOutput",
       "position": [
-        1416,
-        2600
-      ]
+        43152,
+        42088
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -1384,13 +1338,13 @@
           "queryReplacement": "={{ [ $json.pipelineId ] }}"
         }
       },
-      "id": "f15bf906-ed50-4313-ac20-634da67278bc",
+      "id": "b228abc5-3abd-4e86-ac9f-738ff11e3d36",
       "name": "Postgres: Stage Deal Counts",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1616,
-        2600
+        43376,
+        42016
       ],
       "credentials": {
         "postgres": {
@@ -1403,15 +1357,15 @@
       "parameters": {
         "jsCode": "// $json here is one row per existing stage (id, name, deal_count) \u2014\n// n8n Code nodes default to 'Run Once for All Items', so $input.all()\n// gives every row in a single execution.\nconst existingRows = $input.all().map((item) => item.json);\nconst ctx = $('Check Admin & Payload: update-pipeline-stages').first().json;\nconst keepIds = new Set(ctx.keepIds);\n\nconst removed = existingRows.filter((r) => !keepIds.has(r.id));\nconst blocked = removed.find((r) => Number(r.deal_count) > 0);\nif (blocked) {\n  throw new Error(`Cannot remove stage \"${blocked.name}\" \u2014 it still has ${blocked.deal_count} deal(s). Move or delete them first.`);\n}\n\nconst removeIds = removed.map((r) => r.id);\nreturn [{ json: { pipelineId: ctx.pipelineId, stages: ctx.stages, removeIds } }];"
       },
-      "id": "7f6b8dc5-7cb2-49ff-95fc-3d4c81943332",
+      "id": "fb5e3177-6314-4b1c-906c-5514b1f1cb6a",
       "name": "Check Stage Removal Safety",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "onError": "continueErrorOutput",
       "position": [
-        1816,
-        2600
-      ]
+        43600,
+        42016
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -1421,13 +1375,13 @@
           "queryReplacement": "={{ [ $json.pipelineId, $json.removeIds ] }}"
         }
       },
-      "id": "ea11cfe3-6d62-48ed-874f-1cbd75591529",
+      "id": "fa3f2d2a-03b4-40b3-a53a-f21c272166cf",
       "name": "Postgres: Delete Removed Stages",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        2016,
-        2600
+        43824,
+        41968
       ],
       "credentials": {
         "postgres": {
@@ -1440,26 +1394,26 @@
       "parameters": {
         "jsCode": "// Delete Removed Stages can return 0..N rows \u2014 collapse to exactly one\n// item so the chain always continues regardless of how many stages\n// were actually removed (0 is the common case).\nreturn [{ json: $('Check Stage Removal Safety').first().json }];"
       },
-      "id": "8740a7c7-7974-446e-b6bb-79e91812a616",
+      "id": "0d6521bc-f7a8-41f9-9518-4e7ff7825f73",
       "name": "Bridge After Stage Removal",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2216,
-        2600
+        44048,
+        41968
       ]
     },
     {
       "parameters": {
         "jsCode": "// Bulk CASE-based update for every stage the client sent an id for \u2014\n// keeps existing stage rows (and any deals pointing at them) intact,\n// only touching name/win_probability/display_order. A no-op-safe\n// SELECT 1 keeps the chain alive when there's nothing to update.\nconst ctx = $json;\nconst existing = ctx.stages.filter((s) => s.id !== null);\n\nif (existing.length === 0) {\n  return [{ json: { ...ctx, sqlQuery: 'SELECT 1;', queryParams: [] } }];\n}\n\nconst nameCases = [];\nconst probCases = [];\nconst orderCases = [];\nconst ids = [];\nconst queryParams = [];\nlet idx = 1;\nfor (const s of existing) {\n  nameCases.push(`WHEN $${idx} THEN $${idx + 1}`);\n  queryParams.push(s.id, s.name);\n  idx += 2;\n}\nfor (const s of existing) {\n  probCases.push(`WHEN $${idx} THEN $${idx + 1}`);\n  queryParams.push(s.id, s.win_probability);\n  idx += 2;\n}\nfor (const s of existing) {\n  orderCases.push(`WHEN $${idx} THEN $${idx + 1}`);\n  queryParams.push(s.id, s.display_order);\n  idx += 2;\n}\nfor (const s of existing) {\n  ids.push(`$${idx}`);\n  queryParams.push(s.id);\n  idx += 1;\n}\n\nconst sqlQuery = `UPDATE stages SET name = CASE id ${nameCases.join(' ')} ELSE name END, win_probability = CASE id ${probCases.join(' ')} ELSE win_probability END, display_order = CASE id ${orderCases.join(' ')} ELSE display_order END WHERE id IN (${ids.join(', ')});`;\n\nreturn [{ json: { ...ctx, sqlQuery, queryParams } }];"
       },
-      "id": "4b05bf90-a179-44e5-90b2-23bee8643429",
+      "id": "594194f1-7da2-4854-951e-f7dc10b7f4ff",
       "name": "Build Stage Update Query",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2416,
-        2600
+        44272,
+        41968
       ]
     },
     {
@@ -1470,13 +1424,13 @@
           "queryReplacement": "={{ $json.queryParams }}"
         }
       },
-      "id": "1028c92e-d04f-44ce-88e5-d1e4caaeea40",
+      "id": "42b2c2ae-fe6f-48b5-a492-eee8000e5527",
       "name": "Postgres: Execute Stage Updates",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        2616,
-        2600
+        44496,
+        41968
       ],
       "credentials": {
         "postgres": {
@@ -1489,26 +1443,26 @@
       "parameters": {
         "jsCode": "return [{ json: $('Build Stage Update Query').first().json }];"
       },
-      "id": "1a489517-7f54-4a4f-ac9f-5cd728974174",
+      "id": "0e5f07f2-d7f8-425a-96fa-625c1a62c8fc",
       "name": "Bridge After Stage Updates",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2816,
-        2600
+        44720,
+        41968
       ]
     },
     {
       "parameters": {
         "jsCode": "// New stages (no id from the client) get inserted fresh, matching the\n// same pattern pipeline-create-new already uses.\nconst ctx = $json;\nconst fresh = ctx.stages.filter((s) => s.id === null);\n\nif (fresh.length === 0) {\n  return [{ json: { pipelineId: ctx.pipelineId, sqlQuery: 'SELECT 1;', queryParams: [] } }];\n}\n\nconst valuesSql = [];\nconst queryParams = [];\nlet idx = 1;\nfor (const s of fresh) {\n  valuesSql.push(`($${idx}, $${idx + 1}, $${idx + 2}, $${idx + 3})`);\n  queryParams.push(ctx.pipelineId, s.name, s.win_probability, s.display_order);\n  idx += 4;\n}\n\nconst sqlQuery = `INSERT INTO stages (pipeline_id, name, win_probability, display_order) VALUES ${valuesSql.join(', ')};`;\n\nreturn [{ json: { pipelineId: ctx.pipelineId, sqlQuery, queryParams } }];"
       },
-      "id": "590a097b-86a8-4e32-8700-2a94cf391395",
+      "id": "c40febc2-eca9-4e2b-86d7-9c2685e1a526",
       "name": "Build Stage Insert Query 2",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3016,
-        2600
+        44944,
+        41968
       ]
     },
     {
@@ -1519,13 +1473,13 @@
           "queryReplacement": "={{ $json.queryParams }}"
         }
       },
-      "id": "590f7555-927f-426e-91e1-c786236c6d69",
+      "id": "2d283c60-4eac-4b67-891a-41a0397812c5",
       "name": "Postgres: Execute Stage Inserts 2",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        3216,
-        2600
+        45168,
+        41968
       ],
       "credentials": {
         "postgres": {
@@ -1538,13 +1492,13 @@
       "parameters": {
         "jsCode": "return [{ json: { pipelineId: $('Build Stage Insert Query 2').first().json.pipelineId } }];"
       },
-      "id": "e196b9b5-af92-4828-812e-aca477384afa",
+      "id": "ea6e51cb-3890-4e92-ad0d-0a9335571123",
       "name": "Bridge After Stage Inserts",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3416,
-        2600
+        45392,
+        41968
       ]
     },
     {
@@ -1555,13 +1509,13 @@
           "queryReplacement": "={{ [ $json.pipelineId ] }}"
         }
       },
-      "id": "134f4f6d-48f6-4999-90e7-bf05b750c429",
+      "id": "19c8145b-2fa8-4989-ba23-a91adb525f88",
       "name": "Postgres: Select Final Stages",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        3616,
-        2600
+        45616,
+        41968
       ],
       "credentials": {
         "postgres": {
@@ -1574,13 +1528,13 @@
       "parameters": {
         "jsCode": "return [{ json: { success: true, stages: $input.all().map((item) => item.json) } }];"
       },
-      "id": "91eca43a-2357-471e-9fce-a14affccca99",
+      "id": "72c34537-e54d-4f1f-a5f6-0acd3080d2ad",
       "name": "Format Stage Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3816,
-        2600
+        45840,
+        41968
       ]
     },
     {
@@ -1591,13 +1545,13 @@
           "responseCode": 200
         }
       },
-      "id": "7acd0e24-c291-4b7e-85b0-b1385fb883ce",
+      "id": "654f39af-05a4-4afc-bbbe-55a7296fae2a",
       "name": "Respond: update-pipeline-stages",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        4016,
-        2600
+        46064,
+        41968
       ]
     },
     {
@@ -1608,26 +1562,26 @@
           "responseCode": 400
         }
       },
-      "id": "64a770cf-75bd-49d8-8ad1-d286e68d2039",
+      "id": "2c912c30-54fa-4f9b-a788-910d5292a895",
       "name": "Respond - Error: update-pipeline-stages",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        2416,
-        2840
+        43824,
+        42184
       ]
     },
     {
       "parameters": {
         "jsCode": "const requesterId = $('Look Up Requester: update-opportunity').first().json.id;\nconst before = $('Postgres: Capture Before Stage: update-opportunity').first().json;\nconst after = $('Postgres: Update Opportunity').first().json;\nconst oldOwnerId = before ? before.before_assigned_user : null;\nconst newOwnerId = after.assigned_user;\n// Only notify on an actual reassignment to someone else \u2014 not a\n// no-op resave of the same owner, and not an admin assigning themselves.\nconst notify = !!newOwnerId && newOwnerId !== oldOwnerId && newOwnerId !== requesterId;\nconst dmKey = notify ? [requesterId, newOwnerId].sort((a, b) => a - b).join('-') : null;\nreturn [{ json: { notify, dmKey, requesterId, ownerId: newOwnerId, dealId: after.id, pipelineId: after.pipeline_id, dealName: after.name || 'a deal' } }];"
       },
-      "id": "98cf94b6-2d43-4fd1-a78a-81d36677f616",
+      "id": "6504bbe6-b57a-44b3-acc3-7767d5c09d82",
       "name": "Prepare Owner Notice: update-opportunity",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2064,
-        500
+        44048,
+        37432
       ]
     },
     {
@@ -1654,13 +1608,13 @@
         },
         "options": {}
       },
-      "id": "a6bc4066-2c89-4306-80af-826af390dcd8",
+      "id": "e919d7ec-22db-480c-8cfe-2218000a5152",
       "name": "Should Notify Owner?: update-opportunity",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        2288,
-        500
+        44272,
+        37432
       ]
     },
     {
@@ -1671,13 +1625,13 @@
           "queryReplacement": "={{ [ $json.dmKey, $json.requesterId ] }}"
         }
       },
-      "id": "3114e008-5c30-4769-adaf-fbe43ef14dbd",
+      "id": "e2f3f677-d38c-46be-9327-a2251a72863f",
       "name": "Postgres: Ensure DM (update-opportunity)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        2512,
-        420
+        44496,
+        37360
       ],
       "credentials": {
         "postgres": {
@@ -1694,13 +1648,13 @@
           "queryReplacement": "={{ [ $('Prepare Owner Notice: update-opportunity').first().json.dmKey ] }}"
         }
       },
-      "id": "9ea79de4-336b-4436-8fe4-9400f7f7914d",
+      "id": "503d56ab-d237-43cf-af52-1204be65c23a",
       "name": "Postgres: Get DM Id (update-opportunity)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        2736,
-        420
+        44720,
+        37360
       ],
       "credentials": {
         "postgres": {
@@ -1717,13 +1671,13 @@
           "queryReplacement": "={{ [ $json.id, $('Prepare Owner Notice: update-opportunity').first().json.requesterId, $('Prepare Owner Notice: update-opportunity').first().json.ownerId ] }}"
         }
       },
-      "id": "c37301fa-c18e-4ba5-b39f-fb11036b5406",
+      "id": "c0188f29-8f2d-468b-a8d4-939fd27d6e1e",
       "name": "Postgres: Ensure DM Members (update-opportunity)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        2960,
-        420
+        44944,
+        37360
       ],
       "credentials": {
         "postgres": {
@@ -1740,13 +1694,13 @@
           "queryReplacement": "={{ [ $('Postgres: Get DM Id (update-opportunity)').first().json.id, $('Prepare Owner Notice: update-opportunity').first().json.requesterId, 'You\\'ve been assigned as the owner of deal \"[[ref:deal:' + $('Prepare Owner Notice: update-opportunity').first().json.dealId + ':' + $('Prepare Owner Notice: update-opportunity').first().json.pipelineId + ':' + $('Prepare Owner Notice: update-opportunity').first().json.dealName + ']]\".' ] }}"
         }
       },
-      "id": "f685a66e-49c7-48b9-bd7d-b5873a318410",
+      "id": "7681e72f-35c0-4f73-a23c-1482b27ad934",
       "name": "Postgres: Notify Owner (update-opportunity)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        3184,
-        420
+        45168,
+        37360
       ],
       "credentials": {
         "postgres": {
@@ -1761,13 +1715,13 @@
         "query": "ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT false;\nALTER TABLE opportunities ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP;",
         "options": {}
       },
-      "id": "c0fcb416-e547-4695-9de5-33f24f7d1425",
+      "id": "2db74e44-c277-4136-9de0-8fdfe591848e",
       "name": "Postgres: Ensure Opportunities Archive Columns (get)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        928,
-        780
+        42704,
+        36720
       ],
       "credentials": {
         "postgres": {
@@ -1784,13 +1738,13 @@
           "allowedOrigins": "*"
         }
       },
-      "id": "2dd1b582-26f4-44e8-b8ae-da43b3d7ce64",
+      "id": "b08cd9d2-6c90-4b78-bdbf-5cfcc8364cc7",
       "name": "Webhook: get-archived-opportunities",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        816,
-        1900
+        42480,
+        39632
       ],
       "webhookId": "e962be8f-33b1-4336-8430-6a86ad0a389b"
     },
@@ -1800,13 +1754,13 @@
         "query": "ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT false;\nALTER TABLE opportunities ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP;",
         "options": {}
       },
-      "id": "902b6055-fee1-40e3-b624-985b46828943",
+      "id": "6d71e38b-16c1-443e-8e8b-27401e863592",
       "name": "Postgres: Ensure Opportunities Archive Columns (get-archived)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        928,
-        1900
+        42704,
+        39632
       ],
       "credentials": {
         "postgres": {
@@ -1823,13 +1777,13 @@
           "queryReplacement": "={{ [ $('Webhook: get-archived-opportunities').first().json.query.pipeline_id ] }}"
         }
       },
-      "id": "d14ca77e-acd9-4514-b57d-23f1d267fb7a",
+      "id": "0e800070-f08e-443a-8ded-fb5c206b674e",
       "name": "Postgres: Select Archived Opportunities",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1040,
-        1900
+        42928,
+        39632
       ],
       "credentials": {
         "postgres": {
@@ -1843,31 +1797,31 @@
         "respondWith": "allIncomingItems",
         "options": {}
       },
-      "id": "32b4a406-7491-425d-b1f5-1b63808e94de",
+      "id": "4dda6596-f2fb-495e-9991-e1eb3a9663d7",
       "name": "Respond: get-archived-opportunities",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        1264,
-        1900
+        43152,
+        39632
       ]
     },
     {
       "parameters": {
+        "httpMethod": "POST",
         "path": "archive-opportunities",
         "responseMode": "responseNode",
         "options": {
           "allowedOrigins": "*"
-        },
-        "httpMethod": "POST"
+        }
       },
-      "id": "dc075a1e-2f71-441d-8761-493a604785b0",
+      "id": "af8da2b3-51eb-4b7b-bf2c-dec797d37011",
       "name": "Webhook: archive-opportunities",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        816,
-        2100
+        42480,
+        40168
       ],
       "webhookId": "c115135f-bd95-4822-91db-dcdfbccbe287"
     },
@@ -1875,13 +1829,13 @@
       "parameters": {
         "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
       },
-      "id": "dfe80176-796c-45df-a3b7-8fa4d223bec0",
+      "id": "85807034-9adc-4bb0-bf06-f790e55a8167",
       "name": "Parse Token: archive-opportunities",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        916,
-        2000
+        42704,
+        40168
       ],
       "onError": "continueErrorOutput"
     },
@@ -1893,13 +1847,13 @@
           "queryReplacement": "={{ [ $json.requesterId ] }}"
         }
       },
-      "id": "c50a1824-4db1-45de-9a11-3eb69d5030a8",
+      "id": "b6164de9-af2a-4ba5-998a-550de30ec8b8",
       "name": "Look Up Requester: archive-opportunities",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1116,
-        2000
+        42928,
+        40096
       ],
       "credentials": {
         "postgres": {
@@ -1915,13 +1869,13 @@
         "query": "ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT false;\nALTER TABLE opportunities ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP;",
         "options": {}
       },
-      "id": "3a247bfd-1298-4ce9-84bd-dd3112aa07ac",
+      "id": "8145378d-11f1-4dab-9db7-79e605665f33",
       "name": "Postgres: Ensure Opportunities Archive Columns (archive)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1300,
-        2000
+        43152,
+        40024
       ],
       "credentials": {
         "postgres": {
@@ -1938,13 +1892,13 @@
           "queryReplacement": "={{ [ $('Webhook: archive-opportunities').first().json.body.ids, $('Look Up Requester: archive-opportunities').first().json.role, $('Look Up Requester: archive-opportunities').first().json.id ] }}"
         }
       },
-      "id": "e8112989-4464-400b-b35d-b7a85cb0a9ae",
+      "id": "f4cd9984-934d-4d37-9b8d-cab333f59666",
       "name": "Postgres: Archive Opportunities",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1500,
-        2000
+        43376,
+        40024
       ],
       "credentials": {
         "postgres": {
@@ -1961,13 +1915,13 @@
           "queryReplacement": "={{ [ $('Look Up Requester: archive-opportunities').first().json.id, $json.id, $json.name ] }}"
         }
       },
-      "id": "4d5e6f7a-8b9c-40d1-e2f3-a4b5c6d7e8f9",
+      "id": "07cff31d-03ff-4180-8505-168277317169",
       "name": "Postgres: Log Activity (archived-opportunities)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1600,
-        2000
+        43600,
+        39856
       ],
       "credentials": {
         "postgres": {
@@ -1984,13 +1938,13 @@
           "queryReplacement": "={{ [ $json.contact_id, $json.name, $json.account_id, $('Look Up Requester: archive-opportunities').first().json.name || 'Someone', $('Look Up Requester: archive-opportunities').first().json.id, $json.id ] }}"
         }
       },
-      "id": "a7b8c9d0-e1f2-43a4-b5c6-d7e8f9a0b1c2",
+      "id": "bb8d773d-3403-477e-94cf-1dca9d503567",
       "name": "Postgres: Log System Audit (archived-opportunities-links)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1600,
-        2100
+        43600,
+        40048
       ],
       "credentials": {
         "postgres": {
@@ -2005,13 +1959,13 @@
         "responseBody": "={{ { \"success\": true } }}",
         "options": {}
       },
-      "id": "a9665451-d726-4355-84e8-f6e08da27b6d",
+      "id": "49e9ddb0-9501-4fb3-a73b-538ec3582679",
       "name": "Respond: archive-opportunities",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        1700,
-        2100
+        43600,
+        40240
       ]
     },
     {
@@ -2022,31 +1976,31 @@
           "responseCode": 400
         }
       },
-      "id": "94ed5de0-49f5-480f-ba40-0e0a14d04481",
+      "id": "5ad74368-3528-4912-a6d4-ed31a2946661",
       "name": "Respond - Error: archive-opportunities",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        1116,
-        2250
+        43152,
+        40264
       ]
     },
     {
       "parameters": {
+        "httpMethod": "POST",
         "path": "restore-opportunities",
         "responseMode": "responseNode",
         "options": {
           "allowedOrigins": "*"
-        },
-        "httpMethod": "POST"
+        }
       },
-      "id": "e11598c7-d948-4c1b-9767-db59fe072d3a",
+      "id": "269396d7-07a3-41e1-b436-b3636c99d11e",
       "name": "Webhook: restore-opportunities",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        816,
-        2450
+        42480,
+        41648
       ],
       "webhookId": "2467838a-b331-4aad-b1cb-9d5431ecfb00"
     },
@@ -2054,13 +2008,13 @@
       "parameters": {
         "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
       },
-      "id": "63f7293d-5fa0-4663-a312-22643a2e6f18",
+      "id": "68bcf133-7e5e-41f9-ba28-ea3c21c95533",
       "name": "Parse Token: restore-opportunities",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        916,
-        2350
+        42704,
+        41648
       ],
       "onError": "continueErrorOutput"
     },
@@ -2072,13 +2026,13 @@
           "queryReplacement": "={{ [ $json.requesterId ] }}"
         }
       },
-      "id": "50efdd29-213d-42f8-9ca0-e53d5ef35a8c",
+      "id": "deeafa32-0e7d-4649-9003-94dc941db30e",
       "name": "Look Up Requester: restore-opportunities",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1116,
-        2350
+        42928,
+        41576
       ],
       "credentials": {
         "postgres": {
@@ -2094,13 +2048,13 @@
         "query": "ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT false;\nALTER TABLE opportunities ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP;",
         "options": {}
       },
-      "id": "e79014d6-d331-4b67-8bbf-d2e6afab6b27",
+      "id": "82a72663-c44e-4650-a8e4-59418b2ef561",
       "name": "Postgres: Ensure Opportunities Archive Columns (restore)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1300,
-        2350
+        43152,
+        41504
       ],
       "credentials": {
         "postgres": {
@@ -2117,13 +2071,13 @@
           "queryReplacement": "={{ [ $('Webhook: restore-opportunities').first().json.body.ids, $('Look Up Requester: restore-opportunities').first().json.role, $('Look Up Requester: restore-opportunities').first().json.id ] }}"
         }
       },
-      "id": "f8b845ea-5bc9-4079-aeac-e4cb752e551c",
+      "id": "bfb9fe3d-a18a-42ab-9527-5f34a089fbba",
       "name": "Postgres: Restore Opportunities",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1500,
-        2350
+        43376,
+        41504
       ],
       "credentials": {
         "postgres": {
@@ -2140,13 +2094,13 @@
           "queryReplacement": "={{ [ $('Look Up Requester: restore-opportunities').first().json.id, $json.id, $json.name ] }}"
         }
       },
-      "id": "5e6f7a8b-9c0d-41e2-f3a4-b5c6d7e8f9a0",
+      "id": "bc6b7314-4c17-44e1-976f-80aca450a3f3",
       "name": "Postgres: Log Activity (restored-opportunities)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1600,
-        2350
+        43600,
+        41336
       ],
       "credentials": {
         "postgres": {
@@ -2163,13 +2117,13 @@
           "queryReplacement": "={{ [ $json.contact_id, $json.name, $json.account_id, $('Look Up Requester: restore-opportunities').first().json.name || 'Someone', $('Look Up Requester: restore-opportunities').first().json.id, $json.id ] }}"
         }
       },
-      "id": "b8c9d0e1-f2a3-44b5-c6d7-e8f9a0b1c2d3",
+      "id": "222764fc-91a9-44d6-9617-9b82a41c7161",
       "name": "Postgres: Log System Audit (restored-opportunities-links)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1600,
-        2450
+        43600,
+        41528
       ],
       "credentials": {
         "postgres": {
@@ -2184,13 +2138,13 @@
         "responseBody": "={{ { \"success\": true } }}",
         "options": {}
       },
-      "id": "94967f6a-4217-42f2-a0c2-078022fef596",
+      "id": "db069915-1f33-4b8f-8a8d-4b6c1a8d0d8a",
       "name": "Respond: restore-opportunities",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        1700,
-        2450
+        43600,
+        41720
       ]
     },
     {
@@ -2201,17 +2155,38 @@
           "responseCode": 400
         }
       },
-      "id": "76b46965-b827-4ab1-b199-e45cda620be6",
+      "id": "1a07f34b-8256-45f0-94ac-b8c25fd99a18",
       "name": "Respond - Error: restore-opportunities",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        1116,
-        2600
+        43152,
+        41744
       ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/deal-stage-tag-sync",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { opportunity_id: $json.id, deal_stage: $('Postgres: Capture Before Stage: move-opportunity-stage').item.json.new_stage_name } }}",
+        "options": {
+          "timeout": 8000
+        }
+      },
+      "id": "sync-tags-move-stage-0001",
+      "name": "Sync Deal & Contact Tags: move-opportunity-stage",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2528,
+        3416
+      ],
+      "onError": "continueRegularOutput",
+      "notes": "Replaces the old narrow 'Untag Previous Stage'/'Tag New Stage' pair (which only removed the ONE specific previous-stage tag, letting older stray stage tags accumulate \u2014 e.g. dragging a card backward could leave a newer stage's tag still attached). Delegates to the Deal Stage Tag Sync Engine webhook, which removes ANY stray stage tag (for both the deal and its linked contact) before applying the current one. onError continues regardless \u2014 a tag-sync hiccup should never block the actual stage move from succeeding/responding."
     }
   ],
-  "pinData": {},
   "connections": {
     "Webhook: get-pipelines": {
       "main": [
@@ -2559,7 +2534,7 @@
       "main": [
         [
           {
-            "node": "Postgres: Untag Previous Stage: move-opportunity-stage",
+            "node": "Sync Deal & Contact Tags: move-opportunity-stage",
             "type": "main",
             "index": 0
           }
@@ -2567,28 +2542,6 @@
         [
           {
             "node": "Respond - Error: move-opportunity-stage",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Untag Previous Stage: move-opportunity-stage": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Tag New Stage: move-opportunity-stage",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Tag New Stage: move-opportunity-stage": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Log Stage Change: move-opportunity-stage",
             "type": "main",
             "index": 0
           }
@@ -3416,8 +3369,20 @@
           }
         ]
       ]
+    },
+    "Sync Deal & Contact Tags: move-opportunity-stage": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Log Stage Change: move-opportunity-stage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
+  "pinData": {},
   "active": true,
   "settings": {
     "executionOrder": "v1",
@@ -3426,12 +3391,5 @@
     "timeSavedMode": "fixed",
     "errorWorkflow": "U7jX0H3oE5a25GrV",
     "callerPolicy": "workflowsFromSameOwner"
-  },
-  "versionId": "41cc8791-79fb-437c-bb82-f09d2f3d2bc3",
-  "meta": {
-    "templateCredsSetupCompleted": true,
-    "instanceId": "6a773e6041cc88fd4a5b60f3e46f2119d58608faafd09936499001d589f5c1af"
-  },
-  "id": "6uohZ5g6HXJNJwPK",
-  "tags": []
+  }
 }

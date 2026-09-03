@@ -43,7 +43,7 @@ export default function PipelineSelector({ pipelines, pipelineId, isAdmin, onCha
       <div className="flex items-center gap-1.5">
         <button
           onClick={() => setOpen((v) => !v)}
-          className="flex items-center gap-1.5 text-lg font-bold text-slate-800 hover:text-indigo-600"
+          className="flex items-center gap-1.5 text-lg font-bold text-slate-800 hover:text-[var(--theme-accent)]"
         >
           <span>Pipeline: {current?.name ?? '--'}</span>
           <i
@@ -57,7 +57,7 @@ export default function PipelineSelector({ pipelines, pipelineId, isAdmin, onCha
             <button
               onClick={() => setEditOpen(true)}
               title="Edit pipeline"
-              className="text-slate-300 hover:text-indigo-600"
+              className="text-slate-300 hover:text-[var(--theme-accent)]"
             >
               <i className="fa-solid fa-pen text-xs" />
             </button>
@@ -84,7 +84,7 @@ export default function PipelineSelector({ pipelines, pipelineId, isAdmin, onCha
                 key={p.id}
                 onClick={() => selectPipeline(p.id)}
                 className={`w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center justify-between ${
-                  p.id === pipelineId ? 'text-indigo-600 font-semibold' : 'text-slate-700'
+                  p.id === pipelineId ? 'text-[var(--theme-accent)] font-semibold' : 'text-slate-700'
                 }`}
               >
                 {p.name}
@@ -99,7 +99,7 @@ export default function PipelineSelector({ pipelines, pipelineId, isAdmin, onCha
                     setOpen(false);
                     setCreateOpen(true);
                   }}
-                  className="w-full text-left px-3 py-2 text-indigo-600 hover:bg-indigo-50 font-medium flex items-center gap-1.5"
+                  className="w-full text-left px-3 py-2 text-[var(--theme-accent)] hover:bg-[var(--theme-accent-tint)] font-medium flex items-center gap-1.5"
                 >
                   <i className="fa-solid fa-plus text-xs" />
                   Create New Pipeline

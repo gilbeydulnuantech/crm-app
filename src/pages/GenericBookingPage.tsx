@@ -4,7 +4,7 @@ import { fetchGenericBookingAvailability, bookGenericInspection, BookingDay, Boo
 import BookingCalendarPicker from '../components/booking/BookingCalendarPicker';
 
 const inputClass =
-  'w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500';
+  'w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]';
 
 export default function GenericBookingPage() {
   const [step, setStep] = useState<'details' | 'time'>('details');
@@ -107,7 +107,7 @@ export default function GenericBookingPage() {
 
             <button
               type="submit"
-              className="w-full mt-2 py-2.5 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg"
+              className="w-full mt-2 py-2.5 text-sm font-semibold bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] text-white rounded-lg"
             >
               Continue to pick a time
             </button>
@@ -150,7 +150,7 @@ export default function GenericBookingPage() {
                   type="button"
                   disabled={!selectedSlot || book.isPending}
                   onClick={() => book.mutate()}
-                  className="w-full mt-6 py-2.5 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg disabled:opacity-40"
+                  className="w-full mt-6 py-2.5 text-sm font-semibold bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] text-white rounded-lg disabled:opacity-40"
                 >
                   {book.isPending ? 'Booking...' : selectedSlot ? `Confirm ${selectedSlot.label}` : 'Select a date and time above'}
                 </button>

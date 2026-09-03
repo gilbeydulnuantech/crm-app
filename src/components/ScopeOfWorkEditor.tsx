@@ -95,7 +95,7 @@ const ScopeOfWorkEditor = forwardRef<RichTextEditorHandle, Props>(function Scope
       <button
         type="button"
         onClick={() => setSaveOpen((s) => !s)}
-        className="ml-auto text-[10px] font-semibold text-indigo-600 hover:underline"
+        className="ml-auto text-[10px] font-semibold text-[var(--theme-accent)] hover:underline"
       >
         Save Scope of Work
       </button>

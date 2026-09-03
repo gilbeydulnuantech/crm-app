@@ -18,7 +18,7 @@ import {
 import { toTitleCase } from '../utils/text';
 
 const inputClass =
-  'px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500';
+  'px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]';
 
 function formatDateTime(iso: string | null | undefined) {
   if (!iso) return '--';
@@ -213,7 +213,7 @@ export default function TicketDetailPage() {
         {/* Left column */}
         <div className="flex-1 min-w-0 space-y-4">
           {isPublicSubmission && (
-            <div className="text-[11px] text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2">
+            <div className="text-[11px] text-[var(--theme-accent-hover)] bg-[var(--theme-accent-tint)] border border-[var(--theme-accent-tint)] rounded-lg px-3 py-2">
               <i className="fa-solid fa-globe mr-1.5" />
               Submitted via the public form by <strong>{ticket.submitter_name}</strong> ({ticket.submitter_email})
               {ticket.contact_id
@@ -345,7 +345,7 @@ export default function TicketDetailPage() {
                 type="button"
                 onClick={handleSendReply}
                 disabled={addComment.isPending || !replyText.trim()}
-                className="px-4 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg disabled:opacity-50"
+                className="px-4 py-1.5 text-xs font-semibold bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] text-white rounded-lg disabled:opacity-50"
               >
                 {replyChannel === 'email' ? 'Send Email' : 'Add Note'}
               </button>
@@ -523,7 +523,7 @@ export default function TicketDetailPage() {
               <button
                 type="button"
                 onClick={() => navigate(`/contacts?contactId=${ticket.contact_id}`)}
-                className="block text-xs text-indigo-600 hover:underline text-left"
+                className="block text-xs text-[var(--theme-accent)] hover:underline text-left"
               >
                 <i className="fa-solid fa-user mr-1.5" /> {customerName}
               </button>
@@ -532,7 +532,7 @@ export default function TicketDetailPage() {
               <button
                 type="button"
                 onClick={() => navigate(`/companies?companyId=${ticket.account_id}`)}
-                className="block text-xs text-indigo-600 hover:underline text-left"
+                className="block text-xs text-[var(--theme-accent)] hover:underline text-left"
               >
                 <i className="fa-solid fa-building mr-1.5" /> {ticket.account_name}
               </button>

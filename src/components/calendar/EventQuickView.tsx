@@ -69,7 +69,7 @@ export default function EventQuickView({ event, onClose, onViewFullDetails, onEd
           <div className="flex items-center gap-3 shrink-0">
             {canEdit && (
               <>
-                <button onClick={() => onEdit(event)} className="text-slate-400 hover:text-indigo-600" title="Edit">
+                <button onClick={() => onEdit(event)} className="text-slate-400 hover:text-[var(--theme-accent)]" title="Edit">
                   <i className="fa-solid fa-pen text-xs" />
                 </button>
                 <button onClick={handleDelete} className="text-slate-400 hover:text-rose-600" title="Delete">

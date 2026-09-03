@@ -51,7 +51,7 @@ export default function InvoiceTemplatesPanel() {
                 </div>
                 <span
                   className={`shrink-0 px-1.5 py-0.5 text-[10px] font-semibold rounded-full ${
-                    t.is_active ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-500'
+                    t.is_active ? 'bg-[var(--theme-accent-tint)] text-[var(--theme-accent-hover)]' : 'bg-slate-100 text-slate-500'
                   }`}
                 >
                   {t.is_active ? 'Active' : 'Inactive'}
@@ -61,7 +61,7 @@ export default function InvoiceTemplatesPanel() {
                   onClick={() => setActive.mutate({ id: t.id, isActive: !t.is_active })}
                   disabled={setActive.isPending}
                   title={t.is_active ? 'Deactivate' : 'Activate'}
-                  className="shrink-0 text-slate-400 hover:text-indigo-600 disabled:opacity-30"
+                  className="shrink-0 text-slate-400 hover:text-[var(--theme-accent)] disabled:opacity-30"
                 >
                   <i className={`fa-solid ${t.is_active ? 'fa-toggle-on' : 'fa-toggle-off'} text-sm`} />
                 </button>
@@ -69,7 +69,7 @@ export default function InvoiceTemplatesPanel() {
                   type="button"
                   onClick={() => navigate(`/documents/templates/invoice/${t.id}/edit`)}
                   title="Edit"
-                  className="shrink-0 text-slate-400 hover:text-indigo-600"
+                  className="shrink-0 text-slate-400 hover:text-[var(--theme-accent)]"
                 >
                   <i className="fa-solid fa-pen text-xs" />
                 </button>

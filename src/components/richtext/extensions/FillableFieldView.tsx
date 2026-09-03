@@ -38,7 +38,7 @@ export default function FillableFieldView({ node, updateAttributes, selected }: 
     signerRole === 'owner'
       ? 'border-amber-300 bg-amber-50 text-amber-700'
       : isSignature
-        ? 'border-indigo-300 bg-indigo-50 text-indigo-700'
+        ? 'border-[var(--theme-accent-tint)] bg-[var(--theme-accent-tint)] text-[var(--theme-accent-hover)]'
         : 'border-dashed border-slate-300 bg-slate-50 text-slate-600';
 
   return (

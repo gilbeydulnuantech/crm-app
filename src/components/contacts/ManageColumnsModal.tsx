@@ -101,7 +101,7 @@ function SortableColumnRow({ col, checked, onToggle }: { col: ColumnDef; checked
           checked={col.locked ? true : checked}
           disabled={col.locked}
           onChange={onToggle}
-          className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)] disabled:opacity-50"
+          className="rounded border-slate-300 text-[var(--theme-accent)] focus:ring-[var(--theme-accent)] disabled:opacity-50"
         />
         {col.label}
         {col.locked && <span className="text-[10px] text-slate-400 ml-auto">always shown</span>}
@@ -139,7 +139,7 @@ export default function ManageColumnsModal({ open, visible, order, onChange, onR
           <div className="flex items-center gap-3">
             <button
               onClick={onReset}
-              className="text-slate-400 hover:text-indigo-600"
+              className="text-slate-400 hover:text-[var(--theme-accent)]"
               title="Reset to default"
             >
               <i className="fa-solid fa-arrow-rotate-left text-sm" />

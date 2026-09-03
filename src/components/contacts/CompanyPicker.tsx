@@ -117,7 +117,7 @@ export default function CompanyPicker({ accountId, companyName, onChange }: Prop
               type="button"
               onClick={handleCreate}
               disabled={addCompany.isPending}
-              className="w-full text-left px-3 py-1.5 text-sm hover:bg-indigo-50 text-indigo-600 font-medium border-t border-slate-100"
+              className="w-full text-left px-3 py-1.5 text-sm hover:bg-[var(--theme-accent-tint)] text-[var(--theme-accent)] font-medium border-t border-slate-100"
             >
               {addCompany.isPending ? 'Creating...' : `+ Create "${query.trim()}"`}
             </button>

@@ -10,7 +10,7 @@ const AVATAR_COLOR_PALETTE = [
   'bg-amber-100 text-amber-700',
   'bg-cyan-100 text-cyan-700',
   'bg-rose-100 text-rose-700',
-  'bg-indigo-100 text-indigo-700',
+  'bg-[var(--theme-accent-tint)] text-[var(--theme-accent-hover)]',
 ];
 
 function colorFor(name: string): string {

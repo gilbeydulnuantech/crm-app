@@ -1,0 +1,1234 @@
+{
+  "name": "Deal Won Engine",
+  "nodes": [
+    {
+      "id": "dw-sched",
+      "name": "Schedule Trigger: every 30 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        200,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "dw-select",
+      "name": "Select Newly Won Deals",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        420,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT o.id AS opportunity_id, o.name AS deal_name, o.assigned_user, c.id AS contact_id, c.first_name, c.last_name, c.email, c.phone, c.dnc_sms FROM opportunities o JOIN contacts c ON c.id = o.contact_id LEFT JOIN deal_won_actions dwa ON dwa.opportunity_id = o.id WHERE o.stage_id = 32 AND o.is_archived = false AND dwa.id IS NULL AND c.is_archived = false AND c.email IS NOT NULL AND c.email <> '';",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "dw-set-status",
+      "name": "Set Lead Status: Customer",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        640,
+        220
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts SET lead_status = 'Customer', updated_at = now() WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.contact_id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "dw-lookup-tmpl",
+      "name": "Look Up Template: Deal Won",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        640,
+        540
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT subject, body FROM email_templates WHERE id = 20;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "dw-fill",
+      "name": "Fill Email: Deal Won",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        860,
+        540
+      ],
+      "parameters": {
+        "jsCode": "\nfunction toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction fill(template, row) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*email\\s*}}/gi, row.email || '')\n    .replace(/{{(?!\\s*company_name\\s*}})[^{}]*}}/gi, '');\n}\n\nconst tmpl = $input.item.json;\nconst row = $('Select Newly Won Deals').item.json;\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject, row), htmlBody: fill(tmpl.body, row).replace(/\\n/g, '<br>') } }];"
+      }
+    },
+    {
+      "id": "dw-send",
+      "name": "Send Email: Deal Won",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1080,
+        540
+      ],
+      "parameters": {
+        "sendTo": "={{ $('Fill Email: Deal Won').item.json.to }}",
+        "subject": "={{ ($('Fill Email: Deal Won').item.json.subject).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Email: Deal Won').item.json.company_name) }}",
+        "emailType": "html",
+        "message": "={{ (($('Fill Email: Deal Won').item.json.htmlBody).replace(/The Team/g, $('Get Company Name: Email: Deal Won').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Email: Deal Won').item.json.company_name) }}",
+        "options": {
+          "senderName": "={{ $('Get Company Name: Email: Deal Won').item.json.company_name }}"
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "dw-log",
+      "name": "Log Sent Email: Deal Won",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1300,
+        540
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts SET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object('id', gen_random_uuid()::text, 'type', 'sent', 'subject', $1::text, 'message', $2::text, 'sent_at', NOW(), 'is_read', true) WHERE id = $3;",
+        "options": {
+          "queryReplacement": "={{ [ ($('Fill Email: Deal Won').item.json.subject).replace(/\\{\\{\\s*company[._]name\\s*\\}\\}/gi, $('Get Company Name: Email: Deal Won').item.json.company_name), $('Fill Email: Deal Won').item.json.htmlBody.replace(/<br\\s*\\/?\\s*>/gi, '\\n').replace(/<[^>]+>/g, '').replace(/The Team/g, $('Get Company Name: Email: Deal Won').item.json.company_name + ' Team').replace(/\\{\\{\\s*company[._]name\\s*\\}\\}/gi, $('Get Company Name: Email: Deal Won').item.json.company_name), $('Select Newly Won Deals').item.json.contact_id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "dw-dmkey",
+      "name": "Build DM Key",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        700
+      ],
+      "parameters": {
+        "jsCode": "const NOTIFIER_USER_ID = 1;\nconst ownerId = $input.item.json.assigned_user;\nconst dmKey = [NOTIFIER_USER_ID, ownerId].sort((a, b) => a - b).join('-');\nreturn [{ json: { notifierUserId: NOTIFIER_USER_ID, ownerId, dmKey } }];"
+      }
+    },
+    {
+      "id": "dw-dmcreate",
+      "name": "Create DM If Missing",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        860,
+        700
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO conversations (type, dm_key, created_by) VALUES ('dm', $1, $2) ON CONFLICT (dm_key) WHERE type = 'dm' DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ [ $json.dmKey, $json.notifierUserId ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "dw-dmgetid",
+      "name": "Get DM Id",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1080,
+        700
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id FROM conversations WHERE type = 'dm' AND dm_key = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Build DM Key').item.json.dmKey ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "dw-dmmembers",
+      "name": "Ensure DM Members",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1300,
+        700
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO conversation_members (conversation_id, user_id) VALUES ($1, $2), ($1, $3) ON CONFLICT DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id, $('Build DM Key').item.json.notifierUserId, $('Build DM Key').item.json.ownerId ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "dw-dmtext",
+      "name": "Prepare DM Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        700
+      ],
+      "parameters": {
+        "jsCode": "const row = $('Select Newly Won Deals').item.json;\nconst name = [row.first_name, row.last_name].filter(Boolean).join(' ') || 'A contact';\nreturn [{ json: { text: '\ud83c\udf89 Deal WON: ' + (row.deal_name || name) + ' - great work!' } }];"
+      }
+    },
+    {
+      "id": "dw-dmmsg",
+      "name": "Insert DM Message",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1740,
+        700
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO messages (conversation_id, sender_id, body) SELECT $1, $2, $3 WHERE EXISTS (SELECT 1 FROM users WHERE id = $4 AND COALESCE((notification_preferences->>'automation_dms')::boolean, true) = true);",
+        "options": {
+          "queryReplacement": "={{ [ $('Get DM Id').item.json.id, $('Build DM Key').item.json.notifierUserId, $json.text, $('Build DM Key').item.json.ownerId ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "dw-record",
+      "name": "Record Won Action",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1960,
+        400
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO deal_won_actions (opportunity_id, contact_id) VALUES ($1, $2) ON CONFLICT (opportunity_id) DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ [ $('Select Newly Won Deals').item.json.opportunity_id, $('Select Newly Won Deals').item.json.contact_id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "rv-select",
+      "name": "Select Deals Due For Review Request",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        420,
+        900
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT dwa.id AS won_action_id, c.id AS contact_id, c.first_name, c.email, c.unsubscribe_token FROM deal_won_actions dwa JOIN contacts c ON c.id = dwa.contact_id WHERE dwa.processed_at <= now() - interval '3 days' AND dwa.review_sent_at IS NULL AND c.is_archived = false AND c.do_not_contact = false AND c.dnc_email = false AND c.email IS NOT NULL AND c.email <> '';",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "rv-secret",
+      "name": "Get Review Link",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        640,
+        900
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT value FROM integration_secrets WHERE key = 'google_review_link';",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "rv-lookup-tmpl",
+      "name": "Look Up Template: Review Request",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        860,
+        900
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT subject, body FROM email_templates WHERE id = 27;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "rv-fill",
+      "name": "Fill Email: Review Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1080,
+        900
+      ],
+      "parameters": {
+        "jsCode": "\nfunction toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction fillBase(template, row) {\n  let base = '';\n  try { base = $env.FRONTEND_BASE_URL || ''; } catch (e) { base = ''; }\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*email\\s*}}/gi, row.email || '')\n    .replace(/{{\\s*unsubscribe_link\\s*}}/gi, base + '/unsubscribe/' + row.unsubscribe_token);\n}\n\nconst tmpl = $input.item.json;\nconst row = $('Select Deals Due For Review Request').item.json;\nconst link = $('Get Review Link').item.json.value;\nfunction fill(t) { return fillBase(t, row).replace(/{{\\s*review_link\\s*}}/gi, link); }\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject), htmlBody: fill(tmpl.body).replace(/\\n/g, '<br>') } }];"
+      }
+    },
+    {
+      "id": "rv-send",
+      "name": "Send Email: Review Request",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1300,
+        900
+      ],
+      "parameters": {
+        "sendTo": "={{ $('Fill Email: Review Request').item.json.to }}",
+        "subject": "={{ ($('Fill Email: Review Request').item.json.subject).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Email: Review Request').item.json.company_name) }}",
+        "emailType": "html",
+        "message": "={{ (($('Fill Email: Review Request').item.json.htmlBody).replace(/The Team/g, $('Get Company Name: Email: Review Request').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Email: Review Request').item.json.company_name) }}",
+        "options": {
+          "senderName": "={{ $('Get Company Name: Email: Review Request').item.json.company_name }}"
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "rv-log",
+      "name": "Log Sent Email: Review Request",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1520,
+        900
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts SET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object('id', gen_random_uuid()::text, 'type', 'sent', 'subject', $1::text, 'message', $2::text, 'sent_at', NOW(), 'is_read', true) WHERE id = $3;",
+        "options": {
+          "queryReplacement": "={{ [ ($('Fill Email: Review Request').item.json.subject).replace(/\\{\\{\\s*company[._]name\\s*\\}\\}/gi, $('Get Company Name: Email: Review Request').item.json.company_name), $('Fill Email: Review Request').item.json.htmlBody.replace(/<br\\s*\\/?\\s*>/gi, '\\n').replace(/<[^>]+>/g, '').replace(/The Team/g, $('Get Company Name: Email: Review Request').item.json.company_name + ' Team').replace(/\\{\\{\\s*company[._]name\\s*\\}\\}/gi, $('Get Company Name: Email: Review Request').item.json.company_name), $('Select Deals Due For Review Request').item.json.contact_id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "rv-mark",
+      "name": "Mark Review Request Sent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1740,
+        900
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE deal_won_actions SET review_sent_at = now() WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Select Deals Due For Review Request').item.json.won_action_id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "rr-select",
+      "name": "Select Deals Due For Review Reminder",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        420,
+        1100
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT dwa.id AS won_action_id, c.id AS contact_id, c.first_name, c.email, c.unsubscribe_token FROM deal_won_actions dwa JOIN contacts c ON c.id = dwa.contact_id WHERE dwa.review_sent_at IS NOT NULL AND dwa.review_sent_at <= now() - interval '7 days' AND dwa.review_reminder_sent_at IS NULL AND c.is_archived = false AND c.do_not_contact = false AND c.dnc_email = false AND c.email IS NOT NULL AND c.email <> '';",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "rr-secret",
+      "name": "Get Review Link (Reminder)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        640,
+        1100
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT value FROM integration_secrets WHERE key = 'google_review_link';",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "rr-lookup-tmpl",
+      "name": "Look Up Template: Review Reminder",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        860,
+        1100
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT subject, body FROM email_templates WHERE id = 28;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "rr-fill",
+      "name": "Fill Email: Review Reminder",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1080,
+        1100
+      ],
+      "parameters": {
+        "jsCode": "\nfunction toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction fillBase(template, row) {\n  let base = '';\n  try { base = $env.FRONTEND_BASE_URL || ''; } catch (e) { base = ''; }\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*email\\s*}}/gi, row.email || '')\n    .replace(/{{\\s*unsubscribe_link\\s*}}/gi, base + '/unsubscribe/' + row.unsubscribe_token);\n}\n\nconst tmpl = $input.item.json;\nconst row = $('Select Deals Due For Review Reminder').item.json;\nconst link = $('Get Review Link (Reminder)').item.json.value;\nfunction fill(t) { return fillBase(t, row).replace(/{{\\s*review_link\\s*}}/gi, link); }\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject), htmlBody: fill(tmpl.body).replace(/\\n/g, '<br>') } }];"
+      }
+    },
+    {
+      "id": "rr-send",
+      "name": "Send Email: Review Reminder",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1300,
+        1100
+      ],
+      "parameters": {
+        "sendTo": "={{ $('Fill Email: Review Reminder').item.json.to }}",
+        "subject": "={{ ($('Fill Email: Review Reminder').item.json.subject).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Email: Review Reminder').item.json.company_name) }}",
+        "emailType": "html",
+        "message": "={{ (($('Fill Email: Review Reminder').item.json.htmlBody).replace(/The Team/g, $('Get Company Name: Email: Review Reminder').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Email: Review Reminder').item.json.company_name) }}",
+        "options": {
+          "senderName": "={{ $('Get Company Name: Email: Review Reminder').item.json.company_name }}"
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "rr-log",
+      "name": "Log Sent Email: Review Reminder",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1520,
+        1100
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts SET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object('id', gen_random_uuid()::text, 'type', 'sent', 'subject', $1::text, 'message', $2::text, 'sent_at', NOW(), 'is_read', true) WHERE id = $3;",
+        "options": {
+          "queryReplacement": "={{ [ ($('Fill Email: Review Reminder').item.json.subject).replace(/\\{\\{\\s*company[._]name\\s*\\}\\}/gi, $('Get Company Name: Email: Review Reminder').item.json.company_name), $('Fill Email: Review Reminder').item.json.htmlBody.replace(/<br\\s*\\/?\\s*>/gi, '\\n').replace(/<[^>]+>/g, '').replace(/The Team/g, $('Get Company Name: Email: Review Reminder').item.json.company_name + ' Team').replace(/\\{\\{\\s*company[._]name\\s*\\}\\}/gi, $('Get Company Name: Email: Review Reminder').item.json.company_name), $('Select Deals Due For Review Reminder').item.json.contact_id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "rr-mark",
+      "name": "Mark Review Reminder Sent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1740,
+        1100
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE deal_won_actions SET review_reminder_sent_at = now() WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Select Deals Due For Review Reminder').item.json.won_action_id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "mt-webhook-dP4qAFyXQwn9ytYf",
+      "name": "Webhook: manual-test",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "webhookId": "4da2c7d5-004b-4985-b2d8-999196afebcd",
+      "position": [
+        200,
+        500
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "manual-test-dP4qAFyXQwn9ytYf",
+        "responseMode": "onReceived",
+        "options": {}
+      }
+    },
+    {
+      "id": "dw-create-task",
+      "name": "Create Task: Kickoff",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        640,
+        60
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO activities (contact_id, opportunity_id, user_id, type, subject, due_at, priority, task_type, sla_tier, status) VALUES ($1, $2, $3, 'task', $4, now(), 'Medium', 'Follow-up', 'Priority', 'Not Started');",
+        "options": {
+          "queryReplacement": "={{ [ $('Select Newly Won Deals').item.json.contact_id, $('Select Newly Won Deals').item.json.opportunity_id, $('Select Newly Won Deals').item.json.assigned_user, 'Kick off: ' + ($('Select Newly Won Deals').item.json.deal_name || 'deal') + ' (Closed Won)' ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "log-3pzsktt9",
+      "name": "Log Automation Run",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2160,
+        550
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO automation_runs (automation_id, action_id, entity_type, entity_id, branch, status, detail) VALUES (42, 119, 'pipeline', $1, 'default', 'success', $2);",
+        "options": {
+          "queryReplacement": "={{ [ $('Select Newly Won Deals').item.json.opportunity_id, 'Deal marked Closed Won \u2014 kickoff email sent, task created' ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "sms-twcfg-cfid37",
+      "name": "Get Twilio Config: Deal Won",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2160,
+        550
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT (SELECT value FROM integration_secrets WHERE key='twilio_account_sid') AS account_sid, (SELECT value FROM integration_secrets WHERE key='twilio_from_number') AS from_number;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "sms-if-sumawm",
+      "name": "Can Send SMS: Deal Won",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2360,
+        550
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ !!($('Select Newly Won Deals').item.json.phone) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "c2",
+              "leftValue": "={{ ($('Select Newly Won Deals').item.json.dnc_sms) === true }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "sms-send-7pp0n4",
+      "name": "Send SMS: Deal Won",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2560,
+        550
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.twilio.com/2010-04-01/Accounts/' + $('Get Twilio Config: Deal Won').item.json.account_sid + '/Messages.json' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "To",
+              "value": "={{ $('Select Newly Won Deals').item.json.phone }}"
+            },
+            {
+              "name": "From",
+              "value": "={{ $('Get Twilio Config: Deal Won').item.json.from_number }}"
+            },
+            {
+              "name": "Body",
+              "value": "={{ 'Congrats! Your deal is officially closed - we will be in touch about next steps. Reply STOP to opt out.' }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "xELUPXoNdBY2j9Eu",
+          "name": "Twilio Auth (PLACEHOLDER - replace me)"
+        }
+      }
+    },
+    {
+      "id": "sms-log-osuy6e",
+      "name": "Log Automation Run: SMS Deal Won",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2760,
+        550
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO automation_runs (automation_id, action_id, entity_type, entity_id, branch, status, detail) VALUES (42, 130, 'pipeline', $1, 'default', 'success', $2);",
+        "options": {
+          "queryReplacement": "={{ [ $('Select Newly Won Deals').item.json.opportunity_id, 'Deal Won SMS sent' ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "cname-ss6x3ed8",
+      "name": "Get Company Name: Email: Deal Won",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        930,
+        660
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT company_name FROM company_profile LIMIT 1;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "cname-ihsb8g0j",
+      "name": "Get Company Name: Email: Review Request",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1150,
+        1020
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT company_name FROM company_profile LIMIT 1;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "cname-p4guhg01",
+      "name": "Get Company Name: Email: Review Reminder",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1150,
+        1220
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT company_name FROM company_profile LIMIT 1;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger: every 30 min": {
+      "main": [
+        [
+          {
+            "node": "Select Newly Won Deals",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Select Deals Due For Review Request",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Select Deals Due For Review Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Newly Won Deals": {
+      "main": [
+        [
+          {
+            "node": "Set Lead Status: Customer",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Look Up Template: Deal Won",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build DM Key",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Record Won Action",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create Task: Kickoff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Template: Deal Won": {
+      "main": [
+        [
+          {
+            "node": "Fill Email: Deal Won",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fill Email: Deal Won": {
+      "main": [
+        [
+          {
+            "node": "Get Company Name: Email: Deal Won",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email: Deal Won": {
+      "main": [
+        [
+          {
+            "node": "Log Sent Email: Deal Won",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Build DM Key": {
+      "main": [
+        [
+          {
+            "node": "Create DM If Missing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create DM If Missing": {
+      "main": [
+        [
+          {
+            "node": "Get DM Id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get DM Id": {
+      "main": [
+        [
+          {
+            "node": "Ensure DM Members",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ensure DM Members": {
+      "main": [
+        [
+          {
+            "node": "Prepare DM Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare DM Text": {
+      "main": [
+        [
+          {
+            "node": "Insert DM Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Deals Due For Review Request": {
+      "main": [
+        [
+          {
+            "node": "Get Review Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Review Link": {
+      "main": [
+        [
+          {
+            "node": "Look Up Template: Review Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Template: Review Request": {
+      "main": [
+        [
+          {
+            "node": "Fill Email: Review Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fill Email: Review Request": {
+      "main": [
+        [
+          {
+            "node": "Get Company Name: Email: Review Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email: Review Request": {
+      "main": [
+        [
+          {
+            "node": "Log Sent Email: Review Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Log Sent Email: Review Request": {
+      "main": [
+        [
+          {
+            "node": "Mark Review Request Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Deals Due For Review Reminder": {
+      "main": [
+        [
+          {
+            "node": "Get Review Link (Reminder)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Review Link (Reminder)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Template: Review Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Template: Review Reminder": {
+      "main": [
+        [
+          {
+            "node": "Fill Email: Review Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fill Email: Review Reminder": {
+      "main": [
+        [
+          {
+            "node": "Get Company Name: Email: Review Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email: Review Reminder": {
+      "main": [
+        [
+          {
+            "node": "Log Sent Email: Review Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Log Sent Email: Review Reminder": {
+      "main": [
+        [
+          {
+            "node": "Mark Review Reminder Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: manual-test": {
+      "main": [
+        [
+          {
+            "node": "Select Newly Won Deals",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Select Deals Due For Review Request",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Select Deals Due For Review Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Won Action": {
+      "main": [
+        [
+          {
+            "node": "Log Automation Run",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Twilio Config: Deal Won",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Twilio Config: Deal Won": {
+      "main": [
+        [
+          {
+            "node": "Can Send SMS: Deal Won",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Can Send SMS: Deal Won": {
+      "main": [
+        [
+          {
+            "node": "Send SMS: Deal Won",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Send SMS: Deal Won": {
+      "main": [
+        [
+          {
+            "node": "Log Automation Run: SMS Deal Won",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Company Name: Email: Deal Won": {
+      "main": [
+        [
+          {
+            "node": "Send Email: Deal Won",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Company Name: Email: Review Request": {
+      "main": [
+        [
+          {
+            "node": "Send Email: Review Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Company Name: Email: Review Reminder": {
+      "main": [
+        [
+          {
+            "node": "Send Email: Review Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  }
+}

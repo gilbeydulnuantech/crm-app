@@ -189,14 +189,14 @@ export default function TopBar({ sidebarCollapsed }: Props) {
                         onClick={() => openContact(contact.id)}
                         className="w-full flex items-start gap-2.5 px-3 py-2 text-left hover:bg-slate-50"
                       >
-                        <i className="fa-solid fa-envelope text-indigo-500 text-xs mt-0.5 shrink-0" />
+                        <i className="fa-solid fa-envelope text-[var(--theme-accent)] text-xs mt-0.5 shrink-0" />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-2">
                             <span className="text-xs font-semibold text-slate-800 truncate">
                               {toTitleCase(`${contact.first_name} ${contact.last_name}`.trim()) || 'No Name'}
                             </span>
                             {count > 1 && (
-                              <span className="shrink-0 text-[10px] font-bold text-white bg-indigo-500 rounded-full px-1.5 py-0.5">
+                              <span className="shrink-0 text-[10px] font-bold text-white bg-[var(--theme-accent)] rounded-full px-1.5 py-0.5">
                                 {count}
                               </span>
                             )}
@@ -218,13 +218,13 @@ export default function TopBar({ sidebarCollapsed }: Props) {
                         onClick={() => openConversation(c.id)}
                         className="w-full flex items-start gap-2.5 px-3 py-2 text-left hover:bg-slate-50"
                       >
-                        <i className="fa-solid fa-comment text-indigo-500 text-xs mt-0.5 shrink-0" />
+                        <i className="fa-solid fa-comment text-[var(--theme-accent)] text-xs mt-0.5 shrink-0" />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-2">
                             <span className="text-xs font-semibold text-slate-800 truncate">
                               {c.type === 'channel' ? `# ${c.name}` : toTitleCase(c.peer_name ?? '')}
                             </span>
-                            <span className="shrink-0 text-[10px] font-bold text-white bg-indigo-500 rounded-full px-1.5 py-0.5">
+                            <span className="shrink-0 text-[10px] font-bold text-white bg-[var(--theme-accent)] rounded-full px-1.5 py-0.5">
                               {c.unread_count}
                             </span>
                           </div>
@@ -247,7 +247,7 @@ export default function TopBar({ sidebarCollapsed }: Props) {
                         onClick={() => openTask(t.id)}
                         className="w-full flex items-start gap-2.5 px-3 py-2 text-left hover:bg-slate-50"
                       >
-                        <i className="fa-solid fa-check text-indigo-500 text-xs mt-0.5 shrink-0" />
+                        <i className="fa-solid fa-check text-[var(--theme-accent)] text-xs mt-0.5 shrink-0" />
                         <span className="text-xs font-semibold text-slate-800 truncate">
                           {toTitleCase(t.subject)}
                         </span>
@@ -264,7 +264,7 @@ export default function TopBar({ sidebarCollapsed }: Props) {
                         onClick={() => openTicket(t.id)}
                         className="w-full flex items-start gap-2.5 px-3 py-2 text-left hover:bg-slate-50"
                       >
-                        <i className="fa-solid fa-headset text-indigo-500 text-xs mt-0.5 shrink-0" />
+                        <i className="fa-solid fa-headset text-[var(--theme-accent)] text-xs mt-0.5 shrink-0" />
                         <div className="min-w-0 flex-1">
                           <span className="text-xs font-semibold text-slate-800 truncate block">{t.subject}</span>
                           {t.sla_due_at && new Date(t.sla_due_at).getTime() < Date.now() && (

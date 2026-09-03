@@ -117,7 +117,7 @@ export default function CompanyProfileModal({ open, onClose }: Props) {
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploadLogo.isPending}
-                    className="text-xs font-semibold text-indigo-600 hover:underline disabled:opacity-50"
+                    className="text-xs font-semibold text-[var(--theme-accent)] hover:underline disabled:opacity-50"
                   >
                     {uploadLogo.isPending ? 'Uploading...' : data?.logo_url ? 'Change logo' : 'Upload logo'}
                   </button>

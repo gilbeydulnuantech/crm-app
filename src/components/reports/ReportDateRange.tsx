@@ -20,7 +20,7 @@ export default function ReportDateRange({ days, onChange }: Props) {
           onClick={() => onChange(o.value)}
           className={`px-2.5 py-1 text-xs font-semibold rounded-md border ${
             days === o.value
-              ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
+              ? 'bg-[var(--theme-accent-tint)] border-[var(--theme-accent-tint)] text-[var(--theme-accent-hover)]'
               : 'border-slate-200 text-slate-600 hover:bg-slate-50'
           }`}
         >

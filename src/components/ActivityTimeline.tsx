@@ -38,7 +38,7 @@ function renderAuditTitle(title: string, detail: Record<string, unknown> | null 
           e.stopPropagation();
           onNavigate(linkHref(link));
         }}
-        className="inline text-indigo-600 hover:underline font-medium"
+        className="inline text-[var(--theme-accent)] hover:underline font-medium"
       >
         {name}
       </button>
@@ -198,7 +198,7 @@ export default function ActivityTimeline({ emails = [], activity, isLoading, onE
             onClick={() => setTab(t)}
             className={`px-2 py-1.5 text-[11px] font-semibold whitespace-nowrap border-b-2 -mb-px transition-colors ${
               tab === t
-                ? 'border-indigo-600 text-indigo-600'
+                ? 'border-[var(--theme-accent)] text-[var(--theme-accent)]'
                 : 'border-transparent text-slate-400 hover:text-slate-600'
             }`}
           >

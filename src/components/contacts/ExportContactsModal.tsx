@@ -93,7 +93,7 @@ export default function ExportContactsModal({ open, contacts, onClose }: Props) 
                 type="checkbox"
                 checked={selected.has(f.key)}
                 onChange={() => toggle(f.key)}
-                className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
+                className="rounded border-slate-300 text-[var(--theme-accent)] focus:ring-[var(--theme-accent)]"
               />
               {f.label}
             </label>

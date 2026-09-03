@@ -62,7 +62,7 @@ export default function PagesListPage() {
                     type="button"
                     onClick={() => navigate(`/documents/pages/${p.id}/edit`)}
                     title="Edit"
-                    className="shrink-0 text-slate-400 hover:text-indigo-600"
+                    className="shrink-0 text-slate-400 hover:text-[var(--theme-accent)]"
                   >
                     <i className="fa-solid fa-pen text-xs" />
                   </button>

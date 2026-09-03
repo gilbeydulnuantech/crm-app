@@ -71,7 +71,7 @@ export default function ProposalPreviewOverlay({
         </button>
 
         {step !== 'proposal' && (
-          <span className="inline-block mb-3 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide rounded-full bg-indigo-100 text-indigo-700">
+          <span className="inline-block mb-3 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide rounded-full bg-[var(--theme-accent-tint)] text-[var(--theme-accent-hover)]">
             Test mode — {step === 'contract' ? 'contract step' : 'thank you page'}
           </span>
         )}

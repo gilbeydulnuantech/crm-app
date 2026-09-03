@@ -65,7 +65,7 @@ const STATUS_LABEL: Record<Proposal['status'], string> = {
 const STATUS_CLASS: Record<Proposal['status'], string> = {
   draft: 'bg-slate-100 text-slate-600',
   emailed: 'bg-amber-100 text-amber-700',
-  viewed: 'bg-indigo-100 text-indigo-700',
+  viewed: 'bg-[var(--theme-accent-tint)] text-[var(--theme-accent-hover)]',
   approved: 'bg-emerald-100 text-emerald-700',
 };
 
@@ -176,7 +176,7 @@ export default function ProposalsSection({ opportunityId, canEdit, onCreateNew }
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Proposals</h3>
         {canEdit && !formOpen && (
-          <button type="button" onClick={onCreateNew} className="text-xs font-semibold text-indigo-600 hover:underline">
+          <button type="button" onClick={onCreateNew} className="text-xs font-semibold text-[var(--theme-accent)] hover:underline">
             + New Proposal
           </button>
         )}
@@ -401,7 +401,7 @@ export default function ProposalsSection({ opportunityId, canEdit, onCreateNew }
                 <span className={`shrink-0 px-1.5 py-0.5 text-[10px] font-semibold rounded-full ${STATUS_CLASS[p.status]}`}>
                   {STATUS_LABEL[p.status]}
                 </span>
-                <button type="button" onClick={() => handleCopyLink(p)} title="Copy link" className="shrink-0 text-slate-400 hover:text-indigo-600">
+                <button type="button" onClick={() => handleCopyLink(p)} title="Copy link" className="shrink-0 text-slate-400 hover:text-[var(--theme-accent)]">
                   <i className={`fa-solid ${copiedId === p.id ? 'fa-check' : 'fa-link'} text-[11px]`} />
                 </button>
                 <a
@@ -414,7 +414,7 @@ export default function ProposalsSection({ opportunityId, canEdit, onCreateNew }
                 </a>
                 {canEdit && (
                   <>
-                    <button type="button" onClick={() => openEdit(p)} title="Edit" className="shrink-0 text-slate-400 hover:text-indigo-600">
+                    <button type="button" onClick={() => openEdit(p)} title="Edit" className="shrink-0 text-slate-400 hover:text-[var(--theme-accent)]">
                       <i className="fa-solid fa-pen text-[11px]" />
                     </button>
                     <button

@@ -45,7 +45,7 @@ export default function TaskColumn({
     <div
       ref={setNodeRef}
       className={`w-64 h-full shrink-0 flex flex-col rounded-xl border bg-slate-50 border-slate-200 transition-colors ${
-        isOver ? 'ring-2 ring-indigo-400' : ''
+        isOver ? 'ring-2 ring-[var(--theme-accent)]' : ''
       }`}
     >
       <div className="p-3 border-b border-slate-200 flex items-center justify-between shrink-0">

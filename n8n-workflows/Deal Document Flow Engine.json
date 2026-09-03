@@ -6,8 +6,7 @@
         "rule": {
           "interval": [
             {
-              "field": "minutes",
-              "minutesInterval": 30
+              "field": "minutes"
             }
           ]
         }
@@ -17,14 +16,14 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        240,
-        400
+        208,
+        352
       ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT DISTINCT ON (o.id)\n  o.id AS opportunity_id, o.name AS deal_name,\n  p.id AS proposal_id, p.public_token, p.email_subject, p.email_body,\n  c.email, c.first_name, c.last_name,\n  u.name AS owner_name, u.email AS owner_email, u.phone AS owner_phone\nFROM deal_document_flows f\nJOIN opportunities o ON o.stage_id = f.trigger_stage_id AND o.is_archived = false AND o.status = 'Open'\nJOIN contacts c ON c.id = o.contact_id AND c.is_archived = false AND c.email IS NOT NULL AND c.email <> ''\nJOIN proposals p ON p.opportunity_id = o.id AND p.emailed_at IS NULL\nLEFT JOIN users u ON u.id = o.assigned_user\nWHERE f.is_active = true\n  AND o.stage_entered_at <= now() - (f.delay_hours || ' hours')::interval\nORDER BY o.id, p.created_at DESC;",
+        "query": "SELECT DISTINCT ON (o.id)\n  o.id AS opportunity_id, o.name AS deal_name,\n  p.id AS proposal_id, p.public_token, p.email_subject, p.email_body,\n  c.id AS contact_id, c.email, c.first_name, c.last_name, c.phone, c.dnc_sms,\n  u.name AS owner_name, u.email AS owner_email, u.phone AS owner_phone\nFROM deal_document_flows f\nJOIN opportunities o ON o.stage_id = f.trigger_stage_id AND o.is_archived = false AND o.status = 'Open'\nJOIN contacts c ON c.id = o.contact_id AND c.is_archived = false AND c.email IS NOT NULL AND c.email <> ''\nJOIN proposals p ON p.opportunity_id = o.id AND p.emailed_at IS NULL\nLEFT JOIN users u ON u.id = o.assigned_user\nWHERE f.is_active = true\n  AND o.stage_entered_at <= now() - (f.delay_hours || ' hours')::interval\nORDER BY o.id, p.created_at DESC;",
         "options": {}
       },
       "id": "ddfe0002-2222-4a5a-9b1a-docengine00002",
@@ -32,7 +31,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        464,
+        432,
         400
       ],
       "credentials": {
@@ -52,26 +51,29 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        688,
+        656,
         400
       ]
     },
     {
       "parameters": {
-        "sendTo": "={{ $json.to }}",
-        "subject": "={{ $json.subject }}",
+        "sendTo": "={{ $('Personalize').item.json.to }}",
+        "subject": "={{ ($('Personalize').item.json.subject).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Proposal Email').item.json.company_name) }}",
         "emailType": "text",
-        "message": "={{ $json.body }}",
-        "options": {}
+        "message": "={{ (($('Personalize').item.json.body).replace(/The Team/g, $('Get Company Name: Proposal Email').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Proposal Email').item.json.company_name) }}",
+        "options": {
+          "senderName": "={{ $('Get Company Name: Proposal Email').item.json.company_name }}"
+        }
       },
       "id": "ddfe0004-4444-4a5a-9b1a-docengine00004",
       "name": "Send Proposal Email",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        912,
+        880,
         400
       ],
+      "webhookId": "86b566df-1d27-4d6a-8e37-46a616d5d91d",
       "credentials": {
         "gmailOAuth2": {
           "id": "VKDbMYV2U0WoSc16",
@@ -93,7 +95,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1136,
+        1104,
         400
       ],
       "credentials": {
@@ -115,8 +117,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        464,
-        624
+        432,
+        1072
       ],
       "credentials": {
         "postgres": {
@@ -135,26 +137,29 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        688,
-        624
+        656,
+        1072
       ]
     },
     {
       "parameters": {
-        "sendTo": "={{ $json.to }}",
-        "subject": "={{ $json.subject }}",
+        "sendTo": "={{ $('Personalize Reminder').item.json.to }}",
+        "subject": "={{ ($('Personalize Reminder').item.json.subject).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Reminder Email').item.json.company_name) }}",
         "emailType": "text",
-        "message": "={{ $json.body }}",
-        "options": {}
+        "message": "={{ (($('Personalize Reminder').item.json.body).replace(/The Team/g, $('Get Company Name: Reminder Email').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Reminder Email').item.json.company_name) }}",
+        "options": {
+          "senderName": "={{ $('Get Company Name: Reminder Email').item.json.company_name }}"
+        }
       },
       "id": "ddfe0008-8888-4a5a-9b1a-docengine00008",
       "name": "Send Reminder Email",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        912,
-        624
+        880,
+        1072
       ],
+      "webhookId": "4c58acd7-25eb-453f-861c-a889ebd5081f",
       "credentials": {
         "gmailOAuth2": {
           "id": "VKDbMYV2U0WoSc16",
@@ -176,8 +181,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1136,
-        624
+        1104,
+        1072
       ],
       "credentials": {
         "postgres": {
@@ -186,6 +191,778 @@
         }
       },
       "notes": "Only runs after Gmail succeeds, same retry-on-failure pattern as Mark Emailed."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT ct.id AS contract_id, ct.public_token, f.contract_reminder_email_subject, f.contract_reminder_email_body, c.id AS contact_id, c.email, c.first_name, c.last_name, c.phone, c.dnc_sms, o.name AS deal_name FROM deal_document_flows f JOIN contracts ct ON ct.flow_id = f.id AND ct.status = 'sent' AND ct.is_archived = false JOIN opportunities o ON o.id = ct.opportunity_id AND o.is_archived = false AND o.status = 'Open' JOIN contacts c ON c.id = o.contact_id AND c.is_archived = false AND c.email IS NOT NULL AND c.email <> '' WHERE f.is_active = true AND f.contract_reminder_delay_hours IS NOT NULL AND ct.sent_at <= now() - (f.contract_reminder_delay_hours || ' hours')::interval AND ct.reminder_sent_at IS NULL;",
+        "options": {}
+      },
+      "id": "cr-select",
+      "name": "Select Contracts Due For Reminder",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        432,
+        880
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.item.json;\nlet base = '';\ntry { base = $env.FRONTEND_BASE_URL || ''; } catch (e) { base = ''; }\nconst link = `${base}/documents/contract/${row.public_token}`;\nfunction fill(template) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, row.first_name || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, row.last_name || '')\n    .replace(/{{\\s*deal_name\\s*}}/gi, row.deal_name || '')\n    .replace(/{{\\s*contract_link\\s*}}/gi, link);\n}\nreturn [{ json: { contractId: row.contract_id, to: row.email, subject: fill(row.contract_reminder_email_subject), body: fill(row.contract_reminder_email_body) } }];"
+      },
+      "id": "cr-personalize",
+      "name": "Personalize Contract Reminder",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        656,
+        880
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Personalize Contract Reminder').item.json.to }}",
+        "subject": "={{ ($('Personalize Contract Reminder').item.json.subject).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Contract Reminder Email').item.json.company_name) }}",
+        "message": "={{ (($('Personalize Contract Reminder').item.json.body.replace(/\\n/g, \"<br>\")).replace(/The Team/g, $('Get Company Name: Contract Reminder Email').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Contract Reminder Email').item.json.company_name) }}",
+        "options": {
+          "senderName": "={{ $('Get Company Name: Contract Reminder Email').item.json.company_name }}"
+        }
+      },
+      "id": "cr-send",
+      "name": "Send Contract Reminder Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        880,
+        880
+      ],
+      "webhookId": "38b705c5-28ed-4d29-9abe-01f2421ef144",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contracts SET reminder_sent_at = now() WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Personalize Contract Reminder').item.json.contractId ] }}"
+        }
+      },
+      "id": "cr-mark",
+      "name": "Mark Contract Reminder Sent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1104,
+        880
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT i.id AS invoice_id, ct.public_token AS contract_token, c.id AS contact_id, c.email, c.first_name, c.last_name, c.phone, c.dnc_sms, o.name AS deal_name FROM invoices i JOIN contracts ct ON ct.opportunity_id = i.opportunity_id JOIN opportunities o ON o.id = i.opportunity_id AND o.is_archived = false AND o.status = 'Open' JOIN contacts c ON c.id = i.contact_id AND c.email IS NOT NULL AND c.email <> '' WHERE i.invoice_type = 'down_payment' AND i.reminder_sent_at IS NULL AND i.created_at <= now() - interval '48 hours' AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.invoice_id = i.id AND p.status = 'succeeded');",
+        "options": {}
+      },
+      "id": "dp-select",
+      "name": "Select Unpaid Down Payments Due",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        432,
+        1264
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT subject, body FROM email_templates WHERE id = 24;",
+        "options": {}
+      },
+      "id": "dp-lookup-tmpl",
+      "name": "Look Up Template: DP Reminder",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        656,
+        1264
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $('Select Unpaid Down Payments Due').item.json;\nlet base = '';\ntry { base = $env.FRONTEND_BASE_URL || ''; } catch (e) { base = ''; }\nconst link = `${base}/documents/contract/${row.contract_token}`;\nfunction fill(t) {\n  return (t || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, row.first_name || 'there')\n    .replace(/{{\\s*deal_name\\s*}}/gi, row.deal_name || '')\n    .replace(/{{\\s*contract_link\\s*}}/gi, link);\n}\nconst tmpl = $input.item.json;\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject), htmlBody: fill(tmpl.body).replace(/\\n/g, '<br>') } }];"
+      },
+      "id": "dp-fill",
+      "name": "Fill Email: DP Reminder",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        1264
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Fill Email: DP Reminder').item.json.to }}",
+        "subject": "={{ ($('Fill Email: DP Reminder').item.json.subject).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Email: DP Reminder').item.json.company_name) }}",
+        "message": "={{ (($('Fill Email: DP Reminder').item.json.htmlBody).replace(/The Team/g, $('Get Company Name: Email: DP Reminder').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Email: DP Reminder').item.json.company_name) }}",
+        "options": {
+          "senderName": "={{ $('Get Company Name: Email: DP Reminder').item.json.company_name }}"
+        }
+      },
+      "id": "dp-send",
+      "name": "Send Email: DP Reminder",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1104,
+        1264
+      ],
+      "webhookId": "3c7fafb7-9d6d-461d-8d65-dd59127e3ca4",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts SET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object('id', gen_random_uuid()::text, 'type', 'sent', 'subject', $1::text, 'message', $2::text, 'sent_at', NOW(), 'is_read', true) WHERE email = $3;",
+        "options": {
+          "queryReplacement": "={{ [ ($('Fill Email: DP Reminder').item.json.subject).replace(/\\{\\{\\s*company[._]name\\s*\\}\\}/gi, $('Get Company Name: Email: DP Reminder').item.json.company_name), $('Fill Email: DP Reminder').item.json.htmlBody.replace(/<br\\s*\\/?\\s*>/gi, '\\n').replace(/<[^>]+>/g, '').replace(/The Team/g, $('Get Company Name: Email: DP Reminder').item.json.company_name + ' Team').replace(/\\{\\{\\s*company[._]name\\s*\\}\\}/gi, $('Get Company Name: Email: DP Reminder').item.json.company_name), $('Select Unpaid Down Payments Due').item.json.email ] }}"
+        }
+      },
+      "id": "dp-log",
+      "name": "Log Sent Email: DP Reminder",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1328,
+        1264
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE invoices SET reminder_sent_at = now() WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Select Unpaid Down Payments Due').item.json.invoice_id ] }}"
+        }
+      },
+      "id": "dp-mark",
+      "name": "Mark DP Reminder Sent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1552,
+        1264
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "manual-test-OlV4JpavvfgbGYQB",
+        "options": {}
+      },
+      "id": "mt-webhook-OlV4JpavvfgbGYQB",
+      "name": "Webhook: manual-test",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "webhookId": "96699b62-dabb-4d2d-92de-3d1e57c0c1f9",
+      "position": [
+        208,
+        1312
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO automation_runs (automation_id, action_id, entity_type, entity_id, branch, status, detail) VALUES (40, 115, 'pipeline', $1, 'default', 'success', $2);",
+        "options": {
+          "queryReplacement": "={{ [ $('Select Proposals Due To Send').item.json.opportunity_id, 'Proposal emailed to ' + ($('Select Proposals Due To Send').item.json.first_name || 'contact') ] }}"
+        }
+      },
+      "id": "log-81jyimd1",
+      "name": "Log Automation Run: Proposal",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1328,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO automation_runs (automation_id, action_id, entity_type, entity_id, branch, status, detail) VALUES (40, 116, 'pipeline', (SELECT opportunity_id FROM contracts WHERE id = $1), 'default', 'success', $2);",
+        "options": {
+          "queryReplacement": "={{ [ $('Personalize Contract Reminder').item.json.contractId, 'Contract signature reminder sent' ] }}"
+        }
+      },
+      "id": "log-4n1xa730",
+      "name": "Log Automation Run: Contract Reminder",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1328,
+        784
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO automation_runs (automation_id, action_id, entity_type, entity_id, branch, status, detail) VALUES (40, 117, 'pipeline', (SELECT opportunity_id FROM invoices WHERE id = $1), 'default', 'success', $2);",
+        "options": {
+          "queryReplacement": "={{ [ $('Select Unpaid Down Payments Due').item.json.invoice_id, 'Down payment reminder sent' ] }}"
+        }
+      },
+      "id": "log-ib0m0x7z",
+      "name": "Log Automation Run: DP Reminder",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1776,
+        1168
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT (SELECT value FROM integration_secrets WHERE key='twilio_account_sid') AS account_sid, (SELECT value FROM integration_secrets WHERE key='twilio_from_number') AS from_number;",
+        "options": {}
+      },
+      "id": "sms-twcfg-ya0hue",
+      "name": "Get Twilio Config: Proposal",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1328,
+        592
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ !!($('Select Proposals Due To Send').item.json.phone) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "c2",
+              "leftValue": "={{ ($('Select Proposals Due To Send').item.json.dnc_sms) === true }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sms-if-kml0r3",
+      "name": "Can Send SMS: Proposal",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1552,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.twilio.com/2010-04-01/Accounts/' + $('Get Twilio Config: Proposal').item.json.account_sid + '/Messages.json' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "To",
+              "value": "={{ $('Select Proposals Due To Send').item.json.phone }}"
+            },
+            {
+              "name": "From",
+              "value": "={{ $('Get Twilio Config: Proposal').item.json.from_number }}"
+            },
+            {
+              "name": "Body",
+              "value": "={{ 'Hi ' + ($('Select Proposals Due To Send').item.json.first_name || 'there') + ', your roofing proposal has been emailed to you - check your inbox! Reply STOP to opt out.' }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "id": "sms-send-xrho14",
+      "name": "Send SMS: Proposal",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1776,
+        592
+      ],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "xELUPXoNdBY2j9Eu",
+          "name": "Twilio Auth (PLACEHOLDER - replace me)"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO automation_runs (automation_id, action_id, entity_type, entity_id, branch, status, detail) VALUES (40, 127, 'pipeline', $1, 'default', 'success', $2);",
+        "options": {
+          "queryReplacement": "={{ [ $('Select Proposals Due To Send').item.json.opportunity_id, 'Proposal SMS sent' ] }}"
+        }
+      },
+      "id": "sms-log-pd0a4y",
+      "name": "Log Automation Run: SMS Proposal",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2000,
+        592
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT (SELECT value FROM integration_secrets WHERE key='twilio_account_sid') AS account_sid, (SELECT value FROM integration_secrets WHERE key='twilio_from_number') AS from_number;",
+        "options": {}
+      },
+      "id": "sms-twcfg-2xll0r",
+      "name": "Get Twilio Config: Contract Reminder",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1328,
+        976
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ !!($('Select Contracts Due For Reminder').item.json.phone) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "c2",
+              "leftValue": "={{ ($('Select Contracts Due For Reminder').item.json.dnc_sms) === true }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sms-if-qvz1qm",
+      "name": "Can Send SMS: Contract Reminder",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1552,
+        976
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.twilio.com/2010-04-01/Accounts/' + $('Get Twilio Config: Contract Reminder').item.json.account_sid + '/Messages.json' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "To",
+              "value": "={{ $('Select Contracts Due For Reminder').item.json.phone }}"
+            },
+            {
+              "name": "From",
+              "value": "={{ $('Get Twilio Config: Contract Reminder').item.json.from_number }}"
+            },
+            {
+              "name": "Body",
+              "value": "={{ 'Hi ' + ($('Select Contracts Due For Reminder').item.json.first_name || 'there') + ', friendly reminder to sign your contract - check your email for the link! Reply STOP to opt out.' }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "id": "sms-send-6ohu1i",
+      "name": "Send SMS: Contract Reminder",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1776,
+        976
+      ],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "xELUPXoNdBY2j9Eu",
+          "name": "Twilio Auth (PLACEHOLDER - replace me)"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO automation_runs (automation_id, action_id, entity_type, entity_id, branch, status, detail) VALUES (40, 128, 'pipeline', (SELECT opportunity_id FROM contracts WHERE id = $1), 'default', 'success', $2);",
+        "options": {
+          "queryReplacement": "={{ [ $('Personalize Contract Reminder').item.json.contractId, 'Contract Reminder SMS sent' ] }}"
+        }
+      },
+      "id": "sms-log-y4bzkd",
+      "name": "Log Automation Run: SMS Contract Reminder",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2000,
+        976
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT (SELECT value FROM integration_secrets WHERE key='twilio_account_sid') AS account_sid, (SELECT value FROM integration_secrets WHERE key='twilio_from_number') AS from_number;",
+        "options": {}
+      },
+      "id": "sms-twcfg-67kx7b",
+      "name": "Get Twilio Config: DP Reminder",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1776,
+        1360
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ !!($('Select Unpaid Down Payments Due').item.json.phone) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "c2",
+              "leftValue": "={{ ($('Select Unpaid Down Payments Due').item.json.dnc_sms) === true }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sms-if-5jfviu",
+      "name": "Can Send SMS: DP Reminder",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2000,
+        1360
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.twilio.com/2010-04-01/Accounts/' + $('Get Twilio Config: DP Reminder').item.json.account_sid + '/Messages.json' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "To",
+              "value": "={{ $('Select Unpaid Down Payments Due').item.json.phone }}"
+            },
+            {
+              "name": "From",
+              "value": "={{ $('Get Twilio Config: DP Reminder').item.json.from_number }}"
+            },
+            {
+              "name": "Body",
+              "value": "={{ 'Hi ' + ($('Select Unpaid Down Payments Due').item.json.first_name || 'there') + ', reminder to complete your down payment - check your email for the link! Reply STOP to opt out.' }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "id": "sms-send-bic3pu",
+      "name": "Send SMS: DP Reminder",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2224,
+        1360
+      ],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "xELUPXoNdBY2j9Eu",
+          "name": "Twilio Auth (PLACEHOLDER - replace me)"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO automation_runs (automation_id, action_id, entity_type, entity_id, branch, status, detail) VALUES (40, 129, 'pipeline', (SELECT opportunity_id FROM invoices WHERE id = $1), 'default', 'success', $2);",
+        "options": {
+          "queryReplacement": "={{ [ $('Select Unpaid Down Payments Due').item.json.invoice_id, 'DP Reminder SMS sent' ] }}"
+        }
+      },
+      "id": "sms-log-ggiaos",
+      "name": "Log Automation Run: SMS DP Reminder",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2448,
+        1360
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT company_name FROM company_profile LIMIT 1;",
+        "options": {}
+      },
+      "id": "cname-ibqwqy3s",
+      "name": "Get Company Name: Proposal Email",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        736,
+        528
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT company_name FROM company_profile LIMIT 1;",
+        "options": {}
+      },
+      "id": "cname-uflulyi7",
+      "name": "Get Company Name: Reminder Email",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        736,
+        1200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT company_name FROM company_profile LIMIT 1;",
+        "options": {}
+      },
+      "id": "cname-zs28q4e1",
+      "name": "Get Company Name: Contract Reminder Email",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        736,
+        1008
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT company_name FROM company_profile LIMIT 1;",
+        "options": {}
+      },
+      "id": "cname-dvpaolir",
+      "name": "Get Company Name: Email: DP Reminder",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        960,
+        1392
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
     }
   ],
   "connections": {
@@ -199,6 +976,16 @@
           },
           {
             "node": "Select Proposals Due For Reminder",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Select Contracts Due For Reminder",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Select Unpaid Down Payments Due",
             "type": "main",
             "index": 0
           }
@@ -220,7 +1007,7 @@
       "main": [
         [
           {
-            "node": "Send Proposal Email",
+            "node": "Get Company Name: Proposal Email",
             "type": "main",
             "index": 0
           }
@@ -254,7 +1041,7 @@
       "main": [
         [
           {
-            "node": "Send Reminder Email",
+            "node": "Get Company Name: Reminder Email",
             "type": "main",
             "index": 0
           }
@@ -272,14 +1059,326 @@
         ],
         []
       ]
+    },
+    "Select Contracts Due For Reminder": {
+      "main": [
+        [
+          {
+            "node": "Personalize Contract Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Personalize Contract Reminder": {
+      "main": [
+        [
+          {
+            "node": "Get Company Name: Contract Reminder Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Contract Reminder Email": {
+      "main": [
+        [
+          {
+            "node": "Mark Contract Reminder Sent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Mark Emailed": {
+      "main": [
+        [
+          {
+            "node": "Log Automation Run: Proposal",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Twilio Config: Proposal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Unpaid Down Payments Due": {
+      "main": [
+        [
+          {
+            "node": "Look Up Template: DP Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Template: DP Reminder": {
+      "main": [
+        [
+          {
+            "node": "Fill Email: DP Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fill Email: DP Reminder": {
+      "main": [
+        [
+          {
+            "node": "Get Company Name: Email: DP Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email: DP Reminder": {
+      "main": [
+        [
+          {
+            "node": "Log Sent Email: DP Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Log Sent Email: DP Reminder": {
+      "main": [
+        [
+          {
+            "node": "Mark DP Reminder Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: manual-test": {
+      "main": [
+        [
+          {
+            "node": "Select Proposals Due To Send",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Select Proposals Due For Reminder",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Select Contracts Due For Reminder",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Select Unpaid Down Payments Due",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Contract Reminder Sent": {
+      "main": [
+        [
+          {
+            "node": "Log Automation Run: Contract Reminder",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Twilio Config: Contract Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark DP Reminder Sent": {
+      "main": [
+        [
+          {
+            "node": "Log Automation Run: DP Reminder",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Twilio Config: DP Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Twilio Config: Proposal": {
+      "main": [
+        [
+          {
+            "node": "Can Send SMS: Proposal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Can Send SMS: Proposal": {
+      "main": [
+        [
+          {
+            "node": "Send SMS: Proposal",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Send SMS: Proposal": {
+      "main": [
+        [
+          {
+            "node": "Log Automation Run: SMS Proposal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Twilio Config: Contract Reminder": {
+      "main": [
+        [
+          {
+            "node": "Can Send SMS: Contract Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Can Send SMS: Contract Reminder": {
+      "main": [
+        [
+          {
+            "node": "Send SMS: Contract Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Send SMS: Contract Reminder": {
+      "main": [
+        [
+          {
+            "node": "Log Automation Run: SMS Contract Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Twilio Config: DP Reminder": {
+      "main": [
+        [
+          {
+            "node": "Can Send SMS: DP Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Can Send SMS: DP Reminder": {
+      "main": [
+        [
+          {
+            "node": "Send SMS: DP Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Send SMS: DP Reminder": {
+      "main": [
+        [
+          {
+            "node": "Log Automation Run: SMS DP Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Company Name: Proposal Email": {
+      "main": [
+        [
+          {
+            "node": "Send Proposal Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Company Name: Reminder Email": {
+      "main": [
+        [
+          {
+            "node": "Send Reminder Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Company Name: Contract Reminder Email": {
+      "main": [
+        [
+          {
+            "node": "Send Contract Reminder Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Company Name: Email: DP Reminder": {
+      "main": [
+        [
+          {
+            "node": "Send Email: DP Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "pinData": {},
   "active": true,
   "settings": {
     "executionOrder": "v1",
+    "binaryMode": "separate",
     "availableInMCP": false,
     "timeSavedMode": "fixed",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
     "callerPolicy": "workflowsFromSameOwner"
   }
 }

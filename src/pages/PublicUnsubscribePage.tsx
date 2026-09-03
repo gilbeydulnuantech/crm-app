@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { confirmUnsubscribe } from '../api/unsubscribe';
+import { syncContactStatus } from '../api/contacts';
 import { toTitleCase } from '../utils/text';
 
 // One-click unsubscribe landing — the link itself is the action (matches
@@ -21,6 +22,9 @@ export default function PublicUnsubscribePage() {
 
   useEffect(() => {
     if (data) setRan(true);
+    // Best-effort — unsubscribing recomputes lead_status to Unqualified.
+    if (data?.success && data.contact_id) syncContactStatus({ contact_id: data.contact_id });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
 
   return (

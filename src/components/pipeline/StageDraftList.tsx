@@ -151,7 +151,7 @@ export default function StageDraftList({ stages, onChange }: Props) {
       <button
         type="button"
         onClick={addStage}
-        className="mt-2.5 flex items-center gap-1.5 text-xs font-semibold text-[var(--theme-accent)] hover:text-[var(--theme-accent-hover)] px-2 py-1.5 border border-dashed border-slate-300 rounded-lg hover:border-indigo-400"
+        className="mt-2.5 flex items-center gap-1.5 text-xs font-semibold text-[var(--theme-accent)] hover:text-[var(--theme-accent-hover)] px-2 py-1.5 border border-dashed border-slate-300 rounded-lg hover:border-[var(--theme-accent)]"
       >
         <i className="fa-solid fa-plus text-[10px]" />
         Add Stage

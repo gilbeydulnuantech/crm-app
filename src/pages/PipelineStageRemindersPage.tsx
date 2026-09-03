@@ -108,7 +108,7 @@ export default function PipelineStageRemindersPage() {
                     </span>
                   )}
                   {r.on_complete_advance_stage_name && (
-                    <span className="text-[10px] font-medium text-indigo-700 bg-indigo-50 rounded-full px-2 py-0.5">
+                    <span className="text-[10px] font-medium text-[var(--theme-accent-hover)] bg-[var(--theme-accent-tint)] rounded-full px-2 py-0.5">
                       + advance to {r.on_complete_advance_stage_name}
                     </span>
                   )}

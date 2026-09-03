@@ -253,7 +253,7 @@ export default function Companies() {
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
       {companyDeepLinkPending && (
         <div className="absolute inset-0 z-[90] bg-white flex items-center justify-center">
-          <i className="fa-solid fa-spinner fa-spin text-2xl text-indigo-500" />
+          <i className="fa-solid fa-spinner fa-spin text-2xl text-[var(--theme-accent)]" />
         </div>
       )}
       <div className="px-4 py-3 flex items-center justify-between shrink-0 border-b border-slate-200">

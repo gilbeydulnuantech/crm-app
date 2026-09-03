@@ -91,7 +91,7 @@ export function TaskColumnsManager({
     <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-indigo-600 py-1.5 px-2.5 border border-slate-200 rounded-md bg-white transition-colors"
+        className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-[var(--theme-accent)] py-1.5 px-2.5 border border-slate-200 rounded-md bg-white transition-colors"
       >
         <span>Columns</span>
         <i className="fa-solid fa-gear text-[10px]" />
@@ -106,7 +106,7 @@ export function TaskColumnsManager({
                   type="checkbox"
                   checked={visibleStatusIds.has(s.id)}
                   onChange={() => onToggleVisibility(s.id)}
-                  className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)] shrink-0"
+                  className="rounded border-slate-300 text-[var(--theme-accent)] focus:ring-[var(--theme-accent)] shrink-0"
                 />
                 {renamingId === s.id ? (
                   <input
@@ -128,7 +128,7 @@ export function TaskColumnsManager({
                     <button
                       onClick={() => startRename(s)}
                       title="Rename"
-                      className="text-slate-300 hover:text-indigo-600"
+                      className="text-slate-300 hover:text-[var(--theme-accent)]"
                     >
                       <i className="fa-solid fa-pen text-[10px]" />
                     </button>
@@ -158,7 +158,7 @@ export function TaskColumnsManager({
                   <button
                     onClick={handleAdd}
                     disabled={!newName.trim() || createStatus.isPending}
-                    className="text-xs font-semibold text-indigo-600 hover:underline disabled:opacity-50 shrink-0"
+                    className="text-xs font-semibold text-[var(--theme-accent)] hover:underline disabled:opacity-50 shrink-0"
                   >
                     Add
                   </button>

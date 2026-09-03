@@ -174,7 +174,7 @@ export default function ImportContactsModal({ open, onClose }: Props) {
             <button
               type="button"
               onClick={downloadTemplate}
-              className="shrink-0 text-xs font-medium text-indigo-600 hover:underline ml-3"
+              className="shrink-0 text-xs font-medium text-[var(--theme-accent)] hover:underline ml-3"
             >
               Download template
             </button>
@@ -185,11 +185,11 @@ export default function ImportContactsModal({ open, onClose }: Props) {
             type="file"
             accept=".csv,text/csv"
             onChange={handleFileSelected}
-            className="block w-full text-xs text-slate-500 file:mr-2 file:px-2.5 file:py-1.5 file:rounded-md file:border file:border-dashed file:border-slate-300 file:bg-white file:text-xs file:text-slate-600 hover:file:border-indigo-400 hover:file:text-indigo-600"
+            className="block w-full text-xs text-slate-500 file:mr-2 file:px-2.5 file:py-1.5 file:rounded-md file:border file:border-dashed file:border-slate-300 file:bg-white file:text-xs file:text-slate-600 hover:file:border-[var(--theme-accent)] hover:file:text-[var(--theme-accent)]"
           />
 
           {fileName && !error && rows.length > 0 && (
-            <div className="p-2.5 text-xs rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200">
+            <div className="p-2.5 text-xs rounded-lg bg-[var(--theme-accent-tint)] text-[var(--theme-accent-hover)] border border-[var(--theme-accent-tint)]">
               {fileName}: {validRows.length} of {rows.length} row{rows.length === 1 ? '' : 's'} ready to import
               {validRows.length < rows.length &&
                 ` (${rows.length - validRows.length} skipped — missing first name)`}

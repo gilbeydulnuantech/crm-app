@@ -78,7 +78,7 @@ export default function NotificationPreferencesModal({ open, onClose }: Props) {
                 type="checkbox"
                 checked={prefs[opt.key]}
                 onChange={() => toggle(opt.key)}
-                className="mt-0.5 rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
+                className="mt-0.5 rounded border-slate-300 text-[var(--theme-accent)] focus:ring-[var(--theme-accent)]"
               />
               <div className="min-w-0">
                 <p className="text-sm font-medium text-slate-800">{opt.label}</p>

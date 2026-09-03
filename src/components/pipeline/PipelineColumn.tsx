@@ -85,7 +85,7 @@ export default function PipelineColumn({
     <div
       ref={setNodeRef}
       className={`w-64 shrink-0 flex flex-col rounded-xl border transition-colors ${colClasses} ${
-        isOver ? 'ring-2 ring-indigo-400' : ''
+        isOver ? 'ring-2 ring-[var(--theme-accent)]' : ''
       }`}
     >
       <div className={`p-3 border-b ${headerClasses}`}>

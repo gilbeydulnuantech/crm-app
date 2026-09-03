@@ -26,9 +26,12 @@ export const CHART_STATUS = {
 } as const;
 
 // Brand/primary — used for single-series charts (revenue trend) and any
-// "this is the app's own accent" mark, matching the indigo buttons/links
-// used everywhere else in the UI.
-export const CHART_BRAND = '#4f46e5'; // indigo-600
+// "this is the app's own accent" mark, matching the theme accent color used
+// for buttons/links everywhere else in the UI. A CSS custom property (not a
+// static hex) so it follows whatever accent color is picked in Settings →
+// Theme — SVG fill/stroke and inline `style.color` both resolve var()
+// natively, no JS re-render needed when the theme changes.
+export const CHART_BRAND = 'var(--theme-accent)';
 
 // Chart chrome — gridlines, axes, ink — pulled from the same slate scale
 // Tailwind classes already use across the app (text-slate-800 etc.).

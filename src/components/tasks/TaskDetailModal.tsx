@@ -348,7 +348,7 @@ export default function TaskDetailModal({ task, isAdmin, currentUserId, onClose,
                   disabled={!canEdit}
                   className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap ${
                     i === currentStageIndex
-                      ? 'bg-indigo-600 text-white'
+                      ? 'bg-[var(--theme-accent)] text-white'
                       : i < currentStageIndex
                         ? 'bg-emerald-100 text-emerald-700'
                         : 'bg-slate-100 text-slate-500'
@@ -383,7 +383,7 @@ export default function TaskDetailModal({ task, isAdmin, currentUserId, onClose,
                       checked={s.is_completed}
                       disabled={!canEdit}
                       onChange={() => toggleSubtask(s.id)}
-                      className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
+                      className="rounded border-slate-300 text-[var(--theme-accent)] focus:ring-[var(--theme-accent)]"
                     />
                     <span className={s.is_completed ? 'text-slate-400 line-through' : 'text-slate-700'}>{s.title}</span>
                   </label>
@@ -398,7 +398,7 @@ export default function TaskDetailModal({ task, isAdmin, currentUserId, onClose,
                     placeholder="Add subtask..."
                     className="flex-1 px-2 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[var(--theme-accent)]"
                   />
-                  <button onClick={handleAddSubtask} className="text-xs font-semibold text-indigo-600 hover:underline px-1">
+                  <button onClick={handleAddSubtask} className="text-xs font-semibold text-[var(--theme-accent)] hover:underline px-1">
                     + Add
                   </button>
                 </div>
@@ -415,7 +415,7 @@ export default function TaskDetailModal({ task, isAdmin, currentUserId, onClose,
                   placeholder="Add a comment or update..."
                   className="flex-1 px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[var(--theme-accent)]"
                 />
-                <button onClick={handleAddComment} className="text-xs font-semibold text-indigo-600 hover:underline px-1 shrink-0">
+                <button onClick={handleAddComment} className="text-xs font-semibold text-[var(--theme-accent)] hover:underline px-1 shrink-0">
                   Post
                 </button>
               </div>
@@ -442,7 +442,7 @@ export default function TaskDetailModal({ task, isAdmin, currentUserId, onClose,
                 {(task.account_name || task.company_name) && (
                   <p>
                     <span className="text-slate-500">Account: </span>
-                    <button onClick={goToAccount} className="text-indigo-600 hover:underline font-medium">
+                    <button onClick={goToAccount} className="text-[var(--theme-accent)] hover:underline font-medium">
                       {toTitleCase(task.account_name || task.company_name)}
                     </button>
                   </p>
@@ -450,7 +450,7 @@ export default function TaskDetailModal({ task, isAdmin, currentUserId, onClose,
                 {task.opportunity_name && (
                   <p>
                     <span className="text-slate-500">Deal: </span>
-                    <button onClick={goToDeal} className="text-indigo-600 hover:underline font-medium">
+                    <button onClick={goToDeal} className="text-[var(--theme-accent)] hover:underline font-medium">
                       {toTitleCase(task.opportunity_name)} ({currency(task.opportunity_value)})
                     </button>
                   </p>
@@ -458,7 +458,7 @@ export default function TaskDetailModal({ task, isAdmin, currentUserId, onClose,
                 {task.contact_name && (
                   <p>
                     <span className="text-slate-500">Contact: </span>
-                    <button onClick={goToContact} className="text-indigo-600 hover:underline font-medium">
+                    <button onClick={goToContact} className="text-[var(--theme-accent)] hover:underline font-medium">
                       {toTitleCase(task.contact_name)}
                     </button>
                   </p>
@@ -528,7 +528,7 @@ export default function TaskDetailModal({ task, isAdmin, currentUserId, onClose,
                     href={a.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium bg-white text-slate-600 border border-slate-200 rounded-full hover:border-indigo-300 hover:text-indigo-600"
+                    className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium bg-white text-slate-600 border border-slate-200 rounded-full hover:border-[var(--theme-accent-tint)] hover:text-[var(--theme-accent)]"
                   >
                     <i className="fa-solid fa-paperclip text-[10px]" />
                     <span className="max-w-[160px] truncate">{a.name}</span>
@@ -576,7 +576,7 @@ export default function TaskDetailModal({ task, isAdmin, currentUserId, onClose,
                 ) : (
                   <button
                     onClick={() => setAttachmentFormOpen(true)}
-                    className="text-xs font-semibold text-indigo-600 hover:underline"
+                    className="text-xs font-semibold text-[var(--theme-accent)] hover:underline"
                   >
                     + Upload File
                   </button>
@@ -604,7 +604,7 @@ export default function TaskDetailModal({ task, isAdmin, currentUserId, onClose,
                   <div className="relative">
                     <button
                       onClick={() => setWatcherPickerOpen((v) => !v)}
-                      className="flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-slate-500 border border-dashed border-slate-300 rounded-full hover:border-indigo-400 hover:text-indigo-600"
+                      className="flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-slate-500 border border-dashed border-slate-300 rounded-full hover:border-[var(--theme-accent)] hover:text-[var(--theme-accent)]"
                     >
                       <i className="fa-solid fa-plus text-[9px]" />
                       Add

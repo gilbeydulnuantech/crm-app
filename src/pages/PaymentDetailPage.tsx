@@ -5,7 +5,7 @@ import { PAYMENT_STATUS_BADGE } from '../types/payment';
 import { toTitleCase } from '../utils/text';
 
 const inputClass =
-  'px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500';
+  'px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]';
 
 function money(n: number) {
   return `$${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -153,7 +153,7 @@ export default function PaymentDetailPage() {
             <button
               type="button"
               onClick={() => navigate(`/contacts?contactId=${payment.contact_id}`)}
-              className="px-3 py-1.5 text-xs font-semibold text-indigo-600 hover:underline"
+              className="px-3 py-1.5 text-xs font-semibold text-[var(--theme-accent)] hover:underline"
             >
               View Customer
             </button>

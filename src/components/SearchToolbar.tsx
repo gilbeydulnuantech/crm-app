@@ -85,11 +85,11 @@ export default function SearchToolbar({
         {onFiltersClick && (
           <button
             onClick={onFiltersClick}
-            className="relative flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-indigo-600 py-1.5 px-2.5 border border-slate-200 rounded-md bg-white transition-colors"
+            className="relative flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-[var(--theme-accent)] py-1.5 px-2.5 border border-slate-200 rounded-md bg-white transition-colors"
           >
             <span>Filters</span>
             {!!filterCount && (
-              <span className="w-4 h-4 flex items-center justify-center rounded-full bg-indigo-600 text-white text-[9px] font-bold">
+              <span className="w-4 h-4 flex items-center justify-center rounded-full bg-[var(--theme-accent)] text-white text-[9px] font-bold">
                 {filterCount}
               </span>
             )}
@@ -100,7 +100,7 @@ export default function SearchToolbar({
         {onColumnsClick && (
           <button
             onClick={onColumnsClick}
-            className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-indigo-600 py-1.5 px-2.5 border border-slate-200 rounded-md bg-white transition-colors"
+            className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-[var(--theme-accent)] py-1.5 px-2.5 border border-slate-200 rounded-md bg-white transition-colors"
           >
             <span>Columns</span>
             <i className="fa-solid fa-gear text-[10px]" />

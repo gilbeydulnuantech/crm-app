@@ -121,7 +121,7 @@ export default function Login() {
               setMode(isSignUp ? 'login' : 'signup');
               setMessage(null);
             }}
-            className="text-indigo-600 font-semibold hover:underline"
+            className="text-[var(--theme-accent)] font-semibold hover:underline"
           >
             {isSignUp ? 'Log In' : 'Sign Up'}
           </button>

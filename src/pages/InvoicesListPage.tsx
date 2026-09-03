@@ -31,7 +31,7 @@ export default function InvoicesListPage() {
         <button
           type="button"
           onClick={() => navigate('/payments/invoices/new')}
-          className="px-4 py-2 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg flex items-center gap-2"
+          className="px-4 py-2 text-sm font-semibold bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] text-white rounded-lg flex items-center gap-2"
         >
           <i className="fa-solid fa-plus" />
           New Invoice
@@ -70,7 +70,7 @@ export default function InvoicesListPage() {
                     onClick={() => navigate(`/payments/invoices/${inv.id}`)}
                     className="border-b border-slate-50 last:border-0 hover:bg-slate-50 cursor-pointer"
                   >
-                    <td className="px-4 py-2.5 font-medium text-indigo-600">{inv.invoice_number}</td>
+                    <td className="px-4 py-2.5 font-medium text-[var(--theme-accent)]">{inv.invoice_number}</td>
                     <td className="px-4 py-2.5 text-slate-600">
                       {inv.contact_first_name ? toTitleCase(`${inv.contact_first_name} ${inv.contact_last_name || ''}`.trim()) : inv.account_name || '--'}
                     </td>

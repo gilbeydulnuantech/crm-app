@@ -1,0 +1,362 @@
+{
+  "name": "Deal Stage Tag Sync Engine",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "deal-stage-tag-sync",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "dsts-0001-webhook",
+      "name": "Webhook: deal-stage-tag-sync",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "webhookId": "b3d7f1a2-6c4e-4a9b-9e2d-7f1c3a5b8d6e",
+      "position": [
+        0,
+        0
+      ],
+      "onError": "continueErrorOutput",
+      "notes": "Internal, system-to-system endpoint (no session-token auth), meant to be called right after a deal's stage_id is updated (e.g. from the move-opportunity-stage webhook) with the freshly-resolved new stage name. opportunity_id is required even though not explicitly specified, since deal_stage alone doesn't say which deal/contact to act on. contact_id is deliberately NOT required in the payload \u2014 it's looked up from the opportunity itself."
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || {};\nconst opportunityId = parseInt(body.opportunity_id, 10);\nif (!Number.isInteger(opportunityId)) throw new Error('\"opportunity_id\" is required and must be an integer.');\nconst dealStage = (body.deal_stage || '').toString().trim();\nif (!dealStage) throw new Error('\"deal_stage\" is required.');\n\nreturn [{ json: { opportunityId, dealStage } }];"
+      },
+      "id": "dsts-0002-parse",
+      "name": "Parse & Validate Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT o.id, o.contact_id, s.pipeline_id\nFROM (SELECT $1::int AS oid) dummy\nLEFT JOIN opportunities o ON o.id = dummy.oid\nLEFT JOIN stages s ON s.id = o.stage_id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.opportunityId ] }}"
+        }
+      },
+      "id": "dsts-0003-lookup",
+      "name": "Look Up Opportunity",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        448,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "notes": "Always returns exactly one row (dummy-row LEFT JOIN) even when the opportunity doesn't exist, so the error branch downstream actually fires instead of the whole chain silently going quiet on zero matched rows."
+    },
+    {
+      "parameters": {
+        "jsCode": "const parsed = $('Parse & Validate Payload').first().json;\nconst row = $input.first().json;\nif (!row || !row.id) throw new Error('Deal not found.');\n\nreturn [{ json: {\n  opportunityId: row.id,\n  contactId: row.contact_id,\n  pipelineId: row.pipeline_id,\n  dealStage: parsed.dealStage,\n} }];"
+      },
+      "id": "dsts-0004-check",
+      "name": "Check Found",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO tags (name)\nSELECT $1 WHERE NOT EXISTS (SELECT 1 FROM tags WHERE lower(name) = lower($1))\nON CONFLICT (name) DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ [ $json.dealStage ] }}"
+        }
+      },
+      "id": "dsts-0005-ensure",
+      "name": "Ensure Stage Tag Exists",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        896,
+        -112
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM taggables tg\nUSING tags t\nWHERE tg.entity_type = 'opportunity'\n  AND tg.entity_id = $1\n  AND tg.tag_id = t.id\n  AND EXISTS (SELECT 1 FROM stages s_any WHERE s_any.pipeline_id = $2 AND lower(s_any.name) = lower(t.name))\n  AND lower(t.name) <> lower($3);",
+        "options": {
+          "queryReplacement": "={{ [ $('Check Found').item.json.opportunityId, $('Check Found').item.json.pipelineId, $('Check Found').item.json.dealStage ] }}"
+        }
+      },
+      "id": "dsts-0006-remove-deal",
+      "name": "Remove Stray Deal Tag",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1120,
+        -112
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "notes": "Only removes a tag from THIS deal if it matches some other stage name in this deal's own pipeline \u2014 never touches non-stage tags (vip, hot lead, etc)."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO taggables (tag_id, entity_type, entity_id)\nSELECT id, 'opportunity', $2 FROM tags WHERE lower(name) = lower($1)\nON CONFLICT (tag_id, entity_type, entity_id) DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ [ $('Check Found').item.json.dealStage, $('Check Found').item.json.opportunityId ] }}"
+        }
+      },
+      "id": "dsts-0007-apply-deal",
+      "name": "Apply Deal Tag",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1344,
+        -112
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM taggables tg\nUSING tags t\nWHERE tg.entity_type = 'contact'\n  AND tg.entity_id = $1\n  AND tg.tag_id = t.id\n  AND EXISTS (\n    SELECT 1 FROM opportunities o JOIN stages s_cur ON s_cur.id = o.stage_id JOIN stages s_any ON s_any.pipeline_id = s_cur.pipeline_id\n    WHERE o.contact_id = $1 AND o.is_archived IS NOT TRUE AND lower(s_any.name) = lower(t.name)\n  )\n  AND NOT EXISTS (\n    SELECT 1 FROM opportunities o2 JOIN stages s_cur2 ON s_cur2.id = o2.stage_id\n    WHERE o2.contact_id = $1 AND o2.is_archived IS NOT TRUE AND lower(s_cur2.name) = lower(t.name)\n  );",
+        "options": {
+          "queryReplacement": "={{ [ $('Check Found').item.json.contactId ] }}"
+        }
+      },
+      "id": "dsts-0008-remove-contact",
+      "name": "Remove Stray Contact Tag",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        896,
+        112
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "notes": "$1 (contactId) is null when the deal has no linked contact \u2014 entity_id = NULL matches nothing, so this naturally no-ops. Considers ALL of the contact's open deals (not just this one), so a contact with two open deals in two different stages correctly keeps both stage tags."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO taggables (tag_id, entity_type, entity_id)\nSELECT t.id, 'contact', $2::int\nFROM tags t\nWHERE lower(t.name) = lower($1) AND $2::int IS NOT NULL\nON CONFLICT (tag_id, entity_type, entity_id) DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ [ $('Check Found').item.json.dealStage, $('Check Found').item.json.contactId ] }}"
+        }
+      },
+      "id": "dsts-0009-apply-contact",
+      "name": "Apply Contact Tag",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1120,
+        112
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true } }}",
+        "options": {}
+      },
+      "id": "dsts-0010-respond-ok",
+      "name": "Respond - Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1568,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "dsts-0011-respond-error",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        672,
+        336
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook: deal-stage-tag-sync": {
+      "main": [
+        [
+          {
+            "node": "Parse & Validate Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Validate Payload": {
+      "main": [
+        [
+          {
+            "node": "Look Up Opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Opportunity": {
+      "main": [
+        [
+          {
+            "node": "Check Found",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Found": {
+      "main": [
+        [
+          {
+            "node": "Ensure Stage Tag Exists",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ensure Stage Tag Exists": {
+      "main": [
+        [
+          {
+            "node": "Remove Stray Deal Tag",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove Stray Deal Tag": {
+      "main": [
+        [
+          {
+            "node": "Apply Deal Tag",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply Deal Tag": {
+      "main": [
+        [
+          {
+            "node": "Remove Stray Contact Tag",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove Stray Contact Tag": {
+      "main": [
+        [
+          {
+            "node": "Apply Contact Tag",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply Contact Tag": {
+      "main": [
+        [
+          {
+            "node": "Respond - Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  }
+}

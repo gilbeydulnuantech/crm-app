@@ -259,11 +259,11 @@ export default function TeamChat() {
                       <div
                         className={`max-w-md px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words ${
                           isMine
-                            ? 'bg-indigo-600 text-white rounded-br-sm'
+                            ? 'bg-[var(--theme-accent)] text-white rounded-br-sm'
                             : 'bg-white text-slate-700 border border-slate-200 rounded-bl-sm'
                         }`}
                       >
-                        {renderMessageBody(m.body, navigate, isMine ? 'text-white' : 'text-indigo-600')}
+                        {renderMessageBody(m.body, navigate, isMine ? 'text-white' : 'text-[var(--theme-accent)]')}
                       </div>
                     </div>
                   );

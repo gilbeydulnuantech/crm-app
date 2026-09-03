@@ -341,7 +341,7 @@ export default function TaskQuickView({ task, canEdit, onClose, onEdit, onOpenFu
                       checked={s.is_completed}
                       disabled={!canEdit}
                       onChange={() => toggleSubtask(s.id)}
-                      className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)]"
+                      className="rounded border-slate-300 text-[var(--theme-accent)] focus:ring-[var(--theme-accent)]"
                     />
                     <span className={s.is_completed ? 'text-slate-400 line-through' : 'text-slate-700'}>{s.title}</span>
                   </label>
@@ -356,7 +356,7 @@ export default function TaskQuickView({ task, canEdit, onClose, onEdit, onOpenFu
                     placeholder="Add subtask..."
                     className="flex-1 px-2 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[var(--theme-accent)]"
                   />
-                  <button onClick={handleAddSubtask} className="text-xs font-semibold text-indigo-600 hover:underline px-1">
+                  <button onClick={handleAddSubtask} className="text-xs font-semibold text-[var(--theme-accent)] hover:underline px-1">
                     + Add
                   </button>
                 </div>
@@ -373,7 +373,7 @@ export default function TaskQuickView({ task, canEdit, onClose, onEdit, onOpenFu
                   placeholder="Add a comment..."
                   className="flex-1 px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[var(--theme-accent)]"
                 />
-                <button onClick={handleAddComment} className="text-xs font-semibold text-indigo-600 hover:underline px-1 shrink-0">
+                <button onClick={handleAddComment} className="text-xs font-semibold text-[var(--theme-accent)] hover:underline px-1 shrink-0">
                   Post
                 </button>
               </div>

@@ -15,7 +15,7 @@ import { toTitleCase } from '../utils/text';
 import NewPaymentModal from '../components/payments/NewPaymentModal';
 
 const inputClass =
-  'px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500';
+  'px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]';
 
 function money(n: number) {
   return `$${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -107,7 +107,7 @@ export default function Payments() {
         <button
           type="button"
           onClick={() => setNewPaymentOpen(true)}
-          className="px-4 py-2 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg flex items-center gap-2"
+          className="px-4 py-2 text-sm font-semibold bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] text-white rounded-lg flex items-center gap-2"
         >
           <i className="fa-solid fa-plus" />
           Record Payment
@@ -262,7 +262,7 @@ export default function Payments() {
                   onClick={() => navigate(`/payments/${p.id}`)}
                   className="border-b border-slate-50 last:border-0 hover:bg-slate-50 cursor-pointer"
                 >
-                  <td className="px-4 py-2.5 font-medium text-indigo-600">{p.payment_number}</td>
+                  <td className="px-4 py-2.5 font-medium text-[var(--theme-accent)]">{p.payment_number}</td>
                   <td className="px-4 py-2.5 text-slate-600">
                     {p.contact_first_name ? toTitleCase(`${p.contact_first_name} ${p.contact_last_name || ''}`.trim()) : p.account_name || '--'}
                   </td>

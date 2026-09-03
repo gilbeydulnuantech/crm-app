@@ -94,7 +94,7 @@ export default function ProductListView({ node, updateAttributes }: NodeViewProp
           </tr>
         </tfoot>
       </table>
-      <button type="button" onClick={addRow} className="text-xs font-semibold text-indigo-600 hover:underline">
+      <button type="button" onClick={addRow} className="text-xs font-semibold text-[var(--theme-accent)] hover:underline">
         + Add Row
       </button>
     </NodeViewWrapper>

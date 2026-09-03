@@ -1,0 +1,279 @@
+{
+  "name": "Contact status system",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "contact-status-system",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "css-0001-webhook",
+      "name": "Webhook: contact-status-system",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "webhookId": "9f3c1a2e-4b6d-4e1a-8c2f-1a2b3c4d5e6f",
+      "position": [
+        0,
+        0
+      ],
+      "onError": "continueErrorOutput",
+      "notes": "Internal, system-to-system endpoint (no session-token auth), called from the frontend (Pipeline.tsx on stage move, ContactDetailModal.tsx on open, PublicUnsubscribePage.tsx after unsubscribing). Deliberately never reads or writes do_not_contact/dnc_email/dnc_call/dnc_sms \u2014 those fields are only ever touched by a rep directly checking a DNC checkbox (AddContactModal, ContactDetailModal's DND dropdown), never by this rules engine."
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || {};\nconst contactId = parseInt(body.contact_id, 10);\nif (!Number.isInteger(contactId)) throw new Error('\"contact_id\" is required and must be an integer.');\n\nreturn [{ json: {\n  contactId,\n  lastActivity: body.last_activity || null,\n  dealStage: (body.deal_stage || '').toString(),\n} }];"
+      },
+      "id": "css-0002-parse",
+      "name": "Parse & Validate Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.id\nFROM (SELECT $1::int AS cid) dummy\nLEFT JOIN contacts c ON c.id = dummy.cid;",
+        "options": {
+          "queryReplacement": "={{ [ $json.contactId ] }}"
+        }
+      },
+      "id": "css-0003-lookup",
+      "name": "Look Up Contact",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        448,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "notes": "Always returns exactly one row (dummy-row LEFT JOIN) even when the contact doesn't exist, so the error branch downstream actually fires instead of the whole chain silently going quiet on zero matched rows."
+    },
+    {
+      "parameters": {
+        "jsCode": "const parsed = $('Parse & Validate Payload').first().json;\nconst row = $input.first().json;\nif (!row || !row.id) throw new Error('Contact not found.');\n\n// Only 3 rules \u2014 none of them read or write any DNC field. Evaluated in\n// order, each overwriting the last, so whichever is true furthest down\n// wins when more than one applies. null = no match, leave lead_status as\n// it is.\nlet status = null;\n\n// 1. Deal reached \"inspection done\"\nif (parsed.dealStage.trim().toLowerCase() === 'inspection done') {\n  status = 'Active';\n}\n\n// 2. Deal closed won \u2014 matches both pipelines' naming (\"Closed Won\" /\n// \"closed: won\").\nif (/closed.*won/i.test(parsed.dealStage)) {\n  status = 'Customer';\n}\n\n// 3. No activity in over 6 days\nif (parsed.lastActivity) {\n  const last = new Date(parsed.lastActivity);\n  if (!isNaN(last.getTime())) {\n    const daysSince = (Date.now() - last.getTime()) / 86400000;\n    if (daysSince > 6) status = 'Inactive';\n  }\n}\n\nreturn [{ json: { contactId: row.id, status } }];"
+      },
+      "id": "css-0004-compute",
+      "name": "Compute Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts SET lead_status = COALESCE($1, lead_status), updated_at = now() WHERE id = $2 RETURNING id, lead_status;",
+        "options": {
+          "queryReplacement": "={{ [ $json.status, $json.contactId ] }}"
+        }
+      },
+      "id": "css-0005-update",
+      "name": "Update Contact Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        896,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "notes": "Only ever touches lead_status and updated_at \u2014 never do_not_contact/dnc_email/dnc_call/dnc_sms."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, contact_id: $json.id, lead_status: $json.lead_status } }}",
+        "options": {}
+      },
+      "id": "css-0006-respond-ok",
+      "name": "Respond - Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1120,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "css-0007-respond-error",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        672,
+        224
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook: contact-status-system": {
+      "main": [
+        [
+          {
+            "node": "Parse & Validate Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Validate Payload": {
+      "main": [
+        [
+          {
+            "node": "Look Up Contact",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Contact": {
+      "main": [
+        [
+          {
+            "node": "Compute Status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Status": {
+      "main": [
+        [
+          {
+            "node": "Update Contact Status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Contact Status": {
+      "main": [
+        [
+          {
+            "node": "Respond - Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {
+    "Webhook: contact-status-system": [
+      {
+        "json": {
+          "headers": {
+            "host": "tubular-silica-despite.ngrok-free.dev",
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+            "content-length": "130",
+            "accept": "*/*",
+            "accept-encoding": "gzip, deflate, br, zstd",
+            "accept-language": "en-GB,en-US;q=0.9,en;q=0.8",
+            "authorization": "Bearer token_1_1788326046208",
+            "cache-control": "no-cache",
+            "content-type": "application/json",
+            "ngrok-skip-browser-warning": "true",
+            "origin": "http://localhost:5173",
+            "pragma": "no-cache",
+            "priority": "u=1, i",
+            "referer": "http://localhost:5173/",
+            "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": "\"macOS\"",
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "cross-site",
+            "x-forwarded-for": "62.84.33.1",
+            "x-forwarded-host": "tubular-silica-despite.ngrok-free.dev",
+            "x-forwarded-proto": "https"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "contact_id": 251,
+            "contact_created_at": "2026-09-02T07:48:28.433Z",
+            "last_activity": null,
+            "deal_stage": "inspection done",
+            "dnd": false
+          },
+          "webhookUrl": "https://tubular-silica-despite.ngrok-free.dev/webhook/contact-status-system",
+          "executionMode": "production"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  }
+}

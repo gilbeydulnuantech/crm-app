@@ -71,7 +71,7 @@ function Row({
         checked={checked}
         disabled={disabled}
         onChange={onToggle}
-        className="rounded border-slate-300 text-indigo-600 focus:ring-[var(--theme-accent)] disabled:opacity-50"
+        className="rounded border-slate-300 text-[var(--theme-accent)] focus:ring-[var(--theme-accent)] disabled:opacity-50"
       />
     </label>
   );
@@ -101,7 +101,7 @@ export default function CalendarSidebar({
         <button
           onClick={onToggleCollapsed}
           title="Show sidebar"
-          className="text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded p-1.5"
+          className="text-slate-400 hover:text-[var(--theme-accent)] hover:bg-slate-100 rounded p-1.5"
         >
           <i className="fa-solid fa-chevron-right text-xs" />
         </button>
@@ -111,7 +111,7 @@ export default function CalendarSidebar({
             key={r.icon}
             onClick={onToggleCollapsed}
             title={r.title}
-            className="text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded p-1.5"
+            className="text-slate-400 hover:text-[var(--theme-accent)] hover:bg-slate-100 rounded p-1.5"
           >
             <i className={`fa-solid ${r.icon} text-xs`} />
           </button>
@@ -127,7 +127,7 @@ export default function CalendarSidebar({
         <button
           onClick={onToggleCollapsed}
           title="Hide sidebar"
-          className="text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded p-1 shrink-0"
+          className="text-slate-400 hover:text-[var(--theme-accent)] hover:bg-slate-100 rounded p-1 shrink-0"
         >
           <i className="fa-solid fa-chevron-left text-xs" />
         </button>

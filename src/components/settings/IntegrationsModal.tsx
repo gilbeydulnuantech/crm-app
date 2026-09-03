@@ -153,7 +153,7 @@ function ProviderCard({
             <button
               type="button"
               onClick={startEdit}
-              className="text-xs font-semibold text-indigo-600 hover:underline"
+              className="text-xs font-semibold text-[var(--theme-accent)] hover:underline"
             >
               {integration?.has_key ? 'Edit' : 'Connect'}
             </button>

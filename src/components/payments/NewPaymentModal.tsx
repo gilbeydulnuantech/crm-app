@@ -8,7 +8,7 @@ import { PAYMENT_METHODS, PAYMENT_STATUSES, PaymentMethod, PaymentStatus } from 
 import { toTitleCase } from '../../utils/text';
 
 const inputClass =
-  'w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500';
+  'w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]';
 
 interface Props {
   open: boolean;
@@ -246,7 +246,7 @@ export default function NewPaymentModal({ open, onClose, onCreated, initialInvoi
             type="button"
             onClick={handleSave}
             disabled={createPayment.isPending}
-            className="px-4 py-2 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg disabled:opacity-50"
+            className="px-4 py-2 text-sm font-semibold bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] text-white rounded-lg disabled:opacity-50"
           >
             Record Payment
           </button>
