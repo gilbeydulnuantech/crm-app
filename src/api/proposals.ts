@@ -26,6 +26,15 @@ export interface Proposal {
   emailed_at: string | null;
   viewed_at: string | null;
   approved_at: string | null;
+  inspection_date: string | null;
+  deal_value: number | null;
+  deal_name: string | null;
+  deal_created_at: string | null;
+  deal_due_at: string | null;
+  down_payment_amount: number | null;
+  down_payment_paid_at: string | null;
+  balance_amount: number | null;
+  balance_paid_at: string | null;
 }
 
 // opportunityId omitted = every proposal the requester can see (admin: all, rep: own deals).
@@ -117,6 +126,15 @@ export interface PublicProposal {
   owner_phone: string | null;
   logo_url: string | null;
   field_values: Record<string, string | boolean> | null;
+  inspection_date: string | null;
+  deal_value: number | null;
+  deal_name: string | null;
+  deal_created_at: string | null;
+  deal_due_at: string | null;
+  down_payment_amount: number | null;
+  down_payment_paid_at: string | null;
+  balance_amount: number | null;
+  balance_paid_at: string | null;
   error?: string;
 }
 
@@ -162,6 +180,15 @@ export interface ApprovedProposal {
   owner_name: string | null;
   owner_email: string | null;
   owner_phone: string | null;
+  inspection_date: string | null;
+  deal_value: number | null;
+  deal_name: string | null;
+  deal_created_at: string | null;
+  deal_due_at: string | null;
+  down_payment_amount: number | null;
+  down_payment_paid_at: string | null;
+  balance_amount: number | null;
+  balance_paid_at: string | null;
   error?: string;
 }
 

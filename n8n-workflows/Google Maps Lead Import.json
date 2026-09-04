@@ -1,0 +1,392 @@
+{
+  "active": true,
+  "connections": {
+    "Webhook: import-maps-leads": {
+      "main": [
+        [
+          {
+            "node": "Parse Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester": {
+      "main": [
+        [
+          {
+            "node": "Validate Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Payload": {
+      "main": [
+        [
+          {
+            "node": "Look Up Apify Key",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Google Maps via Apify": {
+      "main": [
+        [
+          {
+            "node": "Map Apify Results",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map Apify Results": {
+      "main": [
+        [
+          {
+            "node": "Insert Companies & Contacts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Companies & Contacts": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Apify Key": {
+      "main": [
+        [
+          {
+            "node": "Require Apify Key",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Require Apify Key": {
+      "main": [
+        [
+          {
+            "node": "Search Google Maps via Apify",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "name": "Google Maps Lead Import",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "import-maps-leads",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "mli-webhook-1",
+      "name": "Webhook: import-maps-leads",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "mli-import-maps-leads-0001"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "mli-parse-token",
+      "name": "Parse Token",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "mli-lookup-requester",
+      "name": "Look Up Requester",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        440,
+        0
+      ],
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: import-maps-leads').first().json.body || {};\nconst searchQuery = (body.search_query || '').trim();\nconst location = (body.location || '').trim();\nif (!searchQuery) throw new Error('search_query is required (e.g. \"roofing contractors\").');\nif (!location) throw new Error('location is required (e.g. \"Austin, TX\").');\n\nlet maxResults = parseInt(body.max_results, 10);\nif (!Number.isInteger(maxResults) || maxResults <= 0) maxResults = 30;\nmaxResults = Math.min(maxResults, 100);\n\nreturn [{ json: { requesterId: requester.id, searchQuery, location, maxResults } }];"
+      },
+      "id": "mli-validate",
+      "name": "Validate Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.apify.com/v2/acts/compass~crawler-google-places/run-sync-get-dataset-items?token={{ $json.apifyKey }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ searchStringsArray: [$json.searchQuery], locationQuery: $json.location, maxCrawledPlacesPerSearch: $json.maxResults, language: 'en' }) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "mli-apify-call",
+      "name": "Search Google Maps via Apify",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map((i) => i.json).filter((p) => p && p.title && p.placeId);\nconst ctx = $('Validate Payload').first().json;\n\nreturn [{\n  json: {\n    requesterId: ctx.requesterId,\n    scraped: items.length,\n    names: items.map((p) => p.title),\n    websites: items.map((p) => p.website || ''),\n    phones: items.map((p) => p.phoneUnformatted || p.phone || ''),\n    streets: items.map((p) => p.street || p.address || ''),\n    cities: items.map((p) => p.city || ''),\n    states: items.map((p) => p.state || ''),\n    countries: items.map((p) => p.countryCode || ''),\n    placeIds: items.map((p) => p.placeId),\n    mapsUrls: items.map((p) => p.url || ''),\n    ratings: items.map((p) => (p.totalScore != null ? Number(p.totalScore) : null)),\n    reviewCounts: items.map((p) => (p.reviewsCount != null ? Number(p.reviewsCount) : null)),\n    categories: items.map((p) => p.categoryName || ''),\n  },\n}];"
+      },
+      "id": "mli-map-results",
+      "name": "Map Apify Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH input_rows AS (\n  SELECT * FROM unnest(\n    $1::text[], $2::text[], $3::text[], $4::text[], $5::text[], $6::text[], $7::text[],\n    $8::text[], $9::text[], $10::numeric[], $11::int[], $12::text[]\n  ) AS t(name, website, phone, street_address, city, state, country, google_place_id, google_maps_url, google_rating, google_reviews_count, google_category)\n),\ninserted_companies AS (\n  INSERT INTO companies (\n    name, website, phone, street_address, city, state, country,\n    google_place_id, google_maps_url, google_rating, google_reviews_count, google_category,\n    lead_source, account_status, owner_id, created_by\n  )\n  SELECT\n    name, NULLIF(website, ''), NULLIF(phone, ''), NULLIF(street_address, ''), NULLIF(city, ''), NULLIF(state, ''), NULLIF(country, ''),\n    google_place_id, NULLIF(google_maps_url, ''), google_rating, google_reviews_count, NULLIF(google_category, ''),\n    'Google Maps', 'Prospect', $13, $13\n  FROM input_rows\n  ON CONFLICT (google_place_id) WHERE google_place_id IS NOT NULL DO NOTHING\n  RETURNING id, name, phone\n)\nINSERT INTO contacts (first_name, phone, account_id, lead_status, lead_source, owner_id, created_by)\nSELECT name, NULLIF(phone, ''), id, 'New', 'Google Maps', $13, $13\nFROM inserted_companies\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.names, $json.websites, $json.phones, $json.streets, $json.cities, $json.states, $json.countries, $json.placeIds, $json.mapsUrls, $json.ratings, $json.reviewCounts, $json.categories, $json.requesterId ] }}"
+        }
+      },
+      "id": "mli-insert",
+      "name": "Insert Companies & Contacts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1320,
+        0
+      ],
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const imported = $input.all().length;\nconst scraped = $('Map Apify Results').first().json.scraped;\nreturn [{ json: { success: true, scraped, imported, skipped_duplicates: scraped - imported } }];"
+      },
+      "id": "mli-build-response",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "mli-respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1760,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Import failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "mli-respond-error",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        660,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT pgp_sym_decrypt(api_key_encrypted, $1) AS api_key FROM integrations WHERE provider = 'apify' AND is_active = true AND api_key_encrypted IS NOT NULL LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $env.INTEGRATIONS_ENCRYPTION_KEY ] }}"
+        }
+      },
+      "id": "mli-lookup-apify-key",
+      "name": "Look Up Apify Key",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        660,
+        160
+      ],
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const key = $input.first().json.api_key;\nif (!key) throw new Error('Apify is not connected \u2014 add an API key in Settings > Integrations.');\nconst ctx = $('Validate Payload').first().json;\nreturn [{ json: { ...ctx, apifyKey: key } }];"
+      },
+      "id": "mli-merge-key",
+      "name": "Require Apify Key",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        160
+      ],
+      "onError": "continueErrorOutput"
+    }
+  ],
+  "pinData": null,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  }
+}

@@ -1,4 +1,546 @@
 {
+  "active": true,
+  "connections": {
+    "Webhook: get-companies": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Active Companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Active Companies": {
+      "main": [
+        [
+          {
+            "node": "Ensure Array Response: get-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ensure Array Response: get-companies": {
+      "main": [
+        [
+          {
+            "node": "Respond: get-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: get-archived-companies": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Archived Companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Archived Companies": {
+      "main": [
+        [
+          {
+            "node": "Ensure Array Response: get-archived-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ensure Array Response: get-archived-companies": {
+      "main": [
+        [
+          {
+            "node": "Respond: get-archived-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: add-companies": {
+      "main": [
+        [
+          {
+            "node": "Check Duplicate Company",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Insert Company": {
+      "main": [
+        [
+          {
+            "node": "Respond: add-companies",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare Contact Link: add-companies",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Postgres: Log Activity (created-companies)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: add-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: update-companies": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: update-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Update Company": {
+      "main": [
+        [
+          {
+            "node": "Check Result: update-companies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: update-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: archive-companies": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: archive-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Archive Companies": {
+      "main": [
+        [
+          {
+            "node": "Respond: archive-companies",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Postgres: Log Activity (archived-companies)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Postgres: Log System Audit (archived-companies)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Postgres: Log System Audit (archived-companies-contacts)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: restore-companies": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: restore-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: restore-companies": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: restore-companies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: restore-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: restore-companies": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Restore Companies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: restore-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Restore Companies": {
+      "main": [
+        [
+          {
+            "node": "Respond: restore-companies",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Postgres: Log Activity (restored-companies)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Postgres: Log System Audit (restored-companies)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Postgres: Log System Audit (restored-companies-contacts)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: delete-companies": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: delete-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Delete Companies": {
+      "main": [
+        [
+          {
+            "node": "Respond: delete-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: update-companies": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: update-companies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: update-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: update-companies": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Capture Before Owner: update-companies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: update-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Result: update-companies": {
+      "main": [
+        [
+          {
+            "node": "Prepare Owner Notice: update-companies",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Postgres: Insert Company Audit: update-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: archive-companies": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: archive-companies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: archive-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: archive-companies": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Archive Companies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: archive-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: delete-companies": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: delete-companies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: delete-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: delete-companies": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Delete Companies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: delete-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Capture Before Owner: update-companies": {
+      "main": [
+        [
+          {
+            "node": "Build Update Query: update-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Owner Notice: update-companies": {
+      "main": [
+        [
+          {
+            "node": "Should Notify Owner?: update-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Notify Owner?: update-companies": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure DM (update-companies)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond: update-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Ensure DM (update-companies)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Get DM Id (update-companies)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Get DM Id (update-companies)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure DM Members (update-companies)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Ensure DM Members (update-companies)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Notify Owner (update-companies)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Notify Owner (update-companies)": {
+      "main": [
+        [
+          {
+            "node": "Respond: update-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Contact Link: add-companies": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Link Initial Contact: add-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Duplicate Company": {
+      "main": [
+        [
+          {
+            "node": "Validate No Duplicate Company",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: add-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate No Duplicate Company": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Insert Company",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: add-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Update Query: update-companies": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Update Company",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: update-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
   "name": "Companies-add-delete-system",
   "nodes": [
     {
@@ -22,7 +564,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT c.id, c.name, c.website, c.industry, c.city, c.state, c.country, c.street_address, c.zip_code, c.phone, c.owner_id, u.name AS owner_name, u.color AS owner_color, c.parent_company_id, pc.name AS parent_company_name, c.tier, c.account_status, c.account_health, c.annual_revenue, c.employee_count, c.territory, c.se_user_id, se.name AS se_user_name, c.csm_user_id, csm.name AS csm_user_name, c.created_by, c.is_archived, c.created_at, c.updated_at, COALESCE(cc.contact_count, 0) AS contact_count, COALESCE(oc.opportunity_count, 0) AS opportunity_count FROM companies c LEFT JOIN users u ON u.id = c.owner_id LEFT JOIN companies pc ON pc.id = c.parent_company_id LEFT JOIN users se ON se.id = c.se_user_id LEFT JOIN users csm ON csm.id = c.csm_user_id LEFT JOIN (SELECT account_id, COUNT(*) AS contact_count FROM contacts WHERE is_archived = false GROUP BY account_id) cc ON cc.account_id = c.id LEFT JOIN (SELECT account_id, COUNT(*) AS opportunity_count FROM opportunities GROUP BY account_id) oc ON oc.account_id = c.id WHERE c.is_archived = false ORDER BY c.name ASC;",
+        "query": "SELECT c.id, c.name, c.website, c.industry, c.city, c.state, c.country, c.street_address, c.zip_code, c.phone, c.lead_source, c.google_place_id, c.google_maps_url, c.google_rating, c.google_reviews_count, c.google_category, c.owner_id, u.name AS owner_name, u.color AS owner_color, c.parent_company_id, pc.name AS parent_company_name, c.tier, c.account_status, c.account_health, c.annual_revenue, c.employee_count, c.territory, c.se_user_id, se.name AS se_user_name, c.csm_user_id, csm.name AS csm_user_name, c.created_by, c.is_archived, c.created_at, c.updated_at, COALESCE(cc.contact_count, 0) AS contact_count, COALESCE(oc.opportunity_count, 0) AS opportunity_count FROM companies c LEFT JOIN users u ON u.id = c.owner_id LEFT JOIN companies pc ON pc.id = c.parent_company_id LEFT JOIN users se ON se.id = c.se_user_id LEFT JOIN users csm ON csm.id = c.csm_user_id LEFT JOIN (SELECT account_id, COUNT(*) AS contact_count FROM contacts WHERE is_archived = false GROUP BY account_id) cc ON cc.account_id = c.id LEFT JOIN (SELECT account_id, COUNT(*) AS opportunity_count FROM opportunities GROUP BY account_id) oc ON oc.account_id = c.id WHERE c.is_archived = false ORDER BY c.name ASC;",
         "options": {}
       },
       "id": "9e36d93d-0cbf-4269-a3e8-bcd9438ec4a0",
@@ -43,7 +585,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// alwaysOutputData emits one placeholder {} item when zero companies match\n// (e.g. everything archived) — without filtering it out, allIncomingItems\n// would respond with [{}] instead of a real [], or (without\n// alwaysOutputData at all) a 0-byte body the frontend can't parse. Same\n// bug/fix as contacts-show-to-UI.json's Ensure Array Response.\nconst rows = $input.all().map((i) => i.json).filter((r) => r && Object.keys(r).length > 0);\nreturn [{ json: { rows } }];"
+        "jsCode": "// alwaysOutputData emits one placeholder {} item when zero companies match\n// (e.g. everything archived) \u2014 without filtering it out, allIncomingItems\n// would respond with [{}] instead of a real [], or (without\n// alwaysOutputData at all) a 0-byte body the frontend can't parse. Same\n// bug/fix as contacts-show-to-UI.json's Ensure Array Response.\nconst rows = $input.all().map((i) => i.json).filter((r) => r && Object.keys(r).length > 0);\nreturn [{ json: { rows } }];"
       },
       "id": "companies-ensure-array-active",
       "name": "Ensure Array Response: get-companies",
@@ -90,7 +632,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT c.id, c.name, c.website, c.industry, c.city, c.state, c.country, c.street_address, c.zip_code, c.phone, c.owner_id, u.name AS owner_name, u.color AS owner_color, c.parent_company_id, pc.name AS parent_company_name, c.tier, c.account_status, c.account_health, c.annual_revenue, c.employee_count, c.territory, c.se_user_id, se.name AS se_user_name, c.csm_user_id, csm.name AS csm_user_name, c.created_by, c.is_archived, c.created_at, c.updated_at FROM companies c LEFT JOIN users u ON u.id = c.owner_id LEFT JOIN companies pc ON pc.id = c.parent_company_id LEFT JOIN users se ON se.id = c.se_user_id LEFT JOIN users csm ON csm.id = c.csm_user_id WHERE c.is_archived = true ORDER BY c.updated_at DESC;",
+        "query": "SELECT c.id, c.name, c.website, c.industry, c.city, c.state, c.country, c.street_address, c.zip_code, c.phone, c.lead_source, c.google_place_id, c.google_maps_url, c.google_rating, c.google_reviews_count, c.google_category, c.owner_id, u.name AS owner_name, u.color AS owner_color, c.parent_company_id, pc.name AS parent_company_name, c.tier, c.account_status, c.account_health, c.annual_revenue, c.employee_count, c.territory, c.se_user_id, se.name AS se_user_name, c.csm_user_id, csm.name AS csm_user_name, c.created_by, c.is_archived, c.created_at, c.updated_at FROM companies c LEFT JOIN users u ON u.id = c.owner_id LEFT JOIN companies pc ON pc.id = c.parent_company_id LEFT JOIN users se ON se.id = c.se_user_id LEFT JOIN users csm ON csm.id = c.csm_user_id WHERE c.is_archived = true ORDER BY c.updated_at DESC;",
         "options": {}
       },
       "id": "c42d4407-312c-4003-bc26-2dac65abb722",
@@ -1109,548 +1651,6 @@
     }
   ],
   "pinData": {},
-  "connections": {
-    "Webhook: get-companies": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Select Active Companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Select Active Companies": {
-      "main": [
-        [
-          {
-            "node": "Ensure Array Response: get-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Ensure Array Response: get-companies": {
-      "main": [
-        [
-          {
-            "node": "Respond: get-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Webhook: get-archived-companies": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Select Archived Companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Select Archived Companies": {
-      "main": [
-        [
-          {
-            "node": "Ensure Array Response: get-archived-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Ensure Array Response: get-archived-companies": {
-      "main": [
-        [
-          {
-            "node": "Respond: get-archived-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Webhook: add-companies": {
-      "main": [
-        [
-          {
-            "node": "Check Duplicate Company",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Insert Company": {
-      "main": [
-        [
-          {
-            "node": "Respond: add-companies",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Prepare Contact Link: add-companies",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Postgres: Log Activity (created-companies)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: add-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Webhook: update-companies": {
-      "main": [
-        [
-          {
-            "node": "Parse Token: update-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Update Company": {
-      "main": [
-        [
-          {
-            "node": "Check Result: update-companies",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: update-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Webhook: archive-companies": {
-      "main": [
-        [
-          {
-            "node": "Parse Token: archive-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Archive Companies": {
-      "main": [
-        [
-          {
-            "node": "Respond: archive-companies",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Postgres: Log Activity (archived-companies)",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Postgres: Log System Audit (archived-companies)",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Postgres: Log System Audit (archived-companies-contacts)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Webhook: restore-companies": {
-      "main": [
-        [
-          {
-            "node": "Parse Token: restore-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: restore-companies": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: restore-companies",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: restore-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: restore-companies": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Restore Companies",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: restore-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Restore Companies": {
-      "main": [
-        [
-          {
-            "node": "Respond: restore-companies",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Postgres: Log Activity (restored-companies)",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Postgres: Log System Audit (restored-companies)",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Postgres: Log System Audit (restored-companies-contacts)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Webhook: delete-companies": {
-      "main": [
-        [
-          {
-            "node": "Parse Token: delete-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Delete Companies": {
-      "main": [
-        [
-          {
-            "node": "Respond: delete-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: update-companies": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: update-companies",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: update-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: update-companies": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Capture Before Owner: update-companies",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: update-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Check Result: update-companies": {
-      "main": [
-        [
-          {
-            "node": "Prepare Owner Notice: update-companies",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Postgres: Insert Company Audit: update-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: archive-companies": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: archive-companies",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: archive-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: archive-companies": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Archive Companies",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: archive-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: delete-companies": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: delete-companies",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: delete-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: delete-companies": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Delete Companies",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: delete-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Capture Before Owner: update-companies": {
-      "main": [
-        [
-          {
-            "node": "Build Update Query: update-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Prepare Owner Notice: update-companies": {
-      "main": [
-        [
-          {
-            "node": "Should Notify Owner?: update-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Should Notify Owner?: update-companies": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Ensure DM (update-companies)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond: update-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Ensure DM (update-companies)": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Get DM Id (update-companies)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Get DM Id (update-companies)": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Ensure DM Members (update-companies)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Ensure DM Members (update-companies)": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Notify Owner (update-companies)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Notify Owner (update-companies)": {
-      "main": [
-        [
-          {
-            "node": "Respond: update-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Prepare Contact Link: add-companies": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Link Initial Contact: add-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Check Duplicate Company": {
-      "main": [
-        [
-          {
-            "node": "Validate No Duplicate Company",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: add-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Validate No Duplicate Company": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Insert Company",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: add-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Build Update Query: update-companies": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Update Company",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: update-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    }
-  },
-  "active": true,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate",
@@ -1658,12 +1658,5 @@
     "timeSavedMode": "fixed",
     "errorWorkflow": "U7jX0H3oE5a25GrV",
     "callerPolicy": "workflowsFromSameOwner"
-  },
-  "versionId": "77c5118f-c1ab-4d81-a297-957ccdfd85c1",
-  "meta": {
-    "templateCredsSetupCompleted": true,
-    "instanceId": "6a773e6041cc88fd4a5b60f3e46f2119d58608faafd09936499001d589f5c1af"
-  },
-  "id": "ovG5ygtMRz1k72Mr",
-  "tags": []
+  }
 }

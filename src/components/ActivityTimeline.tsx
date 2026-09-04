@@ -190,7 +190,7 @@ export default function ActivityTimeline({ emails = [], activity, isLoading, onE
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-1 border-b border-slate-200 -mx-1 px-1 overflow-x-auto">
+      <div className="flex items-center gap-1 border-b border-slate-200 -mx-1 px-1 overflow-x-auto no-scrollbar">
         {ACTIVITY_TABS.map((t) => (
           <button
             key={t}

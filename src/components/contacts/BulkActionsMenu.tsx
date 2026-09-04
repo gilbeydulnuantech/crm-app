@@ -9,6 +9,7 @@ interface Props {
   onRestore: () => void;
   onDeletePermanently: () => void;
   onExport: () => void;
+  onEnrich: () => void;
 }
 
 export default function BulkActionsMenu({
@@ -19,6 +20,7 @@ export default function BulkActionsMenu({
   onRestore,
   onDeletePermanently,
   onExport,
+  onEnrich,
 }: Props) {
   const [open, setOpen] = useState(false);
 
@@ -72,6 +74,14 @@ export default function BulkActionsMenu({
                   className="w-full text-left px-3 py-1.5 hover:bg-slate-50 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Archive Contacts
+                </button>
+                <button
+                  disabled={selectedCount === 0 || selectedCount > 25}
+                  onClick={() => run(onEnrich)}
+                  title={selectedCount > 25 ? 'Enrich at most 25 at a time' : 'Look up missing emails/phones from each linked website'}
+                  className="w-full text-left px-3 py-1.5 hover:bg-slate-50 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Enrich Contacts
                 </button>
                 {isAdmin && (
                   <button

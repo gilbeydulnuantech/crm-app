@@ -20,6 +20,27 @@ export interface MergeFieldValues {
   owner_email?: string | null;
   owner_phone?: string | null;
   company_name?: string | null;
+  // Raw ISO timestamp from activities.due_at (the deal's booked "meeting"-
+  // type activity whose subject contains "inspection" — see the Proposals
+  // workflow's Look Up Proposal Public/Approved queries) — formatted for
+  // display in fillMergeFields below, not shown as the raw ISO string.
+  inspection_date?: string | null;
+  // opportunities.deal_value — comes back from Postgres as a numeric string
+  // (same as total_amount elsewhere in the app), formatted as currency in
+  // fillMergeFields below.
+  deal_value?: string | number | null;
+  deal_name?: string | null;
+  deal_created_at?: string | null;
+  // opportunities.expected_close — a plain DATE column, not a timestamp, so
+  // it's formatted date-only below (no time component to show).
+  deal_due_at?: string | null;
+  // The deal's down_payment/final invoices and their most recent 'paid'
+  // payment — see the Proposals workflow's Look Up Proposal Public/Approved
+  // queries for the exact invoices/payments join.
+  down_payment_amount?: string | number | null;
+  down_payment_paid_at?: string | null;
+  balance_amount?: string | number | null;
+  balance_paid_at?: string | null;
 }
 
 export const MERGE_FIELD_TOKENS: { token: string; label: string; key: keyof MergeFieldValues }[] = [
@@ -34,6 +55,15 @@ export const MERGE_FIELD_TOKENS: { token: string; label: string; key: keyof Merg
   { token: '{{owner_email}}', label: 'Owner Email', key: 'owner_email' },
   { token: '{{owner_phone}}', label: 'Owner Phone', key: 'owner_phone' },
   { token: '{{company_name}}', label: 'Company Name', key: 'company_name' },
+  { token: '{{inspection_date}}', label: 'Inspection Date', key: 'inspection_date' },
+  { token: '{{deal_value}}', label: 'Deal Value', key: 'deal_value' },
+  { token: '{{deal_name}}', label: 'Deal Name', key: 'deal_name' },
+  { token: '{{deal_created_at}}', label: 'Created At', key: 'deal_created_at' },
+  { token: '{{deal_due_at}}', label: 'Due At', key: 'deal_due_at' },
+  { token: '{{down_payment_amount}}', label: 'Down Payment Amount', key: 'down_payment_amount' },
+  { token: '{{down_payment_paid_at}}', label: 'Down Payment Paid At', key: 'down_payment_paid_at' },
+  { token: '{{balance_amount}}', label: 'Balance Amount', key: 'balance_amount' },
+  { token: '{{balance_paid_at}}', label: 'Balance Paid At', key: 'balance_paid_at' },
 ];
 
 // Contact/user names only — not emails/phones/addresses/company names,
@@ -41,12 +71,42 @@ export const MERGE_FIELD_TOKENS: { token: string; label: string; key: keyof Merg
 // see utils/text.ts).
 const TITLE_CASE_KEYS: ReadonlySet<keyof MergeFieldValues> = new Set(['client_name', 'owner_name', 'first_name', 'last_name']);
 
+// Raw ISO timestamps that should render as a human date/time, not the raw
+// string — same "date, time" shape used in the booking confirmation emails
+// (e.g. "Sep 4, 2026, 9:00 AM").
+const DATE_KEYS: ReadonlySet<keyof MergeFieldValues> = new Set([
+  'inspection_date',
+  'deal_created_at',
+  'down_payment_paid_at',
+  'balance_paid_at',
+]);
+
+// Plain DATE columns (no time component) — date-only display.
+const DATE_ONLY_KEYS: ReadonlySet<keyof MergeFieldValues> = new Set(['deal_due_at']);
+
+// Numeric columns (arrive as a numeric string from Postgres, same as
+// total_amount elsewhere) rendered as currency, e.g. "$5,000.00".
+const MONEY_KEYS: ReadonlySet<keyof MergeFieldValues> = new Set(['deal_value', 'down_payment_amount', 'balance_amount']);
+
 export function fillMergeFields(html: string, values: MergeFieldValues): string {
   let result = html || '';
   for (const { token, key } of MERGE_FIELD_TOKENS) {
     const escaped = token.replace(/[{}]/g, '\\$&');
-    let value = values[key] || '';
+    const raw = values[key];
+    let value = raw != null ? String(raw) : '';
     if (value && TITLE_CASE_KEYS.has(key)) value = toTitleCase(value);
+    if (value && DATE_KEYS.has(key)) {
+      const parsed = new Date(value);
+      value = isNaN(parsed.getTime()) ? value : parsed.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+    }
+    if (value && DATE_ONLY_KEYS.has(key)) {
+      const parsed = new Date(value);
+      value = isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString(undefined, { dateStyle: 'medium' });
+    }
+    if (value && MONEY_KEYS.has(key)) {
+      const num = Number(value);
+      value = isNaN(num) ? value : `$${num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
     result = result.replace(new RegExp(escaped, 'gi'), value);
   }
   return result;

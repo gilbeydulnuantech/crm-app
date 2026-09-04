@@ -75,6 +75,15 @@ export default function PrintContractPage() {
           owner_name: proposal.owner_name,
           owner_email: proposal.owner_email,
           owner_phone: proposal.owner_phone,
+          inspection_date: proposal.inspection_date,
+          deal_value: proposal.deal_value,
+          deal_name: proposal.deal_name,
+          deal_created_at: proposal.deal_created_at,
+          deal_due_at: proposal.deal_due_at,
+          down_payment_amount: proposal.down_payment_amount,
+          down_payment_paid_at: proposal.down_payment_paid_at,
+          balance_amount: proposal.balance_amount,
+          balance_paid_at: proposal.balance_paid_at,
         })
       : '';
 

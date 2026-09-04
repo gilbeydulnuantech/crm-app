@@ -1,6 +1,6 @@
 import { apiFetch } from './client';
 
-export type IntegrationProvider = 'vapi' | 'retell';
+export type IntegrationProvider = 'vapi' | 'retell' | 'apify';
 
 export interface Integration {
   id: number;

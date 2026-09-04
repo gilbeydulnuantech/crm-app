@@ -1,29 +1,147 @@
 {
+  "active": true,
+  "connections": {
+    "Webhook: observability-dashboard": {
+      "main": [
+        [
+          {
+            "node": "Parse Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester": {
+      "main": [
+        [
+          {
+            "node": "Check Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Admin": {
+      "main": [
+        [
+          {
+            "node": "Fetch Dashboard Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Dashboard Data": {
+      "main": [
+        [
+          {
+            "node": "Respond: observability-dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: get-automation-error-log": {
+      "main": [
+        [
+          {
+            "node": "Parse Token (Errors)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token (Errors)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester (Errors)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester (Errors)": {
+      "main": [
+        [
+          {
+            "node": "Check Admin (Errors)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Admin (Errors)": {
+      "main": [
+        [
+          {
+            "node": "Select Error Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Error Log": {
+      "main": [
+        [
+          {
+            "node": "Respond: get-automation-error-log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
   "name": "Observability Dashboard",
   "nodes": [
     {
       "parameters": {
         "path": "observability-dashboard",
         "responseMode": "responseNode",
-        "options": {},
-        "httpMethod": "GET"
+        "options": {}
       },
-      "id": "a1b2c3d4-0001-4000-8000-000000000001",
+      "id": "99361f06-c1b3-4c24-ad60-64d56a728a95",
       "name": "Webhook: observability-dashboard",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [240, 160],
+      "position": [
+        0,
+        0
+      ],
       "webhookId": "a1b2c3d4-0001-4001-8000-000000000001"
     },
     {
       "parameters": {
         "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
       },
-      "id": "a1b2c3d4-0002-4000-8000-000000000002",
+      "id": "45ff7908-38fd-4eb8-9310-f813c11b3717",
       "name": "Parse Token",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [440, 160]
+      "position": [
+        208,
+        0
+      ]
     },
     {
       "parameters": {
@@ -33,11 +151,14 @@
           "queryReplacement": "={{ [ $json.userId ] }}"
         }
       },
-      "id": "a1b2c3d4-0003-4000-8000-000000000003",
+      "id": "af27cdee-eb76-4842-ac19-e871c1e317ad",
       "name": "Look Up Requester",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [640, 160],
+      "position": [
+        400,
+        0
+      ],
       "credentials": {
         "postgres": {
           "id": "OJlr1rmibAS2w3rj",
@@ -49,11 +170,14 @@
       "parameters": {
         "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\nreturn [{ json: {} }];"
       },
-      "id": "a1b2c3d4-0004-4000-8000-000000000004",
+      "id": "d0dbe34d-8e7c-499a-ae99-c19e70f005c4",
       "name": "Check Admin",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [840, 160]
+      "position": [
+        608,
+        0
+      ]
     },
     {
       "parameters": {
@@ -62,48 +186,137 @@
           "timeout": 10000
         }
       },
-      "id": "a1b2c3d4-0005-4000-8000-000000000005",
+      "id": "41d6f82d-ecd0-400e-8946-16e843c9c81f",
       "name": "Fetch Dashboard Data",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1040, 160]
+      "position": [
+        800,
+        0
+      ]
     },
     {
       "parameters": {
-        "respondWith": "firstIncomingItem",
         "options": {}
       },
-      "id": "a1b2c3d4-0006-4000-8000-000000000006",
+      "id": "43d7ece5-78a1-4075-9aec-036d33319e0e",
       "name": "Respond: observability-dashboard",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1240, 160]
+      "position": [
+        1008,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "path": "get-automation-error-log",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "gael-webhook",
+      "name": "Webhook: get-automation-error-log",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "webhookId": "6f45ee12-361e-44bb-9b98-24507baa4372",
+      "position": [
+        208,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
+      },
+      "id": "gael-parse",
+      "name": "Parse Token (Errors)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "id": "gael-lookup",
+      "name": "Look Up Requester (Errors)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        640,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\nreturn [{ json: {} }];"
+      },
+      "id": "gael-admin",
+      "name": "Check Admin (Errors)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        864,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, workflow_id AS \"workflowId\", workflow_name AS \"workflowName\", node_name AS \"nodeName\", message, execution_url AS \"executionUrl\", created_at AS \"createdAt\" FROM automation_error_log ORDER BY created_at DESC LIMIT 20;",
+        "options": {}
+      },
+      "id": "gael-select",
+      "name": "Select Error Log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1088,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().map(i => i.json) }}",
+        "options": {}
+      },
+      "id": "gael-respond",
+      "name": "Respond: get-automation-error-log",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1312,
+        400
+      ]
     }
   ],
-  "connections": {
-    "Webhook: observability-dashboard": {
-      "main": [[{ "node": "Parse Token", "type": "main", "index": 0 }]]
-    },
-    "Parse Token": {
-      "main": [[{ "node": "Look Up Requester", "type": "main", "index": 0 }]]
-    },
-    "Look Up Requester": {
-      "main": [[{ "node": "Check Admin", "type": "main", "index": 0 }]]
-    },
-    "Check Admin": {
-      "main": [[{ "node": "Fetch Dashboard Data", "type": "main", "index": 0 }]]
-    },
-    "Fetch Dashboard Data": {
-      "main": [[{ "node": "Respond: observability-dashboard", "type": "main", "index": 0 }]]
-    }
-  },
   "pinData": {},
-  "active": true,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate",
     "availableInMCP": false,
     "timeSavedMode": "fixed",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
     "callerPolicy": "workflowsFromSameOwner"
   }
 }

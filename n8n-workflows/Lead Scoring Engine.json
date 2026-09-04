@@ -1,0 +1,142 @@
+{
+  "active": true,
+  "connections": {
+    "Schedule Trigger: every 15 min": {
+      "main": [
+        [
+          {
+            "node": "Recompute Lead Scores",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: manual-test": {
+      "main": [
+        [
+          {
+            "node": "Recompute Lead Scores",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recompute Lead Scores": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "name": "Lead Scoring Engine",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "lse-schedule-1",
+      "name": "Schedule Trigger: every 15 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "recompute-lead-scores",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "lse-webhook-manual",
+      "name": "Webhook: manual-test",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        200
+      ],
+      "webhookId": "lse-manual-recompute-0001"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH scores AS (\n  SELECT\n    c.id,\n    CASE WHEN c.do_not_contact OR c.dnc_email OR c.dnc_call OR c.dnc_sms THEN 0\n    ELSE GREATEST(0,\n      LEAST(15, 5 * (SELECT COUNT(*) FROM jsonb_array_elements(c.email_logs) e WHERE (e->>'opened_at') IS NOT NULL)) +\n      LEAST(25, 5 * (SELECT COUNT(*) FROM activities a WHERE a.contact_id = c.id AND a.is_completed = true)) +\n      (CASE WHEN EXISTS (SELECT 1 FROM activities a WHERE a.contact_id = c.id AND a.type = 'meeting' AND a.subject ILIKE '%inspection%') THEN 15 ELSE 0 END) +\n      (CASE WHEN EXISTS (SELECT 1 FROM activities a WHERE a.contact_id = c.id AND a.type = 'meeting' AND a.subject ILIKE '%inspection%' AND a.is_completed = true) THEN 25 ELSE 0 END) +\n      COALESCE((SELECT MAX(CASE p.status WHEN 'approved' THEN 30 WHEN 'viewed' THEN 15 WHEN 'emailed' THEN 10 ELSE 0 END)\n                FROM proposals p JOIN opportunities o ON o.id = p.opportunity_id WHERE o.contact_id = c.id), 0) +\n      (CASE WHEN EXISTS (SELECT 1 FROM contracts ct JOIN opportunities o ON o.id = ct.opportunity_id WHERE o.contact_id = c.id AND ct.status = 'signed') THEN 40 ELSE 0 END) +\n      (CASE WHEN EXISTS (SELECT 1 FROM payments pay JOIN invoices i ON i.id = pay.invoice_id WHERE i.contact_id = c.id AND i.invoice_type = 'down_payment' AND pay.status = 'paid') THEN 50 ELSE 0 END) +\n      COALESCE((SELECT MAX(CASE WHEN o.deal_value > 10000 THEN 15 WHEN o.deal_value > 5000 THEN 10 WHEN o.deal_value > 1000 THEN 5 ELSE 0 END)\n                FROM opportunities o WHERE o.contact_id = c.id), 0) +\n      (CASE WHEN c.last_contacted_at IS NULL THEN 0\n            WHEN c.last_contacted_at < now() - interval '30 days' THEN -20\n            WHEN c.last_contacted_at < now() - interval '14 days' THEN -10\n            ELSE 0 END)\n    ) END AS score\n  FROM contacts c\n  WHERE c.is_archived = false\n)\nUPDATE contacts\nSET lead_score = scores.score\nFROM scores\nWHERE contacts.id = scores.id AND contacts.lead_score IS DISTINCT FROM scores.score\nRETURNING contacts.id, contacts.lead_score;",
+        "options": {}
+      },
+      "id": "lse-recompute-query",
+      "name": "Recompute Lead Scores",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        220,
+        100
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const updated = $input.all().length;\nreturn [{ json: { success: true, updated } }];"
+      },
+      "id": "lse-build-response",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "lse-respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        660,
+        200
+      ]
+    }
+  ],
+  "pinData": null,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  }
+}

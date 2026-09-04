@@ -1,0 +1,466 @@
+{
+  "active": true,
+  "connections": {
+    "Webhook: enrich-contact": {
+      "main": [
+        [
+          {
+            "node": "Parse Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester": {
+      "main": [
+        [
+          {
+            "node": "Validate Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Payload": {
+      "main": [
+        [
+          {
+            "node": "Look Up Contact & Website",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Contact & Website": {
+      "main": [
+        [
+          {
+            "node": "Require Website",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Require Website": {
+      "main": [
+        [
+          {
+            "node": "Look Up Apify Key",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Apify Key": {
+      "main": [
+        [
+          {
+            "node": "Require Apify Key",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Require Apify Key": {
+      "main": [
+        [
+          {
+            "node": "Scrape Website for Contact Info",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape Website for Contact Info": {
+      "main": [
+        [
+          {
+            "node": "Pick Best Contact Info",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pick Best Contact Info": {
+      "main": [
+        [
+          {
+            "node": "Update Contact",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Contact": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "name": "Enrich Contact From Website",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "enrich-contact",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "ecw-webhook-1",
+      "name": "Webhook: enrich-contact",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "ecw-enrich-contact-0001"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "ecw-parse-token",
+      "name": "Parse Token",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "ecw-lookup-requester",
+      "name": "Look Up Requester",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        440,
+        0
+      ],
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nconst body = $('Webhook: enrich-contact').first().json.body || {};\nconst contactId = parseInt(body.contact_id, 10);\nif (!Number.isInteger(contactId)) throw new Error('contact_id is required.');\nreturn [{ json: { contactId } }];"
+      },
+      "id": "ecw-validate",
+      "name": "Validate Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.id AS contact_id, c.first_name, c.last_name, c.email, c.phone, co.id AS company_id, co.name AS company_name, co.website FROM contacts c JOIN companies co ON co.id = c.account_id WHERE c.id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.contactId ] }}"
+        }
+      },
+      "id": "ecw-lookup-contact",
+      "name": "Look Up Contact & Website",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        880,
+        0
+      ],
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.first().json;\nif (!row || !row.contact_id) throw new Error('Contact not found, or has no linked company.');\nif (!row.website) throw new Error('This company has no website on file \u2014 nothing to enrich from.');\nreturn [{ json: row }];"
+      },
+      "id": "ecw-require-website",
+      "name": "Require Website",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT pgp_sym_decrypt(api_key_encrypted, $1) AS api_key FROM integrations WHERE provider = 'apify' AND is_active = true AND api_key_encrypted IS NOT NULL LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $env.INTEGRATIONS_ENCRYPTION_KEY ] }}"
+        }
+      },
+      "id": "ecw-lookup-apify-key",
+      "name": "Look Up Apify Key",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1320,
+        0
+      ],
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const key = $input.first().json.api_key;\nif (!key) throw new Error('Apify is not connected \u2014 add an API key in Settings > Integrations.');\nconst ctx = $('Require Website').first().json;\nreturn [{ json: { ...ctx, apifyKey: key } }];"
+      },
+      "id": "ecw-merge-key",
+      "name": "Require Apify Key",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.apify.com/v2/acts/vdrmota~contact-info-scraper/run-sync-get-dataset-items?token={{ $json.apifyKey }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ startUrls: [{ url: $json.website }], maxDepth: 1, maxRequestsPerCrawl: 8 }) }}",
+        "options": {
+          "timeout": 240000
+        }
+      },
+      "id": "ecw-apify-call",
+      "name": "Scrape Website for Contact Info",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1760,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Require Apify Key').first().json;\nconst result = $input.first().json || {};\nconst emails = Array.isArray(result.emails) ? result.emails : [];\nconst phones = ([]).concat(result.phones || [], result.phonesUncertain || []);\n\nlet domain = '';\ntry { domain = new URL(ctx.website).hostname.replace(/^www\\./, ''); } catch {}\n\nconst GENERIC_LOCALPARTS = new Set(['info', 'support', 'contact', 'sales', 'hello', 'admin', 'office', 'help', 'team', 'service', 'noreply', 'no-reply', 'privacy', 'legal', 'careers', 'jobs']);\n\nfunction titleCase(s) {\n  return s.replace(/[-_]/g, ' ').split(' ').filter(Boolean).map((w) => w[0].toUpperCase() + w.slice(1).toLowerCase()).join(' ');\n}\n\n// Prefer an email on the company's own domain whose local part looks like a\n// real person (firstname.lastname / firstname_lastname), over generic\n// mailbox names \u2014 those are far more useful as an actual point of contact.\nconst sameDomainEmails = emails.filter((e) => e.toLowerCase().endsWith('@' + domain));\nconst candidates = (sameDomainEmails.length ? sameDomainEmails : emails);\n\nlet bestEmail = null;\nlet guessedFirstName = null;\nlet guessedLastName = null;\nfor (const e of candidates) {\n  const localPart = e.split('@')[0].toLowerCase();\n  if (GENERIC_LOCALPARTS.has(localPart)) continue;\n  const m = localPart.match(/^([a-z]+)[._-]([a-z]+)$/);\n  bestEmail = e;\n  if (m) {\n    guessedFirstName = titleCase(m[1]);\n    guessedLastName = titleCase(m[2]);\n  }\n  break;\n}\nif (!bestEmail && candidates.length) bestEmail = candidates[0];\n\nconst bestPhone = phones.length ? phones[0] : null;\n\nreturn [{\n  json: {\n    contactId: ctx.contact_id,\n    companyName: ctx.company_name,\n    currentFirstName: ctx.first_name,\n    currentEmail: ctx.email,\n    currentPhone: ctx.phone,\n    foundEmail: bestEmail,\n    foundPhone: bestPhone,\n    guessedFirstName,\n    guessedLastName,\n  },\n}];"
+      },
+      "id": "ecw-pick-best",
+      "name": "Pick Best Contact Info",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1980,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts\nSET\n  email = COALESCE(email, $1),\n  phone = COALESCE(phone, $2),\n  first_name = CASE WHEN first_name = $3 AND $4::text IS NOT NULL THEN $4 ELSE first_name END,\n  last_name = CASE WHEN first_name = $3 AND $5::text IS NOT NULL THEN $5 ELSE last_name END\nWHERE id = $6\nRETURNING id, first_name, last_name, email, phone;",
+        "options": {
+          "queryReplacement": "={{ [ $json.foundEmail, $json.foundPhone, $json.companyName, $json.guessedFirstName, $json.guessedLastName, $json.contactId ] }}"
+        }
+      },
+      "id": "ecw-update-contact",
+      "name": "Update Contact",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2200,
+        0
+      ],
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const updated = $input.first().json;\nconst found = $('Pick Best Contact Info').first().json;\nreturn [{\n  json: {\n    success: true,\n    found_email: !!found.foundEmail,\n    found_phone: !!found.foundPhone,\n    renamed: found.currentFirstName !== updated.first_name,\n    contact: updated,\n  },\n}];"
+      },
+      "id": "ecw-build-response",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2420,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "ecw-respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2640,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Enrichment failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "ecw-respond-error",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        660,
+        260
+      ]
+    }
+  ],
+  "pinData": null,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  }
+}

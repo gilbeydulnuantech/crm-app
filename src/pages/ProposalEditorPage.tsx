@@ -20,10 +20,14 @@ const inputClass =
 
 // Standalone template — no deal/pipeline/stage. These fields resolve once
 // this template is cloned into a real, deal-bound proposal (via an
-// Automation or the deal-triggered Document Flow). The deal_*/down_payment_*/
-// balance_* tokens are offered for consistency with the other document
-// editors but aren't wired into fillMergeFields (utils/mergeFields.ts) yet —
-// they'll render literally until that resolver is extended to fill them.
+// Automation or the deal-triggered Document Flow). All fields below are
+// fully wired (utils/mergeFields.ts + the Proposals workflow's Look Up
+// Proposal Public/Approved/Select Proposals queries) — inspection_date
+// comes from `activities` (type='meeting', subject ILIKE '%inspection%',
+// due_at), there's no separate "calendar" table; deal_value/deal_name/
+// deal_created_at/deal_due_at come straight off `opportunities`;
+// down_payment_*/balance_* come from each deal's most recent down_payment/
+// final invoice and its latest 'paid' payment.
 const PROPOSAL_DYNAMIC_FIELDS: DynamicField[] = [
   { token: '{{client_name}}', label: 'Client Name', group: 'Client' },
   { token: '{{client_company_name}}', label: 'Client Company', group: 'Client' },
@@ -39,6 +43,7 @@ const PROPOSAL_DYNAMIC_FIELDS: DynamicField[] = [
   { token: '{{deal_value}}', label: 'Deal Value', group: 'Deal' },
   { token: '{{deal_created_at}}', label: 'Created At', group: 'Deal' },
   { token: '{{deal_due_at}}', label: 'Due At', group: 'Deal' },
+  { token: '{{inspection_date}}', label: 'Inspection Date', group: 'Deal' },
   { token: '{{down_payment_amount}}', label: 'Down Payment Amount', group: 'Payment' },
   { token: '{{down_payment_paid_at}}', label: 'Down Payment Paid At', group: 'Payment' },
   { token: '{{balance_amount}}', label: 'Balance Amount', group: 'Payment' },
@@ -269,6 +274,31 @@ export default function ProposalEditorPage() {
       '{{owner_email}}': user?.email || '',
       '{{company_name}}': companyProfile?.company_name || '',
       '{{proposal_link}}': proposalLink,
+      '{{inspection_date}}': savedProposal?.inspection_date
+        ? new Date(savedProposal.inspection_date).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+        : '',
+      '{{deal_value}}': savedProposal?.deal_value != null
+        ? `$${Number(savedProposal.deal_value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        : '',
+      '{{deal_name}}': savedProposal?.deal_name || selectedDeal?.dealName || '',
+      '{{deal_created_at}}': savedProposal?.deal_created_at
+        ? new Date(savedProposal.deal_created_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+        : '',
+      '{{deal_due_at}}': savedProposal?.deal_due_at
+        ? new Date(savedProposal.deal_due_at).toLocaleDateString(undefined, { dateStyle: 'medium' })
+        : '',
+      '{{down_payment_amount}}': savedProposal?.down_payment_amount != null
+        ? `$${Number(savedProposal.down_payment_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        : '',
+      '{{down_payment_paid_at}}': savedProposal?.down_payment_paid_at
+        ? new Date(savedProposal.down_payment_paid_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+        : '',
+      '{{balance_amount}}': savedProposal?.balance_amount != null
+        ? `$${Number(savedProposal.balance_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        : '',
+      '{{balance_paid_at}}': savedProposal?.balance_paid_at
+        ? new Date(savedProposal.balance_paid_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+        : '',
     };
     return Object.entries(map).reduce((out, [token, val]) => out.split(token).join(val), text);
   }

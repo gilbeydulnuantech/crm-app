@@ -22,9 +22,10 @@ const PROVIDER_FIELDS: Record<IntegrationProvider, { key: string; label: string;
     { key: 'agent_id', label: 'Agent ID', placeholder: 'From your Retell dashboard' },
     { key: 'from_number', label: 'From Number', placeholder: 'e.g. +15551234567' },
   ],
+  apify: [],
 };
 
-const PROVIDER_LABELS: Record<IntegrationProvider, string> = { vapi: 'Vapi', retell: 'Retell' };
+const PROVIDER_LABELS: Record<IntegrationProvider, string> = { vapi: 'Vapi', retell: 'Retell', apify: 'Apify' };
 
 export default function IntegrationsModal({ open, onClose }: Props) {
   const { data: integrations = [], isLoading } = useIntegrations(open);
@@ -59,7 +60,7 @@ export default function IntegrationsModal({ open, onClose }: Props) {
           {isLoading ? (
             <p className="text-sm text-slate-400 py-4 text-center">Loading...</p>
           ) : (
-            (['vapi', 'retell'] as IntegrationProvider[]).map((provider) => (
+            (['vapi', 'retell', 'apify'] as IntegrationProvider[]).map((provider) => (
               <ProviderCard
                 key={provider}
                 provider={provider}

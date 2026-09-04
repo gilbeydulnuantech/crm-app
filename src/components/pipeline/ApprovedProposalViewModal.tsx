@@ -31,6 +31,15 @@ export default function ApprovedProposalViewModal({ proposalId, onClose }: Props
         owner_name: data.owner_name,
         owner_email: data.owner_email,
         owner_phone: data.owner_phone,
+        inspection_date: data.inspection_date,
+        deal_value: data.deal_value,
+        deal_name: data.deal_name,
+        deal_created_at: data.deal_created_at,
+        deal_due_at: data.deal_due_at,
+        down_payment_amount: data.down_payment_amount,
+        down_payment_paid_at: data.down_payment_paid_at,
+        balance_amount: data.balance_amount,
+        balance_paid_at: data.balance_paid_at,
       })
     : '';
 

@@ -27,6 +27,8 @@ import BulkActionsMenu from '../components/contacts/BulkActionsMenu';
 import AddContactDropdown from '../components/contacts/AddContactDropdown';
 import AddContactModal from '../components/contacts/AddContactModal';
 import ImportContactsModal from '../components/contacts/ImportContactsModal';
+import FindLeadsModal from '../components/contacts/FindLeadsModal';
+import { useBulkEnrichContacts } from '../hooks/useBulkEnrichContacts';
 import ExportContactsModal from '../components/contacts/ExportContactsModal';
 import ContactDetailModal from '../components/contacts/ContactDetailModal';
 import ArchiveReasonModal from '../components/contacts/ArchiveReasonModal';
@@ -86,11 +88,15 @@ export default function Contacts() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [addOpen, setAddOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [findLeadsOpen, setFindLeadsOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [activeContactId, setActiveContactId] = useState<number | null>(null);
   const [archiveTargetIds, setArchiveTargetIds] = useState<number[] | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [enrichError, setEnrichError] = useState<string | null>(null);
+  const [enrichQueued, setEnrichQueued] = useState<number | null>(null);
+  const bulkEnrichContacts = useBulkEnrichContacts();
   const [density, setDensity] = useState<'comfortable' | 'compact'>(
     () => (localStorage.getItem(DENSITY_STORAGE_KEY) as 'comfortable' | 'compact' | null) ?? 'comfortable'
   );
@@ -337,6 +343,19 @@ export default function Contacts() {
     });
   }
 
+  function handleEnrich() {
+    if (selectedIds.size === 0) return;
+    setEnrichError(null);
+    setEnrichQueued(null);
+    bulkEnrichContacts.mutate(Array.from(selectedIds), {
+      onSuccess: (res) => {
+        setEnrichQueued(res.queued);
+        setSelectedIds(new Set());
+      },
+      onError: (err) => setEnrichError(err instanceof Error ? err.message : 'Failed to queue enrichment.'),
+    });
+  }
+
   function handleExport() {
     const list = view === 'archived' ? visibleArchivedContacts : visibleContacts;
     if (list.length === 0) return;
@@ -355,7 +374,11 @@ export default function Contacts() {
           <h1 className="text-lg font-bold text-slate-800">Contacts</h1>
           <ContactsTabs view={view} onChange={changeView} />
         </div>
-        <AddContactDropdown onAddContact={openAddModal} onImportCsv={() => setImportOpen(true)} />
+        <AddContactDropdown
+          onAddContact={openAddModal}
+          onImportCsv={() => setImportOpen(true)}
+          onFindLeads={() => setFindLeadsOpen(true)}
+        />
       </div>
 
       {deleteError && (
@@ -365,6 +388,34 @@ export default function Contacts() {
             type="button"
             onClick={() => setDeleteError(null)}
             className="text-rose-400 hover:text-rose-600 shrink-0"
+          >
+            <i className="fa-solid fa-xmark text-xs" />
+          </button>
+        </div>
+      )}
+
+      {enrichError && (
+        <div className="px-4 py-2 shrink-0 bg-rose-50 border-b border-rose-200 flex items-center justify-between gap-3">
+          <p className="text-xs text-rose-600">{enrichError}</p>
+          <button
+            type="button"
+            onClick={() => setEnrichError(null)}
+            className="text-rose-400 hover:text-rose-600 shrink-0"
+          >
+            <i className="fa-solid fa-xmark text-xs" />
+          </button>
+        </div>
+      )}
+      {enrichQueued != null && (
+        <div className="px-4 py-2 shrink-0 bg-emerald-50 border-b border-emerald-200 flex items-center justify-between gap-3">
+          <p className="text-xs text-emerald-700">
+            Enriching {enrichQueued} contact{enrichQueued === 1 ? '' : 's'} in the background — this can take a
+            minute or two. Refresh the list to see results as they come in.
+          </p>
+          <button
+            type="button"
+            onClick={() => setEnrichQueued(null)}
+            className="text-emerald-500 hover:text-emerald-700 shrink-0"
           >
             <i className="fa-solid fa-xmark text-xs" />
           </button>
@@ -445,6 +496,7 @@ export default function Contacts() {
             onRestore={handleRestore}
             onDeletePermanently={handleDeletePermanently}
             onExport={handleExport}
+            onEnrich={handleEnrich}
           />
         </div>
         <span className="text-xs text-slate-500">
@@ -462,6 +514,7 @@ export default function Contacts() {
         }}
       />
       <ImportContactsModal open={importOpen} onClose={() => setImportOpen(false)} />
+      <FindLeadsModal open={findLeadsOpen} onClose={() => setFindLeadsOpen(false)} />
       <ExportContactsModal
         open={exportOpen}
         contacts={view === 'archived' ? visibleArchivedContacts : visibleContacts}

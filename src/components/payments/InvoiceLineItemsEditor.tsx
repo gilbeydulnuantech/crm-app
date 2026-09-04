@@ -1,10 +1,23 @@
 import { InvoiceLineItemInput } from '../../api/payments';
+import { useScopeTemplates } from '../../hooks/useScopeTemplates';
 
 const inputClass =
   'px-2 py-1 text-xs border border-slate-200 rounded focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]';
 
 function money(n: number) {
   return `$${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+// Scope of Work templates are saved as rich-text (see ScopeOfWorkEditor) —
+// a line item's Product/Service cell is plain text, so strip tags down to
+// readable text rather than dumping raw HTML into the field.
+function htmlToPlainText(html: string) {
+  return html
+    .replace(/<(p|div|br|li)[^>]*>/gi, '\n')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\n{2,}/g, '\n')
+    .trim();
 }
 
 export function lineTotal(it: InvoiceLineItemInput) {
@@ -26,6 +39,8 @@ interface Props {
 // Shared by the New Invoice modal and the Invoice Detail page's Edit mode
 // so both build the exact same shape/computation.
 export default function InvoiceLineItemsEditor({ items, onChange }: Props) {
+  const { data: scopeTemplates = [] } = useScopeTemplates();
+
   function updateItem(i: number, patch: Partial<InvoiceLineItemInput>) {
     onChange(items.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
   }
@@ -34,6 +49,12 @@ export default function InvoiceLineItemsEditor({ items, onChange }: Props) {
   }
   function removeItem(i: number) {
     onChange(items.filter((_, idx) => idx !== i));
+  }
+  function applyScope(i: number, templateId: string) {
+    if (!templateId) return;
+    const tmpl = scopeTemplates.find((t) => String(t.id) === templateId);
+    if (!tmpl) return;
+    updateItem(i, { product: htmlToPlainText(tmpl.content_html) || tmpl.name });
   }
 
   const totals = invoiceTotals(items);
@@ -63,6 +84,20 @@ export default function InvoiceLineItemsEditor({ items, onChange }: Props) {
                   placeholder="Product or service"
                   className={`${inputClass} w-full`}
                 />
+                {scopeTemplates.length > 0 && (
+                  <select
+                    value=""
+                    onChange={(e) => applyScope(i, e.target.value)}
+                    className="mt-1 w-full text-[10px] font-medium border border-slate-200 rounded px-1.5 py-0.5 text-slate-400 bg-white hover:border-slate-300 focus:outline-none"
+                  >
+                    <option value="">Insert from Scope of Work...</option>
+                    {scopeTemplates.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </td>
               <td className="py-1.5 px-2">
                 <input

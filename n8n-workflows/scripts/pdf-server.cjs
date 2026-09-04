@@ -24,7 +24,7 @@ function getBrowser() {
 
 async function launchBrowser() {
   const browser = await getBrowser();
-  if (!browser.isConnected()) {
+  if (!browser.connected) {
     browserPromise = null;
     return getBrowser();
   }

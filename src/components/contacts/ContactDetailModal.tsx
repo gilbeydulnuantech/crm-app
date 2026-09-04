@@ -27,6 +27,8 @@ import { useProposals } from '../../hooks/useProposals';
 import { useContracts } from '../../hooks/useContracts';
 import { syncContactStatus } from '../../api/contacts';
 import TagsDropdown from './TagsDropdown';
+import LeadScoreBadge from './LeadScoreBadge';
+import EnrichContactButton from './EnrichContactButton';
 import OwnerDropdown from './OwnerDropdown';
 import AddContactModal from './AddContactModal';
 import ComposeEmailPopover from './ComposeEmailPopover';
@@ -315,6 +317,143 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [dndOpen]);
 
+  // allTasks/allEvents/allOpportunities/etc. are fetched unscoped (whole
+  // app, not just this contact — see the comments on those hooks above) and
+  // refetch every 15s via the global refetchInterval. Filtering/sorting them
+  // was previously done inline in the render body, re-running on every
+  // render (any local state change, not just new data) — memoized here so
+  // it only recomputes when the source data or contact actually changes,
+  // instead of blocking the main thread on every re-render (was visible as
+  // laggy scrolling — a re-render mid-scroll re-ran all these filters/sorts
+  // over the full unscoped arrays before the next frame could paint).
+  const byDateAsc = (a?: string | null, b?: string | null) => {
+    if (!a && !b) return 0;
+    if (!a) return 1;
+    if (!b) return -1;
+    return new Date(a).getTime() - new Date(b).getTime();
+  };
+  // This modal stays mounted on the Contacts page at all times (rendered
+  // with contact=null whenever nothing's selected — see Contacts.tsx), and
+  // hooks must run unconditionally, so these can't sit after an early
+  // return. Guarding each one to bail before touching the (large, unscoped)
+  // source array is what actually matters: without it, every render of the
+  // whole Contacts page — including its own background poll — pays the full
+  // filter/sort cost even while this modal is closed.
+  const contactDeals = useMemo(
+    () => (contact?.id ? allOpportunities.filter((o) => o.contact_id === contact.id) : []),
+    [allOpportunities, contact?.id]
+  );
+  const contactDealIds = useMemo(() => new Set(contactDeals.map((d) => d.id)), [contactDeals]);
+  const contactTickets = useMemo(
+    () => (contact?.id ? allTickets.filter((t) => t.contact_id === contact.id) : []),
+    [allTickets, contact?.id]
+  );
+  const contactInvoices = useMemo(
+    () => (contact?.id ? allInvoices.filter((i) => i.contact_id === contact.id) : []),
+    [allInvoices, contact?.id]
+  );
+  const contactPayments = useMemo(
+    () => (contact?.id ? allPayments.filter((p) => p.contact_id === contact.id) : []),
+    [allPayments, contact?.id]
+  );
+  const contactProposals = useMemo(
+    () =>
+      contact?.id ? allProposals.filter((p) => contactDealIds.has(p.opportunity_id) && p.status === 'approved') : [],
+    [allProposals, contactDealIds, contact?.id]
+  );
+  const contactContracts = useMemo(
+    () =>
+      contact?.id ? allContracts.filter((c) => contactDealIds.has(c.opportunity_id) && c.status === 'signed') : [],
+    [allContracts, contactDealIds, contact?.id]
+  );
+  const invoiceStats = useMemo(
+    () =>
+      contactInvoices.reduce(
+        (acc, inv) => {
+          const status = invoiceStatus(inv);
+          const total = Number(inv.total) || 0;
+          const paidAmt = Number(inv.amount_paid) || 0;
+          acc.totalInvoiced += total;
+          acc.paid += paidAmt;
+          if (status !== 'paid' && status !== 'voided') acc.outstanding += total - paidAmt;
+          if (status === 'overdue') acc.overdue += total - paidAmt;
+          return acc;
+        },
+        { totalInvoiced: 0, paid: 0, outstanding: 0, overdue: 0 }
+      ),
+    [contactInvoices]
+  );
+  const totalPaid = useMemo(
+    () => contactPayments.reduce((sum, p) => sum + (Number(p.amount_received) || 0) - (Number(p.refunded_amount) || 0), 0),
+    [contactPayments]
+  );
+  const documentsList = useMemo(
+    () => [
+      ...contactProposals.map((p) => ({
+        key: `proposal-${p.id}`,
+        label: `Proposal - ${p.title}`,
+        onClick: () => setViewProposalId(p.id),
+      })),
+      ...contactContracts.map((c) => ({
+        key: `contract-${c.id}`,
+        label: c.title,
+        onClick: () => setViewContractId(c.id),
+      })),
+      ...contactInvoices.map((inv) => ({
+        key: `invoice-${inv.id}`,
+        label: `Invoice ${inv.invoice_number}`,
+        onClick: () => openInvoiceView(inv.id),
+      })),
+    ],
+    [contactProposals, contactContracts, contactInvoices]
+  );
+  const contactTasks = useMemo(() => {
+    if (!contact?.id) return [];
+    return [...allTasks.filter((t) => t.contact_id === contact.id)].sort((a, b) => {
+      if (a.is_completed !== b.is_completed) return a.is_completed ? 1 : -1;
+      return a.is_completed ? byDateAsc(b.due_at, a.due_at) : byDateAsc(a.due_at, b.due_at);
+    });
+  }, [allTasks, contact?.id]);
+  const contactEvents = useMemo(() => {
+    if (!contact?.id) return [];
+    return [...allEvents.filter((e) => e.contact_id === contact.id)].sort((a, b) => {
+      if (a.is_completed !== b.is_completed) return a.is_completed ? 1 : -1;
+      return a.is_completed ? byDateAsc(b.due_at, a.due_at) : byDateAsc(a.due_at, b.due_at);
+    });
+  }, [allEvents, contact?.id]);
+  // Grouped into sections (Active, Closed Won, Closed Lost) instead of one
+  // flat list, so closed deals are easy to spot separately from open ones.
+  // Active sorts soonest-expected-close first; closed sections sort most
+  // recently closed first.
+  const dealSections = useMemo(
+    () =>
+      [
+        {
+          key: 'active',
+          label: 'Active',
+          items: [...contactDeals.filter((d) => d.status === 'Open')].sort((a, b) =>
+            byDateAsc(a.expected_close, b.expected_close)
+          ),
+        },
+        {
+          key: 'won',
+          label: 'Closed Won',
+          items: [...contactDeals.filter((d) => d.status === 'Won')].sort((a, b) =>
+            byDateAsc(b.closed_at ?? b.created_at, a.closed_at ?? a.created_at)
+          ),
+        },
+        {
+          key: 'lost',
+          label: 'Closed Lost',
+          items: [...contactDeals.filter((d) => d.status === 'Lost')].sort((a, b) =>
+            byDateAsc(b.closed_at ?? b.created_at, a.closed_at ?? a.created_at)
+          ),
+        },
+      ].filter((section) => section.items.length > 0),
+    [contactDeals]
+  );
+  const logs = useMemo(() => parseEmailLogs(contact?.email_logs).slice().reverse(), [contact?.email_logs]);
+
   if (!contact) return null;
 
   // Same email, different row — the most common source of duplicate
@@ -345,52 +484,6 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
   // in this modal.
   const canClickCompany = !isReadOnly && !!contact.account_id;
 
-  const logs = parseEmailLogs(contact.email_logs).slice().reverse();
-  const contactDeals = allOpportunities.filter((o) => o.contact_id === contact.id);
-  const contactDealIds = new Set(contactDeals.map((d) => d.id));
-  const contactTickets = allTickets.filter((t) => t.contact_id === contact.id);
-  const contactInvoices = allInvoices.filter((i) => i.contact_id === contact.id);
-  const contactPayments = allPayments.filter((p) => p.contact_id === contact.id);
-  // Documents only lists proposals/contracts in a state that actually has a
-  // read-only viewer built (approved / signed) — matches exactly what's
-  // reachable from a Deal Card today, nothing invented for this tab.
-  const contactProposals = allProposals.filter((p) => contactDealIds.has(p.opportunity_id) && p.status === 'approved');
-  const contactContracts = allContracts.filter((c) => contactDealIds.has(c.opportunity_id) && c.status === 'signed');
-  const invoiceStats = contactInvoices.reduce(
-    (acc, inv) => {
-      const status = invoiceStatus(inv);
-      const total = Number(inv.total) || 0;
-      const paidAmt = Number(inv.amount_paid) || 0;
-      acc.totalInvoiced += total;
-      acc.paid += paidAmt;
-      if (status !== 'paid' && status !== 'voided') acc.outstanding += total - paidAmt;
-      if (status === 'overdue') acc.overdue += total - paidAmt;
-      return acc;
-    },
-    { totalInvoiced: 0, paid: 0, outstanding: 0, overdue: 0 }
-  );
-  const totalPaid = contactPayments.reduce(
-    (sum, p) => sum + (Number(p.amount_received) || 0) - (Number(p.refunded_amount) || 0),
-    0
-  );
-  const documentsList = [
-    ...contactProposals.map((p) => ({
-      key: `proposal-${p.id}`,
-      label: `Proposal - ${p.title}`,
-      onClick: () => setViewProposalId(p.id),
-    })),
-    ...contactContracts.map((c) => ({
-      key: `contract-${c.id}`,
-      label: c.title,
-      onClick: () => setViewContractId(c.id),
-    })),
-    ...contactInvoices.map((inv) => ({
-      key: `invoice-${inv.id}`,
-      label: `Invoice ${inv.invoice_number}`,
-      onClick: () => openInvoiceView(inv.id),
-    })),
-  ];
-
   function openTicketView(id: number) {
     onClose();
     navigate(`/tickets/${id}`);
@@ -405,52 +498,6 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
     onClose();
     navigate(`/payments/${id}`);
   }
-  // Open items first, soonest-due/most-overdue before items further out;
-  // items with no date sort last within their group. Finished items (done
-  // tasks, closed deals) go after everything still actionable, most
-  // recently finished first — a rep triaging this contact should see what
-  // needs attention before what's already handled.
-  const byDateAsc = (a?: string | null, b?: string | null) => {
-    if (!a && !b) return 0;
-    if (!a) return 1;
-    if (!b) return -1;
-    return new Date(a).getTime() - new Date(b).getTime();
-  };
-  const contactTasks = [...allTasks.filter((t) => t.contact_id === contact.id)].sort((a, b) => {
-    if (a.is_completed !== b.is_completed) return a.is_completed ? 1 : -1;
-    return a.is_completed ? byDateAsc(b.due_at, a.due_at) : byDateAsc(a.due_at, b.due_at);
-  });
-  const contactEvents = [...allEvents.filter((e) => e.contact_id === contact.id)].sort((a, b) => {
-    if (a.is_completed !== b.is_completed) return a.is_completed ? 1 : -1;
-    return a.is_completed ? byDateAsc(b.due_at, a.due_at) : byDateAsc(a.due_at, b.due_at);
-  });
-  // Grouped into sections (Active, Closed Won, Closed Lost) instead of one
-  // flat list, so closed deals are easy to spot separately from open ones.
-  // Active sorts soonest-expected-close first; closed sections sort most
-  // recently closed first.
-  const dealSections = [
-    {
-      key: 'active',
-      label: 'Active',
-      items: [...contactDeals.filter((d) => d.status === 'Open')].sort((a, b) =>
-        byDateAsc(a.expected_close, b.expected_close)
-      ),
-    },
-    {
-      key: 'won',
-      label: 'Closed Won',
-      items: [...contactDeals.filter((d) => d.status === 'Won')].sort((a, b) =>
-        byDateAsc(b.closed_at ?? b.created_at, a.closed_at ?? a.created_at)
-      ),
-    },
-    {
-      key: 'lost',
-      label: 'Closed Lost',
-      items: [...contactDeals.filter((d) => d.status === 'Lost')].sort((a, b) =>
-        byDateAsc(b.closed_at ?? b.created_at, a.closed_at ?? a.created_at)
-      ),
-    },
-  ].filter((section) => section.items.length > 0);
   const stageName = (stageId: number) => allStages.find((s) => s.id === stageId)?.name ?? '--';
 
   function handleStatusChange(value: string) {
@@ -495,7 +542,7 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-slate-900/75 z-[100] flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl h-[85vh] flex flex-col overflow-hidden">
         <div className="flex justify-end px-4 py-2 shrink-0">
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
@@ -605,7 +652,12 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                       ))}
                     {!contact.job_title && !contact.company_name && 'No position set'}
                   </p>
-                  <p className="text-xs text-slate-500 truncate">{contact.email || '--'}</p>
+                  <p className="text-xs text-slate-500 truncate flex items-center gap-1.5">
+                    {contact.email || '--'}
+                    {!contact.email && contact.account_id && (
+                      <EnrichContactButton contactId={contact.id} />
+                    )}
+                  </p>
                   <div className="flex items-center gap-1.5 mt-1.5">
                     <span className="text-[10px] font-medium text-slate-400">Status:</span>
                     {isReadOnly ? (
@@ -631,6 +683,7 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                         ))}
                       </select>
                     )}
+                    <LeadScoreBadge score={contact.lead_score} />
                   </div>
                 </div>
               </div>
@@ -1436,7 +1489,7 @@ function EmailLogModal({ log, onClose }: { log: EmailLog | null; onClose: () => 
 
   return (
     <div
-      className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[110] flex items-center justify-center p-4"
+      className="fixed inset-0 bg-slate-900/75 z-[110] flex items-center justify-center p-4"
       onClick={onClose}
     >
       <div

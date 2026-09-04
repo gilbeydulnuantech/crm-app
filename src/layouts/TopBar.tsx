@@ -123,32 +123,32 @@ export default function TopBar({ sidebarCollapsed }: Props) {
         )}
       </div>
 
-      {hideSearch ? (
-        <div />
-      ) : (
-        <form onSubmit={runGlobalSearch} className="relative w-full max-w-sm justify-self-start -ml-[19px]">
-          <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
-          <input
-            type="text"
-            value={globalSearch}
-            onChange={(e) => setGlobalSearch(e.target.value)}
-            placeholder="Search contacts..."
-            className="w-full pl-8 pr-8 py-1.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
-          />
-          {globalSearch && (
-            <button
-              type="button"
-              onClick={() => setGlobalSearch('')}
-              title="Clear search"
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500"
-            >
-              <i className="fa-solid fa-xmark text-xs" />
-            </button>
-          )}
-        </form>
-      )}
+      <div />
 
       <div className="flex items-center gap-4 shrink-0">
+        {!hideSearch && (
+          <form onSubmit={runGlobalSearch} className="relative w-64">
+            <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
+            <input
+              type="text"
+              value={globalSearch}
+              onChange={(e) => setGlobalSearch(e.target.value)}
+              placeholder="Search contacts..."
+              className="w-full pl-8 pr-8 py-1.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
+            />
+            {globalSearch && (
+              <button
+                type="button"
+                onClick={() => setGlobalSearch('')}
+                title="Clear search"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500"
+              >
+                <i className="fa-solid fa-xmark text-xs" />
+              </button>
+            )}
+          </form>
+        )}
+
         <div className="relative">
           <button
             onClick={toggleBell}

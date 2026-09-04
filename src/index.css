@@ -8,6 +8,17 @@ body,
   height: 100%;
 }
 
+/* For horizontally-scrollable strips that still need to scroll (overflow
+   isn't removed, just the visible track) — e.g. tab rows that can overflow
+   on narrow modals but shouldn't show a scrollbar for a couple of stray px. */
+.no-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* old Edge/IE */
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
 /* Per-user theme (Settings → Theme). Defaults match the app's original
    fixed look (white chrome, indigo-600 accent) so a signed-out view or a
    user who never set a theme renders identically to before this existed.

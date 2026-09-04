@@ -15,6 +15,7 @@ import { useAssignOwner, useUpdateContact } from '../../hooks/useContacts';
 import { getTagColorClasses } from '../../utils/tagColors';
 import { formatPhone, formatRelativeTime, toTitleCase } from '../../utils/text';
 import Avatar from '../Avatar';
+import LeadScoreBadge from './LeadScoreBadge';
 
 const STATUS_COLORS: Record<string, string> = {
   New: 'bg-slate-100 text-slate-800',
@@ -311,6 +312,11 @@ export default function ContactsTable({
         columnHelper.accessor('lead_status', {
           header: 'Status',
           cell: (info) => <StatusCell contact={info.row.original} editable={canEdit(info.row.original)} />,
+        }),
+      lead_score: () =>
+        columnHelper.accessor('lead_score', {
+          header: 'Lead Score',
+          cell: (info) => <LeadScoreBadge score={info.getValue()} />,
         }),
       lead_source: () =>
         columnHelper.accessor('lead_source', {

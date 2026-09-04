@@ -18,10 +18,10 @@
     },
     {
       "parameters": {
-        "sendTo": "={{ $json.to }}",
-        "subject": "={{ $('Webhook').item.json.body.subject }}",
+        "sendTo": "={{ $('If').item.json.to }}",
+        "subject": "={{ ($('Webhook').item.json.body.subject).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: message').item.json.company_name) }}",
         "emailType": "html",
-        "message": "={{ $('Prepare HTML Email').item.json.htmlMessage }}",
+        "message": "={{ (($('Prepare HTML Email').item.json.htmlMessage).replace(/The Team/g, $('Get Company Name: message').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: message').item.json.company_name) }}",
         "options": {
           "attachmentsUi": {
             "attachmentsBinary": [
@@ -29,7 +29,8 @@
                 "property": "={{ Object.keys($binary).join(',') }}"
               }
             ]
-          }
+          },
+          "senderName": "={{ $('Get Company Name: message').item.json.company_name }}"
         }
       },
       "type": "n8n-nodes-base.gmail",
@@ -173,11 +174,13 @@
     },
     {
       "parameters": {
-        "sendTo": "={{ $('format base64').item.json.to_email }}",
-        "subject": "={{ $('format base64').item.json.subject }}",
+        "sendTo": "={{ $('format base64').item.json.to }}",
+        "subject": "={{ ($('format base64').item.json.subject).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: message1').item.json.company_name) }}",
         "emailType": "html",
-        "message": "={{ $('Prepare HTML Email').item.json.htmlMessage }}",
-        "options": {}
+        "message": "={{ (($('Prepare HTML Email').item.json.htmlMessage).replace(/The Team/g, $('Get Company Name: message1').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: message1').item.json.company_name) }}",
+        "options": {
+          "senderName": "={{ $('Get Company Name: message1').item.json.company_name }}"
+        }
       },
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
@@ -292,7 +295,7 @@
     },
     {
       "parameters": {
-        "jsCode": "function safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\nfunction escapeHtml(s) {\n  return (s || '').toString()\n    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')\n    .replace(/\"/g, '&quot;').replace(/'/g, '&#39;');\n}\nfunction genId() {\n  return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);\n}\n// A tracking pixel only works in an HTML email \u2014 the two Gmail nodes\n// downstream switched from emailType 'text' to 'html' alongside this.\n// contact_id always comes straight from the webhook body here (this is\n// the manual \"Email Contact\" send, always initiated FROM a contact).\nconst contactId = Number($json.contact_id);\nconst pixelId = genId();\nconst pixelUrl = `${safeEnv('N8N_WEBHOOK_BASE_URL')}/webhook/track-email-open?id=${pixelId}&contact_id=${contactId}`;\nconst pixelTag = `<img src=\"${pixelUrl}\" width=\"1\" height=\"1\" style=\"display:none\" alt=\"\" />`;\nconst htmlMessage = escapeHtml($json.message || '').replace(/\\n/g, '<br>') + pixelTag;\nreturn [{ json: { ...$json, htmlMessage, pixelId } }];"
+        "jsCode": "function safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\nfunction escapeHtml(s) {\n  return (s || '').toString()\n    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')\n    .replace(/\"/g, '&quot;').replace(/'/g, '&#39;');\n}\nfunction genId() {\n  return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);\n}\n// A tracking pixel only works in an HTML email \u2014 the two Gmail nodes\n// downstream switched from emailType 'text' to 'html' alongside this.\n// contact_id always comes straight from the webhook body here (this is\n// the manual \"Email Contact\" send, always initiated FROM a contact).\nconst contactId = Number($json.contact_id);\nconst pixelId = genId();\nconst pixelUrl = `${safeEnv('N8N_WEBHOOK_BASE_URL')}/webhook/track-email-open?id=${pixelId}&contact_id=${contactId}`;\nconst pixelTag = `<img src=\"${pixelUrl}\" width=\"1\" height=\"1\" style=\"display:none\" alt=\"\" />`;\nconst htmlMessage = escapeHtml($json.message || '').replace(/\\n/g, '<br>') + pixelTag;\nreturn [{ json: { ...$json, htmlMessage, pixelId }, binary: $input.item.binary }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -302,6 +305,61 @@
       ],
       "id": "prepare-html-email-mail-send",
       "name": "Prepare HTML Email"
+    },
+    {
+      "id": "cname-kms7j1sp",
+      "name": "Get Company Name: message",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2330,
+        1352
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT company_name FROM company_profile LIMIT 1;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "cname-hte9xuwe",
+      "name": "Get Company Name: message1",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2698,
+        1688
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT company_name FROM company_profile LIMIT 1;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Postgres nodes (Get Company Name: message) don't pass through binary data,\n// so re-attach the attachment binary that survived up to 'Prepare HTML Email'\n// before Gmail's attachmentsUi reads $binary on this item.\nreturn [{ json: $input.item.json, binary: $('Prepare HTML Email').item.binary }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2405,
+        1352
+      ],
+      "id": "restore-binary-before-send-msg",
+      "name": "Restore Attachment Binary"
     }
   ],
   "pinData": {},
@@ -387,14 +445,14 @@
       "main": [
         [
           {
-            "node": "Send a message",
+            "node": "Get Company Name: message",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Send a message1",
+            "node": "Get Company Name: message1",
             "type": "main",
             "index": 0
           }
@@ -444,6 +502,39 @@
           }
         ]
       ]
+    },
+    "Get Company Name: message": {
+      "main": [
+        [
+          {
+            "node": "Restore Attachment Binary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Company Name: message1": {
+      "main": [
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore Attachment Binary": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
@@ -455,10 +546,9 @@
     "errorWorkflow": "U7jX0H3oE5a25GrV",
     "callerPolicy": "workflowsFromSameOwner"
   },
-  "versionId": "d9d9ca7f-4338-42d8-8223-6232462ceabe",
+  "versionId": "0d8758df-e55b-4a61-8f3c-0ac90826c006",
   "meta": {
-    "templateCredsSetupCompleted": true,
-    "instanceId": "6a773e6041cc88fd4a5b60f3e46f2119d58608faafd09936499001d589f5c1af"
+    "templateCredsSetupCompleted": true
   },
   "id": "njaTmGElceQSJK6j",
   "tags": []

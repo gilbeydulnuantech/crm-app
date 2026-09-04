@@ -28,6 +28,14 @@ export interface Company {
   street_address?: string;
   zip_code?: string;
   phone?: string;
+  // Set when this company was imported via Find Leads (Google Maps) —
+  // see the "Google Maps Lead Import" n8n workflow.
+  lead_source?: string;
+  google_place_id?: string;
+  google_maps_url?: string;
+  google_rating?: number;
+  google_reviews_count?: number;
+  google_category?: string;
   owner_id?: number | null;
   owner_name?: string; // joined from users in get-companies
   owner_color?: string; // joined from users.color in get-companies

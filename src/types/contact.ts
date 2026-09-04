@@ -17,6 +17,11 @@ export interface Contact {
   country?: string;
   lead_status?: string;
   lead_source?: string;
+  // Recomputed every 15 min by the "Lead Scoring Engine" n8n workflow from
+  // engagement/fit signals (email opens, completed activities, proposal/
+  // contract/payment milestones, deal value, recency decay). Forced to 0
+  // for any DNC contact — see that workflow's SQL for the exact formula.
+  lead_score?: number;
   birthdate?: string; // YYYY-MM-DD; age is computed on the fly, not stored
   do_not_contact?: boolean;
   dnc_email?: boolean;
