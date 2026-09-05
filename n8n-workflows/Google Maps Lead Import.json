@@ -109,6 +109,11 @@
             "node": "Build Response",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Prepare Contacts For Enrichment",
+            "type": "main",
+            "index": 0
           }
         ],
         [
@@ -166,6 +171,17 @@
           }
         ]
       ]
+    },
+    "Prepare Contacts For Enrichment": {
+      "main": [
+        [
+          {
+            "node": "Enrich New Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "name": "Google Maps Lead Import",
@@ -185,21 +201,21 @@
       "typeVersion": 2,
       "position": [
         0,
-        0
+        552
       ],
       "webhookId": "mli-import-maps-leads-0001"
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10), authHeader: 'Bearer ' + token } }];"
       },
       "id": "mli-parse-token",
       "name": "Parse Token",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        220,
-        0
+        224,
+        552
       ],
       "onError": "continueErrorOutput"
     },
@@ -216,16 +232,16 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        440,
-        0
+        448,
+        480
       ],
-      "onError": "continueErrorOutput",
       "credentials": {
         "postgres": {
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -236,8 +252,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        660,
-        0
+        672,
+        408
       ],
       "onError": "continueErrorOutput"
     },
@@ -257,8 +273,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        880,
-        0
+        1344,
+        192
       ],
       "onError": "continueErrorOutput"
     },
@@ -271,8 +287,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1100,
-        0
+        1568,
+        120
       ],
       "onError": "continueErrorOutput"
     },
@@ -289,16 +305,16 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1320,
-        0
+        1792,
+        48
       ],
-      "onError": "continueErrorOutput",
       "credentials": {
         "postgres": {
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -309,7 +325,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1540,
+        2016,
         0
       ],
       "onError": "continueErrorOutput"
@@ -323,7 +339,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        1760,
+        2240,
         0
       ]
     },
@@ -340,8 +356,8 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        660,
-        260
+        2016,
+        528
       ]
     },
     {
@@ -357,16 +373,16 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        660,
-        160
+        896,
+        336
       ],
-      "onError": "continueErrorOutput",
       "credentials": {
         "postgres": {
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -377,13 +393,100 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        780,
-        160
+        1120,
+        264
       ],
       "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const authHeader = $('Parse Token').first().json.authHeader;\nreturn $input.all().map((item) => ({ json: { contactId: item.json.id, authHeader } }));"
+      },
+      "id": "mli-prepare-enrich",
+      "name": "Prepare Contacts For Enrichment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/enrich-contact",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $json.authHeader }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ contact_id: $json.contactId }) }}",
+        "options": {
+          "timeout": 240000
+        }
+      },
+      "id": "mli-enrich-new-contact",
+      "name": "Enrich New Contact",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1760,
+        200
+      ],
+      "onError": "continueRegularOutput"
     }
   ],
-  "pinData": null,
+  "pinData": {
+    "Webhook: import-maps-leads": [
+      {
+        "json": {
+          "headers": {
+            "host": "tubular-silica-despite.ngrok-free.dev",
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
+            "content-length": "70",
+            "accept": "*/*",
+            "accept-encoding": "gzip, deflate, br, zstd",
+            "accept-language": "en-GB,en-US;q=0.9,en;q=0.8",
+            "authorization": "Bearer token_1_1788449821660",
+            "cache-control": "no-cache",
+            "content-type": "application/json",
+            "ngrok-skip-browser-warning": "true",
+            "origin": "http://localhost:5173",
+            "pragma": "no-cache",
+            "priority": "u=1, i",
+            "referer": "http://localhost:5173/",
+            "sec-ch-ua": "\"Chromium\";v=\"152\", \"Not?A_Brand\";v=\"24\", \"Google Chrome\";v=\"152\"",
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": "\"macOS\"",
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "cross-site",
+            "x-forwarded-for": "62.84.33.1",
+            "x-forwarded-host": "tubular-silica-despite.ngrok-free.dev",
+            "x-forwarded-proto": "https"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "search_query": "real estate",
+            "location": "austin tx",
+            "max_results": 30
+          },
+          "webhookUrl": "https://tubular-silica-despite.ngrok-free.dev/webhook/import-maps-leads",
+          "executionMode": "production"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
   "settings": {
     "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner",
