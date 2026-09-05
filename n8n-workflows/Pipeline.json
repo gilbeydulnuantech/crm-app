@@ -1,4 +1,1200 @@
 {
+  "active": true,
+  "connections": {
+    "Webhook: get-pipelines": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Pipelines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Pipelines": {
+      "main": [
+        [
+          {
+            "node": "Respond: get-pipelines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: get-stages": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Stages": {
+      "main": [
+        [
+          {
+            "node": "Respond: get-stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: get-opportunities": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure Opportunities Archive Columns (get)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Opportunities": {
+      "main": [
+        [
+          {
+            "node": "Respond: get-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: add-opportunity": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Insert Opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Insert Opportunity": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Log Activity (created)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Postgres: Log System Audit (created-opportunity)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Log Activity (created)": {
+      "main": [
+        [
+          {
+            "node": "Respond: add-opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: update-opportunity": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: update-opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Update Opportunity": {
+      "main": [
+        [
+          {
+            "node": "Check Result: update-opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: move-opportunity-stage": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: move-opportunity-stage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Move Stage (auto Won/Lost)": {
+      "main": [
+        [
+          {
+            "node": "Check Result: move-opportunity-stage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: delete-opportunities": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: delete-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Delete Opportunities": {
+      "main": [
+        [
+          {
+            "node": "Respond: delete-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: pipeline-create-new": {
+      "main": [
+        [
+          {
+            "node": "Validate & Build Stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Build Stages": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Unset Other Defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Unset Other Defaults": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Insert Pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Insert Pipeline": {
+      "main": [
+        [
+          {
+            "node": "Build Stage Insert Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Stage Insert Query": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Insert Stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Insert Stages": {
+      "main": [
+        [
+          {
+            "node": "Format Pipeline Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Pipeline Response": {
+      "main": [
+        [
+          {
+            "node": "Respond: pipeline-create-new",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: update-opportunity": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: update-opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: update-opportunity": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Capture Before Stage: update-opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Capture Before Stage: update-opportunity": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Update Opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Log Stage Change: update-opportunity": {
+      "main": [
+        [
+          {
+            "node": "Prepare Owner Notice: update-opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Result: update-opportunity": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Log Stage Change: update-opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: update-opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: move-opportunity-stage": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: move-opportunity-stage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: move-opportunity-stage": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Capture Before Stage: move-opportunity-stage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Capture Before Stage: move-opportunity-stage": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Move Stage (auto Won/Lost)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Result: move-opportunity-stage": {
+      "main": [
+        [
+          {
+            "node": "Sync Deal & Contact Tags: move-opportunity-stage",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: move-opportunity-stage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Log Stage Change: move-opportunity-stage": {
+      "main": [
+        [
+          {
+            "node": "Respond: move-opportunity-stage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: delete-opportunities": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: delete-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: delete-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: delete-opportunities": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Delete Opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: delete-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: update-pipeline": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: update-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: update-pipeline": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: update-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: update-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: update-pipeline": {
+      "main": [
+        [
+          {
+            "node": "Check Admin & Payload: update-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: update-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Admin & Payload: update-pipeline": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Unset Other Pipeline Defaults",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: update-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Unset Other Pipeline Defaults": {
+      "main": [
+        [
+          {
+            "node": "Bridge After Unset Defaults",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: update-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge After Unset Defaults": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Update Pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: update-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Update Pipeline": {
+      "main": [
+        [
+          {
+            "node": "Check Result: update-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: update-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Result: update-pipeline": {
+      "main": [
+        [
+          {
+            "node": "Respond: update-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: update-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: delete-pipeline": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: delete-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: delete-pipeline": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: delete-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: delete-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: delete-pipeline": {
+      "main": [
+        [
+          {
+            "node": "Check Admin & Payload: delete-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: delete-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Admin & Payload: delete-pipeline": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Delete Safety Counts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: delete-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Delete Safety Counts": {
+      "main": [
+        [
+          {
+            "node": "Check Delete Safety",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: delete-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Delete Safety": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Delete Stages",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: delete-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Delete Stages": {
+      "main": [
+        [
+          {
+            "node": "Bridge After Stage Delete",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: delete-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge After Stage Delete": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Delete Pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: delete-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Delete Pipeline": {
+      "main": [
+        [
+          {
+            "node": "Check Result: delete-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: delete-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Result: delete-pipeline": {
+      "main": [
+        [
+          {
+            "node": "Respond: delete-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: delete-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: update-pipeline-stages": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: update-pipeline-stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: update-pipeline-stages": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: update-pipeline-stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: update-pipeline-stages": {
+      "main": [
+        [
+          {
+            "node": "Check Admin & Payload: update-pipeline-stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Admin & Payload: update-pipeline-stages": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Stage Deal Counts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: update-pipeline-stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Stage Deal Counts": {
+      "main": [
+        [
+          {
+            "node": "Check Stage Removal Safety",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Stage Removal Safety": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Delete Removed Stages",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: update-pipeline-stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Delete Removed Stages": {
+      "main": [
+        [
+          {
+            "node": "Bridge After Stage Removal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge After Stage Removal": {
+      "main": [
+        [
+          {
+            "node": "Build Stage Update Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Stage Update Query": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Execute Stage Updates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Execute Stage Updates": {
+      "main": [
+        [
+          {
+            "node": "Bridge After Stage Updates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge After Stage Updates": {
+      "main": [
+        [
+          {
+            "node": "Build Stage Insert Query 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Stage Insert Query 2": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Execute Stage Inserts 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Execute Stage Inserts 2": {
+      "main": [
+        [
+          {
+            "node": "Bridge After Stage Inserts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge After Stage Inserts": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Final Stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Final Stages": {
+      "main": [
+        [
+          {
+            "node": "Format Stage Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Stage Response": {
+      "main": [
+        [
+          {
+            "node": "Respond: update-pipeline-stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Owner Notice: update-opportunity": {
+      "main": [
+        [
+          {
+            "node": "Should Notify Owner?: update-opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Notify Owner?: update-opportunity": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure DM (update-opportunity)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond: update-opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Ensure DM (update-opportunity)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Get DM Id (update-opportunity)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Get DM Id (update-opportunity)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure DM Members (update-opportunity)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Ensure DM Members (update-opportunity)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Notify Owner (update-opportunity)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Notify Owner (update-opportunity)": {
+      "main": [
+        [
+          {
+            "node": "Respond: update-opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Ensure Opportunities Archive Columns (get)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: get-archived-opportunities": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure Opportunities Archive Columns (get-archived)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Ensure Opportunities Archive Columns (get-archived)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Archived Opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Archived Opportunities": {
+      "main": [
+        [
+          {
+            "node": "Respond: get-archived-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: archive-opportunities": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: archive-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: archive-opportunities": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: archive-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: archive-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: archive-opportunities": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure Opportunities Archive Columns (archive)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: archive-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Ensure Opportunities Archive Columns (archive)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Archive Opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Archive Opportunities": {
+      "main": [
+        [
+          {
+            "node": "Respond: archive-opportunities",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Postgres: Log Activity (archived-opportunities)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Postgres: Log System Audit (archived-opportunities-links)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: restore-opportunities": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: restore-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token: restore-opportunities": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester: restore-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: restore-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester: restore-opportunities": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure Opportunities Archive Columns (restore)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: restore-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Ensure Opportunities Archive Columns (restore)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Restore Opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Restore Opportunities": {
+      "main": [
+        [
+          {
+            "node": "Respond: restore-opportunities",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Postgres: Log Activity (restored-opportunities)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Postgres: Log System Audit (restored-opportunities-links)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sync Deal & Contact Tags: move-opportunity-stage": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Log Stage Change: move-opportunity-stage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
   "name": "Pipeline",
   "nodes": [
     {
@@ -130,7 +1326,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT o.id, o.name, o.contact_id, TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS contact_name, o.account_id, co.name AS company_name, o.pipeline_id, o.stage_id, o.assigned_user, u.name AS assigned_user_name, u.color AS assigned_user_color, u.avatar_url AS assigned_user_avatar_url, o.created_by, o.deal_value, o.probability, o.status, o.lost_reason, o.expected_close, o.closed_at, o.created_at, o.updated_at, o.description, o.source, o.priority, o.is_archived, o.archived_at,\n  (SELECT COALESCE(json_agg(json_build_object('id', t.id, 'name', t.name) ORDER BY t.id), '[]'::json)\n   FROM taggables tg JOIN tags t ON t.id = tg.tag_id\n   WHERE tg.entity_type = 'opportunity' AND tg.entity_id = o.id) AS tags,\n  (SELECT COALESCE(json_agg(json_build_object('id', t.id, 'name', t.name) ORDER BY t.id), '[]'::json)\n   FROM taggables tg JOIN tags t ON t.id = tg.tag_id\n   WHERE tg.entity_type = 'contact' AND tg.entity_id = o.contact_id) AS contact_tags\nFROM opportunities o LEFT JOIN contacts c ON c.id = o.contact_id LEFT JOIN companies co ON co.id = o.account_id LEFT JOIN users u ON u.id = o.assigned_user WHERE o.pipeline_id = $1 AND COALESCE(o.is_archived, false) = false ORDER BY o.created_at DESC, o.id DESC;",
+        "query": "SELECT o.id, o.name, o.contact_id, TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS contact_name, o.account_id, co.name AS company_name, o.pipeline_id, o.stage_id, o.assigned_user, u.name AS assigned_user_name, u.color AS assigned_user_color, u.avatar_url AS assigned_user_avatar_url, o.created_by, o.deal_value, o.probability, o.win_score, o.win_score_reason, o.status, o.lost_reason, o.expected_close, o.closed_at, o.created_at, o.updated_at, o.description, o.source, o.priority, o.is_archived, o.archived_at,\n  (SELECT COALESCE(json_agg(json_build_object('id', t.id, 'name', t.name) ORDER BY t.id), '[]'::json)\n   FROM taggables tg JOIN tags t ON t.id = tg.tag_id\n   WHERE tg.entity_type = 'opportunity' AND tg.entity_id = o.id) AS tags,\n  (SELECT COALESCE(json_agg(json_build_object('id', t.id, 'name', t.name) ORDER BY t.id), '[]'::json)\n   FROM taggables tg JOIN tags t ON t.id = tg.tag_id\n   WHERE tg.entity_type = 'contact' AND tg.entity_id = o.contact_id) AS contact_tags\nFROM opportunities o LEFT JOIN contacts c ON c.id = o.contact_id LEFT JOIN companies co ON co.id = o.account_id LEFT JOIN users u ON u.id = o.assigned_user WHERE o.pipeline_id = $1 AND COALESCE(o.is_archived, false) = false ORDER BY o.created_at DESC, o.id DESC;",
         "options": {
           "queryReplacement": "={{ [ $('Webhook: get-opportunities').first().json.query.pipeline_id ] }}"
         }
@@ -287,9 +1483,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE opportunities SET name = COALESCE($1, name), contact_id = COALESCE($2, contact_id), account_id = COALESCE($3, account_id), stage_id = COALESCE($4, stage_id), assigned_user = COALESCE($5, assigned_user), deal_value = COALESCE($6, deal_value), probability = COALESCE($7, probability), status = COALESCE($8, status), lost_reason = COALESCE($9, lost_reason), expected_close = COALESCE($10, expected_close), closed_at = COALESCE($11, closed_at), description = COALESCE($12, description), source = COALESCE($13, source), priority = COALESCE($14, priority), updated_at = now() WHERE id = $15 AND ($16 = 'admin' OR assigned_user = $17) RETURNING id, name, assigned_user, pipeline_id;",
+        "query": "UPDATE opportunities SET name = COALESCE($1, name), contact_id = COALESCE($2, contact_id), account_id = COALESCE($3, account_id), stage_id = COALESCE($4, stage_id), assigned_user = COALESCE($5, assigned_user), deal_value = COALESCE($6, deal_value), probability = COALESCE($7, probability), status = COALESCE($8, status), lost_reason = COALESCE($9, lost_reason), expected_close = COALESCE($10, expected_close), closed_at = COALESCE($11, closed_at), description = COALESCE($12, description), source = COALESCE($13, source), priority = COALESCE($14, priority), maintenance_interval_months = COALESCE($18, maintenance_interval_months), updated_at = now() WHERE id = $15 AND ($16 = 'admin' OR assigned_user = $17) RETURNING id, name, assigned_user, pipeline_id;",
         "options": {
-          "queryReplacement": "={{ [ $('Webhook: update-opportunity').first().json.body.name || null, $('Webhook: update-opportunity').first().json.body.contact_id || null, $('Webhook: update-opportunity').first().json.body.account_id || null, $('Webhook: update-opportunity').first().json.body.stage_id || null, $('Webhook: update-opportunity').first().json.body.assigned_user || null, $('Webhook: update-opportunity').first().json.body.deal_value !== undefined ? $('Webhook: update-opportunity').first().json.body.deal_value : null, $('Webhook: update-opportunity').first().json.body.probability !== undefined ? $('Webhook: update-opportunity').first().json.body.probability : null, $('Webhook: update-opportunity').first().json.body.status || null, $('Webhook: update-opportunity').first().json.body.lost_reason || null, $('Webhook: update-opportunity').first().json.body.expected_close || null, $('Webhook: update-opportunity').first().json.body.closed_at || null, $('Webhook: update-opportunity').first().json.body.description !== undefined ? $('Webhook: update-opportunity').first().json.body.description : null, $('Webhook: update-opportunity').first().json.body.source !== undefined ? $('Webhook: update-opportunity').first().json.body.source : null, $('Webhook: update-opportunity').first().json.body.priority !== undefined ? $('Webhook: update-opportunity').first().json.body.priority : null, $('Webhook: update-opportunity').first().json.body.id, $('Look Up Requester: update-opportunity').first().json.role, $('Look Up Requester: update-opportunity').first().json.id ] }}"
+          "queryReplacement": "={{ [ $('Webhook: update-opportunity').first().json.body.name || null, $('Webhook: update-opportunity').first().json.body.contact_id || null, $('Webhook: update-opportunity').first().json.body.account_id || null, $('Webhook: update-opportunity').first().json.body.stage_id || null, $('Webhook: update-opportunity').first().json.body.assigned_user || null, $('Webhook: update-opportunity').first().json.body.deal_value !== undefined ? $('Webhook: update-opportunity').first().json.body.deal_value : null, $('Webhook: update-opportunity').first().json.body.probability !== undefined ? $('Webhook: update-opportunity').first().json.body.probability : null, $('Webhook: update-opportunity').first().json.body.status || null, $('Webhook: update-opportunity').first().json.body.lost_reason || null, $('Webhook: update-opportunity').first().json.body.expected_close || null, $('Webhook: update-opportunity').first().json.body.closed_at || null, $('Webhook: update-opportunity').first().json.body.description !== undefined ? $('Webhook: update-opportunity').first().json.body.description : null, $('Webhook: update-opportunity').first().json.body.source !== undefined ? $('Webhook: update-opportunity').first().json.body.source : null, $('Webhook: update-opportunity').first().json.body.priority !== undefined ? $('Webhook: update-opportunity').first().json.body.priority : null, $('Webhook: update-opportunity').first().json.body.id, $('Look Up Requester: update-opportunity').first().json.role, $('Look Up Requester: update-opportunity').first().json.id, $('Webhook: update-opportunity').first().json.body.maintenance_interval_months !== undefined ? $('Webhook: update-opportunity').first().json.body.maintenance_interval_months : null ] }}"
         }
       },
       "id": "d3b858ee-34a6-492d-9443-b6366d77169e",
@@ -1772,7 +2968,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT o.id, o.name, o.contact_id, TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS contact_name, o.account_id, co.name AS company_name, o.pipeline_id, o.stage_id, o.assigned_user, u.name AS assigned_user_name, u.color AS assigned_user_color, u.avatar_url AS assigned_user_avatar_url, o.created_by, o.deal_value, o.probability, o.status, o.lost_reason, o.expected_close, o.closed_at, o.created_at, o.updated_at, o.description, o.source, o.priority, o.is_archived, o.archived_at,\n  (SELECT COALESCE(json_agg(json_build_object('id', t.id, 'name', t.name) ORDER BY t.id), '[]'::json)\n   FROM taggables tg JOIN tags t ON t.id = tg.tag_id\n   WHERE tg.entity_type = 'opportunity' AND tg.entity_id = o.id) AS tags,\n  (SELECT COALESCE(json_agg(json_build_object('id', t.id, 'name', t.name) ORDER BY t.id), '[]'::json)\n   FROM taggables tg JOIN tags t ON t.id = tg.tag_id\n   WHERE tg.entity_type = 'contact' AND tg.entity_id = o.contact_id) AS contact_tags\nFROM opportunities o LEFT JOIN contacts c ON c.id = o.contact_id LEFT JOIN companies co ON co.id = o.account_id LEFT JOIN users u ON u.id = o.assigned_user WHERE o.pipeline_id = $1 AND COALESCE(o.is_archived, false) = true ORDER BY o.archived_at DESC NULLS LAST, o.id DESC;",
+        "query": "SELECT o.id, o.name, o.contact_id, TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS contact_name, o.account_id, co.name AS company_name, o.pipeline_id, o.stage_id, o.assigned_user, u.name AS assigned_user_name, u.color AS assigned_user_color, u.avatar_url AS assigned_user_avatar_url, o.created_by, o.deal_value, o.probability, o.win_score, o.win_score_reason, o.status, o.lost_reason, o.expected_close, o.closed_at, o.created_at, o.updated_at, o.description, o.source, o.priority, o.is_archived, o.archived_at,\n  (SELECT COALESCE(json_agg(json_build_object('id', t.id, 'name', t.name) ORDER BY t.id), '[]'::json)\n   FROM taggables tg JOIN tags t ON t.id = tg.tag_id\n   WHERE tg.entity_type = 'opportunity' AND tg.entity_id = o.id) AS tags,\n  (SELECT COALESCE(json_agg(json_build_object('id', t.id, 'name', t.name) ORDER BY t.id), '[]'::json)\n   FROM taggables tg JOIN tags t ON t.id = tg.tag_id\n   WHERE tg.entity_type = 'contact' AND tg.entity_id = o.contact_id) AS contact_tags\nFROM opportunities o LEFT JOIN contacts c ON c.id = o.contact_id LEFT JOIN companies co ON co.id = o.account_id LEFT JOIN users u ON u.id = o.assigned_user WHERE o.pipeline_id = $1 AND COALESCE(o.is_archived, false) = true ORDER BY o.archived_at DESC NULLS LAST, o.id DESC;",
         "options": {
           "queryReplacement": "={{ [ $('Webhook: get-archived-opportunities').first().json.query.pipeline_id ] }}"
         }
@@ -2187,1203 +3383,7 @@
       "notes": "Replaces the old narrow 'Untag Previous Stage'/'Tag New Stage' pair (which only removed the ONE specific previous-stage tag, letting older stray stage tags accumulate \u2014 e.g. dragging a card backward could leave a newer stage's tag still attached). Delegates to the Deal Stage Tag Sync Engine webhook, which removes ANY stray stage tag (for both the deal and its linked contact) before applying the current one. onError continues regardless \u2014 a tag-sync hiccup should never block the actual stage move from succeeding/responding."
     }
   ],
-  "connections": {
-    "Webhook: get-pipelines": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Select Pipelines",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Select Pipelines": {
-      "main": [
-        [
-          {
-            "node": "Respond: get-pipelines",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Webhook: get-stages": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Select Stages",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Select Stages": {
-      "main": [
-        [
-          {
-            "node": "Respond: get-stages",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Webhook: get-opportunities": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Ensure Opportunities Archive Columns (get)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Select Opportunities": {
-      "main": [
-        [
-          {
-            "node": "Respond: get-opportunities",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Webhook: add-opportunity": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Insert Opportunity",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Insert Opportunity": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Log Activity (created)",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Postgres: Log System Audit (created-opportunity)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Log Activity (created)": {
-      "main": [
-        [
-          {
-            "node": "Respond: add-opportunity",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Webhook: update-opportunity": {
-      "main": [
-        [
-          {
-            "node": "Parse Token: update-opportunity",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Update Opportunity": {
-      "main": [
-        [
-          {
-            "node": "Check Result: update-opportunity",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Webhook: move-opportunity-stage": {
-      "main": [
-        [
-          {
-            "node": "Parse Token: move-opportunity-stage",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Move Stage (auto Won/Lost)": {
-      "main": [
-        [
-          {
-            "node": "Check Result: move-opportunity-stage",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Webhook: delete-opportunities": {
-      "main": [
-        [
-          {
-            "node": "Parse Token: delete-opportunities",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Delete Opportunities": {
-      "main": [
-        [
-          {
-            "node": "Respond: delete-opportunities",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Webhook: pipeline-create-new": {
-      "main": [
-        [
-          {
-            "node": "Validate & Build Stages",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Validate & Build Stages": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Unset Other Defaults",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Unset Other Defaults": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Insert Pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Insert Pipeline": {
-      "main": [
-        [
-          {
-            "node": "Build Stage Insert Query",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Build Stage Insert Query": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Insert Stages",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Insert Stages": {
-      "main": [
-        [
-          {
-            "node": "Format Pipeline Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Format Pipeline Response": {
-      "main": [
-        [
-          {
-            "node": "Respond: pipeline-create-new",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: update-opportunity": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: update-opportunity",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: update-opportunity": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Capture Before Stage: update-opportunity",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Capture Before Stage: update-opportunity": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Update Opportunity",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Log Stage Change: update-opportunity": {
-      "main": [
-        [
-          {
-            "node": "Prepare Owner Notice: update-opportunity",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Check Result: update-opportunity": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Log Stage Change: update-opportunity",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: update-opportunity",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: move-opportunity-stage": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: move-opportunity-stage",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: move-opportunity-stage": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Capture Before Stage: move-opportunity-stage",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Capture Before Stage: move-opportunity-stage": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Move Stage (auto Won/Lost)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Check Result: move-opportunity-stage": {
-      "main": [
-        [
-          {
-            "node": "Sync Deal & Contact Tags: move-opportunity-stage",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: move-opportunity-stage",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Log Stage Change: move-opportunity-stage": {
-      "main": [
-        [
-          {
-            "node": "Respond: move-opportunity-stage",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: delete-opportunities": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: delete-opportunities",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: delete-opportunities",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: delete-opportunities": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Delete Opportunities",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: delete-opportunities",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Webhook: update-pipeline": {
-      "main": [
-        [
-          {
-            "node": "Parse Token: update-pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: update-pipeline": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: update-pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: update-pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: update-pipeline": {
-      "main": [
-        [
-          {
-            "node": "Check Admin & Payload: update-pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: update-pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Check Admin & Payload: update-pipeline": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Unset Other Pipeline Defaults",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: update-pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Unset Other Pipeline Defaults": {
-      "main": [
-        [
-          {
-            "node": "Bridge After Unset Defaults",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: update-pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Bridge After Unset Defaults": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Update Pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: update-pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Update Pipeline": {
-      "main": [
-        [
-          {
-            "node": "Check Result: update-pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: update-pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Check Result: update-pipeline": {
-      "main": [
-        [
-          {
-            "node": "Respond: update-pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: update-pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Webhook: delete-pipeline": {
-      "main": [
-        [
-          {
-            "node": "Parse Token: delete-pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: delete-pipeline": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: delete-pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: delete-pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: delete-pipeline": {
-      "main": [
-        [
-          {
-            "node": "Check Admin & Payload: delete-pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: delete-pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Check Admin & Payload: delete-pipeline": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Delete Safety Counts",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: delete-pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Delete Safety Counts": {
-      "main": [
-        [
-          {
-            "node": "Check Delete Safety",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: delete-pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Check Delete Safety": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Delete Stages",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: delete-pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Delete Stages": {
-      "main": [
-        [
-          {
-            "node": "Bridge After Stage Delete",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: delete-pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Bridge After Stage Delete": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Delete Pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: delete-pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Delete Pipeline": {
-      "main": [
-        [
-          {
-            "node": "Check Result: delete-pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: delete-pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Check Result: delete-pipeline": {
-      "main": [
-        [
-          {
-            "node": "Respond: delete-pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: delete-pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Webhook: update-pipeline-stages": {
-      "main": [
-        [
-          {
-            "node": "Parse Token: update-pipeline-stages",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: update-pipeline-stages": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: update-pipeline-stages",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: update-pipeline-stages": {
-      "main": [
-        [
-          {
-            "node": "Check Admin & Payload: update-pipeline-stages",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Check Admin & Payload: update-pipeline-stages": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Stage Deal Counts",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: update-pipeline-stages",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Stage Deal Counts": {
-      "main": [
-        [
-          {
-            "node": "Check Stage Removal Safety",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Check Stage Removal Safety": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Delete Removed Stages",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: update-pipeline-stages",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Delete Removed Stages": {
-      "main": [
-        [
-          {
-            "node": "Bridge After Stage Removal",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Bridge After Stage Removal": {
-      "main": [
-        [
-          {
-            "node": "Build Stage Update Query",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Build Stage Update Query": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Execute Stage Updates",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Execute Stage Updates": {
-      "main": [
-        [
-          {
-            "node": "Bridge After Stage Updates",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Bridge After Stage Updates": {
-      "main": [
-        [
-          {
-            "node": "Build Stage Insert Query 2",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Build Stage Insert Query 2": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Execute Stage Inserts 2",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Execute Stage Inserts 2": {
-      "main": [
-        [
-          {
-            "node": "Bridge After Stage Inserts",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Bridge After Stage Inserts": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Select Final Stages",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Select Final Stages": {
-      "main": [
-        [
-          {
-            "node": "Format Stage Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Format Stage Response": {
-      "main": [
-        [
-          {
-            "node": "Respond: update-pipeline-stages",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Prepare Owner Notice: update-opportunity": {
-      "main": [
-        [
-          {
-            "node": "Should Notify Owner?: update-opportunity",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Should Notify Owner?: update-opportunity": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Ensure DM (update-opportunity)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond: update-opportunity",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Ensure DM (update-opportunity)": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Get DM Id (update-opportunity)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Get DM Id (update-opportunity)": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Ensure DM Members (update-opportunity)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Ensure DM Members (update-opportunity)": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Notify Owner (update-opportunity)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Notify Owner (update-opportunity)": {
-      "main": [
-        [
-          {
-            "node": "Respond: update-opportunity",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Ensure Opportunities Archive Columns (get)": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Select Opportunities",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Webhook: get-archived-opportunities": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Ensure Opportunities Archive Columns (get-archived)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Ensure Opportunities Archive Columns (get-archived)": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Select Archived Opportunities",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Select Archived Opportunities": {
-      "main": [
-        [
-          {
-            "node": "Respond: get-archived-opportunities",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Webhook: archive-opportunities": {
-      "main": [
-        [
-          {
-            "node": "Parse Token: archive-opportunities",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: archive-opportunities": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: archive-opportunities",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: archive-opportunities",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: archive-opportunities": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Ensure Opportunities Archive Columns (archive)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: archive-opportunities",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Ensure Opportunities Archive Columns (archive)": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Archive Opportunities",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Archive Opportunities": {
-      "main": [
-        [
-          {
-            "node": "Respond: archive-opportunities",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Postgres: Log Activity (archived-opportunities)",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Postgres: Log System Audit (archived-opportunities-links)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Webhook: restore-opportunities": {
-      "main": [
-        [
-          {
-            "node": "Parse Token: restore-opportunities",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: restore-opportunities": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: restore-opportunities",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: restore-opportunities",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: restore-opportunities": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Ensure Opportunities Archive Columns (restore)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: restore-opportunities",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Ensure Opportunities Archive Columns (restore)": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Restore Opportunities",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Restore Opportunities": {
-      "main": [
-        [
-          {
-            "node": "Respond: restore-opportunities",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Postgres: Log Activity (restored-opportunities)",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Postgres: Log System Audit (restored-opportunities-links)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Sync Deal & Contact Tags: move-opportunity-stage": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Log Stage Change: move-opportunity-stage",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    }
-  },
   "pinData": {},
-  "active": true,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate",

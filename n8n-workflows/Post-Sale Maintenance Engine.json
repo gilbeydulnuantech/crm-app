@@ -1,0 +1,360 @@
+{
+  "active": true,
+  "connections": {
+    "Schedule Trigger: daily": {
+      "main": [
+        [
+          {
+            "node": "Select Deals Due For Maintenance Followup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: manual-test": {
+      "main": [
+        [
+          {
+            "node": "Select Deals Due For Maintenance Followup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Deals Due For Maintenance Followup": {
+      "main": [
+        [
+          {
+            "node": "Has Due Deal?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Company Name": {
+      "main": [
+        [
+          {
+            "node": "Fill Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fill Email": {
+      "main": [
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email": {
+      "main": [
+        [
+          {
+            "node": "Log Sent Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Sent Email": {
+      "main": [
+        [
+          {
+            "node": "Mark Followup Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Followup Sent": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Due Deal?": {
+      "main": [
+        [
+          {
+            "node": "Get Company Name",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "name": "Post-Sale Maintenance Engine",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "pme-schedule-1",
+      "name": "Schedule Trigger: daily",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "run-maintenance-followups",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "pme-webhook-manual",
+      "name": "Webhook: manual-test",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        220
+      ],
+      "webhookId": "pme-manual-run-0001"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH due AS (\n  SELECT o.id AS opportunity_id, o.name AS deal_name, c.id AS contact_id, c.first_name, c.email, c.unsubscribe_token\n  FROM opportunities o\n  JOIN contacts c ON c.id = o.contact_id\n  WHERE o.status = 'Won' AND o.is_archived = false\n    AND o.maintenance_interval_months IS NOT NULL\n    AND c.is_archived = false AND c.do_not_contact = false AND c.dnc_email = false\n    AND c.email IS NOT NULL AND c.email <> ''\n    AND COALESCE(o.last_maintenance_followup_at, o.closed_at) <= now() - (o.maintenance_interval_months || ' months')::interval\n)\nSELECT d.* FROM (SELECT 1) AS dummy(x) LEFT JOIN due d ON true;",
+        "options": {}
+      },
+      "id": "pme-select-due",
+      "name": "Select Deals Due For Maintenance Followup",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        220,
+        100
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT company_name FROM company_profile LIMIT 1;",
+        "options": {}
+      },
+      "id": "pme-get-company-name",
+      "name": "Get Company Name",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        440,
+        100
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "function toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\n\nconst row = $('Select Deals Due For Maintenance Followup').item.json;\nconst companyName = $input.item.json.company_name || 'Us';\nconst firstName = toTitleCase(row.first_name) || 'there';\nconst dealName = row.deal_name || 'your recent job';\nconst unsubUrl = safeEnv('FRONTEND_BASE_URL') + '/unsubscribe/' + row.unsubscribe_token;\n\nconst subject = `Time for a check-up on your ${dealName}?`;\nconst body = `Hi ${firstName},<br><br>` +\n  `It's been a while since we completed \"${dealName}\" for you \u2014 we recommend a quick maintenance check to keep everything in great shape.<br><br>` +\n  `Reply to this email or give us a call to schedule a visit.<br><br>` +\n  `Thanks,<br>${companyName} Team` +\n  `<br><br><span style=\"font-size:11px;color:#94a3b8\">Don't want these emails? <a href=\"${unsubUrl}\">Unsubscribe</a></span>`;\n\nreturn [{ json: { to: row.email, subject, htmlBody: body, opportunityId: row.opportunity_id, contactId: row.contact_id } }];"
+      },
+      "id": "pme-fill-email",
+      "name": "Fill Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        100
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.htmlBody }}",
+        "options": {
+          "senderName": "={{ $('Get Company Name').item.json.company_name }}"
+        }
+      },
+      "id": "pme-send-email",
+      "name": "Send Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        880,
+        100
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts SET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object('id', gen_random_uuid()::text, 'type', 'sent', 'subject', $1::text, 'message', $2::text, 'sent_at', NOW(), 'is_read', true) WHERE id = $3;",
+        "options": {
+          "queryReplacement": "={{ [ $('Fill Email').item.json.subject, $('Fill Email').item.json.htmlBody.replace(/<br\\s*\\/?\\s*>/gi, '\\n').replace(/<[^>]+>/g, ''), $('Fill Email').item.json.contactId ] }}"
+        }
+      },
+      "id": "pme-log-email",
+      "name": "Log Sent Email",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1100,
+        100
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE opportunities SET last_maintenance_followup_at = now() WHERE id = $1 RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $('Fill Email').item.json.opportunityId ] }}"
+        }
+      },
+      "id": "pme-mark-sent",
+      "name": "Mark Followup Sent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1320,
+        100
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const sent = $input.all().filter((i) => i.json && i.json.id != null).length;\nreturn [{ json: { success: true, sent } }];"
+      },
+      "id": "pme-build-response",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "pme-respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1760,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "has-due-deal-cond",
+              "leftValue": "={{ $json.opportunity_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "number",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "pme-has-due-deal-if",
+      "name": "Has Due Deal?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        60
+      ]
+    }
+  ],
+  "pinData": null,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  }
+}

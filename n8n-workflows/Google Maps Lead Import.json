@@ -182,6 +182,84 @@
           }
         ]
       ]
+    },
+    "Enrich New Contact": {
+      "main": [
+        [
+          {
+            "node": "Look Up Contact For Outreach",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Contact For Outreach": {
+      "main": [
+        [
+          {
+            "node": "Has Email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Email?": {
+      "main": [
+        [
+          {
+            "node": "Look Up Outreach Template",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Look Up Outreach Template": {
+      "main": [
+        [
+          {
+            "node": "Get Company Name (Outreach)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Company Name (Outreach)": {
+      "main": [
+        [
+          {
+            "node": "Build Outreach Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Outreach Email": {
+      "main": [
+        [
+          {
+            "node": "Send Outreach Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Outreach Email": {
+      "main": [
+        [
+          {
+            "node": "Log Outreach Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "name": "Google Maps Lead Import",
@@ -440,6 +518,172 @@
         200
       ],
       "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.id AS contact_id, c.first_name, c.email, co.name AS business_name FROM contacts c LEFT JOIN companies co ON co.id = c.account_id WHERE c.id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $(\"Prepare Contacts For Enrichment\").item.json.contactId ] }}"
+        }
+      },
+      "id": "mli-lookup-contact-outreach",
+      "name": "Look Up Contact For Outreach",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1980,
+        200
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "has-email-cond",
+              "leftValue": "={{ $json.email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "mli-has-email-if",
+      "name": "Has Email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2200,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT subject, body FROM email_templates WHERE trigger_event = 'google_maps_lead' AND is_active = true LIMIT 1;",
+        "options": {}
+      },
+      "id": "mli-lookup-outreach-template",
+      "name": "Look Up Outreach Template",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2420,
+        120
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT company_name FROM company_profile LIMIT 1;",
+        "options": {}
+      },
+      "id": "mli-get-company-name-outreach",
+      "name": "Get Company Name (Outreach)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2640,
+        120
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const contacts = $('Look Up Contact For Outreach').all();\nconst templates = $('Look Up Outreach Template').all();\nconst companies = $('Get Company Name (Outreach)').all();\nfunction fill(t, contact, companyName) {\n  return (t || '')\n    .replace(/\\{\\{\\s*business_name\\s*\\}\\}/gi, contact.business_name || 'there')\n    .replace(/\\{\\{\\s*first_name\\s*\\}\\}/gi, contact.first_name || 'there')\n    .replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, companyName);\n}\nconst results = [];\nfor (let i = 0; i < contacts.length; i++) {\n  const contact = contacts[i].json;\n  const template = (templates[i] || templates[0] || {}).json;\n  const companyName = ((companies[i] || companies[0] || {}).json || {}).company_name || 'Us';\n  if (!template || !template.subject) continue;\n  results.push({ json: { to: contact.email, subject: fill(template.subject, contact, companyName), htmlBody: fill(template.body, contact, companyName).replace(/\\n/g, '<br>'), contactId: contact.contact_id, companyName } });\n}\nreturn results;"
+      },
+      "id": "mli-build-outreach-email",
+      "name": "Build Outreach Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2860,
+        120
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.htmlBody }}",
+        "options": {
+          "senderName": "={{ $json.companyName }}"
+        }
+      },
+      "id": "mli-send-outreach-email",
+      "name": "Send Outreach Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        3080,
+        120
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts SET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object('id', gen_random_uuid()::text, 'type', 'sent', 'subject', $1::text, 'message', $2::text, 'sent_at', NOW(), 'is_read', true) WHERE id = $3;",
+        "options": {
+          "queryReplacement": "={{ [ $('Build Outreach Email').item.json.subject, $('Build Outreach Email').item.json.htmlBody.replace(/<br\\s*\\/?\\s*>/gi, '\\n').replace(/<[^>]+>/g, ''), $('Build Outreach Email').item.json.contactId ] }}"
+        }
+      },
+      "id": "mli-log-outreach-email",
+      "name": "Log Outreach Email",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3300,
+        120
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
     }
   ],
   "pinData": {

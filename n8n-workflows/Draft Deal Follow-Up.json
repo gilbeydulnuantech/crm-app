@@ -1,0 +1,325 @@
+{
+  "active": true,
+  "connections": {
+    "Webhook: draft-deal-followup": {
+      "main": [
+        [
+          {
+            "node": "Parse Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester": {
+      "main": [
+        [
+          {
+            "node": "Validate Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Payload": {
+      "main": [
+        [
+          {
+            "node": "Look Up Deal Context",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Deal Context": {
+      "main": [
+        [
+          {
+            "node": "Build Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Prompt": {
+      "main": [
+        [
+          {
+            "node": "Call Ollama",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Ollama": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "name": "Draft Deal Follow-Up",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "draft-deal-followup",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "ddf-webhook-1",
+      "name": "Webhook: draft-deal-followup",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "ddf-draft-followup-0001"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
+      },
+      "id": "ddf-parse-token",
+      "name": "Parse Token",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.requesterId ] }}"
+        }
+      },
+      "id": "ddf-lookup-requester",
+      "name": "Look Up Requester",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        440,
+        0
+      ],
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nconst body = $('Webhook: draft-deal-followup').first().json.body || {};\nconst dealId = parseInt(body.deal_id, 10);\nif (!Number.isInteger(dealId)) throw new Error('deal_id is required.');\nreturn [{ json: { dealId } }];"
+      },
+      "id": "ddf-validate",
+      "name": "Validate Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT o.id, o.name AS deal_name, o.deal_value, o.win_score, o.win_score_reason,\n  c.first_name, c.last_name, co.name AS company_name,\n  (SELECT p.status FROM proposals p WHERE p.opportunity_id = o.id ORDER BY p.created_at DESC LIMIT 1) AS proposal_status,\n  (SELECT p.title FROM proposals p WHERE p.opportunity_id = o.id ORDER BY p.created_at DESC LIMIT 1) AS proposal_title\nFROM opportunities o\nLEFT JOIN contacts c ON c.id = o.contact_id\nLEFT JOIN companies co ON co.id = o.account_id\nWHERE o.id = $1\nLIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.dealId ] }}"
+        }
+      },
+      "id": "ddf-lookup-deal",
+      "name": "Look Up Deal Context",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        880,
+        0
+      ],
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nif (!d || !d.id) throw new Error('Deal not found.');\n\nconst contactName = [d.first_name, d.last_name].filter(Boolean).join(' ') || 'the client';\nconst dealValue = d.deal_value != null ? `$${Number(d.deal_value).toLocaleString()}` : 'this job';\nconst company = d.company_name ? ` at ${d.company_name}` : '';\nconst proposalLine = d.proposal_status\n  ? `Their proposal ('${d.proposal_title || d.deal_name}') currently has status: ${d.proposal_status}.`\n  : 'No proposal has been sent to them yet.';\nconst situation = d.win_score_reason || 'No specific signal yet \u2014 this is an early-stage deal.';\n\nconst prompt = `You are a friendly, professional sales rep at a home services company. Write a short follow-up message (3-4 sentences max) to ${contactName}${company} about their \"${d.deal_name}\" deal (${dealValue}).\n\nCurrent situation: ${situation}\n${proposalLine}\n\nRules: casual and low-pressure tone, no subject line, no \"Dear ...\" greeting, no sign-off/signature, just the message body itself, plain text only.`;\n\nreturn [{ json: { prompt } }];"
+      },
+      "id": "ddf-build-prompt",
+      "name": "Build Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'llama3.1:latest', prompt: $json.prompt, stream: false }) }}",
+        "options": {
+          "timeout": 90000
+        }
+      },
+      "id": "ddf-call-ollama",
+      "name": "Call Ollama",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const draft = ($json.response || '').trim();\nif (!draft) throw new Error('Ollama returned an empty response.');\nreturn [{ json: { success: true, draft } }];"
+      },
+      "id": "ddf-build-response",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "ddf-respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1760,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Draft failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "ddf-respond-error",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        660,
+        260
+      ]
+    }
+  ],
+  "pinData": null,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  }
+}

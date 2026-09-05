@@ -34,6 +34,7 @@ const EMPTY = {
   description: '',
   source: '',
   priority: '' as DealPriority | '',
+  maintenance_interval_months: '',
 };
 
 function formatDate(value?: string | null) {
@@ -103,6 +104,8 @@ export default function DealFormModal({
         description: opportunity.description ?? '',
         source: opportunity.source ?? '',
         priority: opportunity.priority ?? '',
+        maintenance_interval_months:
+          opportunity.maintenance_interval_months != null ? String(opportunity.maintenance_interval_months) : '',
       });
       setError(null);
       return;
@@ -187,6 +190,7 @@ export default function DealFormModal({
       description: form.description || null,
       source: form.source || null,
       priority: form.priority || null,
+      maintenance_interval_months: form.maintenance_interval_months ? Number(form.maintenance_interval_months) : null,
       requester_id: user?.id ?? null,
     };
 
@@ -394,6 +398,24 @@ export default function DealFormModal({
                 </select>
               </div>
             </div>
+
+            {opportunity?.status === 'Won' && (
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Maintenance Reminder Every (months)</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={form.maintenance_interval_months}
+                  onChange={(e) => update('maintenance_interval_months', e.target.value)}
+                  placeholder="e.g. 12 for an annual reminder — leave blank to disable"
+                  className={inputClass}
+                />
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Automatically re-emails this client every N months after the job closed (or after the last
+                  reminder), suggesting a check-up/maintenance visit. Leave blank for no recurring reminder.
+                </p>
+              </div>
+            )}
           </div>
 
           {error && (

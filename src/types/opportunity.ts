@@ -44,6 +44,20 @@ export interface Opportunity {
   requester_id?: number | null;
   deal_value?: number | null;
   probability?: number;
+  // Recomputed every 15 min by the "Deal Intelligence Engine" n8n workflow —
+  // distinct from `probability` (a manually-editable, stage-position-based
+  // %) — win_score also factors in the contact's lead_score, proposal/
+  // contract/payment milestones, and activity recency/staleness. Null until
+  // the engine's first pass picks up a newly created deal.
+  win_score?: number | null;
+  win_score_reason?: string | null;
+  // Recurring re-engagement, independent of win_score — see the "Post-Sale
+  // Maintenance Engine" n8n workflow. Null means no reminder is scheduled
+  // for this deal. Only meaningful once status = 'Won'; last_maintenance_
+  // followup_at advances by this interval each time one goes out, so it
+  // fires again indefinitely (e.g. annual re-inspection reminders).
+  maintenance_interval_months?: number | null;
+  last_maintenance_followup_at?: string | null;
   status: 'Open' | 'Won' | 'Lost';
   lost_reason?: string | null;
   expected_close?: string | null;

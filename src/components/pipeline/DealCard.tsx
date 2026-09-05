@@ -7,6 +7,7 @@ import { getTagColorClasses } from '../../utils/tagColors';
 import { useTasks } from '../../hooks/useTasks';
 import OwnerBadge from '../OwnerBadge';
 import DealCardMenu from './DealCardMenu';
+import WinScoreBadge from './WinScoreBadge';
 
 interface Props {
   opportunity: Opportunity;
@@ -129,6 +130,9 @@ export default function DealCard({
         <div className="text-xs font-bold text-slate-800 truncate flex-1">
           {toTitleCase(opportunity.name)} <span className="font-semibold text-emerald-600">- {currency(opportunity.deal_value)}</span>
         </div>
+        {opportunity.status === 'Open' && (
+          <WinScoreBadge score={opportunity.win_score} reason={opportunity.win_score_reason} size="xs" />
+        )}
         {opportunity.status === 'Won' && (
           <span
             className="shrink-0 bg-emerald-100 text-emerald-700 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded"

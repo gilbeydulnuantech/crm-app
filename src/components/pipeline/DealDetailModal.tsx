@@ -11,6 +11,7 @@ import DealTagsInline from './DealTagsInline';
 import ProposalsSection from './ProposalsSection';
 import ContractsSection from './ContractsSection';
 import CreateContractModal from './CreateContractModal';
+import DraftFollowupButton from './DraftFollowupButton';
 
 interface Props {
   deal: Opportunity | null;
@@ -311,13 +312,34 @@ export default function DealDetailModal({
               <InfoRow label="Stage" value={stageName} />
               <InfoRow label="Deal Value" value={currency(deal.deal_value)} />
               <InfoRow label="Probability" value={deal.probability != null ? `${deal.probability}%` : undefined} />
+              <InfoRow label="Win Score" value={deal.win_score != null ? `${deal.win_score}%` : undefined} />
               <InfoRow label="Owner" value={deal.assigned_user_name ? toTitleCase(deal.assigned_user_name) : 'Unassigned'} />
               <InfoRow label="Created" value={formatDate(deal.created_at)} />
               <InfoRow label="Expected Close" value={formatDate(deal.expected_close)} />
+              {deal.status === 'Won' && deal.maintenance_interval_months != null && (
+                <InfoRow
+                  label="Maintenance Reminder"
+                  value={`Every ${deal.maintenance_interval_months}mo${
+                    deal.last_maintenance_followup_at
+                      ? ` (last sent ${formatDate(deal.last_maintenance_followup_at)})`
+                      : ''
+                  }`}
+                />
+              )}
               {deal.status === 'Lost' && deal.lost_reason && (
                 <InfoRow label="Lost Reason" value={deal.lost_reason} />
               )}
             </div>
+
+            {deal.status === 'Open' && deal.win_score_reason && (
+              <div className="px-3 py-2 text-xs bg-indigo-50 border border-indigo-100 rounded-lg text-indigo-800">
+                <div className="flex items-start gap-2">
+                  <i className="fa-solid fa-lightbulb mt-0.5 shrink-0" />
+                  <span>{deal.win_score_reason}</span>
+                </div>
+                <DraftFollowupButton dealId={deal.id} />
+              </div>
+            )}
 
             <div>
               <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Tags</h3>

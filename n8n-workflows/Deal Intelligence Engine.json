@@ -1,0 +1,142 @@
+{
+  "active": true,
+  "connections": {
+    "Schedule Trigger: every 15 min": {
+      "main": [
+        [
+          {
+            "node": "Recompute Win Scores",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: manual-test": {
+      "main": [
+        [
+          {
+            "node": "Recompute Win Scores",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recompute Win Scores": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "name": "Deal Intelligence Engine",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "die-schedule-1",
+      "name": "Schedule Trigger: every 15 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "recompute-win-scores",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "die-webhook-manual",
+      "name": "Webhook: manual-test",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        200
+      ],
+      "webhookId": "die-manual-recompute-0001"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH stage_counts AS (\n  SELECT pipeline_id, COUNT(*) AS total_stages FROM stages GROUP BY pipeline_id\n),\ndeal_ctx AS (\n  SELECT\n    o.id,\n    s.display_order,\n    sc.total_stages,\n    c.lead_score,\n    (SELECT MAX(GREATEST(a.completed_at, a.created_at)) FROM activities a WHERE a.opportunity_id = o.id) AS last_activity_at,\n    (SELECT p.status FROM proposals p WHERE p.opportunity_id = o.id ORDER BY p.created_at DESC LIMIT 1) AS proposal_status,\n    (SELECT p.viewed_at FROM proposals p WHERE p.opportunity_id = o.id ORDER BY p.created_at DESC LIMIT 1) AS proposal_viewed_at,\n    (SELECT p.emailed_at FROM proposals p WHERE p.opportunity_id = o.id ORDER BY p.created_at DESC LIMIT 1) AS proposal_emailed_at,\n    EXISTS (SELECT 1 FROM contracts ct WHERE ct.opportunity_id = o.id AND ct.status = 'signed') AS contract_signed,\n    EXISTS (\n      SELECT 1 FROM payments pay JOIN invoices i ON i.id = pay.invoice_id\n      WHERE i.opportunity_id = o.id AND i.invoice_type = 'down_payment' AND pay.status = 'paid'\n    ) AS down_payment_paid,\n    o.expected_close\n  FROM opportunities o\n  JOIN stages s ON s.id = o.stage_id\n  JOIN stage_counts sc ON sc.pipeline_id = o.pipeline_id\n  LEFT JOIN contacts c ON c.id = o.contact_id\n  WHERE o.status = 'Open' AND o.is_archived = false\n),\nscored AS (\n  SELECT\n    id,\n    LEAST(100, GREATEST(0,\n      ROUND(((display_order + 1)::numeric / NULLIF(total_stages, 0)) * 40) +\n      LEAST(20, ROUND(COALESCE(lead_score, 0) * 0.2)) +\n      (CASE proposal_status WHEN 'approved' THEN 25 WHEN 'viewed' THEN 15 WHEN 'emailed' THEN 5 ELSE 0 END) +\n      (CASE WHEN contract_signed THEN 20 ELSE 0 END) +\n      (CASE WHEN down_payment_paid THEN 15 ELSE 0 END) +\n      (CASE\n        WHEN last_activity_at IS NULL THEN -25\n        WHEN last_activity_at < now() - interval '30 days' THEN -25\n        WHEN last_activity_at < now() - interval '14 days' THEN -15\n        WHEN last_activity_at >= now() - interval '7 days' THEN 10\n        ELSE 0\n      END) +\n      (CASE WHEN expected_close IS NOT NULL AND expected_close < CURRENT_DATE THEN -15 ELSE 0 END)\n    )) AS win_score,\n    CASE\n      WHEN contract_signed AND NOT down_payment_paid THEN 'Contract signed \u2014 send the down payment invoice'\n      WHEN down_payment_paid THEN 'Down payment received \u2014 schedule the job and prep the final invoice'\n      WHEN proposal_status = 'approved' THEN 'Proposal approved \u2014 send the contract'\n      WHEN proposal_status = 'viewed' THEN\n        'Proposal viewed ' || GREATEST(0, EXTRACT(DAY FROM now() - proposal_viewed_at)::int) || 'd ago, not approved \u2014 follow up now'\n      WHEN proposal_status = 'emailed' AND proposal_emailed_at < now() - interval '3 days' THEN\n        'Proposal sent ' || GREATEST(0, EXTRACT(DAY FROM now() - proposal_emailed_at)::int) || 'd ago, not opened \u2014 check in or resend'\n      WHEN proposal_status = 'emailed' THEN 'Proposal sent \u2014 awaiting response'\n      WHEN proposal_status IS NULL THEN 'No proposal sent yet \u2014 send one to move this forward'\n      WHEN last_activity_at IS NULL OR last_activity_at < now() - interval '21 days' THEN 'Stalling \u2014 no recent activity, reach out'\n      ELSE 'On track \u2014 recently active'\n    END AS win_score_reason\n  FROM deal_ctx\n)\nUPDATE opportunities\nSET win_score = scored.win_score, win_score_reason = scored.win_score_reason\nFROM scored\nWHERE opportunities.id = scored.id\n  AND (opportunities.win_score IS DISTINCT FROM scored.win_score OR opportunities.win_score_reason IS DISTINCT FROM scored.win_score_reason)\nRETURNING opportunities.id, opportunities.win_score;",
+        "options": {}
+      },
+      "id": "die-recompute-query",
+      "name": "Recompute Win Scores",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        220,
+        100
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const updated = $input.all().length;\nreturn [{ json: { success: true, updated } }];"
+      },
+      "id": "die-build-response",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "die-respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        660,
+        200
+      ]
+    }
+  ],
+  "pinData": null,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  }
+}
