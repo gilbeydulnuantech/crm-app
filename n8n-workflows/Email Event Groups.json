@@ -1,0 +1,471 @@
+{
+  "name": "Email Event Groups",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-email-event-groups",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "eeg-webhook-get",
+      "name": "Webhook: get-email-event-groups",
+      "webhookId": "eeg-webhook-get-01"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE IF NOT EXISTS email_event_groups (\n  id SERIAL PRIMARY KEY,\n  name TEXT NOT NULL,\n  description TEXT,\n  trigger_events JSONB NOT NULL DEFAULT '[]'::jsonb,\n  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),\n  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        220,
+        0
+      ],
+      "id": "eeg-ensure-table-get",
+      "name": "Ensure Table",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, description, trigger_events, created_at, updated_at FROM email_event_groups ORDER BY created_at ASC;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        440,
+        0
+      ],
+      "id": "eeg-select-all",
+      "name": "Select All Groups",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().map(i => i.json) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        660,
+        0
+      ],
+      "id": "eeg-respond-get",
+      "name": "Respond: Groups"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "save-email-event-group",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        260
+      ],
+      "id": "eeg-webhook-save",
+      "name": "Webhook: save-email-event-group",
+      "webhookId": "eeg-webhook-save-01"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE IF NOT EXISTS email_event_groups (\n  id SERIAL PRIMARY KEY,\n  name TEXT NOT NULL,\n  description TEXT,\n  trigger_events JSONB NOT NULL DEFAULT '[]'::jsonb,\n  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),\n  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        220,
+        260
+      ],
+      "id": "eeg-ensure-table-save",
+      "name": "Ensure Table1",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $('Webhook: save-email-event-group').first().json.body || {};\nconst name = (body.name || '').toString().trim();\nif (!name) throw new Error('\"name\" is required.');\nconst description = (body.description || '').toString().trim();\nconst triggerEvents = Array.isArray(body.trigger_events) ? body.trigger_events.map((t) => (t || '').toString().trim()).filter(Boolean) : [];\nconst id = (body.id === undefined || body.id === null || body.id === '') ? null : parseInt(body.id, 10);\nreturn [{ json: { id, name, description, triggerEventsJson: JSON.stringify(triggerEvents) } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        260
+      ],
+      "id": "eeg-normalize-save",
+      "name": "Normalize Payload",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: (typeof $json.error === 'string' ? $json.error : $json.error?.message) || $json.message || 'Request failed.' } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        660,
+        460
+      ],
+      "id": "eeg-respond-error",
+      "name": "Respond - Error"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "eeg-has-id-cond",
+              "leftValue": "={{ !!$json.id }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        660,
+        260
+      ],
+      "id": "eeg-if-has-id",
+      "name": "Has ID?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE email_event_groups SET name = $1, description = $2, trigger_events = $3::jsonb, updated_at = now() WHERE id = $4 RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.name, $json.description, $json.triggerEventsJson, $json.id ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        880,
+        180
+      ],
+      "id": "eeg-update-group",
+      "name": "Update Group",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO email_event_groups (name, description, trigger_events) VALUES ($1, $2, $3::jsonb) RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.name, $json.description, $json.triggerEventsJson ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        880,
+        340
+      ],
+      "id": "eeg-insert-group",
+      "name": "Insert Group",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, id: $json.id } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1100,
+        260
+      ],
+      "id": "eeg-respond-save",
+      "name": "Respond: Saved"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "delete-email-event-group",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        560
+      ],
+      "id": "eeg-webhook-delete",
+      "name": "Webhook: delete-email-event-group",
+      "webhookId": "eeg-webhook-delete-01"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || {};\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" is required.');\nreturn [{ json: { id } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        560
+      ],
+      "id": "eeg-normalize-delete",
+      "name": "Normalize Delete Payload",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM email_event_groups WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        440,
+        560
+      ],
+      "id": "eeg-delete-group",
+      "name": "Delete Group",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        660,
+        560
+      ],
+      "id": "eeg-respond-delete",
+      "name": "Respond: Deleted"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook: get-email-event-groups": {
+      "main": [
+        [
+          {
+            "node": "Ensure Table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ensure Table": {
+      "main": [
+        [
+          {
+            "node": "Select All Groups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select All Groups": {
+      "main": [
+        [
+          {
+            "node": "Respond: Groups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: save-email-event-group": {
+      "main": [
+        [
+          {
+            "node": "Ensure Table1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ensure Table1": {
+      "main": [
+        [
+          {
+            "node": "Normalize Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Payload": {
+      "main": [
+        [
+          {
+            "node": "Has ID?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has ID?": {
+      "main": [
+        [
+          {
+            "node": "Update Group",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Insert Group",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Group": {
+      "main": [
+        [
+          {
+            "node": "Respond: Saved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Group": {
+      "main": [
+        [
+          {
+            "node": "Respond: Saved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: delete-email-event-group": {
+      "main": [
+        [
+          {
+            "node": "Normalize Delete Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Delete Payload": {
+      "main": [
+        [
+          {
+            "node": "Delete Group",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Group": {
+      "main": [
+        [
+          {
+            "node": "Respond: Deleted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

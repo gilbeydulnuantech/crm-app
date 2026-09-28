@@ -1,0 +1,760 @@
+{
+  "name": "Book confirmed: email reminders",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "bcr-schedule-trigger",
+      "name": "Schedule Trigger: every 15 min"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "manual-test-book-confirmed-reminders",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        180
+      ],
+      "id": "bcr-webhook-manual-test",
+      "name": "Webhook: manual-test",
+      "webhookId": "bcr-webhook-manual-test-01"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "force-run-booking-reminder",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        420
+      ],
+      "id": "bcr-webhook-force-run",
+      "name": "Webhook: force-run",
+      "webhookId": "bcr-webhook-force-run-01"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE IF NOT EXISTS booking_confirmed_reminders (\n  id SERIAL PRIMARY KEY,\n  activity_id INTEGER NOT NULL REFERENCES activities(id) ON DELETE CASCADE,\n  contact_id INTEGER NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,\n  reminder_step TEXT NOT NULL,\n  sent_at TIMESTAMPTZ NOT NULL DEFAULT now(),\n  UNIQUE (activity_id, reminder_step)\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        220,
+        0
+      ],
+      "id": "bcr-ensure-table",
+      "name": "Ensure Reminder Tracking Table",
+      "notesInFlow": true,
+      "notes": "Idempotent bootstrap \u2014 this repo tracks new tables as loose .sql files (see book_confirmed_reminders_add.sql) applied manually, but this CREATE TABLE IF NOT EXISTS lets the workflow self-provision on first run without requiring that manual step.",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE IF NOT EXISTS booking_confirmed_reminders (\n  id SERIAL PRIMARY KEY,\n  activity_id INTEGER NOT NULL REFERENCES activities(id) ON DELETE CASCADE,\n  contact_id INTEGER NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,\n  reminder_step TEXT NOT NULL,\n  sent_at TIMESTAMPTZ NOT NULL DEFAULT now(),\n  UNIQUE (activity_id, reminder_step)\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        220,
+        420
+      ],
+      "id": "bcr-ensure-table-force",
+      "name": "Ensure Reminder Tracking Table1",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  a.id AS activity_id,\n  a.due_at,\n  a.subject AS activity_subject,\n  c.id AS contact_id, c.first_name, c.last_name, c.email, c.timezone, c.unsubscribe_token,\n  CASE WHEN a.due_at - now() <= interval '2 hours' THEN 'booking_reminder_2h' ELSE 'booking_reminder_24h' END AS reminder_step\nFROM activities a\nJOIN contacts c ON c.id = a.contact_id\nJOIN opportunities o ON o.id = a.opportunity_id\nWHERE a.type = 'meeting'\n  AND a.due_at > now()\n  AND a.due_at - now() <= interval '24 hours'\n  AND o.status = 'Open'\n  AND o.stage_id = 19\n  AND c.is_archived = false\n  AND c.do_not_contact = false\n  AND c.dnc_email = false\n  AND c.email IS NOT NULL AND c.email <> ''\n  AND NOT EXISTS (\n    SELECT 1 FROM booking_confirmed_reminders bcr\n    WHERE bcr.activity_id = a.id\n      AND bcr.reminder_step = (CASE WHEN a.due_at - now() <= interval '2 hours' THEN 'booking_reminder_2h' ELSE 'booking_reminder_24h' END)\n  );",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        440,
+        0
+      ],
+      "id": "bcr-select-due",
+      "name": "Select Due Appointment Reminders",
+      "notesInFlow": true,
+      "notes": "Gated on the deal still being o.status='Open' AND o.stage_id=19 (the exact stage Public Booking.json's 'Create Inspection Deal' node puts a new booking into) instead of a.is_completed \u2014 this way ANY stage move off the booked stage stops reminders automatically, regardless of why: rep drags the card to Closed Lost (cancelled by phone), forward to Inspection Done, or the contact cancels via the email link (which just sets status='Lost', no stage lookup needed). Recomputes reminder_step from due_at every poll rather than tracking a fixed 'next step' \u2014 if the engine ever misses the 24h window (downtime), an appointment that's now under 2h away correctly jumps straight to the 2h reminder instead of sending a stale 'tomorrow' email late. The anti-join on booking_confirmed_reminders (keyed on activity_id + the SPECIFIC step) is what prevents re-sending a step already sent.",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $('Webhook: force-run').first().json.body || {};\nconst activityId = parseInt(body.activity_id, 10);\nconst reminderStep = (body.reminder_step || '').toString().trim();\nif (!Number.isInteger(activityId)) throw new Error('\"activity_id\" is required.');\nif (!['booking_reminder_24h', 'booking_reminder_2h'].includes(reminderStep)) {\n  throw new Error('\"reminder_step\" must be \"booking_reminder_24h\" or \"booking_reminder_2h\".');\n}\nreturn [{ json: { activityId, reminderStep } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        420
+      ],
+      "id": "bcr-validate-force",
+      "name": "Validate Force Payload",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || 'Request failed.' } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        660,
+        600
+      ],
+      "id": "bcr-respond-error",
+      "name": "Respond - Error"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT a.id AS activity_id, a.due_at, a.subject AS activity_subject,\n  c.id AS contact_id, c.first_name, c.last_name, c.email, c.timezone, c.unsubscribe_token\nFROM activities a\nJOIN contacts c ON c.id = a.contact_id\nWHERE a.id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.activityId ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        660,
+        420
+      ],
+      "id": "bcr-lookup-force-activity",
+      "name": "Look Up Activity For Force Send",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.item.json;\nif (!row.activity_id) throw new Error('Appointment not found.');\nif (!row.email) throw new Error('This contact has no email address on file.');\nreturn [{ json: { ...row, reminder_step: $('Validate Force Payload').item.json.reminderStep } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        420
+      ],
+      "id": "bcr-determine-force-step",
+      "name": "Determine Force Step",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: $input.item.json }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        200
+      ],
+      "id": "bcr-prepare-row",
+      "name": "Prepare Reminder Row",
+      "notesInFlow": true,
+      "notes": "Single convergence point for both the scheduled batch and the force-run webhook \u2014 downstream nodes reference THIS node by name (it runs in every execution regardless of entry path), never the branch-specific nodes upstream of it."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT subject, body FROM email_templates WHERE trigger_event = $1 AND is_active = true LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.reminder_step ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        880,
+        200
+      ],
+      "id": "bcr-lookup-template",
+      "name": "Look Up Reminder Template",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "function toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\nconst tmpl = $input.item.json;\nconst row = $('Prepare Reminder Row').item.json;\nconst tz = row.timezone || 'America/New_York';\nconst appointmentTime = row.due_at\n  ? DateTime.fromISO(row.due_at, { zone: 'utc' }).setZone(tz).toFormat(\"EEEE, MMMM d 'at' h:mm a\")\n  : '';\nconst unsubUrl = safeEnv('FRONTEND_BASE_URL') + '/unsubscribe/' + (row.unsubscribe_token || '');\nconst cancelUrl = safeEnv('FRONTEND_BASE_URL') + '/cancel-booking/' + row.activity_id + '?token=' + (row.unsubscribe_token || '');\nfunction fill(t) {\n  return (t || '')\n    .replace(/{{\\s*contact\\.first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*contact\\.last_name\\s*}}/gi, toTitleCase(row.last_name))\n    .replace(/{{\\s*contact\\.email\\s*}}/gi, row.email || '')\n    .replace(/{{\\s*appointment\\.start_time\\s*}}/gi, appointmentTime)\n    .replace(/{{\\s*unsubscribe_link\\s*}}/gi, unsubUrl)\n    .replace(/{{\\s*cancel_link\\s*}}/gi, cancelUrl)\n    .replace(/{{(?!\\s*company[._]name\\s*}})[^{}]*}}/gi, '');\n}\nconst footer = '<br><br><span style=\"font-size:11px;color:#94a3b8\">Don\\'t want these emails? <a href=\"' + unsubUrl + '\">Unsubscribe</a></span>';\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject), htmlBody: fill(tmpl.body).replace(/\\n/g, '<br>') + footer } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        200
+      ],
+      "id": "bcr-fill-email",
+      "name": "Fill Reminder Email",
+      "notesInFlow": true,
+      "notes": "Unlike Booking Reminder Engine's nudge emails, this one actually has an appointment time to inject \u2014 {{appointment.start_time}} resolves here, formatted in the contact's own timezone (falls back to America/New_York same as Public Booking's own slot math)."
+    },
+    {
+      "parameters": {
+        "id": "cname-bcr-reminder",
+        "operation": "executeQuery",
+        "query": "SELECT company_name FROM company_profile LIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1320,
+        200
+      ],
+      "id": "bcr-get-company-name",
+      "name": "Get Company Name: Booking Reminder",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Fill Reminder Email').item.json.to }}",
+        "subject": "={{ ($('Fill Reminder Email').item.json.subject).replace(/\\{\\{\\s*company[._]name\\s*\\}\\}/gi, $('Get Company Name: Booking Reminder').item.json.company_name) }}",
+        "emailType": "html",
+        "message": "={{ ($('Fill Reminder Email').item.json.htmlBody).replace(/\\{\\{\\s*company[._]name\\s*\\}\\}/gi, $('Get Company Name: Booking Reminder').item.json.company_name) }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1540,
+        200
+      ],
+      "id": "bcr-send-email",
+      "name": "Send Reminder Email",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts SET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object('id', gen_random_uuid()::text, 'type', 'sent', 'subject', $1::text, 'message', $2::text, 'sent_at', NOW(), 'is_read', true) WHERE id = $3;",
+        "options": {
+          "queryReplacement": "={{ [ $('Fill Reminder Email').item.json.subject, $('Fill Reminder Email').item.json.htmlBody.replace(/<br\\s*\\/?\\s*>/gi, '\\n').replace(/<[^>]+>/g, ''), $('Prepare Reminder Row').item.json.contact_id ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1760,
+        200
+      ],
+      "id": "bcr-log-sent-email",
+      "name": "Log Sent Email: Booking Reminder",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO booking_confirmed_reminders (activity_id, contact_id, reminder_step) VALUES ($1, $2, $3) ON CONFLICT (activity_id, reminder_step) DO UPDATE SET sent_at = now();",
+        "options": {
+          "queryReplacement": "={{ [ $('Prepare Reminder Row').item.json.activity_id, $('Prepare Reminder Row').item.json.contact_id, $('Prepare Reminder Row').item.json.reminder_step ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1980,
+        200
+      ],
+      "id": "bcr-record-sent",
+      "name": "Record Reminder Sent",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, activity_id: $('Prepare Reminder Row').item.json.activity_id, reminder_step: $('Prepare Reminder Row').item.json.reminder_step } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2200,
+        320
+      ],
+      "id": "bcr-respond-success",
+      "name": "Respond: Force Sent"
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-booking-reminder-status",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        700
+      ],
+      "id": "bcr-webhook-status",
+      "name": "Webhook: get-booking-reminder-status",
+      "webhookId": "bcr-webhook-status-01"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT a.id AS activity_id, a.due_at, a.is_completed, a.subject AS activity_subject,\n  o.id AS opportunity_id, o.status AS opportunity_status, o.stage_id,\n  s.name AS stage_name,\n  EXISTS(SELECT 1 FROM booking_confirmed_reminders bcr WHERE bcr.activity_id = a.id AND bcr.reminder_step = 'booking_reminder_24h') AS reminder_24h_sent,\n  EXISTS(SELECT 1 FROM booking_confirmed_reminders bcr WHERE bcr.activity_id = a.id AND bcr.reminder_step = 'booking_reminder_2h') AS reminder_2h_sent\nFROM activities a\nJOIN opportunities o ON o.id = a.opportunity_id\nLEFT JOIN stages s ON s.id = o.stage_id\nWHERE a.contact_id = $1 AND a.type = 'meeting'\nORDER BY a.due_at DESC\nLIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ Number($json.query.contact_id) ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        220,
+        700
+      ],
+      "id": "bcr-select-status",
+      "name": "Select Booking Reminder Status",
+      "notesInFlow": true,
+      "notes": "Directly after the webhook (no Ensure Table node in between) so $json.query.contact_id still refers to the webhook's own output \u2014 the exact bug class fixed elsewhere in this workflow. The booking_confirmed_reminders table is guaranteed to already exist by the time anyone calls this read endpoint, since the schedule trigger and force-run path both create it on their own first run.",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().map(i => i.json)[0] || null }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        440,
+        700
+      ],
+      "id": "bcr-respond-status",
+      "name": "Respond: Status"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Book confirmed: email reminders\" }}",
+            "workflow_id": "={{ \"JKb2ib3SKzkZgcxl\" }}",
+            "entity_type": "={{ \"contacts\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-schedule-trigger-every-15-min-0",
+      "name": "Log Workflow Run: Schedule Trigger: every 15 min",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        15,
+        -15
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Book confirmed: email reminders\" }}",
+            "workflow_id": "={{ \"JKb2ib3SKzkZgcxl\" }}",
+            "entity_type": "={{ \"contacts\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-manual-test-1",
+      "name": "Log Workflow Run: Webhook: manual-test",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        15,
+        165
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Book confirmed: email reminders\" }}",
+            "workflow_id": "={{ \"JKb2ib3SKzkZgcxl\" }}",
+            "entity_type": "={{ \"contacts\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-force-run-2",
+      "name": "Log Workflow Run: Webhook: force-run",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        15,
+        405
+      ],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger: every 15 min": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: Schedule Trigger: every 15 min",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: manual-test": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: Webhook: manual-test",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ensure Reminder Tracking Table": {
+      "main": [
+        [
+          {
+            "node": "Select Due Appointment Reminders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Due Appointment Reminders": {
+      "main": [
+        [
+          {
+            "node": "Prepare Reminder Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: force-run": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: Webhook: force-run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ensure Reminder Tracking Table1": {
+      "main": [
+        [
+          {
+            "node": "Validate Force Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Force Payload": {
+      "main": [
+        [
+          {
+            "node": "Look Up Activity For Force Send",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Activity For Force Send": {
+      "main": [
+        [
+          {
+            "node": "Determine Force Step",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Determine Force Step": {
+      "main": [
+        [
+          {
+            "node": "Prepare Reminder Row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Reminder Row": {
+      "main": [
+        [
+          {
+            "node": "Look Up Reminder Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Reminder Template": {
+      "main": [
+        [
+          {
+            "node": "Fill Reminder Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fill Reminder Email": {
+      "main": [
+        [
+          {
+            "node": "Get Company Name: Booking Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Company Name: Booking Reminder": {
+      "main": [
+        [
+          {
+            "node": "Send Reminder Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Reminder Email": {
+      "main": [
+        [
+          {
+            "node": "Log Sent Email: Booking Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Sent Email: Booking Reminder": {
+      "main": [
+        [
+          {
+            "node": "Record Reminder Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Reminder Sent": {
+      "main": [
+        [
+          {
+            "node": "Respond: Force Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: get-booking-reminder-status": {
+      "main": [
+        [
+          {
+            "node": "Select Booking Reminder Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Booking Reminder Status": {
+      "main": [
+        [
+          {
+            "node": "Respond: Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Schedule Trigger: every 15 min": {
+      "main": [
+        [
+          {
+            "node": "Ensure Reminder Tracking Table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: manual-test": {
+      "main": [
+        [
+          {
+            "node": "Ensure Reminder Tracking Table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: force-run": {
+      "main": [
+        [
+          {
+            "node": "Ensure Reminder Tracking Table1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

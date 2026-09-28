@@ -92,7 +92,7 @@ export default function MarkLostModal({ open, dealName, dealValue, onConfirm, on
 
   return (
     <div
-      className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[120] flex items-center justify-center p-4"
+      className="fixed inset-0 bg-slate-900/70 z-[120] flex items-center justify-center p-4"
       onClick={(e) => e.stopPropagation()}
     >
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">

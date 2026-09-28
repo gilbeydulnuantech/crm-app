@@ -1,0 +1,128 @@
+{
+  "name": "Verify Session",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "token"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "vs-trigger",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT s.token, u.id AS user_id, u.name, u.email, u.role, u.active,\n  u.theme_header_color, u.theme_main_color, u.theme_accent_color\nFROM sessions s\nJOIN users u ON u.id = s.user_id\nWHERE s.token = $1 AND s.expires_at > now()\nLIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $('When Executed by Another Workflow').item.json.token ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        220,
+        0
+      ],
+      "id": "vs-lookup-session",
+      "name": "Look Up Session",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\n\nif (!item.user_id || !item.active) {\n  return [{ json: { valid: false } }];\n}\n\nreturn [{\n  json: {\n    valid: true,\n    userId: item.user_id,\n    role: item.role,\n    active: item.active,\n    user: {\n      id: item.user_id,\n      name: item.name,\n      email: item.email,\n      role: item.role,\n      theme_header_color: item.theme_header_color,\n      theme_main_color: item.theme_main_color,\n      theme_accent_color: item.theme_accent_color,\n    },\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "id": "vs-build-verdict",
+      "name": "Build Verdict",
+      "notesInFlow": true,
+      "notes": "Single source of truth every caller reads via $('Verify Session').item.json.{valid, userId, role}. A row only exists here if the token was actually issued at login and hasn't expired \u2014 unlike the old token_<id>_<timestamp> format, this can't be forged."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE IF NOT EXISTS sessions (\n  token TEXT PRIMARY KEY,\n  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,\n  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),\n  expires_at TIMESTAMPTZ NOT NULL\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        110,
+        0
+      ],
+      "id": "vs-ensure-table",
+      "name": "Ensure Sessions Table",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Ensure Sessions Table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Session": {
+      "main": [
+        [
+          {
+            "node": "Build Verdict",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ensure Sessions Table": {
+      "main": [
+        [
+          {
+            "node": "Look Up Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
+  }
+}

@@ -34,7 +34,9 @@
         "subject": "ALERT N8N ERROR",
         "emailType": "text",
         "message": "=Workflow:  {{ $json.workflow.name }}\n\nURL: {{ $json.execution.url }}\n\nMessage: {{ $json.execution.error.message }}\n\nNode with error: {{ $json.execution.lastNodeExecuted }}",
-        "options": {}
+        "options": {
+          "appendAttribution": false
+        }
       },
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,

@@ -45,3 +45,21 @@ export function deleteEmailTemplate(id: number) {
     body: JSON.stringify({ id }),
   });
 }
+
+export interface SendEmailTemplatePayload {
+  to: string;
+  subject: string;
+  message: string;
+  contact_id: number;
+}
+
+// Hits the contacts-mail-send n8n workflow directly (see
+// n8n-workflows/contacts-mail-send.json) — it expects `to`/`subject`/
+// `message`/`contact_id` on the webhook body and logs the send onto that
+// contact's email_logs, so a real contact_id is required.
+export function sendEmailTemplate(payload: SendEmailTemplatePayload) {
+  return apiFetch<{ status: string; email_logs?: unknown }>('/webhook/send-email', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}

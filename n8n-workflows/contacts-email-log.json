@@ -10,7 +10,7 @@
             "entries": [
               {
                 "name": "Access-Control-Allow-Origin",
-                "value": "*"
+                "value": "http://localhost:5173"
               },
               {
                 "name": "Access-Control-Allow-Methods",
@@ -119,7 +119,7 @@
             "entries": [
               {
                 "name": "Access-Control-Allow-Origin",
-                "value": "*"
+                "value": "http://localhost:5173"
               },
               {
                 "name": "Access-Control-Allow-Methods",
@@ -141,6 +141,37 @@
         976,
         -16
       ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Contacts-Email-log\" }}",
+            "workflow_id": "={{ \"9vNI4Rho52vil5qL\" }}",
+            "entity_type": "={{ \"contacts\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-mark-log-read-0",
+      "name": "Log Workflow Run: Webhook: mark-log-read",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        383,
+        -191
+      ],
+      "onError": "continueRegularOutput"
     }
   ],
   "pinData": {},
@@ -149,7 +180,7 @@
       "main": [
         [
           {
-            "node": "Postgres: Ensure email_logs Column (Mark Read)",
+            "node": "Log Workflow Run: Webhook: mark-log-read",
             "type": "main",
             "index": 0
           }
@@ -183,6 +214,17 @@
         [
           {
             "node": "Respond OPTIONS: mark-log-read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: mark-log-read": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure email_logs Column (Mark Read)",
             "type": "main",
             "index": 0
           }

@@ -1,0 +1,894 @@
+{
+  "updatedAt": "2026-09-17T07:35:20.704Z",
+  "createdAt": "2026-08-26T12:38:02.467Z",
+  "id": "yBb4pvUZ11baJWwX",
+  "name": "Booking Reminder Engine",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            }
+          ]
+        }
+      },
+      "id": "br-sched",
+      "name": "Schedule Trigger: every hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        208,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT es.id AS send_id, es.contact_id, es.workflow_step, es.sent_at, c.first_name, c.last_name, c.email, c.phone, c.unsubscribe_token FROM email_sends es JOIN contacts c ON c.id = es.contact_id WHERE es.workflow_id = 'new_lead' AND es.workflow_step IN ('book_inspection','book_reminder_1','book_reminder_2') AND es.reply_status = 'waiting' AND es.sent_at <= now() - interval '48 hours' AND c.is_archived = false;",
+        "options": {}
+      },
+      "id": "br-find-due",
+      "name": "Find Due Bookings",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        432,
+        304
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const NEXT = { book_inspection: { step: 'book_reminder_1', templateId: 18 }, book_reminder_1: { step: 'book_reminder_2', templateId: 19 } };\nconst row = $input.item.json;\nconst next = NEXT[row.workflow_step] || null;\nreturn [{ json: { ...row, nextStep: next ? next.step : null, nextTemplateId: next ? next.templateId : null } }];"
+      },
+      "id": "br-next-step",
+      "name": "Determine Next Reminder",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "br-next-cond",
+              "leftValue": "={{ !!$json.nextStep }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "br-has-next",
+      "name": "Has Next Reminder?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        864,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE email_sends SET reply_status = 'exhausted' WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.send_id ] }}"
+        }
+      },
+      "id": "br-mark-exhausted",
+      "name": "Mark Booking Exhausted",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1088,
+        464
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT subject, body FROM email_templates WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.nextTemplateId ] }}"
+        }
+      },
+      "id": "br-lookup-tmpl",
+      "name": "Look Up Reminder Template",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1088,
+        304
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\nfunction toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction fill(template, row) {\n  let base = '';\n  try { base = $env.FRONTEND_BASE_URL || ''; } catch (e) { base = ''; }\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*email\\s*}}/gi, row.email || '')\n    .replace(/{{\\s*unsubscribe_link\\s*}}/gi, base + '/unsubscribe/' + row.unsubscribe_token)\n    .replace(/{{(?!\\s*company_name\\s*}})[^{}]*}}/gi, '');\n}\n\nconst tmpl = $input.item.json;\nconst row = $('Determine Next Reminder').item.json;\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject, row), htmlBody: fill(tmpl.body, row).replace(/\\n/g, '<br>') } }];"
+      },
+      "id": "br-fill",
+      "name": "Fill Reminder Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1296,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Fill Reminder Email').item.json.to }}",
+        "subject": "={{ ($('Fill Reminder Email').item.json.subject).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Reminder Email').item.json.company_name) }}",
+        "message": "={{ (($('Fill Reminder Email').item.json.htmlBody).replace(/The Team/g, $('Get Company Name: Reminder Email').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Reminder Email').item.json.company_name) }}",
+        "options": {
+          "senderName": "={{ $('Get Company Name: Reminder Email').item.json.company_name }}"
+        }
+      },
+      "id": "br-send",
+      "name": "Send Reminder Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1520,
+        304
+      ],
+      "webhookId": "53b2824b-ace1-4578-84d4-380867db1221",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts SET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object('id', gen_random_uuid()::text, 'type', 'sent', 'subject', $1::text, 'message', $2::text, 'sent_at', NOW(), 'is_read', true) WHERE id = $3;",
+        "options": {
+          "queryReplacement": "={{ [ ($('Fill Reminder Email').item.json.subject).replace(/\\{\\{\\s*company[._]name\\s*\\}\\}/gi, $('Get Company Name: Reminder Email').item.json.company_name), $('Fill Reminder Email').item.json.htmlBody.replace(/<br\\s*\\/?\\s*>/gi, '\\n').replace(/<[^>]+>/g, '').replace(/The Team/g, $('Get Company Name: Reminder Email').item.json.company_name + ' Team').replace(/\\{\\{\\s*company[._]name\\s*\\}\\}/gi, $('Get Company Name: Reminder Email').item.json.company_name), $('Determine Next Reminder').item.json.contact_id ] }}"
+        }
+      },
+      "id": "br-log",
+      "name": "Log Sent Email: Reminder",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1744,
+        304
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO email_sends (contact_id, thread_id, message_id, workflow_id, workflow_step, sent_at, reply_status) VALUES ($1, $2, $3, 'new_lead', $4, now(), 'waiting');",
+        "options": {
+          "queryReplacement": "={{ [ $('Determine Next Reminder').item.json.contact_id, $('Send Reminder Email').item.json.threadId, $('Send Reminder Email').item.json.id, $('Determine Next Reminder').item.json.nextStep ] }}"
+        }
+      },
+      "id": "br-record-next",
+      "name": "Record Next Reminder Send",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1968,
+        304
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE email_sends SET reply_status = 'expired' WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Determine Next Reminder').item.json.send_id ] }}"
+        }
+      },
+      "id": "br-mark-expired",
+      "name": "Mark Current Booking Send Expired",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2192,
+        304
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "manual-test-yBb4pvUZ11baJWwX",
+        "options": {}
+      },
+      "id": "mt-webhook-yBb4pvUZ11baJWwX",
+      "name": "Webhook: manual-test",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "webhookId": "0974005e-39bb-43a7-9703-052d7c7b1b10",
+      "position": [
+        208,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT company_name FROM company_profile LIMIT 1;",
+        "options": {}
+      },
+      "id": "cname-9wvuegbf",
+      "name": "Get Company Name: Reminder Email",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1376,
+        432
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger: every hour": {
+      "main": [
+        [
+          {
+            "node": "Find Due Bookings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Due Bookings": {
+      "main": [
+        [
+          {
+            "node": "Determine Next Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Determine Next Reminder": {
+      "main": [
+        [
+          {
+            "node": "Has Next Reminder?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Next Reminder?": {
+      "main": [
+        [
+          {
+            "node": "Look Up Reminder Template",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Booking Exhausted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Reminder Template": {
+      "main": [
+        [
+          {
+            "node": "Fill Reminder Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fill Reminder Email": {
+      "main": [
+        [
+          {
+            "node": "Get Company Name: Reminder Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Reminder Email": {
+      "main": [
+        [
+          {
+            "node": "Log Sent Email: Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Sent Email: Reminder": {
+      "main": [
+        [
+          {
+            "node": "Record Next Reminder Send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Next Reminder Send": {
+      "main": [
+        [
+          {
+            "node": "Mark Current Booking Send Expired",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: manual-test": {
+      "main": [
+        [
+          {
+            "node": "Find Due Bookings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Company Name: Reminder Email": {
+      "main": [
+        [
+          {
+            "node": "Send Reminder Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "timezone": "Asia/Aqtobe",
+    "binaryMode": "separate"
+  },
+  "staticData": {
+    "node:Schedule Trigger: every hour": {
+      "recurrenceRules": []
+    }
+  },
+  "meta": null,
+  "pinData": {},
+  "versionId": "176b3aab-e2c3-4714-87bd-9121f5b75cd1",
+  "activeVersionId": "176b3aab-e2c3-4714-87bd-9121f5b75cd1",
+  "versionCounter": 96,
+  "triggerCount": 2,
+  "shared": [
+    {
+      "updatedAt": "2026-08-26T12:38:02.470Z",
+      "createdAt": "2026-08-26T12:38:02.470Z",
+      "role": "workflow:owner",
+      "workflowId": "yBb4pvUZ11baJWwX",
+      "projectId": "U0P93jei8wmFLHlK",
+      "project": {
+        "updatedAt": "2026-07-06T11:46:20.993Z",
+        "createdAt": "2026-07-06T11:44:35.291Z",
+        "id": "U0P93jei8wmFLHlK",
+        "name": "gilbey dulnuan <gd.ai.systems@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "9ac1f4b8-fab2-4b63-88c5-9586529a2543"
+      }
+    }
+  ],
+  "tags": [
+    {
+      "updatedAt": "2026-08-25T11:47:48.864Z",
+      "createdAt": "2026-08-25T11:47:48.864Z",
+      "id": "nFdOj1wgPrD3lVS0",
+      "name": "automation"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-09-17T07:35:02.000Z",
+    "createdAt": "2026-09-16T12:57:03.912Z",
+    "versionId": "176b3aab-e2c3-4714-87bd-9121f5b75cd1",
+    "workflowId": "yBb4pvUZ11baJWwX",
+    "nodes": [
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "hours"
+              }
+            ]
+          }
+        },
+        "id": "br-sched",
+        "name": "Schedule Trigger: every hour",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          208,
+          304
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT es.id AS send_id, es.contact_id, es.workflow_step, es.sent_at, c.first_name, c.last_name, c.email, c.phone, c.unsubscribe_token FROM email_sends es JOIN contacts c ON c.id = es.contact_id WHERE es.workflow_id = 'new_lead' AND es.workflow_step IN ('book_inspection','book_reminder_1','book_reminder_2') AND es.reply_status = 'waiting' AND es.sent_at <= now() - interval '48 hours' AND c.is_archived = false;",
+          "options": {}
+        },
+        "id": "br-find-due",
+        "name": "Find Due Bookings",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          432,
+          304
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "OJlr1rmibAS2w3rj",
+            "name": "myRag"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "const NEXT = { book_inspection: { step: 'book_reminder_1', templateId: 18 }, book_reminder_1: { step: 'book_reminder_2', templateId: 19 } };\nconst row = $input.item.json;\nconst next = NEXT[row.workflow_step] || null;\nreturn [{ json: { ...row, nextStep: next ? next.step : null, nextTemplateId: next ? next.templateId : null } }];"
+        },
+        "id": "br-next-step",
+        "name": "Determine Next Reminder",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          640,
+          304
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict"
+            },
+            "combinator": "and",
+            "conditions": [
+              {
+                "id": "br-next-cond",
+                "leftValue": "={{ !!$json.nextStep }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "br-has-next",
+        "name": "Has Next Reminder?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          864,
+          304
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "UPDATE email_sends SET reply_status = 'exhausted' WHERE id = $1;",
+          "options": {
+            "queryReplacement": "={{ [ $json.send_id ] }}"
+          }
+        },
+        "id": "br-mark-exhausted",
+        "name": "Mark Booking Exhausted",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          1088,
+          464
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "OJlr1rmibAS2w3rj",
+            "name": "myRag"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT subject, body FROM email_templates WHERE id = $1;",
+          "options": {
+            "queryReplacement": "={{ [ $json.nextTemplateId ] }}"
+          }
+        },
+        "id": "br-lookup-tmpl",
+        "name": "Look Up Reminder Template",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          1088,
+          304
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "OJlr1rmibAS2w3rj",
+            "name": "myRag"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "\nfunction toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction fill(template, row) {\n  let base = '';\n  try { base = $env.FRONTEND_BASE_URL || ''; } catch (e) { base = ''; }\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*email\\s*}}/gi, row.email || '')\n    .replace(/{{\\s*unsubscribe_link\\s*}}/gi, base + '/unsubscribe/' + row.unsubscribe_token)\n    .replace(/{{(?!\\s*company_name\\s*}})[^{}]*}}/gi, '');\n}\n\nconst tmpl = $input.item.json;\nconst row = $('Determine Next Reminder').item.json;\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject, row), htmlBody: fill(tmpl.body, row).replace(/\\n/g, '<br>') } }];"
+        },
+        "id": "br-fill",
+        "name": "Fill Reminder Email",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1296,
+          160
+        ]
+      },
+      {
+        "parameters": {
+          "sendTo": "={{ $('Fill Reminder Email').item.json.to }}",
+          "subject": "={{ ($('Fill Reminder Email').item.json.subject).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Reminder Email').item.json.company_name) }}",
+          "message": "={{ (($('Fill Reminder Email').item.json.htmlBody).replace(/The Team/g, $('Get Company Name: Reminder Email').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Reminder Email').item.json.company_name) }}",
+          "options": {
+            "senderName": "={{ $('Get Company Name: Reminder Email').item.json.company_name }}"
+          }
+        },
+        "id": "br-send",
+        "name": "Send Reminder Email",
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 2.2,
+        "position": [
+          1520,
+          304
+        ],
+        "webhookId": "53b2824b-ace1-4578-84d4-380867db1221",
+        "credentials": {
+          "gmailOAuth2": {
+            "id": "VKDbMYV2U0WoSc16",
+            "name": "n8n072826"
+          }
+        },
+        "onError": "continueRegularOutput"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "UPDATE contacts SET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object('id', gen_random_uuid()::text, 'type', 'sent', 'subject', $1::text, 'message', $2::text, 'sent_at', NOW(), 'is_read', true) WHERE id = $3;",
+          "options": {
+            "queryReplacement": "={{ [ ($('Fill Reminder Email').item.json.subject).replace(/\\{\\{\\s*company[._]name\\s*\\}\\}/gi, $('Get Company Name: Reminder Email').item.json.company_name), $('Fill Reminder Email').item.json.htmlBody.replace(/<br\\s*\\/?\\s*>/gi, '\\n').replace(/<[^>]+>/g, '').replace(/The Team/g, $('Get Company Name: Reminder Email').item.json.company_name + ' Team').replace(/\\{\\{\\s*company[._]name\\s*\\}\\}/gi, $('Get Company Name: Reminder Email').item.json.company_name), $('Determine Next Reminder').item.json.contact_id ] }}"
+          }
+        },
+        "id": "br-log",
+        "name": "Log Sent Email: Reminder",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          1744,
+          304
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "OJlr1rmibAS2w3rj",
+            "name": "myRag"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "INSERT INTO email_sends (contact_id, thread_id, message_id, workflow_id, workflow_step, sent_at, reply_status) VALUES ($1, $2, $3, 'new_lead', $4, now(), 'waiting');",
+          "options": {
+            "queryReplacement": "={{ [ $('Determine Next Reminder').item.json.contact_id, $('Send Reminder Email').item.json.threadId, $('Send Reminder Email').item.json.id, $('Determine Next Reminder').item.json.nextStep ] }}"
+          }
+        },
+        "id": "br-record-next",
+        "name": "Record Next Reminder Send",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          1968,
+          304
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "OJlr1rmibAS2w3rj",
+            "name": "myRag"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "UPDATE email_sends SET reply_status = 'expired' WHERE id = $1;",
+          "options": {
+            "queryReplacement": "={{ [ $('Determine Next Reminder').item.json.send_id ] }}"
+          }
+        },
+        "id": "br-mark-expired",
+        "name": "Mark Current Booking Send Expired",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          2192,
+          304
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "OJlr1rmibAS2w3rj",
+            "name": "myRag"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "manual-test-yBb4pvUZ11baJWwX",
+          "options": {}
+        },
+        "id": "mt-webhook-yBb4pvUZ11baJWwX",
+        "name": "Webhook: manual-test",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "webhookId": "0974005e-39bb-43a7-9703-052d7c7b1b10",
+        "position": [
+          208,
+          512
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT company_name FROM company_profile LIMIT 1;",
+          "options": {}
+        },
+        "id": "cname-9wvuegbf",
+        "name": "Get Company Name: Reminder Email",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          1376,
+          432
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "OJlr1rmibAS2w3rj",
+            "name": "myRag"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Schedule Trigger: every hour": {
+        "main": [
+          [
+            {
+              "node": "Find Due Bookings",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Find Due Bookings": {
+        "main": [
+          [
+            {
+              "node": "Determine Next Reminder",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Determine Next Reminder": {
+        "main": [
+          [
+            {
+              "node": "Has Next Reminder?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Has Next Reminder?": {
+        "main": [
+          [
+            {
+              "node": "Look Up Reminder Template",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Mark Booking Exhausted",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Look Up Reminder Template": {
+        "main": [
+          [
+            {
+              "node": "Fill Reminder Email",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Fill Reminder Email": {
+        "main": [
+          [
+            {
+              "node": "Get Company Name: Reminder Email",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Send Reminder Email": {
+        "main": [
+          [
+            {
+              "node": "Log Sent Email: Reminder",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Log Sent Email: Reminder": {
+        "main": [
+          [
+            {
+              "node": "Record Next Reminder Send",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Record Next Reminder Send": {
+        "main": [
+          [
+            {
+              "node": "Mark Current Booking Send Expired",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Webhook: manual-test": {
+        "main": [
+          [
+            {
+              "node": "Find Due Bookings",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Company Name: Reminder Email": {
+        "main": [
+          [
+            {
+              "node": "Send Reminder Email",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "gilbey dulnuan",
+    "name": "Version 176b3aab",
+    "description": "",
+    "autosaved": true,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-09-17T07:35:02.873Z",
+        "id": 3180,
+        "workflowId": "yBb4pvUZ11baJWwX",
+        "versionId": "176b3aab-e2c3-4714-87bd-9121f5b75cd1",
+        "event": "activated",
+        "userId": "9ac1f4b8-fab2-4b63-88c5-9586529a2543"
+      }
+    ]
+  }
+}

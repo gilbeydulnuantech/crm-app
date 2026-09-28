@@ -1,33 +1,10 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useReceiptTemplates, useSaveReceiptTemplate } from '../hooks/useReceiptTemplates';
-import { DynamicField, insertAtCursor } from '../components/DynamicFieldDropdown';
-import DynamicFieldsPanel from '../components/DynamicFieldsPanel';
+import DynamicFieldDropdown, { AUTOMATION_DYNAMIC_FIELDS, insertAtCursor } from '../components/DynamicFieldDropdown';
 
 const inputClass =
   'w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]';
-
-// Payments' "Send Receipt" action only fills these tokens — deal/contact
-// tokens elsewhere in the app don't apply to a payment record. The
-// deal_value/created_at/due_at/down_payment/balance tokens below are
-// offered for consistency with the other document editors but are NOT YET
-// wired into that resolver — they'll render literally until the Send
-// Receipt action is updated to fill them.
-const RECEIPT_FIELDS: DynamicField[] = [
-  { token: '{{first_name}}', label: 'First Name', group: 'Contact' },
-  { token: '{{deal_name}}', label: 'Deal Name', group: 'Deal' },
-  { token: '{{deal_value}}', label: 'Deal Value', group: 'Deal' },
-  { token: '{{deal_created_at}}', label: 'Created At', group: 'Deal' },
-  { token: '{{deal_due_at}}', label: 'Due At', group: 'Deal' },
-  { token: '{{payment_number}}', label: 'Payment Number', group: 'Payment' },
-  { token: '{{amount}}', label: 'Amount', group: 'Payment' },
-  { token: '{{payment_date}}', label: 'Payment Date', group: 'Payment' },
-  { token: '{{down_payment_amount}}', label: 'Down Payment Amount', group: 'Payment' },
-  { token: '{{down_payment_paid_at}}', label: 'Down Payment Paid At', group: 'Payment' },
-  { token: '{{balance_amount}}', label: 'Balance Amount', group: 'Payment' },
-  { token: '{{balance_paid_at}}', label: 'Balance Paid At', group: 'Payment' },
-  { token: '{{company_name}}', label: 'Company Name', group: 'User' },
-];
 
 export default function ReceiptTemplateEditorPage() {
   const { id } = useParams();
@@ -123,7 +100,7 @@ export default function ReceiptTemplateEditorPage() {
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
                 onFocus={() => setActiveField('subject')}
-                placeholder="e.g. Receipt for {{payment_number}}"
+                placeholder="e.g. Receipt for {{payment.number}}"
                 className={inputClass}
               />
             </div>
@@ -135,14 +112,20 @@ export default function ReceiptTemplateEditorPage() {
                 onChange={(e) => setBody(e.target.value)}
                 onFocus={() => setActiveField('body')}
                 rows={10}
-                placeholder="Hi {{first_name}}, thanks for your payment of {{amount}} on {{payment_date}}."
+                placeholder="Hi {{contact.first_name}}, thanks for your payment of {{payment.amount}} on {{payment.date}}."
                 className={inputClass}
               />
             </div>
           </form>
         </div>
 
-        <DynamicFieldsPanel fields={RECEIPT_FIELDS} activeField={activeField} onInsert={insertIntoActiveField} />
+        <div className="w-64 shrink-0 border-l border-slate-200 bg-slate-50 overflow-y-auto p-4">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Dynamic Fields</p>
+          <p className={`text-xs mb-3 ${activeField ? 'text-emerald-700' : 'text-slate-400 italic'}`}>
+            {activeField ? 'Click a field below to insert it here.' : 'Click into Subject or Body first.'}
+          </p>
+          <DynamicFieldDropdown fields={AUTOMATION_DYNAMIC_FIELDS} onInsert={insertIntoActiveField} />
+        </div>
       </div>
     </div>
   );

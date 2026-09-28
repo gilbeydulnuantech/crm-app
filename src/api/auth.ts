@@ -27,3 +27,10 @@ export function verifySession(token: string) {
     body: JSON.stringify({ token }),
   });
 }
+
+export function logout(token: string) {
+  return apiFetch<{ success: boolean }>('/webhook/logout', {
+    method: 'POST',
+    body: JSON.stringify({ token }),
+  });
+}

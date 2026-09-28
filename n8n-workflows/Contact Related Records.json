@@ -49,7 +49,7 @@
             "entries": [
               {
                 "name": "Access-Control-Allow-Origin",
-                "value": "*"
+                "value": "http://localhost:5173"
               },
               {
                 "name": "Access-Control-Allow-Methods",
@@ -98,7 +98,7 @@
             "entries": [
               {
                 "name": "Access-Control-Allow-Origin",
-                "value": "*"
+                "value": "http://localhost:5173"
               },
               {
                 "name": "Access-Control-Allow-Methods",

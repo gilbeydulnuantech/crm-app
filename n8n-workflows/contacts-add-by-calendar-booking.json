@@ -74,7 +74,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH existing_activity AS (\n  SELECT id FROM activities WHERE google_event_id = $1\n),\nfound_contact AS (\n  SELECT id FROM contacts WHERE LOWER(email) = LOWER($6) AND is_archived = false LIMIT 1\n),\nnew_contact AS (\n  INSERT INTO contacts (first_name, last_name, email, lead_source, owner_id, created_at, updated_at)\n  SELECT $7, $8, $6, 'Calendar Booking', $5, now(), now()\n  WHERE NOT EXISTS (SELECT 1 FROM existing_activity)\n    AND NOT EXISTS (SELECT 1 FROM found_contact)\n  RETURNING id\n),\nresolved_contact AS (\n  SELECT id, false AS is_new FROM found_contact\n  UNION ALL\n  SELECT id, true AS is_new FROM new_contact\n  LIMIT 1\n)\nINSERT INTO activities (contact_id, user_id, type, subject, due_at, end_at, google_event_id, created_at)\nSELECT rc.id, $5, 'meeting', $2, $3::timestamptz, $4::timestamptz, $1, now()\nFROM resolved_contact rc\nWHERE NOT EXISTS (SELECT 1 FROM existing_activity)\nRETURNING contact_id, (SELECT is_new FROM resolved_contact) AS is_new;",
+        "query": "WITH existing_activity AS (\n  SELECT id FROM activities WHERE google_event_id = $1\n),\nfound_contact AS (\n  SELECT id, unsubscribe_token FROM contacts WHERE LOWER(email) = LOWER($6) AND is_archived = false LIMIT 1\n),\nnew_contact AS (\n  INSERT INTO contacts (first_name, last_name, email, lead_source, owner_id, created_at, updated_at)\n  SELECT $7, $8, $6, 'Calendar Booking', $5, now(), now()\n  WHERE NOT EXISTS (SELECT 1 FROM existing_activity)\n    AND NOT EXISTS (SELECT 1 FROM found_contact)\n  RETURNING id, unsubscribe_token\n),\nresolved_contact AS (\n  SELECT id, false AS is_new, unsubscribe_token FROM found_contact\n  UNION ALL\n  SELECT id, true AS is_new, unsubscribe_token FROM new_contact\n  LIMIT 1\n)\nINSERT INTO activities (contact_id, user_id, type, subject, due_at, end_at, google_event_id, created_at)\nSELECT rc.id, $5, 'meeting', $2, $3::timestamptz, $4::timestamptz, $1, now()\nFROM resolved_contact rc\nWHERE NOT EXISTS (SELECT 1 FROM existing_activity)\nRETURNING contact_id, (SELECT is_new FROM resolved_contact) AS is_new, (SELECT unsubscribe_token FROM resolved_contact) AS unsubscribe_token;",
         "options": {
           "queryReplacement": "={{ [ $('Extract Lead Info').item.json.googleEventId, $('Extract Lead Info').item.json.subject, $('Extract Lead Info').item.json.dueAt, $('Extract Lead Info').item.json.endAt, $json.id, $('Extract Lead Info').item.json.email, $('Extract Lead Info').item.json.firstName, $('Extract Lead Info').item.json.lastName ] }}"
         }
@@ -97,10 +97,12 @@
     },
     {
       "parameters": {
-        "sendTo": "={{ $json.email }}",
+        "sendTo": "={{ $('Extract Lead Info').item.json.email }}",
         "subject": "Confirmed: Your AI Automation Discovery Call",
-        "message": "=<br><br><br><br>\n\nHi <strong>{{ $json.name }}</strong>,<br><br>\n\nThanks for scheduling a discovery call! <br><br>I\u2019m looking forward to diving into your workflow and exploring how we can build<br>custom AI automations to save you time and scale your operations.<br><br>\n\n<strong>Meeting Details:</strong><br>\n\nDate & Time: {{ $json.displayStart }}<br><br>\n\n<strong>Location:</strong><br> Google Meet (link in calendar invite)<br><br>\n\n<strong>To help us make the most of our time:</strong><br>\nIf you have any specific tools (like your CRM, webhooks, or current manual pipelines) <br>you\u2019d like us to focus on, feel free to reply directly to this email with a brief overview.<br><br>\n\nSee you then!<br><br>\n\nBest regards,<br><br>\n\nGilbert Dulnuan<br>\nAI Automation & CRM Specialist",
-        "options": {}
+        "message": "=<br><br><br><br>\n\nHi <strong>{{ $('Extract Lead Info').item.json.name }}</strong>,<br><br>\n\nThanks for scheduling a discovery call! <br><br>I\u2019m looking forward to diving into your workflow and exploring how we can build<br>custom AI automations to save you time and scale your operations.<br><br>\n\n<strong>Meeting Details:</strong><br>\n\nDate & Time: {{ $('Extract Lead Info').item.json.displayStart }}<br><br>\n\n<strong>Location:</strong><br> Google Meet (link in calendar invite)<br><br>\n\n<strong>To help us make the most of our time:</strong><br>\nIf you have any specific tools (like your CRM, webhooks, or current manual pipelines) <br>you\u2019d like us to focus on, feel free to reply directly to this email with a brief overview.<br><br>\n\nSee you then!<br><br>\n\nBest regards,<br><br>\n\nGilbert Dulnuan<br>\nAI Automation & CRM Specialist<br><br><span style=\"font-size:11px;color:#94a3b8\">Don't want these emails? <a href=\"{{ $env.FRONTEND_BASE_URL }}/unsubscribe/{{ $json.unsubscribe_token }}\">Unsubscribe</a></span>",
+        "options": {
+          "appendAttribution": false
+        }
       },
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
@@ -178,14 +180,22 @@
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
           "combinator": "and",
           "conditions": [
             {
               "id": "calbook-is-new-cond",
               "leftValue": "={{ $json.is_new }}",
               "rightValue": true,
-              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
             }
           ]
         },
@@ -193,7 +203,10 @@
       },
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
-      "position": [944, -176],
+      "position": [
+        944,
+        -176
+      ],
       "id": "e2a7b907-3333-4a5a-9b1a-calbook000007",
       "name": "Is New Contact?"
     },
@@ -204,16 +217,76 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ { contact_id: $json.contact_id, source: \"calendar\" } }}",
-        "options": { "timeout": 5000 }
+        "options": {
+          "timeout": 5000
+        }
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1168, -176],
+      "position": [
+        1168,
+        -176
+      ],
       "id": "e2a7b908-4444-4a5a-9b1a-calbook000008",
       "name": "Notify: Contact Created",
       "onError": "continueRegularOutput",
       "notesInFlow": true,
-      "notes": "Fire-and-forget — only fires for a genuinely new contact (is_new), not every rebooking of an existing lead's calendar event."
+      "notes": "Fire-and-forget \u2014 only fires for a genuinely new contact (is_new), not every rebooking of an existing lead's calendar event."
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"contacts-add-by-calendar-booking\" }}",
+            "workflow_id": "={{ \"07YS3Ho40id80Xd8\" }}",
+            "entity_type": "={{ \"activities,contacts\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-google-calendar-trigger-0",
+      "name": "Log Workflow Run: Google Calendar Trigger",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        47,
+        -191
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts SET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object('id', gen_random_uuid()::text, 'type', 'sent', 'subject', $1::text, 'message', $2::text, 'sent_at', NOW(), 'is_read', true) WHERE id = $3;",
+        "options": {
+          "queryReplacement": "={{ [ 'Confirmed: Your AI Automation Discovery Call', 'Hi ' + $('Extract Lead Info').item.json.name + ',\\n\\nThanks for scheduling a discovery call! Meeting Details:\\nDate & Time: ' + $('Extract Lead Info').item.json.displayStart, $('Upsert Contact & Insert Activity').item.json.contact_id ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        516,
+        -308
+      ],
+      "id": "log-calendar-booking-confirm",
+      "name": "Log Sent Email: Booking Confirmation",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueRegularOutput"
     }
   ],
   "pinData": {},
@@ -222,7 +295,7 @@
       "main": [
         [
           {
-            "node": "Extract Lead Info",
+            "node": "Log Workflow Run: Google Calendar Trigger",
             "type": "main",
             "index": 0
           }
@@ -256,6 +329,11 @@
         [
           {
             "node": "Is New Contact?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Confirmation Email",
             "type": "main",
             "index": 0
           }
@@ -293,9 +371,26 @@
             "node": "Look Up Owner By Email",
             "type": "main",
             "index": 0
-          },
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Google Calendar Trigger": {
+      "main": [
+        [
           {
-            "node": "Send Confirmation Email",
+            "node": "Extract Lead Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Confirmation Email": {
+      "main": [
+        [
+          {
+            "node": "Log Sent Email: Booking Confirmation",
             "type": "main",
             "index": 0
           }

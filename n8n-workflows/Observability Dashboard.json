@@ -5,29 +5,7 @@
       "main": [
         [
           {
-            "node": "Parse Token",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester": {
-      "main": [
-        [
-          {
-            "node": "Check Admin",
+            "node": "Extract Bearer Token",
             "type": "main",
             "index": 0
           }
@@ -60,29 +38,7 @@
       "main": [
         [
           {
-            "node": "Parse Token (Errors)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token (Errors)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester (Errors)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester (Errors)": {
-      "main": [
-        [
-          {
-            "node": "Check Admin (Errors)",
+            "node": "Extract Bearer Token (Errors)",
             "type": "main",
             "index": 0
           }
@@ -110,6 +66,72 @@
           }
         ]
       ]
+    },
+    "Extract Bearer Token": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session": {
+      "main": [
+        [
+          {
+            "node": "Validate Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session": {
+      "main": [
+        [
+          {
+            "node": "Check Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (Errors)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Errors)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Errors)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (Errors)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (Errors)": {
+      "main": [
+        [
+          {
+            "node": "Check Admin (Errors)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "name": "Observability Dashboard",
@@ -129,42 +151,6 @@
         0
       ],
       "webhookId": "a1b2c3d4-0001-4001-8000-000000000001"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
-      },
-      "id": "45ff7908-38fd-4eb8-9310-f813c11b3717",
-      "name": "Parse Token",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        208,
-        0
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.userId ] }}"
-        }
-      },
-      "id": "af27cdee-eb76-4842-ac19-e871c1e317ad",
-      "name": "Look Up Requester",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        400,
-        0
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
     },
     {
       "parameters": {
@@ -226,42 +212,6 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
-      },
-      "id": "gael-parse",
-      "name": "Parse Token (Errors)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        432,
-        400
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.userId ] }}"
-        }
-      },
-      "id": "gael-lookup",
-      "name": "Look Up Requester (Errors)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        640,
-        400
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    },
-    {
-      "parameters": {
         "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\nreturn [{ json: {} }];"
       },
       "id": "gael-admin",
@@ -308,6 +258,114 @@
         1312,
         400
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "extract-bearer-parse-token",
+      "name": "Extract Bearer Token"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token",
+      "name": "Execute Workflow: Verify Session",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        238,
+        15
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        0
+      ],
+      "id": "validate-session-parse-token",
+      "name": "Validate Session"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        400
+      ],
+      "id": "extract-bearer-parse-token-errors",
+      "name": "Extract Bearer Token (Errors)"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-errors",
+      "name": "Execute Workflow: Verify Session (Errors)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        462,
+        415
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        400
+      ],
+      "id": "validate-session-parse-token-errors",
+      "name": "Validate Session (Errors)"
     }
   ],
   "pinData": {},

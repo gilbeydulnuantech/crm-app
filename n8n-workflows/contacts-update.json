@@ -7,7 +7,7 @@
         "path": "update-contact",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "77e63f4e-9388-4c86-853b-d5f2b41720f5",
@@ -22,7 +22,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst requesterId = parseInt(match[1], 10);\nconst body = $input.first().json.body || {};\nconst contactId = parseInt(body.id, 10);\n\nif (!Number.isInteger(contactId)) throw new Error('\"id\" must be an integer.');\n\n// Only fields actually present in the request body get updated (true\n// partial-update semantics) \u2014 an omitted key leaves that column untouched,\n// while a key explicitly sent (even as '') sets/clears it. This lets\n// callers like the \"do not contact\" toggle send just {id, do_not_contact}\n// without wiping every other field, while the full edit form can still\n// clear a field by submitting an empty string.\nfunction field(...names) {\n  for (const name of names) {\n    if (body[name] !== undefined) return (body[name] ?? '').toString().trim();\n  }\n  return undefined;\n}\n\nconst accountId = body.account_id === undefined\n  ? undefined\n  : (body.account_id === null || body.account_id === '')\n    ? null\n    : parseInt(body.account_id, 10);\n\nif (accountId !== undefined && accountId !== null && !Number.isInteger(accountId)) {\n  throw new Error('\"account_id\" must be an integer or null.');\n}\n\nconst birthdate = body.birthdate === undefined ? undefined : ((body.birthdate ?? '').toString().trim() || null);\n\nreturn [{\n  json: {\n    birthdate,\n    requesterId,\n    contactId,\n    first_name: field('first_name'),\n    last_name: field('last_name'),\n    job_title: field('job_title'),\n    account_id: accountId,\n    email: field('email'),\n    secondary_email: field('secondary_email'),\n    phone: field('phone'),\n    secondary_phone: field('secondary_phone'),\n    linkedin_url: field('linkedin_url'),\n    lead_status: field('lead_status', 'status'),\n    lead_source: field('lead_source'),\n    timezone: field('timezone'),\n    city: field('city'),\n    state: field('state'),\n    zip_code: field('zip_code'),\n    country: field('country'),\n    do_not_contact: body.do_not_contact === undefined ? undefined : (body.do_not_contact === true || body.do_not_contact === 'true'),\n    dnc_email: body.dnc_email === undefined ? undefined : (body.dnc_email === true || body.dnc_email === 'true'),\n    dnc_call: body.dnc_call === undefined ? undefined : (body.dnc_call === true || body.dnc_call === 'true'),\n    dnc_sms: body.dnc_sms === undefined ? undefined : (body.dnc_sms === true || body.dnc_sms === 'true')\n  }\n}];"
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nconst requesterId = r.userId;\n\nconst body = $('Webhook').first().json.body || {};\nconst contactId = parseInt(body.id, 10);\n\nif (!Number.isInteger(contactId)) throw new Error('\"id\" must be an integer.');\n\n// Only fields actually present in the request body get updated (true\n// partial-update semantics) \u2014 an omitted key leaves that column untouched,\n// while a key explicitly sent (even as '') sets/clears it. This lets\n// callers like the \"do not contact\" toggle send just {id, do_not_contact}\n// without wiping every other field, while the full edit form can still\n// clear a field by submitting an empty string.\nfunction field(...names) {\n  for (const name of names) {\n    if (body[name] !== undefined) return (body[name] ?? '').toString().trim();\n  }\n  return undefined;\n}\n\nconst accountId = body.account_id === undefined\n  ? undefined\n  : (body.account_id === null || body.account_id === '')\n    ? null\n    : parseInt(body.account_id, 10);\n\nif (accountId !== undefined && accountId !== null && !Number.isInteger(accountId)) {\n  throw new Error('\"account_id\" must be an integer or null.');\n}\n\nconst birthdate = body.birthdate === undefined ? undefined : ((body.birthdate ?? '').toString().trim() || null);\n\nreturn [{\n  json: {\n    birthdate,\n    requesterId,\n    contactId,\n    first_name: field('first_name'),\n    last_name: field('last_name'),\n    job_title: field('job_title'),\n    account_id: accountId,\n    email: field('email'),\n    secondary_email: field('secondary_email'),\n    phone: field('phone'),\n    secondary_phone: field('secondary_phone'),\n    linkedin_url: field('linkedin_url'),\n    lead_status: field('lead_status', 'status'),\n    lead_source: field('lead_source'),\n    timezone: field('timezone'),\n    city: field('city'),\n    state: field('state'),\n    zip_code: field('zip_code'),\n    country: field('country'),\n    do_not_contact: body.do_not_contact === undefined ? undefined : (body.do_not_contact === true || body.do_not_contact === 'true'),\n    dnc_email: body.dnc_email === undefined ? undefined : (body.dnc_email === true || body.dnc_email === 'true'),\n    dnc_call: body.dnc_call === undefined ? undefined : (body.dnc_call === true || body.dnc_call === 'true'),\n    dnc_sms: body.dnc_sms === undefined ? undefined : (body.dnc_sms === true || body.dnc_sms === 'true')\n  }\n}];"
       },
       "id": "481d8543-c778-4b68-9495-51511e5ae0aa",
       "name": "Parse Token & Payload",
@@ -192,7 +192,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Update failed.\" } }}",
+        "responseBody": "={{ { success: false, error: (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Update failed.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -238,7 +238,7 @@
         "operation": "executeQuery",
         "query": "SELECT id, first_name, dnc_email FROM contacts WHERE unsubscribe_token = $1 AND is_archived = false;",
         "options": {
-          "queryReplacement": "={{ [ $json.query.token ] }}"
+          "queryReplacement": "={{ [ $('Webhook: unsubscribe-public').first().json.query.token ] }}"
         }
       },
       "credentials": {
@@ -391,6 +391,111 @@
           "name": "myRag"
         }
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $('Webhook').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        164,
+        316
+      ],
+      "id": "extract-bearer-481d8543-c778-4b68-9495-51511e5ae0aa",
+      "name": "Extract Bearer Token (Parse Token & Payload)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-481d8543-c778-4b68-9495-51511e5ae0aa",
+      "name": "Execute Workflow: Verify Session (Parse Token & Payload)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        194,
+        326
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"contacts-update\" }}",
+            "workflow_id": "={{ \"cMVhIPXLtSL1AnvY\" }}",
+            "entity_type": "={{ \"opportunities\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-0",
+      "name": "Log Workflow Run: Webhook",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        15,
+        321
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"contacts-update\" }}",
+            "workflow_id": "={{ \"cMVhIPXLtSL1AnvY\" }}",
+            "entity_type": "={{ \"contacts\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-unsubscribe-public-1",
+      "name": "Log Workflow Run: Webhook: unsubscribe-public",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1535,
+        885
+      ],
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
@@ -398,7 +503,7 @@
       "main": [
         [
           {
-            "node": "Parse Token & Payload",
+            "node": "Log Workflow Run: Webhook",
             "type": "main",
             "index": 0
           }
@@ -558,7 +663,7 @@
       "main": [
         [
           {
-            "node": "Look Up Contact By Unsub Token",
+            "node": "Log Workflow Run: Webhook: unsubscribe-public",
             "type": "main",
             "index": 0
           }
@@ -615,6 +720,50 @@
           }
         ],
         []
+      ]
+    },
+    "Extract Bearer Token (Parse Token & Payload)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Parse Token & Payload)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Parse Token & Payload)": {
+      "main": [
+        [
+          {
+            "node": "Parse Token & Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token (Parse Token & Payload)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: unsubscribe-public": {
+      "main": [
+        [
+          {
+            "node": "Look Up Contact By Unsub Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },

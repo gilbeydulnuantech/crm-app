@@ -32,7 +32,7 @@
       ],
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT o.id AS opportunity_id, o.name AS deal_name, o.assigned_user, c.id AS contact_id, c.first_name, c.last_name, c.email, c.phone, c.dnc_sms FROM opportunities o JOIN contacts c ON c.id = o.contact_id LEFT JOIN deal_won_actions dwa ON dwa.opportunity_id = o.id WHERE o.stage_id = 32 AND o.is_archived = false AND dwa.id IS NULL AND c.is_archived = false AND c.email IS NOT NULL AND c.email <> '';",
+        "query": "SELECT o.id AS opportunity_id, o.name AS deal_name, o.assigned_user, c.id AS contact_id, c.first_name, c.last_name, c.email, c.phone, c.dnc_sms, c.unsubscribe_token FROM opportunities o JOIN contacts c ON c.id = o.contact_id LEFT JOIN deal_won_actions dwa ON dwa.opportunity_id = o.id WHERE o.stage_id = 32 AND o.is_archived = false AND dwa.id IS NULL AND c.is_archived = false AND c.email IS NOT NULL AND c.email <> '';",
         "options": {}
       },
       "credentials": {
@@ -96,7 +96,7 @@
         540
       ],
       "parameters": {
-        "jsCode": "\nfunction toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction fill(template, row) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*email\\s*}}/gi, row.email || '')\n    .replace(/{{(?!\\s*company_name\\s*}})[^{}]*}}/gi, '');\n}\n\nconst tmpl = $input.item.json;\nconst row = $('Select Newly Won Deals').item.json;\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject, row), htmlBody: fill(tmpl.body, row).replace(/\\n/g, '<br>') } }];"
+        "jsCode": "\nfunction toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction fill(template, row) {\n  return (template || '')\n    .replace(/{{\\s*contact\\.first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*email\\s*}}/gi, row.email || '')\n    .replace(/{{(?!\\s*company_name\\s*}})[^{}]*}}/gi, '');\n}\n\nconst tmpl = $input.item.json;\nconst row = $('Select Newly Won Deals').item.json;\nlet base = '';\ntry { base = $env.FRONTEND_BASE_URL || ''; } catch (e) { base = ''; }\nconst unsubUrl = base + '/unsubscribe/' + (row.unsubscribe_token || '');\nconst htmlBody = fill(tmpl.body, row).replace(/\\n/g, '<br>') + `<br><br><span style=\"font-size:11px;color:#94a3b8\">Don't want these emails? <a href=\"${unsubUrl}\">Unsubscribe</a></span>`;\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject, row), htmlBody } }];"
       }
     },
     {
@@ -114,7 +114,8 @@
         "emailType": "html",
         "message": "={{ (($('Fill Email: Deal Won').item.json.htmlBody).replace(/The Team/g, $('Get Company Name: Email: Deal Won').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Email: Deal Won').item.json.company_name) }}",
         "options": {
-          "senderName": "={{ $('Get Company Name: Email: Deal Won').item.json.company_name }}"
+          "senderName": "={{ $('Get Company Name: Email: Deal Won').item.json.company_name }}",
+          "appendAttribution": false
         }
       },
       "credentials": {
@@ -362,7 +363,7 @@
         900
       ],
       "parameters": {
-        "jsCode": "\nfunction toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction fillBase(template, row) {\n  let base = '';\n  try { base = $env.FRONTEND_BASE_URL || ''; } catch (e) { base = ''; }\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*email\\s*}}/gi, row.email || '')\n    .replace(/{{\\s*unsubscribe_link\\s*}}/gi, base + '/unsubscribe/' + row.unsubscribe_token);\n}\n\nconst tmpl = $input.item.json;\nconst row = $('Select Deals Due For Review Request').item.json;\nconst link = $('Get Review Link').item.json.value;\nfunction fill(t) { return fillBase(t, row).replace(/{{\\s*review_link\\s*}}/gi, link); }\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject), htmlBody: fill(tmpl.body).replace(/\\n/g, '<br>') } }];"
+        "jsCode": "\nfunction toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction fillBase(template, row) {\n  let base = '';\n  try { base = $env.FRONTEND_BASE_URL || ''; } catch (e) { base = ''; }\n  return (template || '')\n    .replace(/{{\\s*contact\\.first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*email\\s*}}/gi, row.email || '')\n    .replace(/{{\\s*unsubscribe_link\\s*}}/gi, base + '/unsubscribe/' + row.unsubscribe_token);\n}\n\nconst tmpl = $input.item.json;\nconst row = $('Select Deals Due For Review Request').item.json;\nconst link = $('Get Review Link').item.json.value;\nfunction fill(t) { return fillBase(t, row).replace(/{{\\s*review_link\\s*}}/gi, link); }\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject), htmlBody: fill(tmpl.body).replace(/\\n/g, '<br>') } }];"
       }
     },
     {
@@ -380,7 +381,8 @@
         "emailType": "html",
         "message": "={{ (($('Fill Email: Review Request').item.json.htmlBody).replace(/The Team/g, $('Get Company Name: Email: Review Request').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Email: Review Request').item.json.company_name) }}",
         "options": {
-          "senderName": "={{ $('Get Company Name: Email: Review Request').item.json.company_name }}"
+          "senderName": "={{ $('Get Company Name: Email: Review Request').item.json.company_name }}",
+          "appendAttribution": false
         }
       },
       "credentials": {
@@ -510,7 +512,7 @@
         1100
       ],
       "parameters": {
-        "jsCode": "\nfunction toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction fillBase(template, row) {\n  let base = '';\n  try { base = $env.FRONTEND_BASE_URL || ''; } catch (e) { base = ''; }\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*email\\s*}}/gi, row.email || '')\n    .replace(/{{\\s*unsubscribe_link\\s*}}/gi, base + '/unsubscribe/' + row.unsubscribe_token);\n}\n\nconst tmpl = $input.item.json;\nconst row = $('Select Deals Due For Review Reminder').item.json;\nconst link = $('Get Review Link (Reminder)').item.json.value;\nfunction fill(t) { return fillBase(t, row).replace(/{{\\s*review_link\\s*}}/gi, link); }\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject), htmlBody: fill(tmpl.body).replace(/\\n/g, '<br>') } }];"
+        "jsCode": "\nfunction toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction fillBase(template, row) {\n  let base = '';\n  try { base = $env.FRONTEND_BASE_URL || ''; } catch (e) { base = ''; }\n  return (template || '')\n    .replace(/{{\\s*contact\\.first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*email\\s*}}/gi, row.email || '')\n    .replace(/{{\\s*unsubscribe_link\\s*}}/gi, base + '/unsubscribe/' + row.unsubscribe_token);\n}\n\nconst tmpl = $input.item.json;\nconst row = $('Select Deals Due For Review Reminder').item.json;\nconst link = $('Get Review Link (Reminder)').item.json.value;\nfunction fill(t) { return fillBase(t, row).replace(/{{\\s*review_link\\s*}}/gi, link); }\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject), htmlBody: fill(tmpl.body).replace(/\\n/g, '<br>') } }];"
       }
     },
     {
@@ -528,7 +530,8 @@
         "emailType": "html",
         "message": "={{ (($('Fill Email: Review Reminder').item.json.htmlBody).replace(/The Team/g, $('Get Company Name: Email: Review Reminder').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Email: Review Reminder').item.json.company_name) }}",
         "options": {
-          "senderName": "={{ $('Get Company Name: Email: Review Reminder').item.json.company_name }}"
+          "senderName": "={{ $('Get Company Name: Email: Review Reminder').item.json.company_name }}",
+          "appendAttribution": false
         }
       },
       "credentials": {
@@ -841,6 +844,68 @@
           "name": "myRag"
         }
       }
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Deal Won Engine\" }}",
+            "workflow_id": "={{ \"dP4qAFyXQwn9ytYf\" }}",
+            "entity_type": "={{ \"activities,contacts\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-schedule-trigger-every-30-min-0",
+      "name": "Log Workflow Run: Schedule Trigger: every 30 min",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        215,
+        285
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Deal Won Engine\" }}",
+            "workflow_id": "={{ \"dP4qAFyXQwn9ytYf\" }}",
+            "entity_type": "={{ \"activities,contacts\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-manual-test-1",
+      "name": "Log Workflow Run: Webhook: manual-test",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        215,
+        485
+      ],
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
@@ -848,17 +913,7 @@
       "main": [
         [
           {
-            "node": "Select Newly Won Deals",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Select Deals Due For Review Request",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Select Deals Due For Review Reminder",
+            "node": "Log Workflow Run: Schedule Trigger: every 30 min",
             "type": "main",
             "index": 0
           }
@@ -1123,17 +1178,7 @@
       "main": [
         [
           {
-            "node": "Select Newly Won Deals",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Select Deals Due For Review Request",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Select Deals Due For Review Reminder",
+            "node": "Log Workflow Run: Webhook: manual-test",
             "type": "main",
             "index": 0
           }
@@ -1217,6 +1262,48 @@
         [
           {
             "node": "Send Email: Review Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Schedule Trigger: every 30 min": {
+      "main": [
+        [
+          {
+            "node": "Select Newly Won Deals",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Select Deals Due For Review Request",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Select Deals Due For Review Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: manual-test": {
+      "main": [
+        [
+          {
+            "node": "Select Newly Won Deals",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Select Deals Due For Review Request",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Select Deals Due For Review Reminder",
             "type": "main",
             "index": 0
           }

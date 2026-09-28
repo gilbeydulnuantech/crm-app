@@ -270,7 +270,7 @@
         "path": "import-maps-leads",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "mli-webhook-1",
@@ -522,7 +522,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT c.id AS contact_id, c.first_name, c.email, co.name AS business_name FROM contacts c LEFT JOIN companies co ON co.id = c.account_id WHERE c.id = $1;",
+        "query": "SELECT c.id AS contact_id, c.first_name, c.email, c.unsubscribe_token, co.name AS business_name FROM contacts c LEFT JOIN companies co ON co.id = c.account_id WHERE c.id = $1;",
         "options": {
           "queryReplacement": "={{ [ $(\"Prepare Contacts For Enrichment\").item.json.contactId ] }}"
         }
@@ -623,7 +623,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const contacts = $('Look Up Contact For Outreach').all();\nconst templates = $('Look Up Outreach Template').all();\nconst companies = $('Get Company Name (Outreach)').all();\nfunction fill(t, contact, companyName) {\n  return (t || '')\n    .replace(/\\{\\{\\s*business_name\\s*\\}\\}/gi, contact.business_name || 'there')\n    .replace(/\\{\\{\\s*first_name\\s*\\}\\}/gi, contact.first_name || 'there')\n    .replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, companyName);\n}\nconst results = [];\nfor (let i = 0; i < contacts.length; i++) {\n  const contact = contacts[i].json;\n  const template = (templates[i] || templates[0] || {}).json;\n  const companyName = ((companies[i] || companies[0] || {}).json || {}).company_name || 'Us';\n  if (!template || !template.subject) continue;\n  results.push({ json: { to: contact.email, subject: fill(template.subject, contact, companyName), htmlBody: fill(template.body, contact, companyName).replace(/\\n/g, '<br>'), contactId: contact.contact_id, companyName } });\n}\nreturn results;"
+        "jsCode": "function safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\nconst contacts = $('Look Up Contact For Outreach').all();\nconst templates = $('Look Up Outreach Template').all();\nconst companies = $('Get Company Name (Outreach)').all();\nfunction fill(t, contact, companyName) {\n  return (t || '')\n    .replace(/\\{\\{\\s*business_name\\s*\\}\\}/gi, contact.business_name || 'there')\n    .replace(/\\{\\{\\s*contact\\.first_name\\s*\\}\\}/gi, contact.first_name || 'there')\n    .replace(/\\{\\{\\s*company\\.name\\s*\\}\\}/gi, companyName);\n}\nconst results = [];\nfor (let i = 0; i < contacts.length; i++) {\n  const contact = contacts[i].json;\n  const template = (templates[i] || templates[0] || {}).json;\n  const companyName = ((companies[i] || companies[0] || {}).json || {}).company_name || 'Us';\n  if (!template || !template.subject) continue;\n  const unsubUrl = safeEnv('FRONTEND_BASE_URL') + '/unsubscribe/' + (contact.unsubscribe_token || '');\n  const footer = `<br><br><span style=\"font-size:11px;color:#94a3b8\">Don't want these emails? <a href=\"${unsubUrl}\">Unsubscribe</a></span>`;\n  results.push({ json: { to: contact.email, subject: fill(template.subject, contact, companyName), htmlBody: fill(template.body, contact, companyName).replace(/\\n/g, '<br>') + footer, contactId: contact.contact_id, companyName } });\n}\nreturn results;"
       },
       "id": "mli-build-outreach-email",
       "name": "Build Outreach Email",
@@ -642,7 +642,8 @@
         "emailType": "html",
         "message": "={{ $json.htmlBody }}",
         "options": {
-          "senderName": "={{ $json.companyName }}"
+          "senderName": "={{ $json.companyName }}",
+          "appendAttribution": false
         }
       },
       "id": "mli-send-outreach-email",

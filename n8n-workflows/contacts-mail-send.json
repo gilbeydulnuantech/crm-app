@@ -19,7 +19,7 @@
     {
       "parameters": {
         "sendTo": "={{ $('If').item.json.to }}",
-        "subject": "={{ ($('Webhook').item.json.body.subject).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: message').item.json.company_name) }}",
+        "subject": "={{ ($('Prepare HTML Email').item.json.subject).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: message').item.json.company_name) }}",
         "emailType": "html",
         "message": "={{ (($('Prepare HTML Email').item.json.htmlMessage).replace(/The Team/g, $('Get Company Name: message').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: message').item.json.company_name) }}",
         "options": {
@@ -30,7 +30,8 @@
               }
             ]
           },
-          "senderName": "={{ $('Get Company Name: message').item.json.company_name }}"
+          "senderName": "={{ $('Get Company Name: message').item.json.company_name }}",
+          "appendAttribution": false
         }
       },
       "type": "n8n-nodes-base.gmail",
@@ -55,7 +56,7 @@
         "path": "send-email",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "type": "n8n-nodes-base.webhook",
@@ -161,7 +162,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $json.body || $json;\nconst attachments = body.attachments || [];\n\nconst binaryData = {};\n\nif (Array.isArray(attachments) && attachments.length > 0) {\n    attachments.forEach((att, index) => {\n        // Frontend sends { name, url } where url is a data: URL\n        // (e.g. 'data:application/pdf;base64,JVBERi0...') from FileReader.\n        const match = /^data:([^;,]+)?(?:;[^,]*)?,(.*)$/s.exec(att.url || '');\n        if (!match) return;\n        const [, mimeType, base64] = match;\n\n        // Use 'data' for the first item if there's only 1, or attachment_0, attachment_1\n        const key = attachments.length === 1 ? 'data' : `attachment_${index}`;\n\n        binaryData[key] = {\n            data: base64,\n            mimeType: mimeType || 'application/octet-stream',\n            fileName: att.name || `attachment_${index}`\n        };\n    });\n}\n\nreturn [\n    {\n        json: body,\n        binary: binaryData\n    }\n];"
+        "jsCode": "const body = $('Webhook').first().json.body || $('Webhook').first().json;\nconst attachments = body.attachments || [];\n\nconst binaryData = {};\n\nif (Array.isArray(attachments) && attachments.length > 0) {\n    attachments.forEach((att, index) => {\n        // Frontend sends { name, url } where url is a data: URL\n        // (e.g. 'data:application/pdf;base64,JVBERi0...') from FileReader.\n        const match = /^data:([^;,]+)?(?:;[^,]*)?,(.*)$/s.exec(att.url || '');\n        if (!match) return;\n        const [, mimeType, base64] = match;\n\n        // Use 'data' for the first item if there's only 1, or attachment_0, attachment_1\n        const key = attachments.length === 1 ? 'data' : `attachment_${index}`;\n\n        binaryData[key] = {\n            data: base64,\n            mimeType: mimeType || 'application/octet-stream',\n            fileName: att.name || `attachment_${index}`\n        };\n    });\n}\n\nreturn [\n    {\n        json: body,\n        binary: binaryData\n    }\n];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -175,11 +176,12 @@
     {
       "parameters": {
         "sendTo": "={{ $('format base64').item.json.to }}",
-        "subject": "={{ ($('format base64').item.json.subject).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: message1').item.json.company_name) }}",
+        "subject": "={{ ($('Prepare HTML Email').item.json.subject).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: message1').item.json.company_name) }}",
         "emailType": "html",
         "message": "={{ (($('Prepare HTML Email').item.json.htmlMessage).replace(/The Team/g, $('Get Company Name: message1').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: message1').item.json.company_name) }}",
         "options": {
-          "senderName": "={{ $('Get Company Name: message1').item.json.company_name }}"
+          "senderName": "={{ $('Get Company Name: message1').item.json.company_name }}",
+          "appendAttribution": false
         }
       },
       "type": "n8n-nodes-base.gmail",
@@ -295,7 +297,7 @@
     },
     {
       "parameters": {
-        "jsCode": "function safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\nfunction escapeHtml(s) {\n  return (s || '').toString()\n    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')\n    .replace(/\"/g, '&quot;').replace(/'/g, '&#39;');\n}\nfunction genId() {\n  return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);\n}\n// A tracking pixel only works in an HTML email \u2014 the two Gmail nodes\n// downstream switched from emailType 'text' to 'html' alongside this.\n// contact_id always comes straight from the webhook body here (this is\n// the manual \"Email Contact\" send, always initiated FROM a contact).\nconst contactId = Number($json.contact_id);\nconst pixelId = genId();\nconst pixelUrl = `${safeEnv('N8N_WEBHOOK_BASE_URL')}/webhook/track-email-open?id=${pixelId}&contact_id=${contactId}`;\nconst pixelTag = `<img src=\"${pixelUrl}\" width=\"1\" height=\"1\" style=\"display:none\" alt=\"\" />`;\nconst htmlMessage = escapeHtml($json.message || '').replace(/\\n/g, '<br>') + pixelTag;\nreturn [{ json: { ...$json, htmlMessage, pixelId }, binary: $input.item.binary }];"
+        "jsCode": "function safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\nfunction escapeHtml(s) {\n  return (s || '').toString()\n    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')\n    .replace(/\"/g, '&quot;').replace(/'/g, '&#39;');\n}\nfunction genId() {\n  return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);\n}\nfunction toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction money(n) { return n != null && n !== '' ? '$' + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''; }\nfunction dateStr(d) { return d ? new Date(d).toLocaleDateString() : ''; }\n\n// A tracking pixel only works in an HTML email \u2014 the two Gmail nodes\n// downstream switched from emailType 'text' to 'html' alongside this.\n// contact_id always comes straight from the webhook body here (this is\n// the manual \"Email Contact\" send, always initiated FROM a contact).\n// Source data comes from 'format base64' rather than $json/$input because\n// intervening Postgres lookups (like every other Postgres lookup in this\n// workflow) don't pass through the original item's fields or binary data\n// \u2014 only a named-node reference does.\nconst source = $('format base64').item.json;\nconst contactId = Number(source.contact_id);\nconst pixelId = genId();\nconst pixelUrl = `${safeEnv('N8N_WEBHOOK_BASE_URL')}/webhook/track-email-open?id=${pixelId}&contact_id=${contactId}`;\nconst pixelTag = `<img src=\"${pixelUrl}\" width=\"1\" height=\"1\" style=\"display:none\" alt=\"\" />`;\nconst unsubToken = $('Get Unsubscribe Token').item.json.unsubscribe_token || '';\nconst unsubUrl = safeEnv('FRONTEND_BASE_URL') + '/unsubscribe/' + unsubToken;\nconst footer = `<br><br><span style=\"font-size:11px;color:#94a3b8\">Don't want these emails? <a href=\"${unsubUrl}\">Unsubscribe</a></span>`;\n\n// Dynamic-field substitution \u2014 resolves tokens a manual send previously\n// couldn't (e.g. {{appointment.start_time}}), using the Dynamic Fields:*\n// lookup nodes upstream (each alwaysOutputData:true so a contact with no\n// deal/activity still yields an item, just with null columns, instead of\n// crashing this node on a missing item). {{company_name}} (the SENDER's\n// own company) is deliberately left untouched here \u2014 the two Gmail nodes\n// still substitute that themselves via Get Company Name: message/message1,\n// same as before this change; only {{company.name}} (the CONTACT's own\n// company) is resolved here.\nconst contactFields = $('Dynamic Fields: Contact').item.json;\nconst pipelineFields = $('Dynamic Fields: Pipeline').item.json;\nconst stageFields = $('Dynamic Fields: Pipeline Stage').item.json;\nconst activityFields = $('Dynamic Fields: Activities').item.json;\nconst contactTz = contactFields?.timezone || 'America/New_York';\nconst appointmentTime = activityFields?.due_at\n  ? DateTime.fromISO(activityFields.due_at, { zone: 'utc' }).setZone(contactTz).toFormat(\"EEEE, MMMM d 'at' h:mm a\")\n  : '';\n\nfunction fillDynamicFields(t) {\n  return (t || '')\n    .replace(/{{\\s*appointment\\.start_time\\s*}}/gi, appointmentTime)\n    .replace(/{{\\s*appointment\\.title\\s*}}/gi, activityFields?.subject || '')\n    .replace(/{{\\s*appointment\\.location\\s*}}/gi, activityFields?.location || '')\n    .replace(/{{\\s*company\\.name\\s*}}/gi, toTitleCase(contactFields?.company_name))\n    .replace(/{{\\s*opportunity\\.name\\s*}}/gi, pipelineFields?.name || '')\n    .replace(/{{\\s*opportunity\\.value\\s*}}/gi, money(pipelineFields?.deal_value))\n    .replace(/{{\\s*opportunity\\.stage\\s*}}/gi, stageFields?.name || '')\n    .replace(/{{\\s*opportunity\\.pipeline\\s*}}/gi, pipelineFields?.pipeline_name || '')\n    .replace(/{{\\s*opportunity\\.due_at\\s*}}/gi, dateStr(pipelineFields?.expected_close));\n}\n\nconst filledSubject = fillDynamicFields(source.subject || '');\nconst filledMessage = fillDynamicFields(source.message || '');\nconst htmlMessage = escapeHtml(filledMessage).replace(/\\n/g, '<br>') + pixelTag + footer;\nreturn [{ json: { ...source, subject: filledSubject, htmlMessage, pixelId }, binary: $('format base64').item.binary }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -305,6 +307,29 @@
       ],
       "id": "prepare-html-email-mail-send",
       "name": "Prepare HTML Email"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT unsubscribe_token FROM contacts WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ Number($json.contact_id) ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2380,
+        1440
+      ],
+      "id": "get-unsubscribe-token-mail-send",
+      "name": "Get Unsubscribe Token",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
     },
     {
       "id": "cname-kms7j1sp",
@@ -360,6 +385,141 @@
       ],
       "id": "restore-binary-before-send-msg",
       "name": "Restore Attachment Binary"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.id, c.first_name, c.last_name, c.email, c.phone, c.job_title, c.lead_status, c.lead_source,\n  c.birthdate, c.city, c.state, c.zip_code, c.country, c.created_at, c.updated_at, c.unsubscribe_token, c.timezone,\n  comp.id AS company_id, comp.name AS company_name, comp.industry, comp.website,\n  comp.street_address AS company_street_address, comp.city AS company_city, comp.state AS company_state,\n  comp.zip_code AS company_zip_code, comp.country AS company_country, comp.phone AS company_phone,\n  ow.id AS owner_user_id, ow.name AS owner_name, ow.email AS owner_email, ow.phone AS owner_phone\nFROM contacts c\nLEFT JOIN companies comp ON comp.id = c.account_id\nLEFT JOIN users ow ON ow.id = c.owner_id\nWHERE c.id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ Number($('format base64').item.json.contact_id) ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2380,
+        1760
+      ],
+      "id": "dyn-contact-fields",
+      "name": "Dynamic Fields: Contact",
+      "notesInFlow": true,
+      "notes": "Read-only lookup, not wired into any send/substitution logic yet \u2014 stages the contact/company/owner data for a future dynamic-field pass without touching the existing code nodes.",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT o.id, o.name, o.deal_value, o.status, o.probability, o.expected_close, o.source,\n  o.pipeline_id, o.stage_id, o.created_at, o.updated_at,\n  pl.name AS pipeline_name\nFROM opportunities o\nLEFT JOIN pipelines pl ON pl.id = o.pipeline_id\nWHERE o.contact_id = $1 AND o.is_archived = false\nORDER BY (o.status = 'Open') DESC, o.updated_at DESC\nLIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ Number($('format base64').item.json.contact_id) ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2600,
+        1760
+      ],
+      "id": "dyn-pipeline-fields",
+      "name": "Dynamic Fields: Pipeline",
+      "notesInFlow": true,
+      "notes": "Most relevant deal for this contact \u2014 prefers an Open one, falls back to the most recently updated. Read-only, not consumed anywhere yet.",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT s.id, s.name, s.display_order, s.win_probability, s.pipeline_id\nFROM stages s\nWHERE s.id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Dynamic Fields: Pipeline').item.json.stage_id || null ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2820,
+        1760
+      ],
+      "id": "dyn-pipeline-stage-fields",
+      "name": "Dynamic Fields: Pipeline Stage",
+      "notesInFlow": true,
+      "notes": "The stage of whichever deal 'Dynamic Fields: Pipeline' resolved above. Read-only, not consumed anywhere yet.",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT a.id, a.type, a.subject, a.due_at, a.end_at, a.location, a.body AS notes, a.is_completed,\n  u.name AS assigned_user_name\nFROM activities a\nLEFT JOIN users u ON u.id = a.user_id\nWHERE a.contact_id = $1\nORDER BY (a.due_at > now()) DESC, a.due_at DESC\nLIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ Number($('format base64').item.json.contact_id) ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3040,
+        1760
+      ],
+      "id": "dyn-activities-fields",
+      "name": "Dynamic Fields: Activities",
+      "notesInFlow": true,
+      "notes": "Most relevant activity for this contact \u2014 prefers the next upcoming one, falls back to the most recent past one. Read-only, not consumed anywhere yet.",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"contacts-mail-send\" }}",
+            "workflow_id": "={{ \"njaTmGElceQSJK6j\" }}",
+            "entity_type": "={{ \"contacts\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-0",
+      "name": "Log Workflow Run: Webhook",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        2095,
+        1425
+      ],
+      "onError": "continueRegularOutput"
     }
   ],
   "pinData": {},
@@ -379,7 +539,7 @@
       "main": [
         [
           {
-            "node": "format base64",
+            "node": "Log Workflow Run: Webhook",
             "type": "main",
             "index": 0
           }
@@ -423,7 +583,18 @@
       "main": [
         [
           {
-            "node": "Prepare HTML Email",
+            "node": "Get Unsubscribe Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Unsubscribe Token": {
+      "main": [
+        [
+          {
+            "node": "Dynamic Fields: Contact",
             "type": "main",
             "index": 0
           }
@@ -530,6 +701,61 @@
         [
           {
             "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dynamic Fields: Contact": {
+      "main": [
+        [
+          {
+            "node": "Dynamic Fields: Pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dynamic Fields: Pipeline": {
+      "main": [
+        [
+          {
+            "node": "Dynamic Fields: Pipeline Stage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dynamic Fields: Pipeline Stage": {
+      "main": [
+        [
+          {
+            "node": "Dynamic Fields: Activities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dynamic Fields: Activities": {
+      "main": [
+        [
+          {
+            "node": "Prepare HTML Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook": {
+      "main": [
+        [
+          {
+            "node": "format base64",
             "type": "main",
             "index": 0
           }

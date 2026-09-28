@@ -6,7 +6,7 @@
         "path": "get-resources",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "e5f6a001-1111-4a5a-9b1a-resources0001",
@@ -60,7 +60,7 @@
         "path": "add-resource",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "e5f6a004-4444-4a5a-9b1a-resources0004",

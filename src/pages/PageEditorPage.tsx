@@ -4,17 +4,19 @@ import { usePages, useSavePage } from '../hooks/usePages';
 import ScopeOfWorkEditor from '../components/ScopeOfWorkEditor';
 import { RichTextEditorHandle } from '../components/RichTextEditor';
 import PagePreviewOverlay from '../components/PagePreviewOverlay';
+import DynamicFieldDropdown, { DynamicField } from '../components/DynamicFieldDropdown';
 
-// Not yet resolved anywhere — these get filled in once Pages are wired to a
-// contract's "Thank You page" (step 2/3). For now they're just tokens a rep
-// can drop into the content.
-const PAGE_DYNAMIC_FIELDS = [
-  { token: '{{contact_full_name}}', label: 'Contact Full Name' },
-  { token: '{{first_name}}', label: 'First Name' },
-  { token: '{{last_name}}', label: 'Last Name' },
-  { token: '{{owner_name}}', label: 'Owner Name' },
-  { token: '{{signature_name}}', label: 'Signature Name' },
-  { token: '{{signed_at}}', label: 'Signed Date' },
+// A curated subset of AUTOMATION_DYNAMIC_FIELDS's naming, limited to what
+// src/utils/mergeFields.ts's fillPageFields() actually resolves — this page
+// only ever renders once a contract is signed, so it doesn't have the full
+// contact/company/opportunity/payment data an automation email would.
+const PAGE_DYNAMIC_FIELDS: DynamicField[] = [
+  { token: '{{contact.first_name}}', label: 'First Name', group: 'Contact' },
+  { token: '{{contact.last_name}}', label: 'Last Name', group: 'Contact' },
+  { token: '{{contact.full_name}}', label: 'Full Name', group: 'Contact' },
+  { token: '{{user.full_name}}', label: 'Full Name', group: 'User' },
+  { token: '{{contract.signature_name}}', label: 'Signature Name', group: 'Contract' },
+  { token: '{{contract.signed_at}}', label: 'Signed At', group: 'Contract' },
 ];
 
 export default function PageEditorPage() {
@@ -122,18 +124,7 @@ export default function PageEditorPage() {
           <h3 className="text-sm font-bold text-slate-800">Document properties</h3>
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1.5">Insert dynamic field</label>
-            <div className="flex flex-col gap-1.5">
-              {PAGE_DYNAMIC_FIELDS.map((f) => (
-                <button
-                  key={f.token}
-                  type="button"
-                  onClick={() => editorRef.current?.insertText(f.token)}
-                  className="w-full text-left text-[11px] font-medium border border-slate-200 rounded-md px-2 py-1 text-slate-600 bg-white hover:border-[var(--theme-accent)] hover:text-[var(--theme-accent)]"
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
+            <DynamicFieldDropdown fields={PAGE_DYNAMIC_FIELDS} onInsert={(t) => editorRef.current?.insertText(t)} />
             <p className="text-[10px] text-slate-400 italic mt-2">
               Tokens resolve once this page is linked to a contract's "Thank You page."
             </p>

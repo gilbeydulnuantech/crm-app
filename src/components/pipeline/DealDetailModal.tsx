@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Opportunity, Stage } from '../../types/opportunity';
 import { usePipelines } from '../../hooks/useOpportunities';
-import { useContacts } from '../../hooks/useContacts';
+import { useContact } from '../../hooks/useContacts';
 import { useNotes, useAddNote } from '../../hooks/useNotes';
 import { useTasks } from '../../hooks/useTasks';
 import { toTitleCase } from '../../utils/text';
@@ -80,7 +80,7 @@ export default function DealDetailModal({
 }: Props) {
   const navigate = useNavigate();
   const { data: pipelines = [] } = usePipelines();
-  const { data: contacts = [] } = useContacts();
+  const { data: contact } = useContact(deal?.contact_id ?? null);
   const { data: notes = [] } = useNotes('opportunity', deal?.id ?? null);
   const addNote = useAddNote('opportunity', deal?.id ?? null);
   const { data: allTasks = [] } = useTasks();
@@ -110,7 +110,6 @@ export default function DealDetailModal({
   const canDelete = isAdmin;
   const stageName = stagesById.get(deal.stage_id)?.name ?? '--';
   const pipelineName = pipelines.find((p) => p.id === deal.pipeline_id)?.name ?? '--';
-  const contact = deal.contact_id ? contacts.find((c) => c.id === deal.contact_id) : undefined;
   // Filtered by the deal's own pipeline_id — callers like Calendar.tsx pass
   // stages merged across every pipeline (see useAllStages), so this can't
   // assume the array is already scoped to just this deal's pipeline.
@@ -131,7 +130,7 @@ export default function DealDetailModal({
   return (
     <>
     <div
-      className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4"
+      className="fixed inset-0 bg-slate-900/70 z-[110] flex items-center justify-center p-4"
       onClick={onClose}
     >
       <div

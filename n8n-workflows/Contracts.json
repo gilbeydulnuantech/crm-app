@@ -128,7 +128,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT ct.id, ct.opportunity_id, ct.flow_id, ct.status, ct.public_token, ct.total_amount, o.contact_id, f.contract_signed_stage_id,\n  o.name AS deal_name,\n  c.email, c.first_name, c.last_name,\n  u.name AS owner_name, u.email AS owner_email\nFROM (SELECT $1::text AS tok) dummy\nLEFT JOIN contracts ct ON ct.public_token::text = dummy.tok\nLEFT JOIN deal_document_flows f ON f.id = ct.flow_id\nLEFT JOIN opportunities o ON o.id = ct.opportunity_id\nLEFT JOIN contacts c ON c.id = o.contact_id\nLEFT JOIN users u ON u.id = o.assigned_user;",
+        "query": "SELECT ct.id, ct.opportunity_id, ct.flow_id, ct.status, ct.public_token, ct.total_amount, o.contact_id, f.contract_signed_stage_id,\n  o.name AS deal_name,\n  c.email, c.first_name, c.last_name, c.unsubscribe_token,\n  u.name AS owner_name, u.email AS owner_email,\n  p.line_items AS proposal_line_items, p.total_amount AS proposal_total_amount\nFROM (SELECT $1::text AS tok) dummy\nLEFT JOIN contracts ct ON ct.public_token::text = dummy.tok\nLEFT JOIN deal_document_flows f ON f.id = ct.flow_id\nLEFT JOIN opportunities o ON o.id = ct.opportunity_id\nLEFT JOIN contacts c ON c.id = o.contact_id\nLEFT JOIN users u ON u.id = o.assigned_user\nLEFT JOIN proposals p ON p.id = ct.proposal_id;",
         "options": {
           "queryReplacement": "={{ [ $('Webhook - Sign Contract Public').first().json.body.token || '' ] }}"
         }
@@ -151,7 +151,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const row = $input.item.json;\nconst trigger = $('Webhook - Sign Contract Public').first().json;\nconst body = trigger.body || {};\nconst forwardedFor = (trigger.headers && trigger.headers['x-forwarded-for']) || '';\nconst signatureIp = forwardedFor.split(',')[0].trim() || null;\nif (!row.id) throw new Error('Contract not found.');\n\nconst signatureName = (body.signature_name || '').toString().trim();\nconst signatureEmail = (body.signature_email || '').toString().trim();\nconst signatureDate = (body.signature_date || '').toString().trim();\nconst signatureData = (body.signature_data || '').toString();\nconst fieldValues = body.field_values && typeof body.field_values === 'object' ? body.field_values : {};\n\nif (row.status !== 'signed') {\n  if (!signatureName) throw new Error('Full name is required.');\n  if (!signatureEmail || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(signatureEmail)) throw new Error('A valid email is required.');\n  if (!signatureDate) throw new Error('Date is required.');\n  if (!signatureData) throw new Error('A signature is required.');\n}\n\nreturn [{\n  json: {\n    contractId: row.id,\n    opportunityId: row.opportunity_id,\n    contractSignedStageId: row.contract_signed_stage_id,\n    alreadySigned: row.status === 'signed',\n    signatureName, signatureEmail, signatureDate, signatureData, fieldValues, signatureIp,\n    publicToken: row.public_token,\n    contactId: row.contact_id,\n    totalAmount: row.total_amount,\n    email: row.email,\n    firstName: row.first_name,\n    dealName: row.deal_name,\n    ownerName: row.owner_name,\n    ownerEmail: row.owner_email,\n  },\n}];"
+        "jsCode": "const row = $input.item.json;\nconst trigger = $('Webhook - Sign Contract Public').first().json;\nconst body = trigger.body || {};\nconst forwardedFor = (trigger.headers && trigger.headers['x-forwarded-for']) || '';\nconst signatureIp = forwardedFor.split(',')[0].trim() || null;\nif (!row.id) throw new Error('Contract not found.');\n\nconst signatureName = (body.signature_name || '').toString().trim();\nconst signatureEmail = (body.signature_email || '').toString().trim();\nconst signatureDate = (body.signature_date || '').toString().trim();\nconst signatureData = (body.signature_data || '').toString();\nconst fieldValues = body.field_values && typeof body.field_values === 'object' ? body.field_values : {};\n\nif (row.status !== 'signed') {\n  if (!signatureName) throw new Error('Full name is required.');\n  if (!signatureEmail || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(signatureEmail)) throw new Error('A valid email is required.');\n  if (!signatureDate) throw new Error('Date is required.');\n  if (!signatureData) throw new Error('A signature is required.');\n}\n\nreturn [{\n  json: {\n    contractId: row.id,\n    opportunityId: row.opportunity_id,\n    contractSignedStageId: row.contract_signed_stage_id,\n    alreadySigned: row.status === 'signed',\n    signatureName, signatureEmail, signatureDate, signatureData, fieldValues, signatureIp,\n    publicToken: row.public_token,\n    contactId: row.contact_id,\n    totalAmount: row.total_amount,\n    proposalLineItems: row.proposal_line_items || null,\n    proposalTotalAmount: row.proposal_total_amount,\n    email: row.email,\n    firstName: row.first_name,\n    dealName: row.deal_name,\n    ownerName: row.owner_name,\n    ownerEmail: row.owner_email,\n    unsubscribeToken: row.unsubscribe_token,\n  },\n}];"
       },
       "id": "cont0008-8888-4a5a-9b1a-contract000008",
       "name": "Validate & Prepare Sign",
@@ -199,9 +199,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH signed AS (\n  UPDATE contracts SET status = 'signed', signature_name = $1, signature_email = $2, signature_date = $3::date, signature_data = $4, signed_at = now(), field_values = $8::jsonb, signature_ip = $9\n  WHERE id = $5 AND status != 'signed'\n  RETURNING id\n),\nmoved AS (\n  UPDATE opportunities o SET stage_id = $6, stage_entered_at = CASE WHEN o.stage_id IS DISTINCT FROM $6 THEN now() ELSE o.stage_entered_at END, updated_at = now()\n  WHERE o.id = $7 AND $6::int IS NOT NULL AND EXISTS (SELECT 1 FROM signed)\n  RETURNING id\n)\nSELECT 1 AS ok;",
+        "query": "UPDATE contracts SET status = 'signed', signature_name = $1, signature_email = $2, signature_date = $3::date, signature_data = $4, signed_at = now(), field_values = $6::jsonb, signature_ip = $7\nWHERE id = $5 AND status != 'signed';",
         "options": {
-          "queryReplacement": "={{ [ $json.signatureName, $json.signatureEmail, $json.signatureDate, $json.signatureData, $json.contractId, $json.contractSignedStageId, $json.opportunityId, JSON.stringify($json.fieldValues || {}), $json.signatureIp ] }}"
+          "queryReplacement": "={{ [ $json.signatureName, $json.signatureEmail, $json.signatureDate, $json.signatureData, $json.contractId, JSON.stringify($json.fieldValues || {}), $json.signatureIp ] }}"
         }
       },
       "id": "cont0010-1010-4a5a-9b1a-contract000010",
@@ -218,46 +218,6 @@
           "name": "myRag"
         }
       }
-    },
-    {
-      "parameters": {
-        "jsCode": "const v = $('Validate & Prepare Sign').item.json;\nconst base = 'http://localhost:5173';\nconst link = `${base}/documents/contract/${v.publicToken}`;\nreturn [{\n  json: {\n    to: v.signatureEmail || v.email,\n    subject: 'Your contract has been signed',\n    body: `Hi ${v.firstName || v.signatureName || 'there'},\\n\\nThanks for signing! Your signed contract is confirmed. You can view or download your copy anytime here:\\n${link}\\n`,\n  },\n}];"
-      },
-      "id": "cont0011-1111-4a5a-9b1a-contract000011",
-      "name": "Prepare Signed Confirmation Email",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2752,
-        7640
-      ]
-    },
-    {
-      "parameters": {
-        "sendTo": "={{ $('Prepare Signed Confirmation Email').item.json.to }}",
-        "subject": "={{ ($('Prepare Signed Confirmation Email').item.json.subject).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Signed Confirmation Email').item.json.company_name) }}",
-        "emailType": "text",
-        "message": "={{ (($('Prepare Signed Confirmation Email').item.json.body).replace(/The Team/g, $('Get Company Name: Signed Confirmation Email').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Signed Confirmation Email').item.json.company_name) }}",
-        "options": {
-          "senderName": "={{ $('Get Company Name: Signed Confirmation Email').item.json.company_name }}"
-        }
-      },
-      "id": "cont0012-1212-4a5a-9b1a-contract000012",
-      "name": "Send Signed Confirmation Email",
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
-      "position": [
-        2976,
-        7640
-      ],
-      "webhookId": "bf0cd9da-5463-48bf-afae-6ff0d1652133",
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "VKDbMYV2U0WoSc16",
-          "name": "n8n072826"
-        }
-      },
-      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -279,7 +239,7 @@
         "path": "get-contracts",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "cont0015-1515-4a5a-9b1a-contract000015",
@@ -291,44 +251,6 @@
         5216
       ],
       "webhookId": "cf6bba47-bc95-4a15-b343-1b71c5eac5d5",
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "cont0016-1616-4a5a-9b1a-contract000016",
-      "name": "Parse Token (Get)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1856,
-        5288
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "cont0017-1717-4a5a-9b1a-contract000017",
-      "name": "Look Up Requester (Get)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        2080,
-        5360
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
       "onError": "continueErrorOutput"
     },
     {
@@ -366,12 +288,15 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "respondWith": "allIncomingItems",
-        "options": {}
+        "respondWith": "json",
+        "options": {},
+        "responseBody": "={{ $json.rows }}"
       },
       "id": "cont0020-2020-4a5a-9b1a-contract000020",
       "name": "Respond - Get Contracts",
@@ -402,44 +327,6 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "cont0022-2222-4a5a-9b1a-contract000022",
-      "name": "Parse Token (Save)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1184,
-        920
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "cont0023-2323-4a5a-9b1a-contract000023",
-      "name": "Look Up Requester (Save)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1408,
-        1064
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
         "operation": "executeQuery",
         "query": "SELECT assigned_user, pipeline_id, stage_id FROM opportunities WHERE id = $1;",
         "options": {
@@ -464,7 +351,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const opportunity = $input.item.json;\nconst requester = $('Look Up Requester (Save)').first().json;\nconst body = $('Webhook - Save Contract').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (!opportunity || opportunity.assigned_user === undefined) throw new Error('Deal not found.');\nif (requester.role !== 'admin' && opportunity.assigned_user !== requester.id) throw new Error('You do not have access to this deal.');\n\nconst id = body.id ? parseInt(body.id, 10) : null;\nconst opportunityId = parseInt(body.opportunity_id, 10);\nconst title = (body.title || '').toString().trim();\nconst contentHtml = (body.content_html || '').toString();\nconst totalAmount = body.total_amount !== undefined && body.total_amount !== null && body.total_amount !== '' ? Number(body.total_amount) : 0;\nconst emailSubject = (body.email_subject || '').toString().trim() || 'Your contract is ready to sign';\nconst emailBody = (body.email_body || '').toString().trim() || 'Hi {{first_name}}, please review and sign your contract here: {{contract_link}}';\n\nif (!Number.isInteger(opportunityId)) throw new Error('\"opportunity_id\" is required.');\nif (!title) throw new Error('\"title\" is required.');\nif (!contentHtml.trim()) throw new Error('Contract content is required.');\nif (!Number.isFinite(totalAmount) || totalAmount < 0) throw new Error('\"total_amount\" must be 0 or more.');\n\nreturn [{\n  json: { id, opportunityId, title, contentHtml, totalAmount, emailSubject, emailBody, pipelineId: opportunity.pipeline_id, stageId: opportunity.stage_id, requesterId: requester.id },\n}];"
+        "jsCode": "const opportunity = $input.item.json;\nconst requester = $('Validate Session (Save)').first().json;\nconst body = $('Webhook - Save Contract').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (!opportunity || opportunity.assigned_user === undefined) throw new Error('Deal not found.');\nif (requester.role !== 'admin' && opportunity.assigned_user !== requester.id) throw new Error('You do not have access to this deal.');\n\nconst id = body.id ? parseInt(body.id, 10) : null;\nconst opportunityId = parseInt(body.opportunity_id, 10);\nconst title = (body.title || '').toString().trim();\nconst contentHtml = (body.content_html || '').toString();\nconst totalAmount = body.total_amount !== undefined && body.total_amount !== null && body.total_amount !== '' ? Number(body.total_amount) : 0;\nconst emailSubject = (body.email_subject || '').toString().trim() || 'Your contract is ready to sign';\nconst emailBody = (body.email_body || '').toString().trim() || 'Hi {{first_name}}, please review and sign your contract here: {{contract_link}}';\n\nif (!Number.isInteger(opportunityId)) throw new Error('\"opportunity_id\" is required.');\nif (!title) throw new Error('\"title\" is required.');\nif (!contentHtml.trim()) throw new Error('Contract content is required.');\nif (!Number.isFinite(totalAmount) || totalAmount < 0) throw new Error('\"total_amount\" must be 0 or more.');\n\nreturn [{\n  json: { id, opportunityId, title, contentHtml, totalAmount, emailSubject, emailBody, pipelineId: opportunity.pipeline_id, stageId: opportunity.stage_id, requesterId: requester.id },\n}];"
       },
       "id": "cont0025-2525-4a5a-9b1a-contract000025",
       "name": "Validate & Payload (Save)",
@@ -572,48 +459,10 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst body = $input.first().json.body || {};\nconst contractId = parseInt(body.contract_id, 10);\nif (!Number.isInteger(contractId)) throw new Error('\"contract_id\" must be an integer.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10), contractId } }];"
-      },
-      "id": "cont0029-2929-4a5a-9b1a-contract000029",
-      "name": "Parse Token & Payload (Send)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1856,
-        5984
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "query": "SELECT ct.id AS contract_id, ct.public_token, ct.email_subject, ct.email_body, ct.opportunity_id,\n  o.assigned_user, o.name AS deal_name, o.deal_value, o.created_at AS deal_created_at, o.expected_close AS deal_due_at,\n  c.id AS contact_id, c.email, c.first_name, c.last_name, c.unsubscribe_token, c.phone, c.city, c.state,\n  co.name AS client_company_name,\n  u.name AS owner_name, u.email AS owner_email, u.phone AS owner_phone, (SELECT company_name FROM company_profile LIMIT 1) AS our_company_name,\n  (SELECT i.total FROM invoices i WHERE i.opportunity_id = o.id AND i.invoice_type = 'down_payment' ORDER BY i.created_at DESC LIMIT 1) AS down_payment_amount,\n  (SELECT pay.created_at FROM payments pay JOIN invoices i ON i.id = pay.invoice_id WHERE i.opportunity_id = o.id AND i.invoice_type = 'down_payment' AND pay.status = 'paid' ORDER BY pay.created_at DESC LIMIT 1) AS down_payment_paid_at,\n  (SELECT i.total FROM invoices i WHERE i.opportunity_id = o.id AND i.invoice_type = 'final' ORDER BY i.created_at DESC LIMIT 1) AS balance_amount,\n  (SELECT pay.created_at FROM payments pay JOIN invoices i ON i.id = pay.invoice_id WHERE i.opportunity_id = o.id AND i.invoice_type = 'final' AND pay.status = 'paid' ORDER BY pay.created_at DESC LIMIT 1) AS balance_paid_at\nFROM (SELECT $1::int AS cid) dummy\nLEFT JOIN contracts ct ON ct.id = dummy.cid\nLEFT JOIN opportunities o ON o.id = ct.opportunity_id\nLEFT JOIN contacts c ON c.id = o.contact_id\nLEFT JOIN companies co ON co.id = c.account_id\nLEFT JOIN users u ON u.id = o.assigned_user;",
         "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "cont0030-3030-4a5a-9b1a-contract000030",
-      "name": "Look Up Requester (Send)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        2080,
-        6056
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT ct.id AS contract_id, ct.public_token, ct.email_subject, ct.email_body, ct.opportunity_id,\n  o.assigned_user, c.email, c.first_name, c.last_name\nFROM (SELECT $1::int AS cid) dummy\nLEFT JOIN contracts ct ON ct.id = dummy.cid\nLEFT JOIN opportunities o ON o.id = ct.opportunity_id\nLEFT JOIN contacts c ON c.id = o.contact_id;",
-        "options": {
-          "queryReplacement": "={{ [ $('Parse Token & Payload (Send)').item.json.contractId ] }}"
+          "queryReplacement": "={{ [ $('Validate Session (Send)').item.json.contractId ] }}"
         }
       },
       "id": "cont0031-3131-4a5a-9b1a-contract000031",
@@ -633,7 +482,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const row = $input.item.json;\nconst requester = $('Look Up Requester (Send)').first().json;\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (!row.contract_id) throw new Error('Contract not found.');\nif (requester.role !== 'admin' && row.assigned_user !== requester.id) throw new Error('You do not have access to this deal.');\nif (!row.email) throw new Error(\"This deal's contact has no email address on file.\");\n\nconst base = 'http://localhost:5173';\nconst link = `${base}/documents/contract/${row.public_token}`;\n\nfunction fill(template) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, row.first_name || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, row.last_name || '')\n    .replace(/{{\\s*contract_link\\s*}}/gi, link);\n}\n\nreturn [{ json: { contractId: row.contract_id, to: row.email, subject: fill(row.email_subject), body: fill(row.email_body) } }];"
+        "jsCode": "const row = $input.item.json;\nconst requester = $('Validate Session (Send)').first().json;\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (!row.contract_id) throw new Error('Contract not found.');\nif (requester.role !== 'admin' && row.assigned_user !== requester.id) throw new Error('You do not have access to this deal.');\nif (!row.email) throw new Error(\"This deal's contact has no email address on file.\");\n\nfunction safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\nconst base = safeEnv('FRONTEND_BASE_URL');\nconst link = `${base}/documents/contract/${row.public_token}`;\n\nfunction money(n) {\n  return n != null && n !== '' ? '$' + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';\n}\nfunction dateStr(d) {\n  return d ? new Date(d).toLocaleDateString() : '';\n}\n\nfunction fill(template) {\n  return (template || '')\n    .replace(/{{\\s*user\\.company_name\\s*}}/gi, row.our_company_name || '')\n    .replace(/{{\\s*contract_link\\s*}}/gi, link)\n    .replace(/{{\\s*contact\\.first_name\\s*}}/gi, row.first_name || 'there')\n    .replace(/{{\\s*contact\\.last_name\\s*}}/gi, row.last_name || '')\n    .replace(/{{\\s*contact\\.email\\s*}}/gi, row.email || '')\n    .replace(/{{\\s*contact\\.phone\\s*}}/gi, row.phone || '')\n    .replace(/{{\\s*contact\\.address\\s*}}/gi, [row.city, row.state].filter(Boolean).join(', '))\n    .replace(/{{\\s*company\\.name\\s*}}/gi, row.client_company_name || '')\n    .replace(/{{\\s*user\\.full_name\\s*}}/gi, row.owner_name || 'your account team')\n    .replace(/{{\\s*user\\.email\\s*}}/gi, row.owner_email || '')\n    .replace(/{{\\s*user\\.phone\\s*}}/gi, row.owner_phone || '')\n    .replace(/{{\\s*opportunity\\.name\\s*}}/gi, row.deal_name || '')\n    .replace(/{{\\s*opportunity\\.value\\s*}}/gi, money(row.deal_value))\n    .replace(/{{\\s*opportunity\\.created_at\\s*}}/gi, dateStr(row.deal_created_at))\n    .replace(/{{\\s*opportunity\\.due_at\\s*}}/gi, dateStr(row.deal_due_at))\n    .replace(/{{\\s*payment\\.down_payment_amount\\s*}}/gi, money(row.down_payment_amount))\n    .replace(/{{\\s*payment\\.down_payment_paid_at\\s*}}/gi, dateStr(row.down_payment_paid_at))\n    .replace(/{{\\s*payment\\.balance_amount\\s*}}/gi, money(row.balance_amount))\n    .replace(/{{\\s*payment\\.balance_paid_at\\s*}}/gi, dateStr(row.balance_paid_at));\n}\n\nconst unsubUrl = base + '/unsubscribe/' + (row.unsubscribe_token || '');\nconst bodyWithFooter = fill(row.email_body) + \"\\n\\nDon't want these emails? Unsubscribe: \" + unsubUrl;\n\nreturn [{ json: { contractId: row.contract_id, contactId: row.contact_id, to: row.email, subject: fill(row.email_subject), body: bodyWithFooter } }];"
       },
       "id": "cont0032-3232-4a5a-9b1a-contract000032",
       "name": "Validate & Personalize (Send)",
@@ -652,7 +501,8 @@
         "emailType": "text",
         "message": "={{ (($('Validate & Personalize (Send)').item.json.body).replace(/The Team/g, $('Get Company Name: Contract Email (Manual)').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Contract Email (Manual)').item.json.company_name) }}",
         "options": {
-          "senderName": "={{ $('Get Company Name: Contract Email (Manual)').item.json.company_name }}"
+          "senderName": "={{ $('Get Company Name: Contract Email (Manual)').item.json.company_name }}",
+          "appendAttribution": false
         }
       },
       "id": "cont0033-3333-4a5a-9b1a-contract000033",
@@ -730,48 +580,10 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst body = $input.first().json.body || {};\nconst contractId = parseInt(body.id, 10);\nif (!Number.isInteger(contractId)) throw new Error('\"id\" must be an integer.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10), contractId } }];"
-      },
-      "id": "cont0039-3939-4a5a-9b1a-contract000039",
-      "name": "Parse Token & Payload (Archive)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1632,
-        2888
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "cont0040-4040-4a5a-9b1a-contract000040",
-      "name": "Look Up Requester (Archive)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1856,
-        2960
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
         "operation": "executeQuery",
         "query": "SELECT ct.id, o.assigned_user\nFROM (SELECT $1::int AS cid) dummy\nLEFT JOIN contracts ct ON ct.id = dummy.cid\nLEFT JOIN opportunities o ON o.id = ct.opportunity_id;",
         "options": {
-          "queryReplacement": "={{ [ $('Parse Token & Payload (Archive)').item.json.contractId ] }}"
+          "queryReplacement": "={{ [ $('Validate Session (Archive)').item.json.contractId ] }}"
         }
       },
       "id": "cont0041-4141-4a5a-9b1a-contract000041",
@@ -791,7 +603,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const row = $input.item.json;\nconst requester = $('Look Up Requester (Archive)').first().json;\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (!row.id) throw new Error('Contract not found.');\nif (requester.role !== 'admin' && row.assigned_user !== requester.id) throw new Error('You do not have access to this deal.');\n\nreturn [{ json: { contractId: row.id } }];"
+        "jsCode": "const row = $input.item.json;\nconst requester = $('Validate Session (Archive)').first().json;\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (!row.id) throw new Error('Contract not found.');\nif (requester.role !== 'admin' && row.assigned_user !== requester.id) throw new Error('You do not have access to this deal.');\n\nreturn [{ json: { contractId: row.id } }];"
       },
       "id": "cont0042-4242-4a5a-9b1a-contract000042",
       "name": "Validate (Archive)",
@@ -861,48 +673,10 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst body = $input.first().json.body || {};\nconst contractId = parseInt(body.id, 10);\nif (!Number.isInteger(contractId)) throw new Error('\"id\" must be an integer.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10), contractId } }];"
-      },
-      "id": "cont0046-4646-4a5a-9b1a-contract000046",
-      "name": "Parse Token & Payload (Delete)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1632,
-        4520
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "cont0047-4747-4a5a-9b1a-contract000047",
-      "name": "Look Up Requester (Delete)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1856,
-        4592
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
         "operation": "executeQuery",
         "query": "SELECT ct.id, o.assigned_user\nFROM (SELECT $1::int AS cid) dummy\nLEFT JOIN contracts ct ON ct.id = dummy.cid\nLEFT JOIN opportunities o ON o.id = ct.opportunity_id;",
         "options": {
-          "queryReplacement": "={{ [ $('Parse Token & Payload (Delete)').item.json.contractId ] }}"
+          "queryReplacement": "={{ [ $('Validate Session (Delete)').item.json.contractId ] }}"
         }
       },
       "id": "cont0048-4848-4a5a-9b1a-contract000048",
@@ -922,7 +696,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const row = $input.item.json;\nconst requester = $('Look Up Requester (Delete)').first().json;\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (!row.id) throw new Error('Contract not found.');\nif (requester.role !== 'admin' && row.assigned_user !== requester.id) throw new Error('You do not have access to this deal.');\n\nreturn [{ json: { contractId: row.id } }];"
+        "jsCode": "const row = $input.item.json;\nconst requester = $('Validate Session (Delete)').first().json;\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (!row.id) throw new Error('Contract not found.');\nif (requester.role !== 'admin' && row.assigned_user !== requester.id) throw new Error('You do not have access to this deal.');\n\nreturn [{ json: { contractId: row.id } }];"
       },
       "id": "cont0049-4949-4a5a-9b1a-contract000049",
       "name": "Validate (Delete)",
@@ -989,7 +763,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "responseBody": "={{ { success: false, error: (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Request failed.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -1002,44 +776,6 @@
         2752,
         2768
       ]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Notifies the deal owner (assigned rep) that their client just signed \u2014\n// separate from Send Signed Confirmation Email above, which goes to the\n// client. Runs regardless of whether the client confirmation succeeded, so\n// an owner still gets notified even if that earlier Gmail call failed.\nconst v = $('Validate & Prepare Sign').item.json;\nreturn [{\n  json: {\n    to: v.ownerEmail,\n    subject: `Deal ${v.dealName || ''} has been signed!`.trim(),\n    body: `Hi ${v.ownerName || 'there'},\\n\\n${v.signatureName} just signed the contract for ${v.dealName || 'this deal'}. The deal has moved to Contract Signed.\\n`,\n  },\n}];\n"
-      },
-      "id": "cont0053-5353-4a5a-9b1a-contract000053",
-      "name": "Prepare Owner Notification Email",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        3200,
-        7328
-      ]
-    },
-    {
-      "parameters": {
-        "sendTo": "={{ $json.to }}",
-        "subject": "={{ $json.subject }}",
-        "emailType": "text",
-        "message": "={{ $json.body }}",
-        "options": {}
-      },
-      "id": "cont0054-5454-4a5a-9b1a-contract000054",
-      "name": "Send Owner Notification Email",
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
-      "position": [
-        3424,
-        7328
-      ],
-      "webhookId": "25e3b84f-a598-4d3d-8193-48b5b391b6c6",
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "VKDbMYV2U0WoSc16",
-          "name": "n8n072826"
-        }
-      },
-      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -1059,7 +795,7 @@
         "path": "get-contract-signed",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "cont0060-6060-4a5a-9b1a-contract000060",
@@ -1071,44 +807,6 @@
         6608
       ],
       "webhookId": "a40fa15c-20e3-4be0-a0fd-2a430777673b",
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "cont0061-6161-4a5a-9b1a-contract000061",
-      "name": "Parse Token (Signed)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1856,
-        6680
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "cont0062-6262-4a5a-9b1a-contract000062",
-      "name": "Look Up Requester (Signed)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        2080,
-        6752
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
       "onError": "continueErrorOutput"
     },
     {
@@ -1244,48 +942,10 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst body = $input.first().json.body || {};\nconst contractId = parseInt(body.contract_id, 10);\nif (!Number.isInteger(contractId)) throw new Error('\"contract_id\" must be an integer.');\nconst to = (body.to || '').toString().trim();\nconst subject = (body.subject || '').toString().trim();\nconst message = (body.body || '').toString().trim();\nif (!to || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(to)) throw new Error('A valid \"to\" email is required.');\nif (!subject) throw new Error('Subject is required.');\nif (!message) throw new Error('Message body is required.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10), contractId, to, subject, message } }];"
-      },
-      "id": "cont0071-7171-4a5a-9b1a-contract000071",
-      "name": "Parse Token & Payload (Send Signed)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1632,
-        3704
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "query": "SELECT ct.id AS contract_id, ct.public_token, ct.proposal_id, p.public_token AS proposal_token, o.assigned_user, c.id AS contact_id, c.unsubscribe_token\nFROM contracts ct\nJOIN opportunities o ON o.id = ct.opportunity_id\nLEFT JOIN proposals p ON p.id = ct.proposal_id\nLEFT JOIN contacts c ON c.id = o.contact_id\nWHERE ct.id = $1 AND ct.status = 'signed';",
         "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "cont0072-7272-4a5a-9b1a-contract000072",
-      "name": "Look Up Requester (Send Signed)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        1856,
-        3776
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT ct.id AS contract_id, ct.public_token, ct.proposal_id, p.public_token AS proposal_token, o.assigned_user\nFROM contracts ct\nJOIN opportunities o ON o.id = ct.opportunity_id\nLEFT JOIN proposals p ON p.id = ct.proposal_id\nWHERE ct.id = $1 AND ct.status = 'signed';",
-        "options": {
-          "queryReplacement": "={{ [ $('Parse Token & Payload (Send Signed)').item.json.contractId ] }}"
+          "queryReplacement": "={{ [ $('Validate Session (Send Signed)').item.json.contractId ] }}"
         }
       },
       "id": "cont0073-7373-4a5a-9b1a-contract000073",
@@ -1306,7 +966,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const row = $input.item.json;\nconst requester = $('Look Up Requester (Send Signed)').first().json;\nconst payload = $('Parse Token & Payload (Send Signed)').first().json;\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (!row.contract_id) throw new Error('Signed contract not found.');\nif (requester.role !== 'admin' && row.assigned_user !== requester.id) throw new Error('You do not have access to this deal.');\n\nreturn [{ json: { to: payload.to, subject: payload.subject, body: payload.message, publicToken: row.public_token, proposalToken: row.proposal_token || null } }];"
+        "jsCode": "const row = $input.item.json;\nconst requester = $('Validate Session (Send Signed)').first().json;\nconst payload = $('Validate Session (Send Signed)').first().json;\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (!row.contract_id) throw new Error('Signed contract not found.');\nif (requester.role !== 'admin' && row.assigned_user !== requester.id) throw new Error('You do not have access to this deal.');\n\nfunction safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\nconst unsubUrl = safeEnv('FRONTEND_BASE_URL') + '/unsubscribe/' + (row.unsubscribe_token || '');\nconst bodyWithFooter = payload.message + \"\\n\\nDon't want these emails? Unsubscribe: \" + unsubUrl;\n\nreturn [{ json: { to: payload.to, subject: payload.subject, body: bodyWithFooter, publicToken: row.public_token, proposalToken: row.proposal_token || null, contactId: row.contact_id } }];"
       },
       "id": "cont0074-7474-4a5a-9b1a-contract000074",
       "name": "Validate & Prepare (Send Signed)",
@@ -1332,7 +992,8 @@
                 "property": "={{ Object.keys($binary).join(',') }}"
               }
             ]
-          }
+          },
+          "appendAttribution": false
         }
       },
       "id": "cont0075-7575-4a5a-9b1a-contract000075",
@@ -1387,48 +1048,10 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst body = $input.first().json.body || {};\nconst contractId = parseInt(body.contract_id, 10);\nif (!Number.isInteger(contractId)) throw new Error('\"contract_id\" must be an integer.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10), contractId } }];"
-      },
-      "id": "cont0081-8181-4a5a-9b1a-contract000081",
-      "name": "Parse Token & Payload (PDF)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1408,
-        1832
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "cont0082-8282-4a5a-9b1a-contract000082",
-      "name": "Look Up Requester (PDF)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        1632,
-        1976
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
         "operation": "executeQuery",
         "query": "SELECT ct.id, ct.title, ct.public_token, ct.proposal_id, p.public_token AS proposal_token, o.assigned_user\nFROM contracts ct\nJOIN opportunities o ON o.id = ct.opportunity_id\nLEFT JOIN proposals p ON p.id = ct.proposal_id\nWHERE ct.id = $1;",
         "options": {
-          "queryReplacement": "={{ [ $('Parse Token & Payload (PDF)').item.json.contractId ] }}"
+          "queryReplacement": "={{ [ $('Validate Session (PDF)').item.json.contractId ] }}"
         }
       },
       "id": "cont0083-8383-4a5a-9b1a-contract000083",
@@ -1449,7 +1072,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const row = $input.item.json;\nconst requester = $('Look Up Requester (PDF)').first().json;\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (!row.id) throw new Error('Contract not found.');\nif (requester.role !== 'admin' && row.assigned_user !== requester.id) throw new Error('You do not have access to this deal.');\n\nreturn [{ json: { title: row.title, publicToken: row.public_token, proposalToken: row.proposal_token || null } }];"
+        "jsCode": "const row = $input.item.json;\nconst requester = $('Validate Session (PDF)').first().json;\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (!row.id) throw new Error('Contract not found.');\nif (requester.role !== 'admin' && row.assigned_user !== requester.id) throw new Error('You do not have access to this deal.');\n\nreturn [{ json: { title: row.title, publicToken: row.public_token, proposalToken: row.proposal_token || null } }];"
       },
       "id": "cont0084-8484-4a5a-9b1a-contract000084",
       "name": "Validate & Prepare (PDF)",
@@ -1510,50 +1133,6 @@
       "onError": "continueErrorOutput"
     },
     {
-      "id": "ct-tag-signed",
-      "name": "Resolve Tag: Contract Signed",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        1520,
-        500
-      ],
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO tags (name) VALUES ('contract signed') ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id;",
-        "options": {}
-      },
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    },
-    {
-      "id": "ct-taggable-signed",
-      "name": "Insert Taggable: Contract Signed",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        1740,
-        500
-      ],
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO taggables (tag_id, entity_type, entity_id) VALUES ($1, 'contact', (SELECT contact_id FROM opportunities WHERE id = $2)) ON CONFLICT (tag_id, entity_type, entity_id) DO NOTHING;",
-        "options": {
-          "queryReplacement": "={{ [ $json.id, $('Validate & Prepare Sign').item.json.opportunityId ] }}"
-        }
-      },
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    },
-    {
       "id": "ct-dp-compute",
       "name": "Compute Down Payment Amount",
       "type": "n8n-nodes-base.code",
@@ -1563,7 +1142,7 @@
         -100
       ],
       "parameters": {
-        "jsCode": "const row = $('Validate & Prepare Sign').item.json;\nconst amount = Math.round((Number(row.totalAmount) || 0) * 0.30 * 100) / 100;\nconst lineItems = [{ product: 'Down Payment (30%)', qty: 1, unit_price: amount, discount: 0, tax: 0, total: amount }];\nreturn [{ json: { amount, lineItemsJson: JSON.stringify(lineItems) } }];"
+        "jsCode": "const row = $('Validate & Prepare Sign').item.json;\n// Base the down payment on the proposal's scope of work (its line items + total),\n// since that's the agreed-upon price breakdown \u2014 fall back to the contract's flat\n// total only if this contract has no linked proposal.\nconst scopeTotal = row.proposalTotalAmount != null ? Number(row.proposalTotalAmount) : Number(row.totalAmount) || 0;\nconst scopeLineItems = Array.isArray(row.proposalLineItems) ? row.proposalLineItems : [];\nconst amount = Math.round(scopeTotal * 0.30 * 100) / 100;\nconst balance = Math.round((scopeTotal - amount) * 100) / 100;\nconst lineItems = [{ product: 'Down Payment (30%)', qty: 1, unit_price: amount, discount: 0, tax: 0, total: amount }];\nconst money = (n) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });\nconst customerNotes = `Down payment (30% of $${money(scopeTotal)} \u2014 ${row.dealName || 'this job'}) \u2014 Balance due on completion: $${money(balance)}`;\nreturn [{ json: { amount, lineItemsJson: JSON.stringify(lineItems), scopeLineItemsJson: JSON.stringify(scopeLineItems), scopeTotal, customerNotes } }];"
       }
     },
     {
@@ -1577,9 +1156,9 @@
       ],
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH existing AS (\n  SELECT id FROM invoices WHERE opportunity_id = $1 AND invoice_type = 'down_payment' LIMIT 1\n),\ninserted AS (\n  INSERT INTO invoices (opportunity_id, contact_id, amount, tax, discount, total, line_items, issue_date, due_date, invoice_type, invoice_number)\n  SELECT $1, $2, $3, 0, 0, $3, $4::jsonb, CURRENT_DATE, CURRENT_DATE + 7, 'down_payment', ''\n  WHERE NOT EXISTS (SELECT 1 FROM existing)\n  RETURNING id\n)\nSELECT id FROM inserted UNION ALL SELECT id FROM existing LIMIT 1;",
+        "query": "WITH existing AS (\n  SELECT id FROM invoices WHERE opportunity_id = $1 AND invoice_type = 'down_payment' LIMIT 1\n),\ninserted AS (\n  INSERT INTO invoices (opportunity_id, contact_id, amount, tax, discount, total, line_items, issue_date, due_date, invoice_type, invoice_number, customer_notes)\n  SELECT $1, $2, $3, 0, 0, $3, $4::jsonb, CURRENT_DATE, CURRENT_DATE + 7, 'down_payment', '', $5\n  WHERE NOT EXISTS (SELECT 1 FROM existing)\n  RETURNING id\n)\nSELECT id FROM inserted UNION ALL SELECT id FROM existing LIMIT 1;",
         "options": {
-          "queryReplacement": "={{ [ $('Validate & Prepare Sign').item.json.opportunityId, $('Validate & Prepare Sign').item.json.contactId, $('Compute Down Payment Amount').item.json.amount, $('Compute Down Payment Amount').item.json.lineItemsJson ] }}"
+          "queryReplacement": "={{ [ $('Validate & Prepare Sign').item.json.opportunityId, $('Validate & Prepare Sign').item.json.contactId, $('Compute Down Payment Amount').item.json.amount, $('Compute Down Payment Amount').item.json.lineItemsJson, $('Compute Down Payment Amount').item.json.customerNotes ] }}"
         }
       },
       "credentials": {
@@ -1604,27 +1183,6 @@
         "options": {
           "queryReplacement": "={{ [ $json.id ] }}"
         }
-      },
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    },
-    {
-      "id": "cname-tmjcjgod",
-      "name": "Get Company Name: Signed Confirmation Email",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        2826,
-        7760
-      ],
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT company_name FROM company_profile LIMIT 1;",
-        "options": {}
       },
       "credentials": {
         "postgres": {
@@ -1695,47 +1253,10 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst body = $input.first().json.body || {};\nconst contractId = parseInt(body.contract_id, 10);\nif (!Number.isInteger(contractId)) throw new Error('\"contract_id\" must be an integer.');\nconst ownerFieldId = String(body.owner_field_id || '').trim();\nif (!ownerFieldId) throw new Error('\"owner_field_id\" is required.');\nconst signatureData = String(body.signature_data || '').trim();\nif (!signatureData) throw new Error('\"signature_data\" is required.');\n// Any other owner-role fields (e.g. a date next to the signature) the\n// countersigner filled in on the same document \u2014 merged into\n// field_values alongside the signature so they land the same way the\n// client's own field_values do at sign time.\nconst fieldValues = (body.field_values && typeof body.field_values === 'object') ? body.field_values : {};\n\nreturn [{ json: { requesterId: parseInt(match[1], 10), contractId, ownerFieldId, signatureData, fieldValues } }];"
-      },
-      "id": "cont0091-9191-4a5a-9b1a-contract000091",
-      "name": "Parse Token & Payload (Cosign)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1632,
-        7440
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "cont0092-9292-4a5a-9b1a-contract000092",
-      "name": "Look Up Requester (Cosign)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1856,
-        7440
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    },
-    {
-      "parameters": {
         "operation": "executeQuery",
         "query": "SELECT ct.id, ct.cosigned_at, ct.signed_at, o.assigned_user\nFROM (SELECT $1::int AS cid) dummy\nLEFT JOIN contracts ct ON ct.id = dummy.cid\nLEFT JOIN opportunities o ON o.id = ct.opportunity_id;",
         "options": {
-          "queryReplacement": "={{ [ $('Parse Token & Payload (Cosign)').item.json.contractId ] }}"
+          "queryReplacement": "={{ [ $('Validate Session (Cosign)').item.json.contractId ] }}"
         }
       },
       "id": "cont0093-9393-4a5a-9b1a-contract000093",
@@ -1755,7 +1276,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const row = $input.item.json;\nconst requester = $('Look Up Requester (Cosign)').first().json;\nconst { ownerFieldId, signatureData, fieldValues } = $('Parse Token & Payload (Cosign)').first().json;\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (!row.id) throw new Error('Contract not found.');\nif (requester.role !== 'admin' && row.assigned_user !== requester.id) throw new Error('You do not have access to this deal.');\nif (!row.signed_at) throw new Error('This contract has not been signed by the client yet.');\nif (row.cosigned_at) throw new Error('This contract has already been countersigned.');\n\n// The countersignature represents the deal's assigned owner (matches\n// the {{owner_name}} merge token already printed in the document body,\n// e.g. \"Apex Roofing Representative: Juan Smith\") \u2014 always attributed\n// to them even when an admin is the one physically clicking Countersign\n// on their behalf, so the audit trail never disagrees with the document\n// text. Falls back to the acting admin only if the deal somehow has no\n// assigned owner.\nconst cosignedBy = row.assigned_user || requester.id;\n\nreturn [{ json: { contractId: row.id, cosignedBy, ownerFieldId, signatureData, fieldValues: JSON.stringify(fieldValues || {}) } }];"
+        "jsCode": "const row = $input.item.json;\nconst requester = $('Validate Session (Cosign)').first().json;\nconst { ownerFieldId, signatureData, fieldValues } = $('Validate Session (Cosign)').first().json;\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (!row.id) throw new Error('Contract not found.');\nif (requester.role !== 'admin' && row.assigned_user !== requester.id) throw new Error('You do not have access to this deal.');\nif (!row.signed_at) throw new Error('This contract has not been signed by the client yet.');\nif (row.cosigned_at) throw new Error('This contract has already been countersigned.');\n\n// The countersignature represents the deal's assigned owner (matches\n// the {{owner_name}} merge token already printed in the document body,\n// e.g. \"Apex Roofing Representative: Juan Smith\") \u2014 always attributed\n// to them even when an admin is the one physically clicking Countersign\n// on their behalf, so the audit trail never disagrees with the document\n// text. Falls back to the acting admin only if the deal somehow has no\n// assigned owner.\nconst cosignedBy = row.assigned_user || requester.id;\n\nreturn [{ json: { contractId: row.id, cosignedBy, ownerFieldId, signatureData, fieldValues: JSON.stringify(fieldValues || {}) } }];"
       },
       "id": "cont0094-9494-4a5a-9b1a-contract000094",
       "name": "Validate (Cosign)",
@@ -1839,6 +1360,611 @@
         4112
       ],
       "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1856,
+        5288
+      ],
+      "id": "extract-bearer-Get",
+      "name": "Extract Bearer Token (Get)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-Get",
+      "name": "Execute Workflow: Verify Session (Get)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1886,
+        5303
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        5360
+      ],
+      "id": "validate-session-Get",
+      "name": "Validate Session (Get)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        920
+      ],
+      "id": "extract-bearer-Save",
+      "name": "Extract Bearer Token (Save)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-Save",
+      "name": "Execute Workflow: Verify Session (Save)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1214,
+        935
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        1064
+      ],
+      "id": "validate-session-Save",
+      "name": "Validate Session (Save)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1856,
+        5984
+      ],
+      "id": "extract-bearer-Send",
+      "name": "Extract Bearer Token (Send)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-Send",
+      "name": "Execute Workflow: Verify Session (Send)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1886,
+        5999
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nconst body = $('Webhook - Send Contract').first().json.body || {};\nconst contractId = parseInt(body.contract_id, 10);\nif (!Number.isInteger(contractId)) throw new Error('\"contract_id\" must be an integer.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active, contractId } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        6056
+      ],
+      "id": "validate-session-Send",
+      "name": "Validate Session (Send)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        2888
+      ],
+      "id": "extract-bearer-Archive",
+      "name": "Extract Bearer Token (Archive)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-Archive",
+      "name": "Execute Workflow: Verify Session (Archive)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1662,
+        2903
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nconst body = $('Webhook - Archive Contract').first().json.body || {};\nconst contractId = parseInt(body.id, 10);\nif (!Number.isInteger(contractId)) throw new Error('\"id\" must be an integer.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active, contractId } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1856,
+        2960
+      ],
+      "id": "validate-session-Archive",
+      "name": "Validate Session (Archive)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        4520
+      ],
+      "id": "extract-bearer-Delete",
+      "name": "Extract Bearer Token (Delete)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-Delete",
+      "name": "Execute Workflow: Verify Session (Delete)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1662,
+        4535
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nconst body = $('Webhook - Delete Contract').first().json.body || {};\nconst contractId = parseInt(body.id, 10);\nif (!Number.isInteger(contractId)) throw new Error('\"id\" must be an integer.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active, contractId } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1856,
+        4592
+      ],
+      "id": "validate-session-Delete",
+      "name": "Validate Session (Delete)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1856,
+        6680
+      ],
+      "id": "extract-bearer-Signed",
+      "name": "Extract Bearer Token (Signed)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-Signed",
+      "name": "Execute Workflow: Verify Session (Signed)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1886,
+        6695
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        6752
+      ],
+      "id": "validate-session-Signed",
+      "name": "Validate Session (Signed)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        3704
+      ],
+      "id": "extract-bearer-Send-Signed",
+      "name": "Extract Bearer Token (Send Signed)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-Send-Signed",
+      "name": "Execute Workflow: Verify Session (Send Signed)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1662,
+        3719
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nconst body = $('Webhook - Send Signed Contract Email').first().json.body || {};\nconst contractId = parseInt(body.contract_id, 10);\nif (!Number.isInteger(contractId)) throw new Error('\"contract_id\" must be an integer.');\nconst to = (body.to || '').toString().trim();\nconst subject = (body.subject || '').toString().trim();\nconst message = (body.body || '').toString().trim();\nif (!to || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(to)) throw new Error('A valid \"to\" email is required.');\nif (!subject) throw new Error('Subject is required.');\nif (!message) throw new Error('Message body is required.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active, contractId, to, subject, message } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1856,
+        3776
+      ],
+      "id": "validate-session-Send-Signed",
+      "name": "Validate Session (Send Signed)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        1832
+      ],
+      "id": "extract-bearer-PDF",
+      "name": "Extract Bearer Token (PDF)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-PDF",
+      "name": "Execute Workflow: Verify Session (PDF)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1438,
+        1847
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nconst body = $('Webhook - Generate Contract PDF').first().json.body || {};\nconst contractId = parseInt(body.contract_id, 10);\nif (!Number.isInteger(contractId)) throw new Error('\"contract_id\" must be an integer.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active, contractId } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        1976
+      ],
+      "id": "validate-session-PDF",
+      "name": "Validate Session (PDF)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        7440
+      ],
+      "id": "extract-bearer-Cosign",
+      "name": "Extract Bearer Token (Cosign)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-Cosign",
+      "name": "Execute Workflow: Verify Session (Cosign)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1662,
+        7455
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nconst body = $('Webhook - Cosign Contract').first().json.body || {};\nconst contractId = parseInt(body.contract_id, 10);\nif (!Number.isInteger(contractId)) throw new Error('\"contract_id\" must be an integer.');\nconst ownerFieldId = String(body.owner_field_id || '').trim();\nif (!ownerFieldId) throw new Error('\"owner_field_id\" is required.');\nconst signatureData = String(body.signature_data || '').trim();\nif (!signatureData) throw new Error('\"signature_data\" is required.');\nconst fieldValues = (body.field_values && typeof body.field_values === 'object') ? body.field_values : {};\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active, contractId, ownerFieldId, signatureData, fieldValues } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1856,
+        7440
+      ],
+      "id": "validate-session-Cosign",
+      "name": "Validate Session (Cosign)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map((i) => i.json).filter((r) => r && Object.keys(r).length > 0);\nreturn [{ json: { rows } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "id": "ensure-array-get-contracts",
+      "name": "Ensure Array Response: get-contracts",
+      "position": [
+        2558,
+        5519
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Contracts\" }}",
+            "workflow_id": "={{ \"ML9d178ynDkLyMgs\" }}",
+            "entity_type": "={{ \"opportunities\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-sign-contract-public-0",
+      "name": "Log Workflow Run: Webhook - Sign Contract Public",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        2095,
+        7481
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts SET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object('id', gen_random_uuid()::text, 'type', 'sent', 'subject', $1::text, 'message', $2::text, 'sent_at', NOW(), 'is_read', true) WHERE id = $3;",
+        "options": {
+          "queryReplacement": "={{ [ $('Validate & Personalize (Send)').item.json.subject, $('Validate & Personalize (Send)').item.json.body, $('Validate & Personalize (Send)').item.json.contactId ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2772,
+        6484
+      ],
+      "id": "log-contract-manual",
+      "name": "Log Sent Email: Contract (Manual)",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts SET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object('id', gen_random_uuid()::text, 'type', 'sent', 'subject', $1::text, 'message', $2::text, 'sent_at', NOW(), 'is_read', true) WHERE id = $3;",
+        "options": {
+          "queryReplacement": "={{ [ $('Validate & Prepare (Send Signed)').item.json.subject, $('Validate & Prepare (Send Signed)').item.json.body, $('Validate & Prepare (Send Signed)').item.json.contactId ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2548,
+        4012
+      ],
+      "id": "log-signed-contract",
+      "name": "Log Sent Email: Signed Contract",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
@@ -1893,7 +2019,7 @@
       "main": [
         [
           {
-            "node": "Look Up Contract For Sign",
+            "node": "Log Workflow Run: Webhook - Sign Contract Public",
             "type": "main",
             "index": 0
           }
@@ -1947,7 +2073,7 @@
       "main": [
         [
           {
-            "node": "Respond - Sign Success",
+            "node": "Save Signature & Advance Stage",
             "type": "main",
             "index": 0
           }
@@ -1968,40 +2094,6 @@
             "node": "Compute Down Payment Amount",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "Resolve Tag: Contract Signed",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Prepare Signed Confirmation Email": {
-      "main": [
-        [
-          {
-            "node": "Get Company Name: Signed Confirmation Email",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Send Signed Confirmation Email": {
-      "main": [
-        [
-          {
-            "node": "Prepare Owner Notification Email",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Prepare Owner Notification Email",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
@@ -2010,43 +2102,7 @@
       "main": [
         [
           {
-            "node": "Parse Token (Get)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token (Get)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester (Get)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester (Get)": {
-      "main": [
-        [
-          {
-            "node": "Validate & Payload (Get)",
+            "node": "Extract Bearer Token (Get)",
             "type": "main",
             "index": 0
           }
@@ -2082,7 +2138,7 @@
       "main": [
         [
           {
-            "node": "Respond - Get Contracts",
+            "node": "Ensure Array Response: get-contracts",
             "type": "main",
             "index": 0
           }
@@ -2100,43 +2156,7 @@
       "main": [
         [
           {
-            "node": "Parse Token (Save)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token (Save)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester (Save)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester (Save)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Opportunity (Save)",
+            "node": "Extract Bearer Token (Save)",
             "type": "main",
             "index": 0
           }
@@ -2230,43 +2250,7 @@
       "main": [
         [
           {
-            "node": "Parse Token & Payload (Send)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token & Payload (Send)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester (Send)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester (Send)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Contract (Send)",
+            "node": "Extract Bearer Token (Send)",
             "type": "main",
             "index": 0
           }
@@ -2320,7 +2304,7 @@
       "main": [
         [
           {
-            "node": "Mark Sent",
+            "node": "Log Sent Email: Contract (Manual)",
             "type": "main",
             "index": 0
           }
@@ -2343,43 +2327,7 @@
       "main": [
         [
           {
-            "node": "Parse Token & Payload (Archive)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token & Payload (Archive)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester (Archive)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester (Archive)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Contract (Archive)",
+            "node": "Extract Bearer Token (Archive)",
             "type": "main",
             "index": 0
           }
@@ -2451,43 +2399,7 @@
       "main": [
         [
           {
-            "node": "Parse Token & Payload (Delete)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token & Payload (Delete)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester (Delete)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester (Delete)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Contract (Delete)",
+            "node": "Extract Bearer Token (Delete)",
             "type": "main",
             "index": 0
           }
@@ -2566,35 +2478,6 @@
         ]
       ]
     },
-    "Prepare Owner Notification Email": {
-      "main": [
-        [
-          {
-            "node": "Send Owner Notification Email",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Send Owner Notification Email": {
-      "main": [
-        [
-          {
-            "node": "Respond - Sign Success",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Sign Success",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Build Contract Found Response": {
       "main": [
         [
@@ -2610,43 +2493,7 @@
       "main": [
         [
           {
-            "node": "Parse Token (Signed)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token (Signed)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester (Signed)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester (Signed)": {
-      "main": [
-        [
-          {
-            "node": "Validate & Payload (Signed)",
+            "node": "Extract Bearer Token (Signed)",
             "type": "main",
             "index": 0
           }
@@ -2729,43 +2576,7 @@
       "main": [
         [
           {
-            "node": "Parse Token & Payload (Send Signed)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token & Payload (Send Signed)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester (Send Signed)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester (Send Signed)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Contract (Send Signed)",
+            "node": "Extract Bearer Token (Send Signed)",
             "type": "main",
             "index": 0
           }
@@ -2819,7 +2630,7 @@
       "main": [
         [
           {
-            "node": "Respond - Send Signed Contract Email Success",
+            "node": "Log Sent Email: Signed Contract",
             "type": "main",
             "index": 0
           }
@@ -2837,43 +2648,7 @@
       "main": [
         [
           {
-            "node": "Parse Token & Payload (PDF)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token & Payload (PDF)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester (PDF)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester (PDF)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Contract (PDF)",
+            "node": "Extract Bearer Token (PDF)",
             "type": "main",
             "index": 0
           }
@@ -2959,17 +2734,6 @@
         ]
       ]
     },
-    "Resolve Tag: Contract Signed": {
-      "main": [
-        [
-          {
-            "node": "Insert Taggable: Contract Signed",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Compute Down Payment Amount": {
       "main": [
         [
@@ -2996,18 +2760,7 @@
       "main": [
         [
           {
-            "node": "Prepare Owner Notification Email",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get Company Name: Signed Confirmation Email": {
-      "main": [
-        [
-          {
-            "node": "Send Signed Confirmation Email",
+            "node": "Respond - Sign Success",
             "type": "main",
             "index": 0
           }
@@ -3040,43 +2793,7 @@
       "main": [
         [
           {
-            "node": "Parse Token & Payload (Cosign)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token & Payload (Cosign)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester (Cosign)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester (Cosign)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Contract (Cosign)",
+            "node": "Extract Bearer Token (Cosign)",
             "type": "main",
             "index": 0
           }
@@ -3167,6 +2884,536 @@
         [
           {
             "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (Get)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Get)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (Get)": {
+      "main": [
+        [
+          {
+            "node": "Validate & Payload (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (Save)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Save)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (Save)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Opportunity (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (Send)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Send)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Send)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (Send)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (Send)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Contract (Send)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (Archive)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Archive)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Archive)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (Archive)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (Archive)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Contract (Archive)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Contract (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (Signed)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Signed)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Signed)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (Signed)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (Signed)": {
+      "main": [
+        [
+          {
+            "node": "Validate & Payload (Signed)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (Send Signed)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Send Signed)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Send Signed)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (Send Signed)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (Send Signed)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Contract (Send Signed)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (PDF)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (PDF)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (PDF)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (PDF)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (PDF)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Contract (PDF)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (Cosign)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Cosign)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Cosign)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (Cosign)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (Cosign)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Contract (Cosign)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ensure Array Response: get-contracts": {
+      "main": [
+        [
+          {
+            "node": "Respond - Get Contracts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook - Sign Contract Public": {
+      "main": [
+        [
+          {
+            "node": "Look Up Contract For Sign",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Sent Email: Contract (Manual)": {
+      "main": [
+        [
+          {
+            "node": "Mark Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Sent Email: Signed Contract": {
+      "main": [
+        [
+          {
+            "node": "Respond - Send Signed Contract Email Success",
             "type": "main",
             "index": 0
           }

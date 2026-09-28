@@ -1,0 +1,492 @@
+{
+  "name": "Proposal-Contract email Engine",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes"
+            }
+          ]
+        }
+      },
+      "id": "ddfe0001-1111-4a5a-9b1a-docengine00001",
+      "name": "Schedule Trigger: every 30 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        208,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT i.id AS invoice_id, ct.public_token AS contract_token, c.id AS contact_id, c.email, c.first_name, c.last_name, c.phone, c.dnc_sms, c.unsubscribe_token, o.name AS deal_name FROM invoices i JOIN contracts ct ON ct.opportunity_id = i.opportunity_id JOIN opportunities o ON o.id = i.opportunity_id AND o.is_archived = false AND o.status = 'Open' JOIN contacts c ON c.id = i.contact_id AND c.email IS NOT NULL AND c.email <> '' WHERE i.invoice_type = 'down_payment' AND i.reminder_sent_at IS NULL AND i.created_at <= now() - interval '48 hours' AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.invoice_id = i.id AND p.status = 'succeeded');",
+        "options": {}
+      },
+      "id": "dp-select",
+      "name": "Select Unpaid Down Payments Due",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        432,
+        1216
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT subject, body FROM email_templates WHERE id = 24;",
+        "options": {}
+      },
+      "id": "dp-lookup-tmpl",
+      "name": "Look Up Template: DP Reminder",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        656,
+        1216
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $('Select Unpaid Down Payments Due').item.json;\nlet base = '';\ntry { base = $env.FRONTEND_BASE_URL || ''; } catch (e) { base = ''; }\nconst link = `${base}/documents/contract/${row.contract_token}`;\nfunction fill(t) {\n  return (t || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, row.first_name || 'there')\n    .replace(/{{\\s*deal_name\\s*}}/gi, row.deal_name || '')\n    .replace(/{{\\s*contract_link\\s*}}/gi, link);\n}\nconst tmpl = $input.item.json;\nconst unsubUrl = base + '/unsubscribe/' + (row.unsubscribe_token || '');\nconst htmlBody = fill(tmpl.body).replace(/\\n/g, '<br>') + `<br><br><span style=\"font-size:11px;color:#94a3b8\">Don't want these emails? <a href=\"${unsubUrl}\">Unsubscribe</a></span>`;\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject), htmlBody } }];"
+      },
+      "id": "dp-fill",
+      "name": "Fill Email: DP Reminder",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        1216
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Fill Email: DP Reminder').item.json.to }}",
+        "subject": "={{ ($('Fill Email: DP Reminder').item.json.subject).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Email: DP Reminder').item.json.company_name) }}",
+        "message": "={{ (($('Fill Email: DP Reminder').item.json.htmlBody).replace(/The Team/g, $('Get Company Name: Email: DP Reminder').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Email: DP Reminder').item.json.company_name) }}",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "={{ $('Get Company Name: Email: DP Reminder').item.json.company_name }}"
+        }
+      },
+      "id": "dp-send",
+      "name": "Send Email: DP Reminder",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1328,
+        1216
+      ],
+      "webhookId": "3c7fafb7-9d6d-461d-8d65-dd59127e3ca4",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts SET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object('id', gen_random_uuid()::text, 'type', 'sent', 'subject', $1::text, 'message', $2::text, 'sent_at', NOW(), 'is_read', true) WHERE email = $3;",
+        "options": {
+          "queryReplacement": "={{ [ ($('Fill Email: DP Reminder').item.json.subject).replace(/\\{\\{\\s*company[._]name\\s*\\}\\}/gi, $('Get Company Name: Email: DP Reminder').item.json.company_name), $('Fill Email: DP Reminder').item.json.htmlBody.replace(/<br\\s*\\/?\\s*>/gi, '\\n').replace(/<[^>]+>/g, '').replace(/The Team/g, $('Get Company Name: Email: DP Reminder').item.json.company_name + ' Team').replace(/\\{\\{\\s*company[._]name\\s*\\}\\}/gi, $('Get Company Name: Email: DP Reminder').item.json.company_name), $('Select Unpaid Down Payments Due').item.json.email ] }}"
+        }
+      },
+      "id": "dp-log",
+      "name": "Log Sent Email: DP Reminder",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1552,
+        1216
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE invoices SET reminder_sent_at = now() WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Select Unpaid Down Payments Due').item.json.invoice_id ] }}"
+        }
+      },
+      "id": "dp-mark",
+      "name": "Mark DP Reminder Sent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1776,
+        1216
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "manual-test-OlV4JpavvfgbGYQB",
+        "options": {}
+      },
+      "id": "mt-webhook-OlV4JpavvfgbGYQB",
+      "name": "Webhook: manual-test",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "webhookId": "96699b62-dabb-4d2d-92de-3d1e57c0c1f9",
+      "position": [
+        208,
+        1216
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO automation_runs (automation_id, action_id, entity_type, entity_id, branch, status, detail) VALUES (40, 117, 'pipeline', (SELECT opportunity_id FROM invoices WHERE id = $1), 'default', 'success', $2);",
+        "options": {
+          "queryReplacement": "={{ [ $('Select Unpaid Down Payments Due').item.json.invoice_id, 'Down payment reminder sent' ] }}"
+        }
+      },
+      "id": "log-ib0m0x7z",
+      "name": "Log Automation Run: DP Reminder",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2000,
+        1120
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT (SELECT value FROM integration_secrets WHERE key='twilio_account_sid') AS account_sid, (SELECT value FROM integration_secrets WHERE key='twilio_from_number') AS from_number;",
+        "options": {}
+      },
+      "id": "sms-twcfg-67kx7b",
+      "name": "Get Twilio Config: DP Reminder",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2000,
+        1312
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ !!($('Select Unpaid Down Payments Due').item.json.phone) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "c2",
+              "leftValue": "={{ ($('Select Unpaid Down Payments Due').item.json.dnc_sms) === true }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sms-if-5jfviu",
+      "name": "Can Send SMS: DP Reminder",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2224,
+        1312
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.twilio.com/2010-04-01/Accounts/' + $('Get Twilio Config: DP Reminder').item.json.account_sid + '/Messages.json' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "To",
+              "value": "={{ $('Select Unpaid Down Payments Due').item.json.phone }}"
+            },
+            {
+              "name": "From",
+              "value": "={{ $('Get Twilio Config: DP Reminder').item.json.from_number }}"
+            },
+            {
+              "name": "Body",
+              "value": "={{ 'Hi ' + ($('Select Unpaid Down Payments Due').item.json.first_name || 'there') + ', reminder to complete your down payment - check your email for the link! Reply STOP to opt out.' }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "id": "sms-send-bic3pu",
+      "name": "Send SMS: DP Reminder",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2448,
+        1312
+      ],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "xELUPXoNdBY2j9Eu",
+          "name": "Twilio Auth (PLACEHOLDER - replace me)"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO automation_runs (automation_id, action_id, entity_type, entity_id, branch, status, detail) VALUES (40, 129, 'pipeline', (SELECT opportunity_id FROM invoices WHERE id = $1), 'default', 'success', $2);",
+        "options": {
+          "queryReplacement": "={{ [ $('Select Unpaid Down Payments Due').item.json.invoice_id, 'DP Reminder SMS sent' ] }}"
+        }
+      },
+      "id": "sms-log-ggiaos",
+      "name": "Log Automation Run: SMS DP Reminder",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2672,
+        1312
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT company_name FROM company_profile LIMIT 1;",
+        "options": {}
+      },
+      "id": "cname-dvpaolir",
+      "name": "Get Company Name: Email: DP Reminder",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1104,
+        1216
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger: every 30 min": {
+      "main": [
+        [
+          {
+            "node": "Select Unpaid Down Payments Due",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Unpaid Down Payments Due": {
+      "main": [
+        [
+          {
+            "node": "Look Up Template: DP Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Template: DP Reminder": {
+      "main": [
+        [
+          {
+            "node": "Fill Email: DP Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fill Email: DP Reminder": {
+      "main": [
+        [
+          {
+            "node": "Get Company Name: Email: DP Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email: DP Reminder": {
+      "main": [
+        [
+          {
+            "node": "Log Sent Email: DP Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Log Sent Email: DP Reminder": {
+      "main": [
+        [
+          {
+            "node": "Mark DP Reminder Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: manual-test": {
+      "main": [
+        [
+          {
+            "node": "Select Unpaid Down Payments Due",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark DP Reminder Sent": {
+      "main": [
+        [
+          {
+            "node": "Log Automation Run: DP Reminder",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Twilio Config: DP Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Twilio Config: DP Reminder": {
+      "main": [
+        [
+          {
+            "node": "Can Send SMS: DP Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Can Send SMS: DP Reminder": {
+      "main": [
+        [
+          {
+            "node": "Send SMS: DP Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Send SMS: DP Reminder": {
+      "main": [
+        [
+          {
+            "node": "Log Automation Run: SMS DP Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Company Name: Email: DP Reminder": {
+      "main": [
+        [
+          {
+            "node": "Send Email: DP Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "callerPolicy": "workflowsFromSameOwner"
+  }
+}

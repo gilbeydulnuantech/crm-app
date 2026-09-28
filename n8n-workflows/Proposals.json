@@ -1,1096 +1,4 @@
 {
-  "active": true,
-  "connections": {
-    "Webhook - Get Proposals": {
-      "main": [
-        [
-          {
-            "node": "Parse Token (Get)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token (Get)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester (Get)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester (Get)": {
-      "main": [
-        [
-          {
-            "node": "Validate & Payload (Get)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Validate & Payload (Get)": {
-      "main": [
-        [
-          {
-            "node": "Select Proposals",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Select Proposals": {
-      "main": [
-        [
-          {
-            "node": "Respond - Get Proposals",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Webhook - Save Proposal": {
-      "main": [
-        [
-          {
-            "node": "Parse Token (Save)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token (Save)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester (Save)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester (Save)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Opportunity (Save)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Opportunity (Save)": {
-      "main": [
-        [
-          {
-            "node": "Validate & Payload (Save)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Validate & Payload (Save)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Matching Flow (Save)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Matching Flow (Save)": {
-      "main": [
-        [
-          {
-            "node": "Prepare Proposal Fields",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Prepare Proposal Fields": {
-      "main": [
-        [
-          {
-            "node": "Upsert Proposal",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Upsert Proposal": {
-      "main": [
-        [
-          {
-            "node": "Respond - Save Success",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Webhook - Send Proposal": {
-      "main": [
-        [
-          {
-            "node": "Parse Token & Payload (Send)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token & Payload (Send)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester (Send)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester (Send)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Proposal (Send)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Proposal (Send)": {
-      "main": [
-        [
-          {
-            "node": "Validate & Personalize (Send)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Validate & Personalize (Send)": {
-      "main": [
-        [
-          {
-            "node": "Get Company Name: Proposal Email (Manual)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Send Proposal Email (Manual)": {
-      "main": [
-        [
-          {
-            "node": "Mark Emailed (Send)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        []
-      ]
-    },
-    "Mark Emailed (Send)": {
-      "main": [
-        [
-          {
-            "node": "Respond - Send Success",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Webhook - Archive Proposal": {
-      "main": [
-        [
-          {
-            "node": "Parse Token & Payload (Archive)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token & Payload (Archive)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester (Archive)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester (Archive)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Proposal (Archive)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Proposal (Archive)": {
-      "main": [
-        [
-          {
-            "node": "Validate (Archive)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Validate (Archive)": {
-      "main": [
-        [
-          {
-            "node": "Archive Proposal",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Archive Proposal": {
-      "main": [
-        [
-          {
-            "node": "Respond - Archive Success",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Webhook - Delete Proposal": {
-      "main": [
-        [
-          {
-            "node": "Parse Token & Payload (Delete)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token & Payload (Delete)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester (Delete)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester (Delete)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Proposal (Delete)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Proposal (Delete)": {
-      "main": [
-        [
-          {
-            "node": "Validate (Delete)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Validate (Delete)": {
-      "main": [
-        [
-          {
-            "node": "Delete Proposal",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Delete Proposal": {
-      "main": [
-        [
-          {
-            "node": "Check Delete Result",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Check Delete Result": {
-      "main": [
-        [
-          {
-            "node": "Respond - Delete Success",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Webhook - Get Proposal Public": {
-      "main": [
-        [
-          {
-            "node": "Look Up Proposal Public",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Proposal Public": {
-      "main": [
-        [
-          {
-            "node": "Found?",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Proposal Not Found",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Found?": {
-      "main": [
-        [
-          {
-            "node": "Is Preview?",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Proposal Not Found",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Mark Viewed & Advance Stage": {
-      "main": [
-        [
-          {
-            "node": "Build Proposal Found Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Webhook - Approve Proposal Public": {
-      "main": [
-        [
-          {
-            "node": "Look Up Proposal For Approve",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Proposal For Approve": {
-      "main": [
-        [
-          {
-            "node": "Validate & Build Contract",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Validate & Build Contract": {
-      "main": [
-        [
-          {
-            "node": "Already Approved?",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Already Approved?": {
-      "main": [
-        [
-          {
-            "node": "Look Up Existing Contract",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Mark Approved & Advance Stage",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Existing Contract": {
-      "main": [
-        [
-          {
-            "node": "Has Existing Contract?",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Has Existing Contract?": {
-      "main": [
-        [
-          {
-            "node": "Respond - Already Approved",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Insert Contract",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Mark Approved & Advance Stage": {
-      "main": [
-        [
-          {
-            "node": "Insert Contract",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Set Contact Status: Active",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Resolve Tag: Contract Sent",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Insert Contract": {
-      "main": [
-        [
-          {
-            "node": "Respond - Approve Success",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Prepare Contract Email": {
-      "main": [
-        [
-          {
-            "node": "Get Company Name: Contract Email",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Send Contract Email": {
-      "main": [
-        [
-          {
-            "node": "Respond - Approve Success",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Approve Success",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Approval Email Template": {
-      "main": [
-        [
-          {
-            "node": "Has Approval Template?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Has Approval Template?": {
-      "main": [
-        [
-          {
-            "node": "Prepare Thank You Email",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        []
-      ]
-    },
-    "Prepare Thank You Email": {
-      "main": [
-        [
-          {
-            "node": "Get Company Name: Thank You Email",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Is Preview?": {
-      "main": [
-        [
-          {
-            "node": "Build Proposal Found Response",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Mark Viewed & Advance Stage",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Build Proposal Found Response": {
-      "main": [
-        [
-          {
-            "node": "Respond - Proposal Found",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Webhook - Get Proposal Approved": {
-      "main": [
-        [
-          {
-            "node": "Parse Token (Approved)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token (Approved)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester (Approved)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester (Approved)": {
-      "main": [
-        [
-          {
-            "node": "Validate & Payload (Approved)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Validate & Payload (Approved)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Proposal Approved",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Proposal Approved": {
-      "main": [
-        [
-          {
-            "node": "Found? (Approved)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Found? (Approved)": {
-      "main": [
-        [
-          {
-            "node": "Build Proposal Approved Response",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Proposal Approved Not Found",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Build Proposal Approved Response": {
-      "main": [
-        [
-          {
-            "node": "Respond - Proposal Approved",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Resolve Tag: Contract Sent": {
-      "main": [
-        [
-          {
-            "node": "Insert Taggable: Contract Sent",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get Company Name: Proposal Email (Manual)": {
-      "main": [
-        [
-          {
-            "node": "Send Proposal Email (Manual)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get Company Name: Contract Email": {
-      "main": [
-        [
-          {
-            "node": "Send Contract Email",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get Company Name: Thank You Email": {
-      "main": [
-        [
-          {
-            "node": "Send Thank You Email",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Webhook - Mark Proposal Emailed": {
-      "main": [
-        [
-          {
-            "node": "Parse Token & Payload (Mark Emailed)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token & Payload (Mark Emailed)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester (Mark Emailed)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester (Mark Emailed)": {
-      "main": [
-        [
-          {
-            "node": "Validate (Mark Emailed)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Validate (Mark Emailed)": {
-      "main": [
-        [
-          {
-            "node": "Mark Emailed (Manual, No Resend)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Mark Emailed (Manual, No Resend)": {
-      "main": [
-        [
-          {
-            "node": "Respond - Mark Emailed Success",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    }
-  },
   "name": "Proposals",
   "nodes": [
     {
@@ -1098,7 +6,7 @@
         "path": "get-proposals",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "prop0001-1111-4a5a-9b1a-proposal000001",
@@ -1110,44 +18,6 @@
         3176
       ],
       "webhookId": "58d78604-4a02-4331-bd65-85a2e50f6f91",
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "prop0002-2222-4a5a-9b1a-proposal000002",
-      "name": "Parse Token (Get)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1856,
-        3176
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "prop0003-3333-4a5a-9b1a-proposal000003",
-      "name": "Look Up Requester (Get)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        2080,
-        3176
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
       "onError": "continueErrorOutput"
     },
     {
@@ -1221,44 +91,6 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "prop0008-8888-4a5a-9b1a-proposal000008",
-      "name": "Parse Token (Save)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1184,
-        336
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "prop0009-9999-4a5a-9b1a-proposal000009",
-      "name": "Look Up Requester (Save)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1408,
-        336
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
         "operation": "executeQuery",
         "query": "SELECT o.assigned_user, o.stage_id, o.pipeline_id,\n  c.email AS contact_email, c.phone AS contact_phone,\n  NULLIF(TRIM(CONCAT_WS(' ', c.first_name, c.last_name)), '') AS contact_name,\n  co.name AS company_name, co.phone AS company_phone,\n  NULLIF(TRIM(CONCAT_WS(', ', NULLIF(co.street_address, ''), NULLIF(co.city, ''), NULLIF(co.state, ''), NULLIF(co.zip_code, ''), NULLIF(co.country, ''))), '') AS company_address,\n  cp.company_name AS contractor_company_name, cp.email AS contractor_email, cp.phone AS contractor_phone\nFROM opportunities o\nLEFT JOIN contacts c ON c.id = o.contact_id\nLEFT JOIN companies co ON co.id = o.account_id\nLEFT JOIN company_profile cp ON cp.id = 1\nWHERE o.id = $1;",
         "options": {
@@ -1283,7 +115,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const opportunity = $input.item.json;\nconst requester = $('Look Up Requester (Save)').first().json;\nconst body = $('Webhook - Save Proposal').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (!opportunity || opportunity.assigned_user === undefined) throw new Error('Deal not found.');\nif (requester.role !== 'admin' && opportunity.assigned_user !== requester.id) throw new Error('You do not have access to this deal.');\n\nconst id = body.id ? parseInt(body.id, 10) : null;\nconst opportunityId = parseInt(body.opportunity_id, 10);\nconst title = (body.title || '').toString().trim();\nconst contentHtml = (body.content_html || '').toString();\nconst totalAmount = body.total_amount !== undefined && body.total_amount !== null && body.total_amount !== '' ? Number(body.total_amount) : 0;\nconst emailSubjectInput = (body.email_subject || '').toString().trim();\nconst emailBodyInput = (body.email_body || '').toString();\n\n// Falls back to a snapshot pulled from the linked contact/company/company\n// profile whenever the rep leaves a field blank, so new proposals arrive\n// pre-filled but still save their own independent copy on the row.\nfunction pick(bodyVal, fallback) {\n  const v = (bodyVal || '').toString().trim();\n  return v || (fallback || '').toString().trim();\n}\n\nconst clientName = pick(body.client_name, opportunity.contact_name);\nconst clientCompanyName = pick(body.client_company_name, opportunity.company_name);\nconst clientAddress = pick(body.client_address, opportunity.company_address);\nconst clientEmail = pick(body.client_email, opportunity.contact_email);\nconst clientPhone = pick(body.client_phone, opportunity.contact_phone || opportunity.company_phone);\nconst contractorCompanyName = pick(body.contractor_company_name, opportunity.contractor_company_name);\nconst contractorEmail = pick(body.contractor_email, opportunity.contractor_email);\nconst contractorPhone = pick(body.contractor_phone, opportunity.contractor_phone);\nconst linkedContractTemplateId = body.linked_contract_template_id ? parseInt(body.linked_contract_template_id, 10) : null;\n\nif (!Number.isInteger(opportunityId)) throw new Error('\"opportunity_id\" is required.');\nif (!title) throw new Error('\"title\" is required.');\nif (!contentHtml.trim()) throw new Error('Proposal content is required.');\nif (!Number.isFinite(totalAmount) || totalAmount < 0) throw new Error('\"total_amount\" must be 0 or more.');\nif (!linkedContractTemplateId) throw new Error('\"linked_contract_template_id\" is required.');\n\nreturn [{\n  json: {\n    id, opportunityId, title, contentHtml, totalAmount, emailSubjectInput, emailBodyInput,\n    clientName, clientCompanyName, clientAddress, clientEmail, clientPhone,\n    contractorCompanyName, contractorEmail, contractorPhone, linkedContractTemplateId,\n    stageId: opportunity.stage_id, pipelineId: opportunity.pipeline_id, requesterId: requester.id,\n  },\n}];"
+        "jsCode": "const opportunity = $input.item.json;\nconst requester = $('Validate Session (Save)').first().json;\nconst body = $('Webhook - Save Proposal').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (!opportunity || opportunity.assigned_user === undefined) throw new Error('Deal not found.');\nif (requester.role !== 'admin' && opportunity.assigned_user !== requester.id) throw new Error('You do not have access to this deal.');\n\nconst id = body.id ? parseInt(body.id, 10) : null;\nconst opportunityId = parseInt(body.opportunity_id, 10);\nconst title = (body.title || '').toString().trim();\nconst contentHtml = (body.content_html || '').toString();\nconst totalAmount = body.total_amount !== undefined && body.total_amount !== null && body.total_amount !== '' ? Number(body.total_amount) : 0;\nconst emailSubjectInput = (body.email_subject || '').toString().trim();\nconst emailBodyInput = (body.email_body || '').toString();\n\n// Falls back to a snapshot pulled from the linked contact/company/company\n// profile whenever the rep leaves a field blank, so new proposals arrive\n// pre-filled but still save their own independent copy on the row.\nfunction pick(bodyVal, fallback) {\n  const v = (bodyVal || '').toString().trim();\n  return v || (fallback || '').toString().trim();\n}\n\nconst clientName = pick(body.client_name, opportunity.contact_name);\nconst clientCompanyName = pick(body.client_company_name, opportunity.company_name);\nconst clientAddress = pick(body.client_address, opportunity.company_address);\nconst clientEmail = pick(body.client_email, opportunity.contact_email);\nconst clientPhone = pick(body.client_phone, opportunity.contact_phone || opportunity.company_phone);\nconst contractorCompanyName = pick(body.contractor_company_name, opportunity.contractor_company_name);\nconst contractorEmail = pick(body.contractor_email, opportunity.contractor_email);\nconst contractorPhone = pick(body.contractor_phone, opportunity.contractor_phone);\nconst linkedContractTemplateId = body.linked_contract_template_id ? parseInt(body.linked_contract_template_id, 10) : null;\n\nif (!Number.isInteger(opportunityId)) throw new Error('\"opportunity_id\" is required.');\nif (!title) throw new Error('\"title\" is required.');\nif (!contentHtml.trim()) throw new Error('Proposal content is required.');\nif (!Number.isFinite(totalAmount) || totalAmount < 0) throw new Error('\"total_amount\" must be 0 or more.');\nif (!linkedContractTemplateId) throw new Error('\"linked_contract_template_id\" is required.');\n\nreturn [{\n  json: {\n    id, opportunityId, title, contentHtml, totalAmount, emailSubjectInput, emailBodyInput,\n    clientName, clientCompanyName, clientAddress, clientEmail, clientPhone,\n    contractorCompanyName, contractorEmail, contractorPhone, linkedContractTemplateId,\n    stageId: opportunity.stage_id, pipelineId: opportunity.pipeline_id, requesterId: requester.id,\n  },\n}];"
       },
       "id": "prop0011-1111-4a5a-9b1a-proposal000011",
       "name": "Validate & Payload (Save)",
@@ -1390,48 +222,10 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst body = $input.first().json.body || {};\nconst proposalId = parseInt(body.proposal_id, 10);\nif (!Number.isInteger(proposalId)) throw new Error('\"proposal_id\" must be an integer.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10), proposalId } }];"
-      },
-      "id": "prop0017-1717-4a5a-9b1a-proposal000017",
-      "name": "Parse Token & Payload (Send)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1856,
-        3800
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "query": "SELECT p.id AS proposal_id, p.public_token, p.email_subject, p.email_body, p.opportunity_id,\n  o.assigned_user, o.name AS deal_name, o.deal_value, o.created_at AS deal_created_at, o.expected_close AS deal_due_at,\n  c.id AS contact_id, c.email, c.first_name, c.last_name, c.unsubscribe_token, c.phone, c.city, c.state,\n  co.name AS client_company_name,\n  u.name AS owner_name, u.email AS owner_email, u.phone AS owner_phone,\n  (SELECT company_name FROM company_profile LIMIT 1) AS our_company_name,\n  (SELECT i.total FROM invoices i WHERE i.opportunity_id = o.id AND i.invoice_type = 'down_payment' ORDER BY i.created_at DESC LIMIT 1) AS down_payment_amount,\n  (SELECT pay.created_at FROM payments pay JOIN invoices i ON i.id = pay.invoice_id WHERE i.opportunity_id = o.id AND i.invoice_type = 'down_payment' AND pay.status = 'paid' ORDER BY pay.created_at DESC LIMIT 1) AS down_payment_paid_at,\n  (SELECT i.total FROM invoices i WHERE i.opportunity_id = o.id AND i.invoice_type = 'final' ORDER BY i.created_at DESC LIMIT 1) AS balance_amount,\n  (SELECT pay.created_at FROM payments pay JOIN invoices i ON i.id = pay.invoice_id WHERE i.opportunity_id = o.id AND i.invoice_type = 'final' AND pay.status = 'paid' ORDER BY pay.created_at DESC LIMIT 1) AS balance_paid_at\nFROM (SELECT $1::int AS pid) dummy\nLEFT JOIN proposals p ON p.id = dummy.pid\nLEFT JOIN opportunities o ON o.id = p.opportunity_id\nLEFT JOIN contacts c ON c.id = o.contact_id\nLEFT JOIN companies co ON co.id = c.account_id\nLEFT JOIN users u ON u.id = o.assigned_user;",
         "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "prop0018-1818-4a5a-9b1a-proposal000018",
-      "name": "Look Up Requester (Send)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        2080,
-        3800
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT p.id AS proposal_id, p.public_token, p.email_subject, p.email_body, p.opportunity_id,\n  o.assigned_user, o.name AS deal_name, c.email, c.first_name, c.last_name\nFROM (SELECT $1::int AS pid) dummy\nLEFT JOIN proposals p ON p.id = dummy.pid\nLEFT JOIN opportunities o ON o.id = p.opportunity_id\nLEFT JOIN contacts c ON c.id = o.contact_id;",
-        "options": {
-          "queryReplacement": "={{ [ $('Parse Token & Payload (Send)').item.json.proposalId ] }}"
+          "queryReplacement": "={{ [ $('Validate Session Payload (Send)').item.json.proposalId ] }}"
         }
       },
       "id": "prop0019-1919-4a5a-9b1a-proposal000019",
@@ -1451,7 +245,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const row = $input.item.json;\nconst requester = $('Look Up Requester (Send)').first().json;\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (!row.proposal_id) throw new Error('Proposal not found.');\nif (requester.role !== 'admin' && row.assigned_user !== requester.id) throw new Error('You do not have access to this deal.');\nif (!row.email) throw new Error(\"This deal's contact has no email address on file.\");\n\nconst base = 'http://localhost:5173';\nconst link = `${base}/documents/proposal/${row.public_token}`;\n\nfunction fill(template) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, row.first_name || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, row.last_name || '')\n    .replace(/{{\\s*deal_name\\s*}}/gi, row.deal_name || '')\n    .replace(/{{\\s*proposal_link\\s*}}/gi, link);\n}\n\nreturn [{ json: { proposalId: row.proposal_id, to: row.email, subject: fill(row.email_subject), body: fill(row.email_body) } }];"
+        "jsCode": "const row = $input.item.json;\nconst requester = $('Validate Session Payload (Send)').first().json;\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (!row.proposal_id) throw new Error('Proposal not found.');\nif (requester.role !== 'admin' && row.assigned_user !== requester.id) throw new Error('You do not have access to this deal.');\nif (!row.email) throw new Error(\"This deal's contact has no email address on file.\");\n\nfunction safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\nconst base = safeEnv('FRONTEND_BASE_URL');\nconst link = `${base}/documents/proposal/${row.public_token}`;\n\nfunction money(n) {\n  return n != null && n !== '' ? '$' + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';\n}\nfunction dateStr(d) {\n  return d ? new Date(d).toLocaleDateString() : '';\n}\n\nfunction fill(template) {\n  return (template || '')\n    .replace(/{{\\s*proposal_link\\s*}}/gi, link)\n    .replace(/{{\\s*contact\\.first_name\\s*}}/gi, row.first_name || 'there')\n    .replace(/{{\\s*contact\\.last_name\\s*}}/gi, row.last_name || '')\n    .replace(/{{\\s*contact\\.email\\s*}}/gi, row.email || '')\n    .replace(/{{\\s*contact\\.phone\\s*}}/gi, row.phone || '')\n    .replace(/{{\\s*contact\\.address\\s*}}/gi, [row.city, row.state].filter(Boolean).join(', '))\n    .replace(/{{\\s*company\\.name\\s*}}/gi, row.client_company_name || '')\n    .replace(/{{\\s*user\\.full_name\\s*}}/gi, row.owner_name || 'your account team')\n    .replace(/{{\\s*user\\.email\\s*}}/gi, row.owner_email || '')\n    .replace(/{{\\s*user\\.phone\\s*}}/gi, row.owner_phone || '')\n    .replace(/{{\\s*user\\.company_name\\s*}}/gi, row.our_company_name || '')\n    .replace(/{{\\s*opportunity\\.name\\s*}}/gi, row.deal_name || '')\n    .replace(/{{\\s*opportunity\\.value\\s*}}/gi, money(row.deal_value))\n    .replace(/{{\\s*opportunity\\.created_at\\s*}}/gi, dateStr(row.deal_created_at))\n    .replace(/{{\\s*opportunity\\.due_at\\s*}}/gi, dateStr(row.deal_due_at))\n    .replace(/{{\\s*payment\\.down_payment_amount\\s*}}/gi, money(row.down_payment_amount))\n    .replace(/{{\\s*payment\\.down_payment_paid_at\\s*}}/gi, dateStr(row.down_payment_paid_at))\n    .replace(/{{\\s*payment\\.balance_amount\\s*}}/gi, money(row.balance_amount))\n    .replace(/{{\\s*payment\\.balance_paid_at\\s*}}/gi, dateStr(row.balance_paid_at));\n}\n\nconst unsubUrl = base + '/unsubscribe/' + (row.unsubscribe_token || '');\nconst bodyWithFooter = fill(row.email_body) + \"\\n\\nDon't want these emails? Unsubscribe: \" + unsubUrl;\n\nreturn [{ json: { proposalId: row.proposal_id, contactId: row.contact_id, to: row.email, subject: fill(row.email_subject), body: bodyWithFooter } }];"
       },
       "id": "prop0020-2020-4a5a-9b1a-proposal000020",
       "name": "Validate & Personalize (Send)",
@@ -1470,7 +264,8 @@
         "emailType": "text",
         "message": "={{ (($('Validate & Personalize (Send)').item.json.body).replace(/The Team/g, $('Get Company Name: Proposal Email (Manual)').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Proposal Email (Manual)').item.json.company_name) }}",
         "options": {
-          "senderName": "={{ $('Get Company Name: Proposal Email (Manual)').item.json.company_name }}"
+          "senderName": "={{ $('Get Company Name: Proposal Email (Manual)').item.json.company_name }}",
+          "appendAttribution": false
         }
       },
       "id": "prop0021-2121-4a5a-9b1a-proposal000021",
@@ -1548,48 +343,10 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst body = $input.first().json.body || {};\nconst proposalId = parseInt(body.id, 10);\nif (!Number.isInteger(proposalId)) throw new Error('\"id\" must be an integer.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10), proposalId } }];"
-      },
-      "id": "prop0043-4343-4a5a-9b1a-proposal000043",
-      "name": "Parse Token & Payload (Archive)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        3200,
-        304
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "prop0044-4444-4a5a-9b1a-proposal000044",
-      "name": "Look Up Requester (Archive)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        3424,
-        352
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
         "operation": "executeQuery",
         "query": "SELECT p.id, o.assigned_user\nFROM (SELECT $1::int AS pid) dummy\nLEFT JOIN proposals p ON p.id = dummy.pid\nLEFT JOIN opportunities o ON o.id = p.opportunity_id;",
         "options": {
-          "queryReplacement": "={{ [ $('Parse Token & Payload (Archive)').item.json.proposalId ] }}"
+          "queryReplacement": "={{ [ $('Validate Session Payload (Archive)').item.json.proposalId ] }}"
         }
       },
       "id": "prop0045-4545-4a5a-9b1a-proposal000045",
@@ -1609,7 +366,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const row = $input.item.json;\nconst requester = $('Look Up Requester (Archive)').first().json;\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (!row.id) throw new Error('Proposal not found.');\nif (requester.role !== 'admin' && row.assigned_user !== requester.id) throw new Error('You do not have access to this deal.');\n\nreturn [{ json: { proposalId: row.id } }];"
+        "jsCode": "const row = $input.item.json;\nconst requester = $('Validate Session Payload (Archive)').first().json;\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (!row.id) throw new Error('Proposal not found.');\nif (requester.role !== 'admin' && row.assigned_user !== requester.id) throw new Error('You do not have access to this deal.');\n\nreturn [{ json: { proposalId: row.id } }];"
       },
       "id": "prop0046-4646-4a5a-9b1a-proposal000046",
       "name": "Validate (Archive)",
@@ -1679,48 +436,10 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst body = $input.first().json.body || {};\nconst proposalId = parseInt(body.id, 10);\nif (!Number.isInteger(proposalId)) throw new Error('\"id\" must be an integer.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10), proposalId } }];"
-      },
-      "id": "prop0050-5050-4a5a-9b1a-proposal000050",
-      "name": "Parse Token & Payload (Delete)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1632,
-        2312
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "prop0051-5151-4a5a-9b1a-proposal000051",
-      "name": "Look Up Requester (Delete)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1856,
-        2456
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
         "operation": "executeQuery",
         "query": "SELECT p.id, o.assigned_user\nFROM (SELECT $1::int AS pid) dummy\nLEFT JOIN proposals p ON p.id = dummy.pid\nLEFT JOIN opportunities o ON o.id = p.opportunity_id;",
         "options": {
-          "queryReplacement": "={{ [ $('Parse Token & Payload (Delete)').item.json.proposalId ] }}"
+          "queryReplacement": "={{ [ $('Validate Session Payload (Delete)').item.json.proposalId ] }}"
         }
       },
       "id": "prop0052-5252-4a5a-9b1a-proposal000052",
@@ -1740,7 +459,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const row = $input.item.json;\nconst requester = $('Look Up Requester (Delete)').first().json;\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (!row.id) throw new Error('Proposal not found.');\nif (requester.role !== 'admin' && row.assigned_user !== requester.id) throw new Error('You do not have access to this deal.');\n\nreturn [{ json: { proposalId: row.id } }];"
+        "jsCode": "const row = $input.item.json;\nconst requester = $('Validate Session Payload (Delete)').first().json;\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (!row.id) throw new Error('Proposal not found.');\nif (requester.role !== 'admin' && row.assigned_user !== requester.id) throw new Error('You do not have access to this deal.');\n\nreturn [{ json: { proposalId: row.id } }];"
       },
       "id": "prop0053-5353-4a5a-9b1a-proposal000053",
       "name": "Validate (Delete)",
@@ -1829,7 +548,7 @@
         "operation": "executeQuery",
         "query": "SELECT p.id, p.title, p.content_html, p.total_amount, p.status, p.public_token,\n  p.client_name, p.client_company_name, p.client_address, p.client_email, p.client_phone, p.field_values,\n  p.contractor_company_name, p.contractor_email, p.contractor_phone,\n  o.id AS opportunity_id, o.name AS opportunity_name, o.deal_value,\n  o.created_at AS deal_created_at, o.expected_close AS deal_due_at,\n  (SELECT i.total FROM invoices i WHERE i.opportunity_id = o.id AND i.invoice_type = 'down_payment' ORDER BY i.created_at DESC LIMIT 1) AS down_payment_amount,\n  (SELECT pay.created_at FROM payments pay JOIN invoices i ON i.id = pay.invoice_id WHERE i.opportunity_id = o.id AND i.invoice_type = 'down_payment' AND pay.status = 'paid' ORDER BY pay.created_at DESC LIMIT 1) AS down_payment_paid_at,\n  (SELECT i.total FROM invoices i WHERE i.opportunity_id = o.id AND i.invoice_type = 'final' ORDER BY i.created_at DESC LIMIT 1) AS balance_amount,\n  (SELECT pay.created_at FROM payments pay JOIN invoices i ON i.id = pay.invoice_id WHERE i.opportunity_id = o.id AND i.invoice_type = 'final' AND pay.status = 'paid' ORDER BY pay.created_at DESC LIMIT 1) AS balance_paid_at,\n  f.proposal_viewed_stage_id,\n  c.first_name, c.last_name, c.email AS contact_email, cp.logo_url,\n  u.name AS owner_name, u.email AS owner_email, u.phone AS owner_phone,\n  (SELECT a.due_at FROM activities a WHERE a.opportunity_id = o.id AND a.type = 'meeting' AND a.subject ILIKE '%inspection%' ORDER BY a.due_at DESC LIMIT 1) AS inspection_date\nFROM (SELECT $1::text AS tok) dummy\nLEFT JOIN proposals p ON p.public_token::text = dummy.tok\nLEFT JOIN opportunities o ON o.id = p.opportunity_id\nLEFT JOIN deal_document_flows f ON f.id = p.flow_id\nLEFT JOIN contacts c ON c.id = o.contact_id\nLEFT JOIN company_profile cp ON cp.id = 1\nLEFT JOIN users u ON u.id = o.assigned_user;",
         "options": {
-          "queryReplacement": "={{ [ $json.query.token || '' ] }}"
+          "queryReplacement": "={{ [ $('Webhook - Get Proposal Public').first().json.query.token || '' ] }}"
         }
       },
       "id": "prop0025-2525-4a5a-9b1a-proposal000025",
@@ -1883,9 +602,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH viewed AS (\n  UPDATE proposals SET status = 'viewed', viewed_at = COALESCE(viewed_at, now()), updated_at = now()\n  WHERE id = $1 AND status IN ('draft', 'emailed')\n  RETURNING id\n),\nmoved AS (\n  UPDATE opportunities o SET stage_id = $2, stage_entered_at = CASE WHEN o.stage_id IS DISTINCT FROM $2 THEN now() ELSE o.stage_entered_at END, updated_at = now()\n  WHERE o.id = $3 AND $2::int IS NOT NULL AND EXISTS (SELECT 1 FROM viewed)\n  RETURNING id\n)\nSELECT 1 AS ok;",
+        "query": "UPDATE proposals SET status = 'viewed', viewed_at = COALESCE(viewed_at, now()), updated_at = now()\nWHERE id = $1 AND status IN ('draft', 'emailed');",
         "options": {
-          "queryReplacement": "={{ [ $json.id, $json.proposal_viewed_stage_id, $json.opportunity_id ] }}"
+          "queryReplacement": "={{ [ $json.id ] }}"
         }
       },
       "id": "prop0027-2727-4a5a-9b1a-proposal000027",
@@ -1902,7 +621,7 @@
           "name": "myRag"
         }
       },
-      "notes": "Only fires the stage move on the first view (status transitions from draft/emailed to viewed) \u2014 a lead re-opening the link later is a no-op here."
+      "notes": "Stage-advance side effect moved to the automation rule \"08 Proposal Viewed\" (trigger: pipeline, proposal_status = viewed) \u2014 rep-editable there. This node now only marks the proposal itself viewed."
     },
     {
       "parameters": {
@@ -1958,7 +677,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT p.id, p.opportunity_id, p.flow_id, p.title, p.content_html, p.total_amount, p.status,\n  f.proposal_approved_stage_id, f.contract_email_subject, f.contract_email_body,\n  f.contract_template_id, ct.title AS template_title, ct.content_html AS template_content_html, ct.thank_you_page_id AS flow_thank_you_page_id,\n  p.linked_contract_template_id, pct.title AS proposal_template_title, pct.content_html AS proposal_template_content_html, pct.thank_you_page_id AS proposal_thank_you_page_id,\n  c.email, c.first_name, c.last_name\nFROM (SELECT $1::text AS tok) dummy\nLEFT JOIN proposals p ON p.public_token::text = dummy.tok\nLEFT JOIN opportunities o ON o.id = p.opportunity_id\nLEFT JOIN deal_document_flows f ON f.id = p.flow_id\nLEFT JOIN contract_templates ct ON ct.id = f.contract_template_id\nLEFT JOIN contract_templates pct ON pct.id = p.linked_contract_template_id\nLEFT JOIN contacts c ON c.id = o.contact_id;",
+        "query": "SELECT p.id, p.opportunity_id, p.flow_id, p.title, p.content_html, p.total_amount, p.status,\n  f.proposal_approved_stage_id, f.contract_email_subject, f.contract_email_body,\n  f.contract_template_id, ct.title AS template_title, ct.content_html AS template_content_html, ct.thank_you_page_id AS flow_thank_you_page_id,\n  p.linked_contract_template_id, pct.title AS proposal_template_title, pct.content_html AS proposal_template_content_html, pct.thank_you_page_id AS proposal_thank_you_page_id,\n  c.id AS contact_id, c.email, c.first_name, c.last_name, c.unsubscribe_token\nFROM (SELECT $1::text AS tok) dummy\nLEFT JOIN proposals p ON p.public_token::text = dummy.tok\nLEFT JOIN opportunities o ON o.id = p.opportunity_id\nLEFT JOIN deal_document_flows f ON f.id = p.flow_id\nLEFT JOIN contract_templates ct ON ct.id = f.contract_template_id\nLEFT JOIN contract_templates pct ON pct.id = p.linked_contract_template_id\nLEFT JOIN contacts c ON c.id = o.contact_id;",
         "options": {
           "queryReplacement": "={{ [ $('Webhook - Approve Proposal Public').first().json.body.token || '' ] }}"
         }
@@ -1981,7 +700,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const row = $input.item.json;\nif (!row.id) throw new Error('Proposal not found.');\n\n// Priority for the generated contract's title/content: (1) a contract template linked directly\n// on THIS proposal template (Proposal editor \u2192 Linked contract template) \u2014 the most specific,\n// deliberate pairing; (2) the fallback template linked on the flow (Settings \u2192 Proposal & Contract\n// Flow), which applies to any proposal under that flow with no more specific pairing of its own;\n// (3) cloning the proposal's own content, for proposals/flows built before Contract Templates existed.\nconst hasProposalLink = !!row.linked_contract_template_id;\nconst hasFlowTemplate = !!row.contract_template_id;\n\nreturn [{\n  json: {\n    proposalId: row.id,\n    opportunityId: row.opportunity_id,\n    flowId: row.flow_id,\n    alreadyApproved: row.status === 'approved',\n    title: hasProposalLink ? row.proposal_template_title : hasFlowTemplate ? row.template_title : row.title,\n    contentHtml: hasProposalLink ? row.proposal_template_content_html : hasFlowTemplate ? row.template_content_html : row.content_html,\n    thankYouPageId: hasProposalLink ? row.proposal_thank_you_page_id : hasFlowTemplate ? row.flow_thank_you_page_id : null,\n    totalAmount: row.total_amount,\n    proposalApprovedStageId: row.proposal_approved_stage_id,\n    contractEmailSubject: row.contract_email_subject,\n    contractEmailBody: row.contract_email_body,\n    to: row.email,\n    firstName: row.first_name,\n    lastName: row.last_name,\n  },\n}];"
+        "jsCode": "const row = $input.item.json;\nif (!row.id) throw new Error('Proposal not found.');\n\n// Priority for the generated contract's title/content: (1) a contract template linked directly\n// on THIS proposal template (Proposal editor \u2192 Linked contract template) \u2014 the most specific,\n// deliberate pairing; (2) the fallback template linked on the flow (Settings \u2192 Proposal & Contract\n// Flow), which applies to any proposal under that flow with no more specific pairing of its own;\n// (3) cloning the proposal's own content, for proposals/flows built before Contract Templates existed.\nconst hasProposalLink = !!row.linked_contract_template_id;\nconst hasFlowTemplate = !!row.contract_template_id;\n\nreturn [{\n  json: {\n    proposalId: row.id,\n    opportunityId: row.opportunity_id,\n    flowId: row.flow_id,\n    alreadyApproved: row.status === 'approved',\n    title: hasProposalLink ? row.proposal_template_title : hasFlowTemplate ? row.template_title : row.title,\n    contentHtml: hasProposalLink ? row.proposal_template_content_html : hasFlowTemplate ? row.template_content_html : row.content_html,\n    thankYouPageId: hasProposalLink ? row.proposal_thank_you_page_id : hasFlowTemplate ? row.flow_thank_you_page_id : null,\n    totalAmount: row.total_amount,\n    proposalApprovedStageId: row.proposal_approved_stage_id,\n    contractEmailSubject: row.contract_email_subject,\n    contractEmailBody: row.contract_email_body,\n    to: row.email,\n    firstName: row.first_name,\n    lastName: row.last_name,\n    unsubscribeToken: row.unsubscribe_token,\n    contactId: row.contact_id,\n  },\n}];"
       },
       "id": "prop0032-3232-4a5a-9b1a-proposal000032",
       "name": "Validate & Build Contract",
@@ -2101,9 +820,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH approved AS (\n  UPDATE proposals SET status = 'approved', approved_at = now(), updated_at = now(), field_values = $4::jsonb WHERE id = $1 RETURNING id\n),\nmoved AS (\n  UPDATE opportunities o SET stage_id = $2, stage_entered_at = CASE WHEN o.stage_id IS DISTINCT FROM $2 THEN now() ELSE o.stage_entered_at END, updated_at = now()\n  WHERE o.id = $3 AND $2::int IS NOT NULL\n  RETURNING id\n)\nSELECT 1 AS ok;",
+        "query": "UPDATE proposals SET status = 'approved', approved_at = now(), updated_at = now(), field_values = $2::jsonb WHERE id = $1;",
         "options": {
-          "queryReplacement": "={{ [ $('Validate & Build Contract').item.json.proposalId, $('Validate & Build Contract').item.json.proposalApprovedStageId, $('Validate & Build Contract').item.json.opportunityId, JSON.stringify($('Webhook - Approve Proposal Public').first().json.body.field_values || {}) ] }}"
+          "queryReplacement": "={{ [ $('Validate & Build Contract').item.json.proposalId, JSON.stringify($('Webhook - Approve Proposal Public').first().json.body.field_values || {}) ] }}"
         }
       },
       "id": "prop0036-3636-4a5a-9b1a-proposal000036",
@@ -2120,7 +839,8 @@
           "name": "myRag"
         }
       },
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "notes": "Stage move, lead_status update, and the 'contract sent' tag moved to the automation rule \"09 Proposal Approved\" (trigger: pipeline, proposal_status = approved) \u2014 rep-editable there. This node now only marks the proposal itself approved."
     },
     {
       "parameters": {
@@ -2148,47 +868,6 @@
     },
     {
       "parameters": {
-        "jsCode": "const v = $('Validate & Build Contract').item.json;\nconst contract = $input.item.json;\nconst base = 'http://localhost:5173';\nconst link = `${base}/documents/contract/${contract.public_token}`;\n\nfunction fill(template) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, v.firstName || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, v.lastName || '')\n    .replace(/{{\\s*contract_link\\s*}}/gi, link);\n}\n\nreturn [{ json: { to: v.to, subject: fill(v.contractEmailSubject), body: fill(v.contractEmailBody), contractToken: contract.public_token } }];"
-      },
-      "id": "prop0038-3838-4a5a-9b1a-proposal000038",
-      "name": "Prepare Contract Email",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2528,
-        5264
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "sendTo": "={{ $('Prepare Contract Email').item.json.to }}",
-        "subject": "={{ ($('Prepare Contract Email').item.json.subject).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Contract Email').item.json.company_name) }}",
-        "emailType": "text",
-        "message": "={{ (($('Prepare Contract Email').item.json.body).replace(/The Team/g, $('Get Company Name: Contract Email').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Contract Email').item.json.company_name) }}",
-        "options": {
-          "senderName": "={{ $('Get Company Name: Contract Email').item.json.company_name }}"
-        }
-      },
-      "id": "prop0039-3939-4a5a-9b1a-proposal000039",
-      "name": "Send Contract Email",
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
-      "position": [
-        2752,
-        5216
-      ],
-      "webhookId": "58d7cb86-d239-42d5-88f6-5034faff1a94",
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "VKDbMYV2U0WoSc16",
-          "name": "n8n072826"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
         "respondWith": "json",
         "responseBody": "={{ { success: true, contract_token: $('Insert Contract').first().json.public_token } }}",
         "options": {}
@@ -2205,7 +884,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "responseBody": "={{ { success: false, error: (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Request failed.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -2225,7 +904,7 @@
         "query": "SELECT et.subject, et.body\nFROM (SELECT 1) dummy\nLEFT JOIN email_templates et ON et.trigger_event = 'proposal_approved' AND et.is_active = true\nORDER BY et.updated_at DESC NULLS LAST\nLIMIT 1;",
         "options": {}
       },
-      "id": "prop0041-4141-4a5a-9b1a-proposal000041",
+      "id": "c9d3b126-fdb2-48a8-b26e-ac0b7c57c633",
       "name": "Look Up Approval Email Template",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
@@ -2264,7 +943,7 @@
         },
         "options": {}
       },
-      "id": "prop0042-4242-4a5a-9b1a-proposal000042",
+      "id": "7489a038-9629-4979-9001-c231dea02983",
       "name": "Has Approval Template?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -2276,7 +955,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const v = $('Validate & Build Contract').first().json;\nconst tmpl = $input.item.json;\n\nfunction fill(t) {\n  return (t || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, v.firstName || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, v.lastName || '')\n    .replace(/{{\\s*deal_name\\s*}}/gi, v.title || '');\n}\n\nreturn [{ json: { to: v.to, subject: fill(tmpl.subject), body: fill(tmpl.body) } }];"
+        "jsCode": "const v = $('Validate & Build Contract').first().json;\nconst tmpl = $input.item.json;\n\nfunction fill(t) {\n  return (t || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, v.firstName || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, v.lastName || '')\n    .replace(/{{\\s*deal_name\\s*}}/gi, v.title || '');\n}\n\nfunction safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\nconst unsubUrl = safeEnv('FRONTEND_BASE_URL') + '/unsubscribe/' + (v.unsubscribeToken || '');\nconst bodyWithFooter = fill(tmpl.body) + \"\\n\\nDon't want these emails? Unsubscribe: \" + unsubUrl;\n\nreturn [{ json: { to: v.to, subject: fill(tmpl.subject), body: bodyWithFooter, contactId: v.contactId } }];"
       },
       "id": "prop0043-4343-4a5a-9b1a-proposal000043",
       "name": "Prepare Thank You Email",
@@ -2295,7 +974,8 @@
         "emailType": "text",
         "message": "={{ (($('Prepare Thank You Email').item.json.body).replace(/The Team/g, $('Get Company Name: Thank You Email').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Thank You Email').item.json.company_name) }}",
         "options": {
-          "senderName": "={{ $('Get Company Name: Thank You Email').item.json.company_name }}"
+          "senderName": "={{ $('Get Company Name: Thank You Email').item.json.company_name }}",
+          "appendAttribution": false
         }
       },
       "id": "prop0044-4444-4a5a-9b1a-proposal000044",
@@ -2366,7 +1046,7 @@
         "path": "get-proposal-approved",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "prop0060-6060-4a5a-9b1a-proposal000060b",
@@ -2378,44 +1058,6 @@
         4424
       ],
       "webhookId": "3dbfdace-1323-4f25-aa7b-b9c75ab42cf2",
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "prop0061-6161-4a5a-9b1a-proposal000061",
-      "name": "Parse Token (Approved)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1856,
-        4520
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "prop0062-6262-4a5a-9b1a-proposal000062",
-      "name": "Look Up Requester (Approved)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        2080,
-        4664
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
       "onError": "continueErrorOutput"
     },
     {
@@ -2532,73 +1174,6 @@
       ]
     },
     {
-      "id": "pp-set-active",
-      "name": "Set Contact Status: Active",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        1520,
-        260
-      ],
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "UPDATE contacts SET lead_status = 'Active', updated_at = now() WHERE id = (SELECT contact_id FROM opportunities WHERE id = $1);",
-        "options": {
-          "queryReplacement": "={{ [ $('Validate & Build Contract').item.json.opportunityId ] }}"
-        }
-      },
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    },
-    {
-      "id": "pp-tag-contractsent",
-      "name": "Resolve Tag: Contract Sent",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        1520,
-        400
-      ],
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO tags (name) VALUES ('contract sent') ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id;",
-        "options": {}
-      },
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    },
-    {
-      "id": "pp-taggable-contractsent",
-      "name": "Insert Taggable: Contract Sent",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        1740,
-        400
-      ],
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO taggables (tag_id, entity_type, entity_id) VALUES ($1, 'contact', (SELECT contact_id FROM opportunities WHERE id = $2)) ON CONFLICT (tag_id, entity_type, entity_id) DO NOTHING;",
-        "options": {
-          "queryReplacement": "={{ [ $json.id, $('Validate & Build Contract').item.json.opportunityId ] }}"
-        }
-      },
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    },
-    {
       "id": "cname-kvem33sa",
       "name": "Get Company Name: Proposal Email (Manual)",
       "type": "n8n-nodes-base.postgres",
@@ -2606,27 +1181,6 @@
       "position": [
         2602,
         3848
-      ],
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT company_name FROM company_profile LIMIT 1;",
-        "options": {}
-      },
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    },
-    {
-      "id": "cname-anblmsff",
-      "name": "Get Company Name: Contract Email",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        2602,
-        5336
       ],
       "parameters": {
         "operation": "executeQuery",
@@ -2679,42 +1233,6 @@
       }
     },
     {
-      "id": "mpe-parse",
-      "name": "Parse Token & Payload (Mark Emailed)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1856,
-        4400
-      ],
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst body = $input.first().json.body || {};\nconst proposalId = parseInt(body.proposal_id, 10);\nif (!Number.isInteger(proposalId)) throw new Error('\"proposal_id\" must be an integer.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10), proposalId } }];"
-      }
-    },
-    {
-      "id": "mpe-lookup-requester",
-      "name": "Look Up Requester (Mark Emailed)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        2080,
-        4400
-      ],
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $('Parse Token & Payload (Mark Emailed)').item.json.requesterId ] }}"
-        }
-      },
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    },
-    {
       "id": "mpe-validate",
       "name": "Validate (Mark Emailed)",
       "type": "n8n-nodes-base.code",
@@ -2724,7 +1242,7 @@
         4400
       ],
       "parameters": {
-        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nreturn [{ json: { proposalId: $('Parse Token & Payload (Mark Emailed)').item.json.proposalId } }];"
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nreturn [{ json: { proposalId: $('Validate Session Payload (Mark Emailed)').item.json.proposalId } }];"
       }
     },
     {
@@ -2764,9 +1282,1700 @@
         "responseBody": "={{ { success: true } }}",
         "options": {}
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1856,
+        3176
+      ],
+      "id": "extract-bearer-parse-token-get",
+      "name": "Extract Bearer Token (Get)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-get",
+      "name": "Execute Workflow: Verify Session (Get)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1886,
+        3191
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        3176
+      ],
+      "id": "validate-session-parse-token-get",
+      "name": "Validate Session (Get)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        336
+      ],
+      "id": "extract-bearer-parse-token-save",
+      "name": "Extract Bearer Token (Save)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-save",
+      "name": "Execute Workflow: Verify Session (Save)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1214,
+        351
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        336
+      ],
+      "id": "validate-session-parse-token-save",
+      "name": "Validate Session (Save)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1856,
+        3800
+      ],
+      "id": "extract-bearer-parse-token-payload-send",
+      "name": "Extract Bearer Token Payload (Send)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-payload-send",
+      "name": "Execute Workflow: Verify Session Payload (Send)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1886,
+        3815
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nconst body = $('Webhook - Send Proposal').first().json.body || {};\nconst proposalId = parseInt(body.proposal_id, 10);\nif (!Number.isInteger(proposalId)) throw new Error('\"proposal_id\" must be an integer.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active, proposalId } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        3800
+      ],
+      "id": "validate-session-parse-token-payload-send",
+      "name": "Validate Session Payload (Send)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3200,
+        304
+      ],
+      "id": "extract-bearer-parse-token-payload-archive",
+      "name": "Extract Bearer Token Payload (Archive)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-payload-archive",
+      "name": "Execute Workflow: Verify Session Payload (Archive)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        3230,
+        319
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nconst body = $('Webhook - Archive Proposal').first().json.body || {};\nconst proposalId = parseInt(body.id, 10);\nif (!Number.isInteger(proposalId)) throw new Error('\"id\" must be an integer.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active, proposalId } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3424,
+        352
+      ],
+      "id": "validate-session-parse-token-payload-archive",
+      "name": "Validate Session Payload (Archive)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        2312
+      ],
+      "id": "extract-bearer-parse-token-payload-delete",
+      "name": "Extract Bearer Token Payload (Delete)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-payload-delete",
+      "name": "Execute Workflow: Verify Session Payload (Delete)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1662,
+        2327
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nconst body = $('Webhook - Delete Proposal').first().json.body || {};\nconst proposalId = parseInt(body.id, 10);\nif (!Number.isInteger(proposalId)) throw new Error('\"id\" must be an integer.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active, proposalId } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1856,
+        2456
+      ],
+      "id": "validate-session-parse-token-payload-delete",
+      "name": "Validate Session Payload (Delete)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1856,
+        4520
+      ],
+      "id": "extract-bearer-parse-token-approved",
+      "name": "Extract Bearer Token (Approved)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-approved",
+      "name": "Execute Workflow: Verify Session (Approved)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1886,
+        4535
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        4664
+      ],
+      "id": "validate-session-parse-token-approved",
+      "name": "Validate Session (Approved)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1856,
+        4400
+      ],
+      "id": "extract-bearer-parse-token-payload-mark-emailed",
+      "name": "Extract Bearer Token Payload (Mark Emailed)"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-payload-mark-emailed",
+      "name": "Execute Workflow: Verify Session Payload (Mark Emailed)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1886,
+        4415
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nconst body = $('Webhook - Mark Proposal Emailed').first().json.body || {};\nconst proposalId = parseInt(body.proposal_id, 10);\nif (!Number.isInteger(proposalId)) throw new Error('\"proposal_id\" must be an integer.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active, proposalId } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        4400
+      ],
+      "id": "validate-session-parse-token-payload-mark-emailed",
+      "name": "Validate Session Payload (Mark Emailed)"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Proposals\" }}",
+            "workflow_id": "={{ \"zUHs3esju3vrEzlZ\" }}",
+            "entity_type": "={{ \"opportunities\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-get-proposal-public-0",
+      "name": "Log Workflow Run: Webhook - Get Proposal Public",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        975,
+        5665
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Proposals\" }}",
+            "workflow_id": "={{ \"zUHs3esju3vrEzlZ\" }}",
+            "entity_type": "={{ \"contacts,opportunities\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-approve-proposal-public-1",
+      "name": "Log Workflow Run: Webhook - Approve Proposal Public",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1199,
+        1337
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts SET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object('id', gen_random_uuid()::text, 'type', 'sent', 'subject', $1::text, 'message', $2::text, 'sent_at', NOW(), 'is_read', true) WHERE id = $3;",
+        "options": {
+          "queryReplacement": "={{ [ $('Validate & Personalize (Send)').item.json.subject, $('Validate & Personalize (Send)').item.json.body, $('Validate & Personalize (Send)').item.json.contactId ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2772,
+        3748
+      ],
+      "id": "log-proposal-manual",
+      "name": "Log Sent Email: Proposal (Manual)",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts SET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object('id', gen_random_uuid()::text, 'type', 'sent', 'subject', $1::text, 'message', $2::text, 'sent_at', NOW(), 'is_read', true) WHERE id = $3;",
+        "options": {
+          "queryReplacement": "={{ [ $('Prepare Thank You Email').item.json.subject, $('Prepare Thank You Email').item.json.body, $('Prepare Thank You Email').item.json.contactId ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2772,
+        1364
+      ],
+      "id": "log-thank-you",
+      "name": "Log Sent Email: Thank You",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueRegularOutput"
     }
   ],
-  "pinData": {},
+  "connections": {
+    "Webhook - Get Proposals": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Payload (Get)": {
+      "main": [
+        [
+          {
+            "node": "Select Proposals",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Proposals": {
+      "main": [
+        [
+          {
+            "node": "Respond - Get Proposals",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Save Proposal": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Opportunity (Save)": {
+      "main": [
+        [
+          {
+            "node": "Validate & Payload (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Payload (Save)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Matching Flow (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Matching Flow (Save)": {
+      "main": [
+        [
+          {
+            "node": "Prepare Proposal Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Proposal Fields": {
+      "main": [
+        [
+          {
+            "node": "Upsert Proposal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Proposal": {
+      "main": [
+        [
+          {
+            "node": "Respond - Save Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Send Proposal": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token Payload (Send)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Proposal (Send)": {
+      "main": [
+        [
+          {
+            "node": "Validate & Personalize (Send)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Personalize (Send)": {
+      "main": [
+        [
+          {
+            "node": "Get Company Name: Proposal Email (Manual)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Proposal Email (Manual)": {
+      "main": [
+        [
+          {
+            "node": "Log Sent Email: Proposal (Manual)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Mark Emailed (Send)": {
+      "main": [
+        [
+          {
+            "node": "Respond - Send Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Archive Proposal": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token Payload (Archive)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Proposal (Archive)": {
+      "main": [
+        [
+          {
+            "node": "Validate (Archive)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate (Archive)": {
+      "main": [
+        [
+          {
+            "node": "Archive Proposal",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Archive Proposal": {
+      "main": [
+        [
+          {
+            "node": "Respond - Archive Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Delete Proposal": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token Payload (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Proposal (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Validate (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Delete Proposal",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Proposal": {
+      "main": [
+        [
+          {
+            "node": "Check Delete Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Delete Result": {
+      "main": [
+        [
+          {
+            "node": "Respond - Delete Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Get Proposal Public": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: Webhook - Get Proposal Public",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Proposal Public": {
+      "main": [
+        [
+          {
+            "node": "Found?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Proposal Not Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Found?": {
+      "main": [
+        [
+          {
+            "node": "Is Preview?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Proposal Not Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Viewed & Advance Stage": {
+      "main": [
+        [
+          {
+            "node": "Build Proposal Found Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Approve Proposal Public": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: Webhook - Approve Proposal Public",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Proposal For Approve": {
+      "main": [
+        [
+          {
+            "node": "Validate & Build Contract",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Build Contract": {
+      "main": [
+        [
+          {
+            "node": "Already Approved?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Already Approved?": {
+      "main": [
+        [
+          {
+            "node": "Look Up Existing Contract",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Approved & Advance Stage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Existing Contract": {
+      "main": [
+        [
+          {
+            "node": "Has Existing Contract?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Existing Contract?": {
+      "main": [
+        [
+          {
+            "node": "Respond - Already Approved",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Insert Contract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Approved & Advance Stage": {
+      "main": [
+        [
+          {
+            "node": "Insert Contract",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Contract": {
+      "main": [
+        [
+          {
+            "node": "Respond - Approve Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Approval Email Template": {
+      "main": [
+        [
+          {
+            "node": "Has Approval Template?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Approval Template?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Thank You Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Prepare Thank You Email": {
+      "main": [
+        [
+          {
+            "node": "Get Company Name: Thank You Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Preview?": {
+      "main": [
+        [
+          {
+            "node": "Build Proposal Found Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Viewed & Advance Stage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Proposal Found Response": {
+      "main": [
+        [
+          {
+            "node": "Respond - Proposal Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Get Proposal Approved": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token (Approved)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Payload (Approved)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Proposal Approved",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Proposal Approved": {
+      "main": [
+        [
+          {
+            "node": "Found? (Approved)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Found? (Approved)": {
+      "main": [
+        [
+          {
+            "node": "Build Proposal Approved Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Proposal Approved Not Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Proposal Approved Response": {
+      "main": [
+        [
+          {
+            "node": "Respond - Proposal Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Company Name: Proposal Email (Manual)": {
+      "main": [
+        [
+          {
+            "node": "Send Proposal Email (Manual)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Company Name: Thank You Email": {
+      "main": [
+        [
+          {
+            "node": "Send Thank You Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Mark Proposal Emailed": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token Payload (Mark Emailed)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate (Mark Emailed)": {
+      "main": [
+        [
+          {
+            "node": "Mark Emailed (Manual, No Resend)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Emailed (Manual, No Resend)": {
+      "main": [
+        [
+          {
+            "node": "Respond - Mark Emailed Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (Get)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Get)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (Get)": {
+      "main": [
+        [
+          {
+            "node": "Validate & Payload (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (Save)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Save)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (Save)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Opportunity (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token Payload (Send)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session Payload (Send)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session Payload (Send)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session Payload (Send)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session Payload (Send)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Proposal (Send)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token Payload (Archive)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session Payload (Archive)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session Payload (Archive)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session Payload (Archive)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session Payload (Archive)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Proposal (Archive)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token Payload (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session Payload (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session Payload (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session Payload (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session Payload (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Proposal (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (Approved)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Approved)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Approved)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (Approved)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (Approved)": {
+      "main": [
+        [
+          {
+            "node": "Validate & Payload (Approved)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token Payload (Mark Emailed)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session Payload (Mark Emailed)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session Payload (Mark Emailed)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session Payload (Mark Emailed)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session Payload (Mark Emailed)": {
+      "main": [
+        [
+          {
+            "node": "Validate (Mark Emailed)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook - Get Proposal Public": {
+      "main": [
+        [
+          {
+            "node": "Look Up Proposal Public",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook - Approve Proposal Public": {
+      "main": [
+        [
+          {
+            "node": "Look Up Proposal For Approve",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Sent Email: Proposal (Manual)": {
+      "main": [
+        [
+          {
+            "node": "Mark Emailed (Send)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Thank You Email": {
+      "main": [
+        [
+          {
+            "node": "Log Sent Email: Thank You",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate",

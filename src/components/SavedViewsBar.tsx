@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useDeleteSavedView, useSavedViews, useUpdateSavedView } from '../hooks/useSavedViews';
 import { SavedView } from '../types/savedView';
+import ConfirmDialog from './ConfirmDialog';
 
 interface Props<TFilters> {
   entityType: string;
@@ -114,6 +115,7 @@ export default function SavedViewsBar<TFilters>({ entityType, currentFilters, on
   const deleteView = useDeleteSavedView(entityType);
   const [activeViewId, setActiveViewId] = useState<number | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
 
   function handleApply(view: SavedView<TFilters>) {
     setActiveViewId(view.id);
@@ -121,16 +123,35 @@ export default function SavedViewsBar<TFilters>({ entityType, currentFilters, on
   }
 
   function handleDelete(id: number) {
-    if (!confirm('Delete this saved view?')) return;
+    setDeleteTargetId(id);
+  }
+
+  function confirmDelete() {
+    if (deleteTargetId == null) return;
+    const id = deleteTargetId;
     // Drop it from the list immediately rather than waiting on the
     // invalidate+refetch round trip — otherwise the chip visibly lingers
     // after clicking the x until the next background refetch lands.
     deleteView.mutate(id, {
-      onSuccess: () => setActiveViewId((prev) => (prev === id ? null : prev)),
+      onSuccess: () => {
+        setActiveViewId((prev) => (prev === id ? null : prev));
+        setDeleteTargetId(null);
+      },
     });
   }
 
-  if (views.length === 0) return null;
+  if (views.length === 0) {
+    return (
+      <ConfirmDialog
+        open={deleteTargetId !== null}
+        title="Delete this saved view?"
+        confirmLabel="Delete"
+        isSubmitting={deleteView.isPending}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTargetId(null)}
+      />
+    );
+  }
 
   return (
     <div className="flex items-center gap-1.5 flex-wrap">
@@ -188,6 +209,14 @@ export default function SavedViewsBar<TFilters>({ entityType, currentFilters, on
           </span>
         );
       })}
+      <ConfirmDialog
+        open={deleteTargetId !== null}
+        title="Delete this saved view?"
+        confirmLabel="Delete"
+        isSubmitting={deleteView.isPending}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTargetId(null)}
+      />
     </div>
   );
 }

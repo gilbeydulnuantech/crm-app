@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Opportunity } from '../../types/opportunity';
-import { useCreateTag, useTags } from '../../hooks/useContacts';
-import { useTagOpportunity, useUntagOpportunity } from '../../hooks/useOpportunities';
+import { useCreateTag, useTagContact, useTags, useUntagContact } from '../../hooks/useContacts';
 import { getTagColorClasses } from '../../utils/tagColors';
 
 interface Props {
@@ -9,16 +8,22 @@ interface Props {
   disabled?: boolean;
 }
 
+// Tags shown/edited here belong to the deal's CONTACT, not the deal
+// itself — the deal card only ever displays contact_tags (a deal is just
+// where that contact's tags happen to surface), so editing has to target
+// the same place or a rep's change would silently vanish from the card.
 export default function DealTagsInline({ deal, disabled }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const dealTags = deal.tags ?? [];
+  const dealTags = deal.contact_tags ?? [];
   const { data: allTags = [] } = useTags();
   const createTag = useCreateTag();
-  const tagOpportunity = useTagOpportunity(deal.pipeline_id ?? undefined);
-  const untagOpportunity = useUntagOpportunity(deal.pipeline_id ?? undefined);
+  const tagContact = useTagContact();
+  const untagContact = useUntagContact();
+  const contactId = deal.contact_id ?? null;
+  const noContact = !contactId;
 
   const assignedIds = new Set(dealTags.map((t) => t.id));
 
@@ -30,9 +35,10 @@ export default function DealTagsInline({ deal, disabled }: Props) {
   const exactMatch = allTags.some((t) => t.name.toLowerCase() === query.trim().toLowerCase());
 
   function handleAssign(tagId: number) {
+    if (!contactId) return;
     setError(null);
-    tagOpportunity.mutate(
-      { opportunityId: deal.id, tagId },
+    tagContact.mutate(
+      { contactId, tagId },
       { onError: (err) => setError(err instanceof Error ? err.message : 'Failed to add tag.') }
     );
     setQuery('');
@@ -40,12 +46,12 @@ export default function DealTagsInline({ deal, disabled }: Props) {
 
   function handleCreateAndAssign() {
     const name = query.trim();
-    if (!name) return;
+    if (!name || !contactId) return;
     setError(null);
     createTag.mutate(name, {
       onSuccess: (newTag) => {
-        tagOpportunity.mutate(
-          { opportunityId: deal.id, tagId: newTag.id },
+        tagContact.mutate(
+          { contactId, tagId: newTag.id },
           { onError: (err) => setError(err instanceof Error ? err.message : 'Failed to attach the new tag.') }
         );
         setQuery('');
@@ -55,9 +61,10 @@ export default function DealTagsInline({ deal, disabled }: Props) {
   }
 
   function handleUntag(tagId: number) {
+    if (!contactId) return;
     setError(null);
-    untagOpportunity.mutate(
-      { opportunityId: deal.id, tagId },
+    untagContact.mutate(
+      { contactId, tagId },
       { onError: (err) => setError(err instanceof Error ? err.message : 'Failed to remove tag.') }
     );
   }
@@ -78,7 +85,11 @@ export default function DealTagsInline({ deal, disabled }: Props) {
         </span>
       ))}
 
-      {!disabled && (
+      {noContact && !disabled && (
+        <span className="text-[11px] text-slate-400 italic">No linked contact to tag.</span>
+      )}
+
+      {!disabled && !noContact && (
         <div className="relative">
           <button
             onClick={() => setOpen((v) => !v)}

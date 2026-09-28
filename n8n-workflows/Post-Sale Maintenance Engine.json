@@ -5,7 +5,7 @@
       "main": [
         [
           {
-            "node": "Select Deals Due For Maintenance Followup",
+            "node": "Log Workflow Run: Schedule Trigger: daily",
             "type": "main",
             "index": 0
           }
@@ -16,7 +16,7 @@
       "main": [
         [
           {
-            "node": "Select Deals Due For Maintenance Followup",
+            "node": "Log Workflow Run: Webhook: manual-test",
             "type": "main",
             "index": 0
           }
@@ -112,6 +112,28 @@
         [
           {
             "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Schedule Trigger: daily": {
+      "main": [
+        [
+          {
+            "node": "Select Deals Due For Maintenance Followup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: manual-test": {
+      "main": [
+        [
+          {
+            "node": "Select Deals Due For Maintenance Followup",
             "type": "main",
             "index": 0
           }
@@ -223,7 +245,8 @@
         "emailType": "html",
         "message": "={{ $json.htmlBody }}",
         "options": {
-          "senderName": "={{ $('Get Company Name').item.json.company_name }}"
+          "senderName": "={{ $('Get Company Name').item.json.company_name }}",
+          "appendAttribution": false
         }
       },
       "id": "pme-send-email",
@@ -349,6 +372,68 @@
         440,
         60
       ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Post-Sale Maintenance Engine\" }}",
+            "workflow_id": "={{ \"BhMpVMXkMIEjj11p\" }}",
+            "entity_type": "={{ \"contacts,opportunities\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-schedule-trigger-daily-0",
+      "name": "Log Workflow Run: Schedule Trigger: daily",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        15,
+        -15
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Post-Sale Maintenance Engine\" }}",
+            "workflow_id": "={{ \"BhMpVMXkMIEjj11p\" }}",
+            "entity_type": "={{ \"contacts,opportunities\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-manual-test-1",
+      "name": "Log Workflow Run: Webhook: manual-test",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        15,
+        205
+      ],
+      "onError": "continueRegularOutput"
     }
   ],
   "pinData": null,

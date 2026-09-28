@@ -35,6 +35,7 @@ import MarkLostModal, { MarkLostResult } from '../components/pipeline/MarkLostMo
 import TaskFormModal from '../components/tasks/TaskFormModal';
 import CreateContractModal from '../components/pipeline/CreateContractModal';
 import SearchToolbar from '../components/SearchToolbar';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const CLOSED_LOST_STAGE = /lost/i;
 
@@ -82,6 +83,7 @@ export default function Pipeline() {
   const [taskDeal, setTaskDeal] = useState<Opportunity | null>(null);
   const [contractDeal, setContractDeal] = useState<Opportunity | null>(null);
   const [lostDeal, setLostDeal] = useState<Opportunity | null>(null);
+  const [deleteConfirmDeal, setDeleteConfirmDeal] = useState<Opportunity | null>(null);
   const [statFilter, setStatFilter] = useState<PipelineStatFilter | null>(null);
 
   // Keeps ?pipeline= in sync so the current board is bookmarkable/refreshable.
@@ -377,8 +379,15 @@ export default function Pipeline() {
   }
 
   function handleDelete(opportunity: Opportunity) {
-    if (!confirm(`Delete "${opportunity.name}"? This cannot be undone.`)) return;
-    deleteOpportunities.mutate([opportunity.id]);
+    setDeleteConfirmDeal(opportunity);
+  }
+
+  function confirmDeleteDeal() {
+    if (!deleteConfirmDeal) return;
+    deleteOpportunities.mutate([deleteConfirmDeal.id], {
+      onSuccess: () => setDeleteConfirmDeal(null),
+      onError: () => setToast('Failed to delete deal.'),
+    });
   }
 
   // View All, Edit Owned Only: standard users can see every deal but only
@@ -591,6 +600,16 @@ export default function Pipeline() {
           {toast}
         </div>
       )}
+
+      <ConfirmDialog
+        open={deleteConfirmDeal !== null}
+        title="Delete this deal?"
+        body={deleteConfirmDeal ? `Delete "${deleteConfirmDeal.name}"? This cannot be undone.` : undefined}
+        confirmLabel="Delete"
+        isSubmitting={deleteOpportunities.isPending}
+        onConfirm={confirmDeleteDeal}
+        onCancel={() => setDeleteConfirmDeal(null)}
+      />
     </div>
   );
 }

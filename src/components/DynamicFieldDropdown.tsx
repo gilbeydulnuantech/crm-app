@@ -1,3 +1,5 @@
+import { useEffect, useRef, useState } from 'react';
+
 export interface DynamicField {
   token: string;
   label: string;
@@ -39,6 +41,7 @@ export const AUTOMATION_DYNAMIC_FIELDS: DynamicField[] = [
   { token: '{{contact.phone}}', label: 'Phone', group: 'Contact' },
   { token: '{{contact.city}}', label: 'City', group: 'Contact' },
   { token: '{{contact.state}}', label: 'State', group: 'Contact' },
+  { token: '{{contact.address}}', label: 'City, State', group: 'Contact' },
   { token: '{{contact.postal_code}}', label: 'Postal Code', group: 'Contact' },
   { token: '{{contact.country}}', label: 'Country', group: 'Contact' },
   { token: '{{contact.date_of_birth}}', label: 'Date of Birth', group: 'Contact' },
@@ -76,6 +79,9 @@ export const AUTOMATION_DYNAMIC_FIELDS: DynamicField[] = [
   { token: '{{payment.down_payment_paid_at}}', label: 'Down Payment Paid At', group: 'Payment' },
   { token: '{{payment.balance_amount}}', label: 'Balance Amount', group: 'Payment' },
   { token: '{{payment.balance_paid_at}}', label: 'Balance Paid At', group: 'Payment' },
+  { token: '{{payment.number}}', label: 'Payment Number', group: 'Payment' },
+  { token: '{{payment.amount}}', label: 'Payment Amount', group: 'Payment' },
+  { token: '{{payment.date}}', label: 'Payment Date', group: 'Payment' },
 
   { token: '{{appointment.id}}', label: 'Appointment ID', group: 'Appointment' },
   { token: '{{appointment.title}}', label: 'Title', group: 'Appointment' },
@@ -86,12 +92,16 @@ export const AUTOMATION_DYNAMIC_FIELDS: DynamicField[] = [
   { token: '{{appointment.location}}', label: 'Location', group: 'Appointment' },
   { token: '{{appointment.assigned_user}}', label: 'Assigned User', group: 'Appointment' },
   { token: '{{appointment.notes}}', label: 'Notes', group: 'Appointment' },
+  { token: '{{cancel_link}}', label: 'Cancel Appointment Link', group: 'Appointment' },
 
   { token: '{{user.id}}', label: 'User ID', group: 'User' },
   { token: '{{user.full_name}}', label: 'Full Name', group: 'User' },
   { token: '{{user.email}}', label: 'Email', group: 'User' },
   { token: '{{user.phone}}', label: 'Phone', group: 'User' },
-  { token: '{{company_name}}', label: 'Company Name', group: 'User' },
+  { token: '{{user.company_name}}', label: 'Company Name', group: 'User' },
+
+  { token: '{{contract.signature_name}}', label: 'Signature Name', group: 'Contract' },
+  { token: '{{contract.signed_at}}', label: 'Signed At', group: 'Contract' },
 
   { token: '{{system.current_date}}', label: 'Current Date', group: 'System' },
   { token: '{{system.current_time}}', label: 'Current Time', group: 'System' },
@@ -120,13 +130,20 @@ export function insertAtCursor(
   });
 }
 
-export default function DynamicFieldDropdown({
-  onInsert,
-  fields = DYNAMIC_FIELDS,
-}: {
-  onInsert: (token: string) => void;
-  fields?: DynamicField[];
-}) {
+function tokenText(token: string) {
+  return token.replace(/^\{\{\s*/, '').replace(/\s*\}\}$/, '');
+}
+
+// Category accordion — every category (Contact, Company, Opportunity, ...)
+// is its own row; click one to expand its fields in place (only one open
+// at a time), click a field to insert it. Shows the raw token path (e.g.
+// contact.first_name) rather than a friendly label, so a rep sees exactly
+// what they're inserting. A flat (ungrouped) field list — e.g. the small
+// default DYNAMIC_FIELDS, or PAGE_DYNAMIC_FIELDS — skips the category
+// level and lists fields directly.
+function FieldList({ onInsert, fields }: { onInsert: (token: string) => void; fields: DynamicField[] }) {
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
+
   const hasGroups = fields.some((f) => f.group);
   const groups = hasGroups
     ? fields.reduce<Record<string, DynamicField[]>>((acc, f) => {
@@ -137,30 +154,108 @@ export default function DynamicFieldDropdown({
     : null;
 
   return (
-    <select
-      value=""
-      onChange={(e) => {
-        if (e.target.value) onInsert(e.target.value);
-        e.target.value = '';
-      }}
-      className="text-[11px] border border-slate-200 rounded-md px-1.5 py-0.5 text-slate-500 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
-    >
-      <option value="">Insert field...</option>
+    <div className="text-xs border border-slate-200 rounded-md bg-white max-h-56 overflow-y-auto">
       {groups
-        ? Object.entries(groups).map(([group, groupFields]) => (
-            <optgroup key={group} label={group}>
-              {groupFields.map((f) => (
-                <option key={f.token} value={f.token}>
-                  {f.label}
-                </option>
-              ))}
-            </optgroup>
-          ))
+        ? Object.entries(groups).map(([group, groupFields]) => {
+            const isOpen = openGroup === group;
+            return (
+              <div key={group} className="border-b border-slate-100 last:border-b-0">
+                <button
+                  type="button"
+                  onClick={() => setOpenGroup(isOpen ? null : group)}
+                  className={`w-full flex items-center justify-between px-2 py-1.5 text-left font-semibold text-[11px] hover:bg-slate-50 ${
+                    isOpen ? 'text-[var(--theme-accent)]' : 'text-slate-600'
+                  }`}
+                >
+                  {group}
+                  <i className={`fa-solid fa-chevron-down text-[9px] transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {isOpen && (
+                  <div className="bg-slate-50 py-1">
+                    {groupFields.map((f) => (
+                      <button
+                        key={f.token}
+                        type="button"
+                        onClick={() => onInsert(f.token)}
+                        title={f.label}
+                        className="w-full text-left px-4 py-1 text-slate-600 hover:bg-white hover:text-[var(--theme-accent)] font-mono text-[11px]"
+                      >
+                        {tokenText(f.token)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })
         : fields.map((f) => (
-            <option key={f.token} value={f.token}>
-              {f.label}
-            </option>
+            <button
+              key={f.token}
+              type="button"
+              onClick={() => onInsert(f.token)}
+              title={f.label}
+              className="w-full text-left px-2 py-1.5 text-slate-600 hover:bg-slate-50 hover:text-[var(--theme-accent)] font-mono text-[11px]"
+            >
+              {tokenText(f.token)}
+            </button>
           ))}
-    </select>
+    </div>
+  );
+}
+
+// Two display modes, same underlying FieldList:
+//   - panel (default): always-visible, used in a dedicated side column
+//     (Proposal/Contract/Email Template/Receipt/Stage Reminder/Page
+//     editors) where there's room for it to just sit open.
+//   - popover: collapsed behind a small trigger button, opens on click,
+//     closes on click-outside — used in compact inline contexts (the
+//     Automation Rules builder) where an always-open field list would
+//     make an already-long form much longer.
+export default function DynamicFieldDropdown({
+  onInsert,
+  fields = DYNAMIC_FIELDS,
+  mode = 'panel',
+}: {
+  onInsert: (token: string) => void;
+  fields?: DynamicField[];
+  mode?: 'panel' | 'popover';
+}) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (mode !== 'popover' || !open) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [mode, open]);
+
+  if (mode === 'panel') {
+    return <FieldList onInsert={onInsert} fields={fields} />;
+  }
+
+  function handleInsert(token: string) {
+    onInsert(token);
+    setOpen(false);
+  }
+
+  return (
+    <div className="relative inline-block" ref={containerRef}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-1 text-[11px] border border-slate-200 rounded-md px-1.5 py-0.5 text-slate-500 hover:border-[var(--theme-accent)] hover:text-[var(--theme-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
+      >
+        Insert field...
+        <i className={`fa-solid fa-chevron-down text-[9px] transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 w-56 z-30 shadow-xl">
+          <FieldList onInsert={handleInsert} fields={fields} />
+        </div>
+      )}
+    </div>
   );
 }

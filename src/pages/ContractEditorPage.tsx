@@ -5,34 +5,12 @@ import { useEmailTemplates } from '../hooks/useEmailTemplates';
 import { usePages } from '../hooks/usePages';
 import ScopeOfWorkEditor from '../components/ScopeOfWorkEditor';
 import ContractPreviewOverlay from '../components/contracts/ContractPreviewOverlay';
-import DynamicFieldDropdown, { insertAtCursor } from '../components/DynamicFieldDropdown';
+import DynamicFieldDropdown, { AUTOMATION_DYNAMIC_FIELDS, insertAtCursor } from '../components/DynamicFieldDropdown';
 import { RichTextEditorHandle } from '../components/RichTextEditor';
 import { buildDraftPdf } from '../utils/contractPdf';
 
 const inputClass =
   'w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]';
-
-// Standalone template — no deal/pipeline/stage. The contact fields resolve
-// once this template is cloned into a real, deal-bound contract (from an
-// approved proposal, or an automation). {{deal_name}}/{{contract_link}} and
-// the new deal_*/down_payment_*/balance_* tokens are offered here but
-// aren't wired into fillMergeFields (utils/mergeFields.ts) yet — they'll
-// render literally until that resolver is extended to fill them.
-const CONTRACT_DYNAMIC_FIELDS = [
-  { token: '{{first_name}}', label: 'First Name', group: 'Contact' },
-  { token: '{{last_name}}', label: 'Last Name', group: 'Contact' },
-  { token: '{{deal_name}}', label: 'Deal Name', group: 'Deal' },
-  { token: '{{deal_value}}', label: 'Deal Value', group: 'Deal' },
-  { token: '{{deal_created_at}}', label: 'Created At', group: 'Deal' },
-  { token: '{{deal_due_at}}', label: 'Due At', group: 'Deal' },
-  { token: '{{contract_link}}', label: 'Contract Link', group: 'Deal' },
-  { token: '{{down_payment_amount}}', label: 'Down Payment Amount', group: 'Payment' },
-  { token: '{{down_payment_paid_at}}', label: 'Down Payment Paid At', group: 'Payment' },
-  { token: '{{balance_amount}}', label: 'Balance Amount', group: 'Payment' },
-  { token: '{{balance_paid_at}}', label: 'Balance Paid At', group: 'Payment' },
-  { token: '{{owner_name}}', label: 'Owner', group: 'User' },
-  { token: '{{company_name}}', label: 'Company Name', group: 'User' },
-];
 
 interface ContractForm {
   id?: number;
@@ -67,6 +45,7 @@ export default function ContractEditorPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [emailPanelOpen, setEmailPanelOpen] = useState(false);
   const [loadedExisting, setLoadedExisting] = useState(false);
+  const [focusedComposeField, setFocusedComposeField] = useState<'subject' | 'body'>('body');
   const emailSubjectRef = useRef<HTMLInputElement>(null);
   const emailBodyRef = useRef<HTMLTextAreaElement>(null);
   const editorRef = useRef<RichTextEditorHandle>(null);
@@ -103,6 +82,14 @@ export default function ContractEditorPage() {
     const tmpl = emailTemplates.find((t) => String(t.id) === templateId);
     if (!tmpl) return;
     setForm((f) => ({ ...f, email_subject: tmpl.subject, email_body: tmpl.body }));
+  }
+
+  function insertIntoComposeField(token: string) {
+    if (focusedComposeField === 'subject') {
+      insertAtCursor(emailSubjectRef.current, form.email_subject, token, (v) => setForm((f) => ({ ...f, email_subject: v })));
+    } else {
+      insertAtCursor(emailBodyRef.current, form.email_body, token, (v) => setForm((f) => ({ ...f, email_body: v })));
+    }
   }
 
   function handleSubmit(e: FormEvent) {
@@ -277,30 +264,7 @@ export default function ContractEditorPage() {
 
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1.5">Insert dynamic field</label>
-            <div className="flex flex-col gap-2.5">
-              {Object.entries(
-                CONTRACT_DYNAMIC_FIELDS.reduce<Record<string, typeof CONTRACT_DYNAMIC_FIELDS>>((acc, f) => {
-                  (acc[f.group] ||= []).push(f);
-                  return acc;
-                }, {})
-              ).map(([group, groupFields]) => (
-                <div key={group}>
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">{group}</p>
-                  <div className="flex flex-col gap-1.5">
-                    {groupFields.map((f) => (
-                      <button
-                        key={f.token}
-                        type="button"
-                        onClick={() => editorRef.current?.insertText(f.token)}
-                        className="w-full text-left text-[11px] font-medium border border-slate-200 rounded-md px-2 py-1 text-slate-600 bg-white hover:border-[var(--theme-accent)] hover:text-[var(--theme-accent)]"
-                      >
-                        {f.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <DynamicFieldDropdown fields={AUTOMATION_DYNAMIC_FIELDS} onInsert={(t) => editorRef.current?.insertText(t)} />
             <p className="text-[10px] text-slate-400 italic mt-2">
               Fields resolve once this template is used for a specific deal (via an approved proposal or an
               automation).
@@ -340,56 +304,53 @@ export default function ContractEditorPage() {
       {/* Send-email customization panel */}
       {emailPanelOpen && (
         <div className="fixed inset-0 bg-slate-900/40 z-[130] flex items-center justify-center p-4" onClick={() => setEmailPanelOpen(false)}>
-          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl p-5" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-bold text-slate-800">Customize the send email</h3>
-              <button onClick={() => setEmailPanelOpen(false)} className="text-slate-400 hover:text-slate-600">
-                <i className="fa-solid fa-xmark" />
-              </button>
-            </div>
-            <div className="space-y-1.5">
-              {emailTemplates.length > 0 && (
-                <select value="" onChange={(e) => applyEmailTemplate(e.target.value)} className={inputClass}>
-                  <option value="">Use an email template...</option>
-                  {emailTemplates.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-              <div className="flex items-center justify-between">
+          <div className="bg-white w-full max-w-xl rounded-2xl shadow-2xl flex overflow-hidden max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
+            <div className="flex-1 p-5 overflow-y-auto">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-bold text-slate-800">Customize the send email</h3>
+                <button onClick={() => setEmailPanelOpen(false)} className="text-slate-400 hover:text-slate-600">
+                  <i className="fa-solid fa-xmark" />
+                </button>
+              </div>
+              <div className="space-y-1.5">
+                {emailTemplates.length > 0 && (
+                  <select value="" onChange={(e) => applyEmailTemplate(e.target.value)} className={inputClass}>
+                    <option value="">Use an email template...</option>
+                    {emailTemplates.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <span className="text-[11px] font-medium text-slate-500">Subject</span>
-                <DynamicFieldDropdown
-                  fields={CONTRACT_DYNAMIC_FIELDS}
-                  onInsert={(token) =>
-                    insertAtCursor(emailSubjectRef.current, form.email_subject, token, (v) => setForm((f) => ({ ...f, email_subject: v })))
-                  }
+                <input
+                  ref={emailSubjectRef}
+                  type="text"
+                  value={form.email_subject}
+                  onChange={(e) => setForm((f) => ({ ...f, email_subject: e.target.value }))}
+                  onFocus={() => setFocusedComposeField('subject')}
+                  placeholder="Leave blank to use the default subject"
+                  className={inputClass}
                 />
-              </div>
-              <input
-                ref={emailSubjectRef}
-                type="text"
-                value={form.email_subject}
-                onChange={(e) => setForm((f) => ({ ...f, email_subject: e.target.value }))}
-                placeholder="Leave blank to use the default subject"
-                className={inputClass}
-              />
-              <div className="flex items-center justify-between">
                 <span className="text-[11px] font-medium text-slate-500">Body</span>
-                <DynamicFieldDropdown
-                  fields={CONTRACT_DYNAMIC_FIELDS}
-                  onInsert={(token) => insertAtCursor(emailBodyRef.current, form.email_body, token, (v) => setForm((f) => ({ ...f, email_body: v })))}
+                <textarea
+                  ref={emailBodyRef}
+                  value={form.email_body}
+                  onChange={(e) => setForm((f) => ({ ...f, email_body: e.target.value }))}
+                  onFocus={() => setFocusedComposeField('body')}
+                  rows={3}
+                  placeholder="Leave blank to use the default template — placeholders: {{first_name}} {{contract_link}}"
+                  className={inputClass}
                 />
               </div>
-              <textarea
-                ref={emailBodyRef}
-                value={form.email_body}
-                onChange={(e) => setForm((f) => ({ ...f, email_body: e.target.value }))}
-                rows={3}
-                placeholder="Leave blank to use the default template — placeholders: {{first_name}} {{contract_link}}"
-                className={inputClass}
-              />
+            </div>
+
+            <div className="w-56 shrink-0 border-l border-slate-200 bg-slate-50 p-4 overflow-y-auto">
+              <p className="text-[11px] font-semibold text-slate-500 mb-2">
+                Insert into {focusedComposeField === 'subject' ? 'Subject' : 'Body'}
+              </p>
+              <DynamicFieldDropdown fields={AUTOMATION_DYNAMIC_FIELDS} onInsert={insertIntoComposeField} />
             </div>
           </div>
         </div>

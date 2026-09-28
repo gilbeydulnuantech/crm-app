@@ -14,89 +14,10 @@
       "typeVersion": 2,
       "webhookId": "9f3c1a2e-4b6d-4e1a-8c2f-1a2b3c4d5e6f",
       "position": [
-        0,
-        0
+        -544,
+        -240
       ],
-      "onError": "continueErrorOutput",
-      "notes": "Internal, system-to-system endpoint (no session-token auth), called from the frontend (Pipeline.tsx on stage move, ContactDetailModal.tsx on open, PublicUnsubscribePage.tsx after unsubscribing). Deliberately never reads or writes do_not_contact/dnc_email/dnc_call/dnc_sms \u2014 those fields are only ever touched by a rep directly checking a DNC checkbox (AddContactModal, ContactDetailModal's DND dropdown), never by this rules engine."
-    },
-    {
-      "parameters": {
-        "jsCode": "const body = $input.first().json.body || {};\nconst contactId = parseInt(body.contact_id, 10);\nif (!Number.isInteger(contactId)) throw new Error('\"contact_id\" is required and must be an integer.');\n\nreturn [{ json: {\n  contactId,\n  lastActivity: body.last_activity || null,\n  dealStage: (body.deal_stage || '').toString(),\n} }];"
-      },
-      "id": "css-0002-parse",
-      "name": "Parse & Validate Payload",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        224,
-        0
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT c.id\nFROM (SELECT $1::int AS cid) dummy\nLEFT JOIN contacts c ON c.id = dummy.cid;",
-        "options": {
-          "queryReplacement": "={{ [ $json.contactId ] }}"
-        }
-      },
-      "id": "css-0003-lookup",
-      "name": "Look Up Contact",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        448,
-        0
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput",
-      "notes": "Always returns exactly one row (dummy-row LEFT JOIN) even when the contact doesn't exist, so the error branch downstream actually fires instead of the whole chain silently going quiet on zero matched rows."
-    },
-    {
-      "parameters": {
-        "jsCode": "const parsed = $('Parse & Validate Payload').first().json;\nconst row = $input.first().json;\nif (!row || !row.id) throw new Error('Contact not found.');\n\n// Only 3 rules \u2014 none of them read or write any DNC field. Evaluated in\n// order, each overwriting the last, so whichever is true furthest down\n// wins when more than one applies. null = no match, leave lead_status as\n// it is.\nlet status = null;\n\n// 1. Deal reached \"inspection done\"\nif (parsed.dealStage.trim().toLowerCase() === 'inspection done') {\n  status = 'Active';\n}\n\n// 2. Deal closed won \u2014 matches both pipelines' naming (\"Closed Won\" /\n// \"closed: won\").\nif (/closed.*won/i.test(parsed.dealStage)) {\n  status = 'Customer';\n}\n\n// 3. No activity in over 6 days\nif (parsed.lastActivity) {\n  const last = new Date(parsed.lastActivity);\n  if (!isNaN(last.getTime())) {\n    const daysSince = (Date.now() - last.getTime()) / 86400000;\n    if (daysSince > 6) status = 'Inactive';\n  }\n}\n\nreturn [{ json: { contactId: row.id, status } }];"
-      },
-      "id": "css-0004-compute",
-      "name": "Compute Status",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        672,
-        0
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "UPDATE contacts SET lead_status = COALESCE($1, lead_status), updated_at = now() WHERE id = $2 RETURNING id, lead_status;",
-        "options": {
-          "queryReplacement": "={{ [ $json.status, $json.contactId ] }}"
-        }
-      },
-      "id": "css-0005-update",
-      "name": "Update Contact Status",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        896,
-        0
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput",
-      "notes": "Only ever touches lead_status and updated_at \u2014 never do_not_contact/dnc_email/dnc_call/dnc_sms."
+      "notes": "Internal, system-to-system endpoint (no session-token auth) \u2014 the caller (another n8n workflow, or a future frontend action) is expected to already have gathered the payload fields itself; this endpoint is pure rules + write. contact_id is required even though not explicitly listed in the spec, since it's the only way to know which contact row to update."
     },
     {
       "parameters": {
@@ -109,8 +30,8 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        1120,
-        0
+        1040,
+        -704
       ]
     },
     {
@@ -126,9 +47,538 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        672,
-        224
+        1104,
+        0
       ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "98fa4826-5321-44df-b5b7-6bf09af35bc0",
+              "leftValue": "={{ $json.name }}",
+              "rightValue": "={{ $('Webhook: contact-status-system').item.json.body.deal_stage }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        192,
+        -624
+      ],
+      "id": "97273f7a-ca62-4035-a7cc-1cbf4e2cbcf5",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "contacts",
+          "mode": "list",
+          "cachedResultName": "contacts"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "do_not_contact": false,
+            "is_archived": false,
+            "dnc_email": false,
+            "dnc_call": false,
+            "dnc_sms": false,
+            "id": "={{ $('Look Up Opportunites').item.json.contact_id }}",
+            "lead_status": "={{ $json.lead_status = 'Active'}}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "first_name",
+              "displayName": "first_name",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "last_name",
+              "displayName": "last_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "job_title",
+              "displayName": "job_title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "account_id",
+              "displayName": "account_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "secondary_email",
+              "displayName": "secondary_email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "secondary_phone",
+              "displayName": "secondary_phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "linkedin_url",
+              "displayName": "linkedin_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "city",
+              "displayName": "city",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "state",
+              "displayName": "state",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "zip_code",
+              "displayName": "zip_code",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "country",
+              "displayName": "country",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "lead_status",
+              "displayName": "lead_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "lead_source",
+              "displayName": "lead_source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "do_not_contact",
+              "displayName": "do_not_contact",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "owner_id",
+              "displayName": "owner_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "created_by",
+              "displayName": "created_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "is_archived",
+              "displayName": "is_archived",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "last_contacted_at",
+              "displayName": "last_contacted_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "archived_at",
+              "displayName": "archived_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "archived_by",
+              "displayName": "archived_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "archive_reason",
+              "displayName": "archive_reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email_logs",
+              "displayName": "email_logs",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "dnc_email",
+              "displayName": "dnc_email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "dnc_call",
+              "displayName": "dnc_call",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "dnc_sms",
+              "displayName": "dnc_sms",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "company_role",
+              "displayName": "company_role",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "timezone",
+              "displayName": "timezone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "birthdate",
+              "displayName": "birthdate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "unsubscribe_token",
+              "displayName": "unsubscribe_token",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "booking_token",
+              "displayName": "booking_token",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "f7e1c025-8266-4e91-af17-8f576e6bc894",
+      "name": "Update Contact Status1",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        592,
+        -704
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "opportunities",
+          "mode": "list",
+          "cachedResultName": "opportunities"
+        },
+        "where": {
+          "values": [
+            {
+              "column": "contact_id",
+              "value": "={{ $json.body.contact_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "5a1f15dc-8ad0-4b32-819a-764f1994f724",
+      "name": "Look Up Opportunites",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -272,
+        -464
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "notes": "dnc_email is the real 'unsubscribed from emails' flag (set by the public unsubscribe page) \u2014 looked up here rather than trusted from the payload, since it wasn't part of the requested payload shape."
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "stages",
+          "mode": "list",
+          "cachedResultName": "stages"
+        },
+        "where": {
+          "values": [
+            {
+              "column": "pipeline_id",
+              "value": "=3"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "12e61b67-d69a-4d45-934e-38fb62c6e8b9",
+      "name": "look up stages",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -64,
+        -608
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "notes": "dnc_email is the real 'unsubscribed from emails' flag (set by the public unsubscribe page) \u2014 looked up here rather than trusted from the payload, since it wasn't part of the requested payload shape."
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Contact status system\" }}",
+            "workflow_id": "={{ \"YVbbwAmBT9884f1T\" }}",
+            "entity_type": "={{ \"contacts\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-contact-status-system-0",
+      "name": "Log Workflow Run: Webhook: contact-status-system",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        300,
+        -20
+      ],
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
@@ -136,75 +586,27 @@
       "main": [
         [
           {
-            "node": "Parse & Validate Payload",
+            "node": "Log Workflow Run: Webhook: contact-status-system",
             "type": "main",
             "index": 0
           }
         ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     },
-    "Parse & Validate Payload": {
+    "If1": {
       "main": [
         [
           {
-            "node": "Look Up Contact",
+            "node": "Update Contact Status1",
             "type": "main",
             "index": 0
           }
         ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     },
-    "Look Up Contact": {
-      "main": [
-        [
-          {
-            "node": "Compute Status",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Compute Status": {
-      "main": [
-        [
-          {
-            "node": "Update Contact Status",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Update Contact Status": {
+    "Update Contact Status1": {
       "main": [
         [
           {
@@ -216,6 +618,40 @@
         [
           {
             "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Opportunites": {
+      "main": [
+        [
+          {
+            "node": "look up stages",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "look up stages": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: contact-status-system": {
+      "main": [
+        [
+          {
+            "node": "Look Up Opportunites",
             "type": "main",
             "index": 0
           }

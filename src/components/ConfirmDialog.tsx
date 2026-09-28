@@ -27,7 +27,7 @@ export default function ConfirmDialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[120] flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-slate-900/70 z-[120] flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
         <h3 className="text-lg font-bold text-slate-800 mb-1">{title}</h3>
         {body && <p className="text-xs text-slate-500 mb-4">{body}</p>}

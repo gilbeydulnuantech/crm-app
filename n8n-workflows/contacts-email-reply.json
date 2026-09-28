@@ -8,8 +8,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        832,
-        704
+        896,
+        224
       ],
       "id": "d25428a4-cd0b-4884-9f84-301c50e51721",
       "name": "Aggregate Attachments"
@@ -25,8 +25,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        416,
-        464
+        1120,
+        -160
       ],
       "id": "bca665fa-6b4a-4970-a5ff-7894bf2a25f4",
       "name": "Check-contact-where-email-is:",
@@ -48,8 +48,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        624,
-        464
+        1344,
+        80
       ],
       "id": "21bc7d8d-d654-4168-a430-936d9a3c1098",
       "name": "update-logs: insert-reply",
@@ -79,7 +79,7 @@
       "typeVersion": 1.3,
       "position": [
         0,
-        704
+        80
       ],
       "id": "1cebae6d-1576-42dd-927b-f2fa49c91521",
       "name": "Gmail Trigger",
@@ -118,8 +118,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        208,
-        704
+        224,
+        80
       ],
       "id": "dc191a1a-1993-443a-a4a8-38f3d548cbc5",
       "name": "If"
@@ -131,8 +131,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        416,
-        704
+        448,
+        224
       ],
       "id": "eea82fde-8b1c-47a5-a9e9-5f0f3706c0b4",
       "name": "Code in JavaScript"
@@ -156,8 +156,8 @@
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
       "position": [
-        624,
-        704
+        672,
+        224
       ],
       "id": "5d7c7835-658d-4e71-b8c3-af87a0155cf3",
       "name": "Upload file",
@@ -179,8 +179,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1040,
-        704
+        1120,
+        224
       ],
       "id": "5aa8b03a-362b-4995-827e-d053a407859c",
       "name": "Check-contact-where-email-is:1",
@@ -202,8 +202,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1248,
-        704
+        1344,
+        272
       ],
       "id": "ccee2383-f9ff-42b7-b9a2-e5e08e504158",
       "name": "update-logs: insert-reply1",
@@ -213,6 +213,654 @@
           "name": "myRag"
         }
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { contactId: $json.id, threadId: $('Gmail Trigger').item.json.threadId } }];"
+      },
+      "id": "ler2-capture-context",
+      "name": "Capture Reply Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT es.id AS send_id, c.id AS contact_id, c.owner_id, c.first_name, c.last_name, c.email, c.phone, c.dnc_sms, c.booking_token, EXISTS (SELECT 1 FROM taggables tg JOIN tags t ON t.id = tg.tag_id WHERE tg.entity_type = 'contact' AND tg.entity_id = c.id AND t.name = 'Engaged Lead') AS already_engaged FROM contacts c LEFT JOIN email_sends es ON es.contact_id = c.id AND es.workflow_id = 'new_lead' AND es.reply_status = 'waiting' WHERE c.id = $1 ORDER BY es.sent_at DESC LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Capture Reply Context').item.json.contactId ] }}"
+        }
+      },
+      "id": "ler2-find-waiting",
+      "name": "Find Waiting Send",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1920,
+        80
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ler2-pending-cond",
+              "leftValue": "={{ !!$json.send_id }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ler2-has-pending",
+      "name": "Has Pending Send?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2144,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE email_sends SET reply_status = 'replied' WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.send_id ] }}"
+        }
+      },
+      "id": "ler2-mark-replied",
+      "name": "Mark Send Replied",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2368,
+        80
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ler2-engaged-cond",
+              "leftValue": "={{ $('Find Waiting Send').item.json.already_engaged }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ler2-already-engaged",
+      "name": "Already Engaged?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2592,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO tags (name) VALUES ('Engaged Lead') ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id;",
+        "options": {}
+      },
+      "id": "ler2-tag",
+      "name": "Resolve Tag: Engaged Lead",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3040,
+        -304
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO taggables (tag_id, entity_type, entity_id) VALUES ($1, 'contact', $2) ON CONFLICT (tag_id, entity_type, entity_id) DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id, $('Find Waiting Send').item.json.contact_id ] }}"
+        }
+      },
+      "id": "ler2-taggable",
+      "name": "Insert Taggable: Engaged Lead",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3264,
+        -304
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts SET owner_id = (\n  SELECT u.id FROM users u\n  LEFT JOIN contacts c2 ON c2.owner_id = u.id AND c2.is_archived = false\n  WHERE u.role = 'user' AND u.active = true\n  GROUP BY u.id\n  ORDER BY COUNT(c2.id) ASC, u.id ASC\n  LIMIT 1\n), updated_at = now()\nWHERE id = $1\nRETURNING owner_id;",
+        "options": {
+          "queryReplacement": "={{ [ $('Find Waiting Send').item.json.contact_id ] }}"
+        }
+      },
+      "id": "ler2-assign",
+      "name": "Assign Owner (Round Robin)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3040,
+        80
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const NOTIFIER_USER_ID = 1;\nconst ownerId = $input.item.json.owner_id;\nconst dmKey = [NOTIFIER_USER_ID, ownerId].sort((a, b) => a - b).join('-');\nreturn [{ json: { notifierUserId: NOTIFIER_USER_ID, ownerId, dmKey } }];"
+      },
+      "id": "ler2-dmkey",
+      "name": "Build DM Key",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3264,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO conversations (type, dm_key, created_by) VALUES ('dm', $1, $2) ON CONFLICT (dm_key) WHERE type = 'dm' DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ [ $json.dmKey, $json.notifierUserId ] }}"
+        }
+      },
+      "id": "ler2-dmcreate",
+      "name": "Create DM If Missing",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3488,
+        -112
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id FROM conversations WHERE type = 'dm' AND dm_key = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Build DM Key').item.json.dmKey ] }}"
+        }
+      },
+      "id": "ler2-dmgetid",
+      "name": "Get DM Id",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3712,
+        -112
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO conversation_members (conversation_id, user_id) VALUES ($1, $2), ($1, $3) ON CONFLICT DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id, $('Build DM Key').item.json.notifierUserId, $('Build DM Key').item.json.ownerId ] }}"
+        }
+      },
+      "id": "ler2-dmmembers",
+      "name": "Ensure DM Members",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3936,
+        -112
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\nfunction toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction fill(template, row) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*email\\s*}}/gi, row.email || '')\n    .replace(/{{[^{}]*}}/g, '');\n}\n\nconst row = $('Find Waiting Send').item.json;\nconst name = [row.first_name, row.last_name].filter(Boolean).join(' ') || 'A lead';\nreturn [{ json: { text: `\ud83d\udd25 ${name} just replied and looks engaged \u2014 assigned to you. Follow up ASAP: ${row.email || row.phone || ''}` } }];"
+      },
+      "id": "ler2-dmtext",
+      "name": "Prepare DM Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4160,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO messages (conversation_id, sender_id, body) SELECT $1, $2, $3 WHERE EXISTS (SELECT 1 FROM users WHERE id = $4 AND COALESCE((notification_preferences->>'automation_dms')::boolean, true) = true);",
+        "options": {
+          "queryReplacement": "={{ [ $('Get DM Id').item.json.id, $('Build DM Key').item.json.notifierUserId, $json.text, $('Build DM Key').item.json.ownerId ] }}"
+        }
+      },
+      "id": "ler2-dmmsg",
+      "name": "Insert DM Message",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4384,
+        -112
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT subject, body FROM email_templates WHERE id = 14;",
+        "options": {}
+      },
+      "id": "ler2-lookup-booking-tmpl",
+      "name": "Look Up Template: Book Inspection",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3040,
+        464
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "function toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction fill(template, row, bookingLink) {\n  return (template || '')\n    .replace(/{{\\s*contact\\.first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*contact\\.email\\s*}}/gi, row.email || '')\n    .replace(/{{\\s*booking_link\\s*}}/gi, bookingLink)\n    .replace(/{{(?!\\s*company[._]name\\s*}})[^{}]*}}/gi, '');\n}\n\nlet base = '';\ntry { base = $env.FRONTEND_BASE_URL || ''; } catch (e) { base = ''; }\n\nconst tmpl = $input.item.json;\nconst row = $('Find Waiting Send').item.json;\nconst bookingLink = base + '/book/' + row.booking_token;\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject, row, bookingLink), htmlBody: fill(tmpl.body, row, bookingLink).replace(/\\n/g, '<br>') } }];"
+      },
+      "id": "ler2-fill-booking",
+      "name": "Fill Booking Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3264,
+        464
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Fill Booking Email').item.json.to }}",
+        "subject": "={{ ($('Fill Booking Email').item.json.subject).replace(/\\{\\{\\s*company[._]name\\s*\\}\\}/gi, $('Get Company Name: Booking Email').item.json.company_name) }}",
+        "message": "={{ (($('Fill Booking Email').item.json.htmlBody).replace(/The Team/g, $('Get Company Name: Booking Email').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company[._]name\\s*\\}\\}/gi, $('Get Company Name: Booking Email').item.json.company_name) }}",
+        "options": {
+          "senderName": "={{ $('Get Company Name: Booking Email').item.json.company_name }}"
+        }
+      },
+      "id": "ler2-send-booking",
+      "name": "Send Booking Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        3712,
+        464
+      ],
+      "webhookId": "8e079814-2ad5-4103-aebf-56b0e3840665",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts SET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object('id', gen_random_uuid()::text, 'type', 'sent', 'subject', $1::text, 'message', $2::text, 'sent_at', NOW(), 'is_read', true) WHERE id = $3;",
+        "options": {
+          "queryReplacement": "={{ [ ($('Fill Booking Email').item.json.subject).replace(/\\{\\{\\s*company[._]name\\s*\\}\\}/gi, $('Get Company Name: Booking Email').item.json.company_name), $('Fill Booking Email').item.json.htmlBody.replace(/<br\\s*\\/?\\s*>/gi, '\\n').replace(/<[^>]+>/g, '').replace(/The Team/g, $('Get Company Name: Booking Email').item.json.company_name + ' Team').replace(/\\{\\{\\s*company[._]name\\s*\\}\\}/gi, $('Get Company Name: Booking Email').item.json.company_name), $('Find Waiting Send').item.json.contact_id ] }}"
+        }
+      },
+      "id": "ler2-log-booking",
+      "name": "Log Sent Email: Book Inspection",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3936,
+        464
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO email_sends (contact_id, thread_id, message_id, workflow_id, workflow_step, sent_at, reply_status) VALUES ($1, $2, $3, 'new_lead', 'book_inspection', now(), 'waiting');",
+        "options": {
+          "queryReplacement": "={{ [ $('Find Waiting Send').item.json.contact_id, $('Send Booking Email').item.json.threadId, $('Send Booking Email').item.json.id ] }}"
+        }
+      },
+      "id": "ler2-record-booking-send",
+      "name": "Record Booking Send",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4160,
+        464
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO automation_runs (automation_id, action_id, entity_type, entity_id, branch, status, detail) VALUES (38, 110, 'contact', $1, 'default', 'success', $2);",
+        "options": {
+          "queryReplacement": "={{ [ $('Find Waiting Send').item.json.contact_id, 'Contact replied \u2014 tagged Engaged Lead, owner reassigned via round robin' ] }}"
+        }
+      },
+      "id": "log-04vbwndc",
+      "name": "Log Automation Run: Engaged",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        3488,
+        -304
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO automation_runs (automation_id, action_id, entity_type, entity_id, branch, status, detail) VALUES (38, 111, 'contact', $1, 'default', 'success', $2);",
+        "options": {
+          "queryReplacement": "={{ [ $('Find Waiting Send').item.json.contact_id, 'Reply received \u2014 booking email sent' ] }}"
+        }
+      },
+      "id": "log-uylrfc8s",
+      "name": "Log Automation Run: Booking Sent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        4384,
+        272
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT (SELECT value FROM integration_secrets WHERE key='twilio_account_sid') AS account_sid, (SELECT value FROM integration_secrets WHERE key='twilio_from_number') AS from_number;",
+        "options": {}
+      },
+      "id": "sms-twcfg-t7zo77",
+      "name": "Get Twilio Config: Booking Reply",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        4384,
+        560
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ !!$('Find Waiting Send').item.json.phone }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "c2",
+              "leftValue": "={{ $('Find Waiting Send').item.json.dnc_sms === true }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sms-if-d6wptg",
+      "name": "Can Send SMS: Booking Reply",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4608,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.twilio.com/2010-04-01/Accounts/' + $('Get Twilio Config: Booking Reply').item.json.account_sid + '/Messages.json' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "To",
+              "value": "={{ $('Find Waiting Send').item.json.phone }}"
+            },
+            {
+              "name": "From",
+              "value": "={{ $('Get Twilio Config: Booking Reply').item.json.from_number }}"
+            },
+            {
+              "name": "Body",
+              "value": "={{ 'Thanks for the reply! Check your email for the inspection booking link, or call us directly. Reply STOP to opt out.' }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "id": "sms-send-iauph5",
+      "name": "Send SMS: Booking Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4832,
+        560
+      ],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "xELUPXoNdBY2j9Eu",
+          "name": "Twilio Auth (PLACEHOLDER - replace me)"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO automation_runs (automation_id, action_id, entity_type, entity_id, branch, status, detail) VALUES (38, 125, 'contact', $1, 'default', 'success', $2);",
+        "options": {
+          "queryReplacement": "={{ [ $('Find Waiting Send').item.json.contact_id, 'Booking reply SMS sent' ] }}"
+        }
+      },
+      "id": "sms-log-6n1u7r",
+      "name": "Log Automation Run: SMS Booking Reply",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        5056,
+        560
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT company_name FROM company_profile LIMIT 1;",
+        "options": {}
+      },
+      "id": "cname-mug5b4xh",
+      "name": "Get Company Name: Booking Email",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        3488,
+        464
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"contacts-email-reply\" }}",
+            "workflow_id": "={{ \"g15mzGsHBKPkmo49\" }}",
+            "entity_type": "={{ \"contacts\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-gmail-trigger-0",
+      "name": "Log Workflow Run: Gmail Trigger",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        15,
+        65
+      ],
+      "onError": "continueRegularOutput"
     }
   ],
   "pinData": {},
@@ -235,6 +883,11 @@
             "node": "update-logs: insert-reply",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Capture Reply Context",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -243,7 +896,7 @@
       "main": [
         [
           {
-            "node": "If",
+            "node": "Log Workflow Run: Gmail Trigger",
             "type": "main",
             "index": 0
           }
@@ -295,6 +948,282 @@
         [
           {
             "node": "update-logs: insert-reply1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Capture Reply Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Capture Reply Context": {
+      "main": [
+        [
+          {
+            "node": "Find Waiting Send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Waiting Send": {
+      "main": [
+        [
+          {
+            "node": "Has Pending Send?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Pending Send?": {
+      "main": [
+        [
+          {
+            "node": "Mark Send Replied",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Mark Send Replied": {
+      "main": [
+        [
+          {
+            "node": "Already Engaged?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Already Engaged?": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Resolve Tag: Engaged Lead",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Assign Owner (Round Robin)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Look Up Template: Book Inspection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Tag: Engaged Lead": {
+      "main": [
+        [
+          {
+            "node": "Insert Taggable: Engaged Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assign Owner (Round Robin)": {
+      "main": [
+        [
+          {
+            "node": "Build DM Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build DM Key": {
+      "main": [
+        [
+          {
+            "node": "Create DM If Missing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create DM If Missing": {
+      "main": [
+        [
+          {
+            "node": "Get DM Id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get DM Id": {
+      "main": [
+        [
+          {
+            "node": "Ensure DM Members",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ensure DM Members": {
+      "main": [
+        [
+          {
+            "node": "Prepare DM Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare DM Text": {
+      "main": [
+        [
+          {
+            "node": "Insert DM Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Template: Book Inspection": {
+      "main": [
+        [
+          {
+            "node": "Fill Booking Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fill Booking Email": {
+      "main": [
+        [
+          {
+            "node": "Get Company Name: Booking Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Booking Email": {
+      "main": [
+        [
+          {
+            "node": "Log Sent Email: Book Inspection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Sent Email: Book Inspection": {
+      "main": [
+        [
+          {
+            "node": "Record Booking Send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Taggable: Engaged Lead": {
+      "main": [
+        [
+          {
+            "node": "Log Automation Run: Engaged",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Booking Send": {
+      "main": [
+        [
+          {
+            "node": "Log Automation Run: Booking Sent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Twilio Config: Booking Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Twilio Config: Booking Reply": {
+      "main": [
+        [
+          {
+            "node": "Can Send SMS: Booking Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Can Send SMS: Booking Reply": {
+      "main": [
+        [
+          {
+            "node": "Send SMS: Booking Reply",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Send SMS: Booking Reply": {
+      "main": [
+        [
+          {
+            "node": "Log Automation Run: SMS Booking Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Company Name: Booking Email": {
+      "main": [
+        [
+          {
+            "node": "Send Booking Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "If",
             "type": "main",
             "index": 0
           }

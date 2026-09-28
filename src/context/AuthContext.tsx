@@ -14,7 +14,7 @@ import {
   setAuthToken,
   setCurrentUser,
 } from '../api/client';
-import { login as apiLogin, signUp as apiSignUp, verifySession } from '../api/auth';
+import { login as apiLogin, signUp as apiSignUp, verifySession, logout as apiLogout } from '../api/auth';
 
 interface AuthContextValue {
   user: CurrentUser | null;
@@ -100,6 +100,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [login]);
 
   const logout = useCallback(() => {
+    // Best-effort: invalidate the session server-side so a leaked token
+    // can't keep working after the user logs out. Never blocks on this —
+    // a network hiccup shouldn't trap the user in a logged-in-looking state.
+    const token = getAuthToken();
+    if (token) {
+      apiLogout(token).catch(() => {});
+    }
     clearAuthToken();
     setUser(null);
   }, []);

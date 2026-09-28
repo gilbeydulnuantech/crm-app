@@ -1,8 +1,9 @@
-// Base URL for the n8n webhook backend.
-// NOTE: the ngrok free-tier URL rotates/expires — move this to a real
-// domain (or a .env var, e.g. import.meta.env.VITE_API_BASE_URL) before shipping.
-export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? 'https://tubular-silica-despite.ngrok-free.dev';
+// Base URL for the n8n webhook backend. Empty string = same-origin relative
+// paths, proxied to n8n by vite.config.ts's server.proxy in dev (so the
+// frontend and backend can share one ngrok tunnel/static domain) — only set
+// VITE_API_BASE_URL to an absolute URL if the frontend and n8n are served
+// from genuinely different origins.
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 
 export function getAuthToken(): string | null {
   return localStorage.getItem('authToken');

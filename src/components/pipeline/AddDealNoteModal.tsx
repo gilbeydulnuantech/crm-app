@@ -33,7 +33,7 @@ export default function AddDealNoteModal({ opportunityId, dealName, onClose }: P
 
   return (
     <div
-      className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[120] flex items-center justify-center p-4"
+      className="fixed inset-0 bg-slate-900/70 z-[120] flex items-center justify-center p-4"
       onClick={onClose}
     >
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>

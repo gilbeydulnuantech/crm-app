@@ -51,3 +51,9 @@ export function bookGenericInspection(payload: GenericBookingPayload) {
     body: JSON.stringify(payload),
   });
 }
+
+export function cancelBooking(activityId: string, token: string) {
+  return apiFetch<{ success: boolean; first_name?: string; error?: string }>(
+    `/webhook/cancel-booking-public?activity_id=${encodeURIComponent(activityId)}&token=${encodeURIComponent(token)}`
+  );
+}

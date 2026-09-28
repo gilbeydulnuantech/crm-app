@@ -266,6 +266,37 @@
           "name": "myRag"
         }
       }
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Task Reminders\" }}",
+            "workflow_id": "={{ \"fCFOL0gGUP4SSL4b\" }}",
+            "entity_type": "={{ \"activities\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-schedule-trigger-every-5-minutes-0",
+      "name": "Log Workflow Run: Schedule Trigger: every 5 minutes",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        255,
+        285
+      ],
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
@@ -273,7 +304,7 @@
       "main": [
         [
           {
-            "node": "Postgres: Ensure Reminder Infra",
+            "node": "Log Workflow Run: Schedule Trigger: every 5 minutes",
             "type": "main",
             "index": 0
           }
@@ -389,6 +420,17 @@
         [
           {
             "node": "Postgres: Mark Deal Reminder Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Schedule Trigger: every 5 minutes": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure Reminder Infra",
             "type": "main",
             "index": 0
           }

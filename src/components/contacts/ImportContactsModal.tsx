@@ -156,7 +156,7 @@ export default function ImportContactsModal({ open, onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-slate-900/70 z-[100] flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold text-slate-800">Import Contacts</h3>

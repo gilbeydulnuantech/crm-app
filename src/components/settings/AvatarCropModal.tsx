@@ -119,7 +119,7 @@ export default function AvatarCropModal({ file, onCancel, onConfirm, isSaving }:
   }
 
   return (
-    <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-slate-900/78 z-[110] flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
         <h3 className="text-base font-bold text-slate-800 mb-1">Adjust Photo</h3>
         <p className="text-xs text-slate-500 mb-4">Drag to reposition, use the slider to zoom.</p>

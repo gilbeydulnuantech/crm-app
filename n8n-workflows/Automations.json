@@ -21,60 +21,8 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "aut1c0002-0000-4a5a-9b1a-automation002",
-      "name": "Parse Token (Get)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1184,
-        80
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "aut1p0003-0000-4a5a-9b1a-automation003",
-      "name": "Look Up Requester (Get)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1408,
-        80
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nreturn [{ json: {} }];"
-      },
-      "id": "aut1c0004-0000-4a5a-9b1a-automation004",
-      "name": "Validate Session (Get)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1632,
-        80
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT a.id, a.name, a.trigger_type, a.trigger_config, a.condition_tree, a.trigger_event, a.n8n_workflow_id, a.is_active, a.created_at,\n  (SELECT MAX(r.ran_at) FROM automation_runs r WHERE r.automation_id = a.id) AS last_run_at,\n  (SELECT COUNT(*) FROM automation_runs r WHERE r.automation_id = a.id AND r.status = 'success') AS run_count,\n  COALESCE(\n    json_agg(\n      json_build_object('id', ac.id, 'branch', ac.branch, 'action_type', ac.action_type, 'action_config', ac.action_config, 'sort_order', ac.sort_order)\n      ORDER BY ac.sort_order\n    ) FILTER (WHERE ac.id IS NOT NULL),\n    '[]'::json\n  ) AS actions\nFROM automations a\nLEFT JOIN automation_actions ac ON ac.automation_id = a.id\nGROUP BY a.id\nORDER BY a.created_at DESC;",
+        "query": "SELECT a.id, a.name, a.trigger_type, a.trigger_config, a.condition_tree, a.trigger_event, a.n8n_workflow_id, a.is_active, a.created_at,\n  (SELECT MAX(r.ran_at) FROM automation_runs r WHERE r.automation_id = a.id) AS last_run_at,\n  (SELECT COUNT(*) FROM automation_runs r WHERE r.automation_id = a.id AND r.status = 'success') AS run_count,\n  COALESCE(\n    json_agg(\n      json_build_object('id', ac.id, 'step_key', ac.step_key, 'parent_step_key', ac.parent_step_key, 'branch', ac.branch, 'action_type', ac.action_type, 'action_config', ac.action_config, 'sort_order', ac.sort_order)\n      ORDER BY ac.sort_order\n    ) FILTER (WHERE ac.id IS NOT NULL),\n    '[]'::json\n  ) AS actions\nFROM automations a\nLEFT JOIN automation_actions ac ON ac.automation_id = a.id\nGROUP BY a.id\nORDER BY a.created_at DESC;",
         "options": {}
       },
       "id": "aut1p0005-0000-4a5a-9b1a-automation005",
@@ -127,45 +75,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "aut2c0002-0000-4a5a-9b1a-automation102",
-      "name": "Parse Token (Save)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1184,
-        320
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "aut2p0003-0000-4a5a-9b1a-automation103",
-      "name": "Look Up Requester (Save)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1408,
-        320
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Save Automation').first().json.body || {};\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst VALID_TRIGGER_TYPES = ['contact', 'company', 'task', 'calendar', 'pipeline'];\nconst VALID_ACTION_TYPES = ['add_tag', 'send_email', 'send_team_notification', 'send_sms', 'wait', 'update_field', 'branch_if', 'assign_owner_round_robin', 'send_dm', 'enroll_nurture'];\n// 'created' (webhook-triggered) and 'inactive' (schedule-triggered, polls\n// on its own dedicated Schedule Trigger) are compiler-supported today.\nconst VALID_TRIGGER_EVENTS = ['created', 'inactive'];\n\nconst id = body.id ? parseInt(body.id, 10) : null;\nconst name = (body.name || '').toString().trim();\nconst triggerType = (body.trigger_type || '').toString();\nif (!name) throw new Error('\"name\" is required.');\nif (!VALID_TRIGGER_TYPES.includes(triggerType)) throw new Error('\"trigger_type\" is invalid.');\n\nconst triggerEvent = body.trigger_event ? body.trigger_event.toString() : null;\nif (triggerEvent && !VALID_TRIGGER_EVENTS.includes(triggerEvent)) throw new Error('\"trigger_event\" is invalid.');\n\n// 'created' doesn't use the old field/operator/value condition at all \u2014 the\n// event itself is the trigger. Everything else (no event, or 'inactive',\n// which uses trigger_config to express \"N days since last activity\") keeps\n// requiring a fully configured condition, exactly as before.\nconst triggerConfig = body.trigger_config || {};\nif (triggerEvent !== 'created' && (!triggerConfig.field || !triggerConfig.operator || triggerConfig.value === undefined || triggerConfig.value === '')) {\n  throw new Error('A fully configured trigger is required.');\n}\n\nconst conditionTree = (body.condition_tree && body.condition_tree.field) ? body.condition_tree : null;\n\nconst rawActions = Array.isArray(body.actions) ? body.actions : [];\nif (rawActions.length === 0) throw new Error('At least one action is required.');\nconst actions = rawActions.map((a, i) => {\n  if (!VALID_ACTION_TYPES.includes(a.action_type)) throw new Error(`Action ${i + 1}: invalid action_type.`);\n  return {\n    branch: (a.branch || 'default').toString(),\n    action_type: a.action_type,\n    action_config: a.action_config || {},\n    sort_order: i,\n  };\n});\n\nreturn [{ json: { id, name, triggerType, triggerEvent, triggerConfig, conditionTree, actions, requesterId: requester.id } }];"
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Save Automation').first().json.body || {};\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst VALID_TRIGGER_TYPES = ['contact', 'company', 'task', 'calendar', 'pipeline'];\n// 'condition' is structural (nests other steps under it via parent_step_key\n// below), not something the Engine ever executes as a side-effecting\n// action \u2014 see n8n-workflows/automation_actions_tree_add.sql.\nconst VALID_ACTION_TYPES = ['add_tag', 'remove_tag', 'send_email', 'send_team_notification', 'send_sms', 'wait', 'update_field', 'mark_closed_won', 'mark_closed_lost', 'create_task', 'send_dm', 'condition', 'branch_if', 'assign_owner_round_robin', 'enroll_nurture'];\n// 'created' (webhook-triggered) and 'inactive' (schedule-triggered, polls\n// on its own dedicated Schedule Trigger) are compiler-supported today.\nconst VALID_TRIGGER_EVENTS = ['created', 'inactive'];\n\nconst id = body.id ? parseInt(body.id, 10) : null;\nconst name = (body.name || '').toString().trim();\nconst triggerType = (body.trigger_type || '').toString();\nif (!name) throw new Error('\"name\" is required.');\nif (!VALID_TRIGGER_TYPES.includes(triggerType)) throw new Error('\"trigger_type\" is invalid.');\n\nconst triggerEvent = body.trigger_event ? body.trigger_event.toString() : null;\nif (triggerEvent && !VALID_TRIGGER_EVENTS.includes(triggerEvent)) throw new Error('\"trigger_event\" is invalid.');\n\n// 'created' doesn't use the old field/operator/value condition at all \u2014 the\n// event itself is the trigger. Everything else (no event, or 'inactive',\n// which uses trigger_config to express \"N days since last activity\") keeps\n// requiring a fully configured condition, exactly as before.\nconst triggerConfig = body.trigger_config || {};\nif (triggerEvent !== 'created' && (!triggerConfig.field || !triggerConfig.operator || triggerConfig.value === undefined || triggerConfig.value === '')) {\n  throw new Error('A fully configured trigger is required.');\n}\n\n// condition_tree is kept only for whatever pre-existing rows still have it\n// (read-only, never written by new saves) \u2014 a condition can now appear\n// anywhere in the step tree below instead of being this one fixed,\n// top-level slot. New saves always send null here.\nconst conditionTree = null;\n\nconst rawActions = Array.isArray(body.actions) ? body.actions : [];\nif (rawActions.length === 0) throw new Error('At least one action is required.');\n\n// step_key/parent_step_key are plain client-assigned integers (not a DB\n// foreign key) that let a step nest under a 'condition' step anywhere in\n// the tree, at any depth \u2014 see automation_actions_tree_add.sql for why\n// this shape (rather than referencing the condition's real DB id) sidesteps\n// needing multi-pass inserts. Every step needs a unique step_key; a\n// non-null parent_step_key must point at another step IN THIS SAME PAYLOAD\n// whose action_type is 'condition'.\nconst stepKeys = new Set();\nfor (const a of rawActions) {\n  const k = Number(a.step_key);\n  if (!Number.isInteger(k)) throw new Error('Every step needs a step_key.');\n  if (stepKeys.has(k)) throw new Error(`Duplicate step_key: ${k}.`);\n  stepKeys.add(k);\n}\nconst conditionStepKeys = new Set(rawActions.filter((a) => a.action_type === 'condition').map((a) => Number(a.step_key)));\n\nconst actions = rawActions.map((a, i) => {\n  if (!VALID_ACTION_TYPES.includes(a.action_type)) throw new Error(`Step ${i + 1}: invalid action_type.`);\n  const parentStepKey = (a.parent_step_key === null || a.parent_step_key === undefined || a.parent_step_key === '')\n    ? null\n    : Number(a.parent_step_key);\n  if (parentStepKey !== null && !conditionStepKeys.has(parentStepKey)) {\n    throw new Error(`Step ${i + 1}: parent_step_key does not point at a condition step in this automation.`);\n  }\n  return {\n    step_key: Number(a.step_key),\n    parent_step_key: parentStepKey,\n    branch: (a.branch || 'default').toString(),\n    action_type: a.action_type,\n    action_config: a.action_config || {},\n    sort_order: i,\n  };\n});\n\nreturn [{ json: { id, name, triggerType, triggerEvent, triggerConfig, conditionTree, actions, requesterId: requester.id } }];"
       },
       "id": "aut2c0004-0000-4a5a-9b1a-automation104",
       "name": "Validate & Payload (Save)",
@@ -204,9 +114,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH deleted AS (\n  DELETE FROM automation_actions WHERE automation_id = $1 RETURNING id\n)\nSELECT $1 AS automation_id;",
+        "query": "WITH deleted AS (\n  DELETE FROM automation_actions WHERE automation_id = $1 AND step_key <> ALL($2::int[]) RETURNING id\n)\nSELECT $1 AS automation_id;",
         "options": {
-          "queryReplacement": "={{ [ $json.id ] }}"
+          "queryReplacement": "={{ [ $json.id, $('Validate & Payload (Save)').first().json.actions.map(a => a.step_key) ] }}"
         }
       },
       "id": "aut2p0006-0000-4a5a-9b1a-automation106",
@@ -240,9 +150,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO automation_actions (automation_id, branch, action_type, action_config, sort_order)\nVALUES ($1, $2, $3, $4::jsonb, $5);",
+        "query": "INSERT INTO automation_actions (automation_id, branch, action_type, action_config, sort_order, step_key, parent_step_key)\nVALUES ($1, $2, $3, $4::jsonb, $5, $6, $7)\nON CONFLICT (automation_id, step_key) DO UPDATE SET\n  branch = EXCLUDED.branch,\n  action_type = EXCLUDED.action_type,\n  action_config = EXCLUDED.action_config,\n  sort_order = EXCLUDED.sort_order,\n  parent_step_key = EXCLUDED.parent_step_key;",
         "options": {
-          "queryReplacement": "={{ [ $json.automationId, $json.branch, $json.action_type, JSON.stringify($json.action_config), $json.sort_order ] }}"
+          "queryReplacement": "={{ [ $json.automationId, $json.branch, $json.action_type, JSON.stringify($json.action_config), $json.sort_order, $json.step_key, $json.parent_step_key ] }}"
         }
       },
       "id": "aut2p0008-0000-4a5a-9b1a-automation108",
@@ -388,44 +298,6 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "aut3c0002-0000-4a5a-9b1a-automation202",
-      "name": "Parse Token (Toggle)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1184,
-        560
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "aut3p0003-0000-4a5a-9b1a-automation203",
-      "name": "Look Up Requester (Toggle)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1408,
-        560
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
         "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Update Automation Active').first().json.body || {};\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" must be an integer.');\nif (typeof body.is_active !== 'boolean') throw new Error('\"is_active\" must be true or false.');\nreturn [{ json: { id, isActive: body.is_active } }];"
       },
       "id": "aut3c0004-0000-4a5a-9b1a-automation204",
@@ -508,44 +380,6 @@
       ],
       "onError": "continueErrorOutput",
       "webhookId": "26e28d90-7fc6-436c-a727-1b34e3cd2e06"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "aut4c0002-0000-4a5a-9b1a-automation302",
-      "name": "Parse Token (Delete)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1184,
-        800
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "aut4p0003-0000-4a5a-9b1a-automation303",
-      "name": "Look Up Requester (Delete)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1408,
-        800
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -634,45 +468,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "aut5c0002-0000-4a5a-9b1a-automation402",
-      "name": "Parse Token (Test)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1184,
-        1040
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "aut5p0003-0000-4a5a-9b1a-automation403",
-      "name": "Look Up Requester (Test)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1408,
-        1040
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Test Automation').first().json.body || {};\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst VALID_TRIGGER_TYPES = ['contact', 'company', 'task', 'calendar', 'pipeline'];\nconst VALID_ACTION_TYPES = ['add_tag', 'send_email', 'send_team_notification', 'send_sms', 'wait', 'update_field'];\n\nconst id = body.id ? parseInt(body.id, 10) : null;\nconst name = (body.name || '').toString().trim();\nconst triggerType = (body.trigger_type || '').toString();\nif (!name) throw new Error('\"name\" is required.');\nif (!VALID_TRIGGER_TYPES.includes(triggerType)) throw new Error('\"trigger_type\" is invalid.');\n\nconst triggerConfig = body.trigger_config;\nif (!triggerConfig || !triggerConfig.field || !triggerConfig.operator || triggerConfig.value === undefined || triggerConfig.value === '') {\n  throw new Error('A fully configured trigger is required.');\n}\n\nconst conditionTree = (body.condition_tree && body.condition_tree.field) ? body.condition_tree : null;\n\nconst rawActions = Array.isArray(body.actions) ? body.actions : [];\nif (rawActions.length === 0) throw new Error('At least one action is required.');\nconst actions = rawActions.map((a, i) => {\n  if (!VALID_ACTION_TYPES.includes(a.action_type)) throw new Error(`Action ${i + 1}: invalid action_type.`);\n  return {\n    branch: (a.branch || 'default').toString(),\n    action_type: a.action_type,\n    action_config: a.action_config || {},\n    sort_order: i,\n  };\n});\n\nconst testEmail = (body.test_email || '').toString().trim() || null;\nreturn [{ json: { id, name, triggerType, triggerConfig, conditionTree, actions, testEmail, requesterId: requester.id } }];"
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Test Automation').first().json.body || {};\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst VALID_TRIGGER_TYPES = ['contact', 'company', 'task', 'calendar', 'pipeline'];\nconst VALID_ACTION_TYPES = ['add_tag', 'remove_tag', 'send_email', 'send_team_notification', 'send_sms', 'wait', 'update_field', 'mark_closed_won', 'mark_closed_lost', 'create_task', 'send_dm', 'condition'];\n\nconst id = body.id ? parseInt(body.id, 10) : null;\nconst name = (body.name || '').toString().trim();\nconst triggerType = (body.trigger_type || '').toString();\nif (!name) throw new Error('\"name\" is required.');\nif (!VALID_TRIGGER_TYPES.includes(triggerType)) throw new Error('\"trigger_type\" is invalid.');\n\nconst triggerConfig = body.trigger_config;\nif (!triggerConfig || !triggerConfig.field || !triggerConfig.operator || triggerConfig.value === undefined || triggerConfig.value === '') {\n  throw new Error('A fully configured trigger is required.');\n}\n\nconst conditionTree = null; // legacy top-level slot \u2014 conditions now live in the step tree below\n\nconst rawActions = Array.isArray(body.actions) ? body.actions : [];\nif (rawActions.length === 0) throw new Error('At least one action is required.');\nconst actions = rawActions.map((a, i) => {\n  if (!VALID_ACTION_TYPES.includes(a.action_type)) throw new Error(`Action ${i + 1}: invalid action_type.`);\n  return {\n    step_key: Number(a.step_key),\n    parent_step_key: (a.parent_step_key === null || a.parent_step_key === undefined || a.parent_step_key === '') ? null : Number(a.parent_step_key),\n    branch: (a.branch || 'default').toString(),\n    action_type: a.action_type,\n    action_config: a.action_config || {},\n    sort_order: i,\n  };\n});\n\nconst testEmail = (body.test_email || '').toString().trim() || null;\nreturn [{ json: { id, name, triggerType, triggerConfig, conditionTree, actions, testEmail, requesterId: requester.id } }];"
       },
       "id": "aut5c0004-0000-4a5a-9b1a-automation404",
       "name": "Validate & Payload (Test)",
@@ -686,7 +482,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Dry run: samples live rows for the chosen trigger_type and evaluates\n// the condition tree in JS (Evaluate & Respond node) rather than\n// executing any action. The sample is NOT filtered by the trigger\n// condition in SQL (conditions are evaluated generically in JS, same as\n// the Engine), so the LIMIT here has to be generous \u2014 a tight LIMIT\n// combined with `ORDER BY id DESC` would silently miss the one record\n// an admin is actually testing against if it isn't among the newest\n// rows. This runs only when a human clicks Test, not on a poll, so a\n// few hundred rows is an acceptable cost. Task/Calendar/Pipeline all\n// join back to `contacts` for first_name/last_name/email so merge\n// fields resolve the same way they do in Automation Engine.json's\n// Build Candidate Query \u2014 Company triggers have no single associated\n// contact, so those stay null. Task and Calendar both read from\n// `activities` (see src/types/event.ts) \u2014 there is no separate\n// calendar_events table in this schema.\n//\n// Column set mirrors Automation Engine.json's Build Candidate Query\n// exactly, so a Test preview matches what a real send would resolve \u2014\n// see that node's comment for the full AUTOMATION_DYNAMIC_FIELDS list.\nconst p = $input.first().json;\nconst SAMPLE_LIMIT = 200;\nconst queries = {\n  contact: `SELECT c.id, c.first_name, c.last_name, c.email, c.phone, c.job_title, c.lead_status, c.birthdate, c.city, c.state, c.zip_code, c.country, c.last_contacted_at, c.lead_source, c.do_not_contact, c.created_at, c.updated_at, c.email_logs,\n      c.id AS contact_id, c.city AS contact_city, c.state AS contact_state, c.zip_code AS contact_zip_code, c.country AS contact_country,\n      comp.name AS company_name, comp.id AS company_id, comp.street_address AS company_street_address, comp.zip_code AS company_zip_code,\n      comp.phone AS company_phone, comp.website AS company_website, comp.city AS company_city, comp.state AS company_state, comp.country AS company_country, comp.updated_at AS company_updated_at,\n      ow.name AS owner_name, ow.email AS owner_email, ow.phone AS owner_phone, ow.id AS owner_user_id,\n      (SELECT COALESCE(json_agg(t.name), '[]'::json) FROM tags t JOIN taggables tg ON tg.tag_id = t.id WHERE tg.entity_type = 'contact' AND tg.entity_id = c.id) AS tags\n    FROM contacts c\n    LEFT JOIN companies comp ON comp.id = c.account_id\n    LEFT JOIN users ow ON ow.id = c.owner_id\n    WHERE c.is_archived = false ORDER BY c.id DESC LIMIT ${SAMPLE_LIMIT};`,\n  company: `SELECT co.id, co.name, NULL::text AS first_name, NULL::text AS last_name, NULL::text AS email, NULL::text AS phone, NULL::text AS job_title, NULL::text AS lead_status,\n      co.name AS company_name, co.industry, co.website,\n      co.id AS company_id, co.street_address AS company_street_address, co.zip_code AS company_zip_code, co.phone AS company_phone, co.website AS company_website,\n      co.city AS company_city, co.state AS company_state, co.country AS company_country, co.updated_at AS company_updated_at,\n      ow.name AS owner_name, ow.email AS owner_email, ow.phone AS owner_phone, ow.id AS owner_user_id,\n      co.account_status, co.city, co.state, co.country, co.annual_revenue, co.employee_count, co.account_health, co.tier, co.created_at,\n      (SELECT COALESCE(json_agg(t.name), '[]'::json) FROM tags t JOIN taggables tg ON tg.tag_id = t.id WHERE tg.entity_type = 'company' AND tg.entity_id = co.id) AS tags\n    FROM companies co LEFT JOIN users ow ON ow.id = co.owner_id WHERE co.is_archived = false ORDER BY co.id DESC LIMIT ${SAMPLE_LIMIT};`,\n  task: `SELECT act.id, act.subject AS name, ct.first_name, ct.last_name, ct.email, ct.phone, ct.job_title, ct.lead_status,\n      ct.id AS contact_id, ct.city AS contact_city, ct.state AS contact_state, ct.zip_code AS contact_zip_code, ct.country AS contact_country,\n      ct.birthdate AS contact_birthdate, ct.lead_source AS contact_lead_source, ct.created_at AS contact_created_at, ct.updated_at AS contact_updated_at,\n      comp.name AS company_name, comp.id AS company_id, comp.street_address AS company_street_address, comp.zip_code AS company_zip_code,\n      comp.phone AS company_phone, comp.website AS company_website, comp.city AS company_city, comp.state AS company_state, comp.country AS company_country, comp.updated_at AS company_updated_at,\n      ow.name AS owner_name, ow.email AS owner_email, ow.phone AS owner_phone, ow.id AS owner_user_id,\n      act.is_completed, act.due_at, act.type AS event_type, act.start_at, act.end_at, act.location, act.body AS notes\n    FROM activities act\n    LEFT JOIN contacts ct ON ct.id = act.contact_id\n    LEFT JOIN companies comp ON comp.id = ct.account_id\n    LEFT JOIN users ow ON ow.id = act.user_id\n    WHERE act.due_at IS NOT NULL ORDER BY act.id DESC LIMIT ${SAMPLE_LIMIT};`,\n  calendar: `SELECT act.id, act.subject AS name, ct.first_name, ct.last_name, ct.email, ct.phone, ct.job_title, ct.lead_status,\n      ct.id AS contact_id, ct.city AS contact_city, ct.state AS contact_state, ct.zip_code AS contact_zip_code, ct.country AS contact_country,\n      ct.birthdate AS contact_birthdate, ct.lead_source AS contact_lead_source, ct.created_at AS contact_created_at, ct.updated_at AS contact_updated_at,\n      comp.name AS company_name, comp.id AS company_id, comp.street_address AS company_street_address, comp.zip_code AS company_zip_code,\n      comp.phone AS company_phone, comp.website AS company_website, comp.city AS company_city, comp.state AS company_state, comp.country AS company_country, comp.updated_at AS company_updated_at,\n      ow.name AS owner_name, ow.email AS owner_email, ow.phone AS owner_phone, ow.id AS owner_user_id,\n      act.type AS event_type, act.due_at, act.is_completed, act.start_at, act.end_at, act.location, act.body AS notes\n    FROM activities act\n    LEFT JOIN contacts ct ON ct.id = act.contact_id\n    LEFT JOIN companies comp ON comp.id = ct.account_id\n    LEFT JOIN users ow ON ow.id = act.user_id\n    WHERE act.due_at IS NOT NULL ORDER BY act.id DESC LIMIT ${SAMPLE_LIMIT};`,\n  ticket: `SELECT t.id, t.subject AS name, t.status, t.priority, t.sla_due_at, t.created_at, t.resolved_at,\n      ct.first_name, ct.last_name, ct.email, ct.phone, ct.job_title, ct.lead_status,\n      ct.id AS contact_id, ct.city AS contact_city, ct.state AS contact_state, ct.zip_code AS contact_zip_code, ct.country AS contact_country,\n      ct.birthdate AS contact_birthdate, ct.lead_source AS contact_lead_source, ct.created_at AS contact_created_at, ct.updated_at AS contact_updated_at,\n      co.name AS company_name, co.id AS company_id, co.street_address AS company_street_address, co.zip_code AS company_zip_code,\n      co.phone AS company_phone, co.website AS company_website, co.city AS company_city, co.state AS company_state, co.country AS company_country, co.updated_at AS company_updated_at,\n      ow.name AS owner_name, ow.email AS owner_email, ow.phone AS owner_phone, ow.id AS owner_user_id\n    FROM tickets t\n    LEFT JOIN contacts ct ON ct.id = t.contact_id\n    LEFT JOIN companies co ON co.id = t.account_id\n    LEFT JOIN users ow ON ow.id = t.assigned_user\n    WHERE t.is_archived = false ORDER BY t.id DESC LIMIT ${SAMPLE_LIMIT};`,\n  pipeline: `SELECT o.id, o.name, o.deal_value, o.expected_close, o.source, o.priority, o.stage_entered_at,\n      o.status, o.probability, o.lost_reason, o.created_at, o.updated_at,\n      GREATEST(o.updated_at, COALESCE(la.last_activity, o.updated_at)) AS last_touched_at,\n      ct.first_name, ct.last_name, ct.email, ct.phone, ct.job_title, ct.lead_status, ct.city, ct.state, ct.country,\n      ct.id AS contact_id, ct.city AS contact_city, ct.state AS contact_state, ct.zip_code AS contact_zip_code, ct.country AS contact_country,\n      ct.birthdate AS contact_birthdate, ct.lead_source AS contact_lead_source, ct.created_at AS contact_created_at, ct.updated_at AS contact_updated_at,\n      co.name AS company_name, co.industry, co.website,\n      co.id AS company_id, co.street_address AS company_street_address, co.zip_code AS company_zip_code, co.phone AS company_phone, co.website AS company_website,\n      co.city AS company_city, co.state AS company_state, co.country AS company_country, co.updated_at AS company_updated_at,\n      ow.name AS owner_name, ow.email AS owner_email, ow.phone AS owner_phone, ow.id AS owner_user_id,\n      o.pipeline_id, o.stage_id, st.name AS stage_name, pl.name AS pipeline_name,\n      prop.public_token AS proposal_token, prop.status AS proposal_status, prop.emailed_at AS proposal_emailed_at, prop.viewed_at AS proposal_viewed_at,\n      contr.public_token AS contract_token, contr.status AS contract_status, contr.sent_at AS contract_sent_at, contr.signed_at AS contract_signed_at\n    FROM opportunities o\n    LEFT JOIN contacts ct ON ct.id = o.contact_id\n    LEFT JOIN companies co ON co.id = o.account_id\n    LEFT JOIN users ow ON ow.id = o.assigned_user\n    LEFT JOIN (SELECT opportunity_id, MAX(created_at) AS last_activity FROM activities GROUP BY opportunity_id) la ON la.opportunity_id = o.id\n    LEFT JOIN stages st ON st.id = o.stage_id\n    LEFT JOIN pipelines pl ON pl.id = o.pipeline_id\n    LEFT JOIN LATERAL (\n      SELECT p.public_token, p.status, p.emailed_at, p.viewed_at FROM proposals p WHERE p.opportunity_id = o.id ORDER BY p.created_at DESC LIMIT 1\n    ) prop ON true\n    LEFT JOIN LATERAL (\n      SELECT c2.public_token, c2.status, c2.sent_at, c2.signed_at FROM contracts c2 WHERE c2.opportunity_id = o.id ORDER BY c2.created_at DESC LIMIT 1\n    ) contr ON true\n    WHERE o.is_archived = false ORDER BY o.id DESC LIMIT ${SAMPLE_LIMIT};`,\n};\nconst sqlQuery = queries[p.triggerType];\nif (!sqlQuery) throw new Error('Unsupported trigger_type.');\nreturn [{ json: { sqlQuery, queryParams: [] } }];"
+        "jsCode": "// Dry run: samples live rows for the chosen trigger_type and evaluates\n// the condition tree in JS (Evaluate & Respond node) rather than\n// executing any action. The sample is NOT filtered by the trigger\n// condition in SQL (conditions are evaluated generically in JS, same as\n// the Engine), so the LIMIT here has to be generous \u2014 a tight LIMIT\n// combined with `ORDER BY id DESC` would silently miss the one record\n// an admin is actually testing against if it isn't among the newest\n// rows. This runs only when a human clicks Test, not on a poll, so a\n// few hundred rows is an acceptable cost. Task/Calendar/Pipeline all\n// join back to `contacts` for first_name/last_name/email so merge\n// fields resolve the same way they do in Automation Engine.json's\n// Build Candidate Query \u2014 Company triggers have no single associated\n// contact, so those stay null. Task and Calendar both read from\n// `activities` (see src/types/event.ts) \u2014 there is no separate\n// calendar_events table in this schema.\n//\n// Column set mirrors Automation Engine.json's Build Candidate Query\n// exactly, so a Test preview matches what a real send would resolve \u2014\n// see that node's comment for the full AUTOMATION_DYNAMIC_FIELDS list.\nconst p = $input.first().json;\nconst SAMPLE_LIMIT = 200;\nconst queries = {\n  contact: `SELECT c.id, c.first_name, c.last_name, c.email, c.phone, c.job_title, c.lead_status, c.birthdate, c.city, c.state, c.zip_code, c.country, c.last_contacted_at, c.lead_source, c.do_not_contact, c.dnc_sms, c.created_at, c.updated_at, c.email_logs,\n      c.id AS contact_id, c.city AS contact_city, c.state AS contact_state, c.zip_code AS contact_zip_code, c.country AS contact_country,\n      comp.name AS company_name, comp.id AS company_id, comp.street_address AS company_street_address, comp.zip_code AS company_zip_code,\n      comp.phone AS company_phone, comp.website AS company_website, comp.city AS company_city, comp.state AS company_state, comp.country AS company_country, comp.updated_at AS company_updated_at,\n      ow.name AS owner_name, ow.email AS owner_email, ow.phone AS owner_phone, ow.id AS owner_user_id,\n      (SELECT COALESCE(json_agg(t.name), '[]'::json) FROM tags t JOIN taggables tg ON tg.tag_id = t.id WHERE tg.entity_type = 'contact' AND tg.entity_id = c.id) AS tags,\n      (SELECT company_name FROM company_profile LIMIT 1) AS our_company_name\n    FROM contacts c\n    LEFT JOIN companies comp ON comp.id = c.account_id\n    LEFT JOIN users ow ON ow.id = c.owner_id\n    WHERE c.is_archived = false ORDER BY c.id DESC LIMIT ${SAMPLE_LIMIT};`,\n  company: `SELECT co.id, co.name, NULL::text AS first_name, NULL::text AS last_name, NULL::text AS email, NULL::text AS phone, NULL::text AS job_title, NULL::text AS lead_status,\n      co.name AS company_name, co.industry, co.website,\n      co.id AS company_id, co.street_address AS company_street_address, co.zip_code AS company_zip_code, co.phone AS company_phone, co.website AS company_website,\n      co.city AS company_city, co.state AS company_state, co.country AS company_country, co.updated_at AS company_updated_at,\n      ow.name AS owner_name, ow.email AS owner_email, ow.phone AS owner_phone, ow.id AS owner_user_id,\n      co.account_status, co.city, co.state, co.country, co.annual_revenue, co.employee_count, co.account_health, co.tier, co.created_at,\n      (SELECT COALESCE(json_agg(t.name), '[]'::json) FROM tags t JOIN taggables tg ON tg.tag_id = t.id WHERE tg.entity_type = 'company' AND tg.entity_id = co.id) AS tags,\n      (SELECT company_name FROM company_profile LIMIT 1) AS our_company_name\n    FROM companies co LEFT JOIN users ow ON ow.id = co.owner_id WHERE co.is_archived = false ORDER BY co.id DESC LIMIT ${SAMPLE_LIMIT};`,\n  task: `SELECT act.id, act.subject AS name, ct.first_name, ct.last_name, ct.email, ct.phone, ct.dnc_sms, ct.job_title, ct.lead_status,\n      ct.id AS contact_id, ct.city AS contact_city, ct.state AS contact_state, ct.zip_code AS contact_zip_code, ct.country AS contact_country,\n      ct.birthdate AS contact_birthdate, ct.lead_source AS contact_lead_source, ct.created_at AS contact_created_at, ct.updated_at AS contact_updated_at,\n      comp.name AS company_name, comp.id AS company_id, comp.street_address AS company_street_address, comp.zip_code AS company_zip_code,\n      comp.phone AS company_phone, comp.website AS company_website, comp.city AS company_city, comp.state AS company_state, comp.country AS company_country, comp.updated_at AS company_updated_at,\n      ow.name AS owner_name, ow.email AS owner_email, ow.phone AS owner_phone, ow.id AS owner_user_id,\n      act.is_completed, act.due_at, act.type AS event_type, act.start_at, act.end_at, act.location, act.body AS notes,\n      (SELECT company_name FROM company_profile LIMIT 1) AS our_company_name\n    FROM activities act\n    LEFT JOIN contacts ct ON ct.id = act.contact_id\n    LEFT JOIN companies comp ON comp.id = ct.account_id\n    LEFT JOIN users ow ON ow.id = act.user_id\n    WHERE act.due_at IS NOT NULL ORDER BY act.id DESC LIMIT ${SAMPLE_LIMIT};`,\n  calendar: `SELECT act.id, act.subject AS name, ct.first_name, ct.last_name, ct.email, ct.phone, ct.dnc_sms, ct.job_title, ct.lead_status,\n      ct.id AS contact_id, ct.city AS contact_city, ct.state AS contact_state, ct.zip_code AS contact_zip_code, ct.country AS contact_country,\n      ct.birthdate AS contact_birthdate, ct.lead_source AS contact_lead_source, ct.created_at AS contact_created_at, ct.updated_at AS contact_updated_at,\n      comp.name AS company_name, comp.id AS company_id, comp.street_address AS company_street_address, comp.zip_code AS company_zip_code,\n      comp.phone AS company_phone, comp.website AS company_website, comp.city AS company_city, comp.state AS company_state, comp.country AS company_country, comp.updated_at AS company_updated_at,\n      ow.name AS owner_name, ow.email AS owner_email, ow.phone AS owner_phone, ow.id AS owner_user_id,\n      act.type AS event_type, act.due_at, act.is_completed, act.start_at, act.end_at, act.location, act.body AS notes, act.is_reschedule,\n      ct.unsubscribe_token,\n      (SELECT company_name FROM company_profile LIMIT 1) AS our_company_name\n    FROM activities act\n    LEFT JOIN contacts ct ON ct.id = act.contact_id\n    LEFT JOIN companies comp ON comp.id = ct.account_id\n    LEFT JOIN users ow ON ow.id = act.user_id\n    WHERE act.due_at IS NOT NULL ORDER BY act.id DESC LIMIT ${SAMPLE_LIMIT};`,\n  ticket: `SELECT t.id, t.subject AS name, t.status, t.priority, t.sla_due_at, t.created_at, t.resolved_at,\n      ct.first_name, ct.last_name, ct.email, ct.phone, ct.dnc_sms, ct.job_title, ct.lead_status,\n      ct.id AS contact_id, ct.city AS contact_city, ct.state AS contact_state, ct.zip_code AS contact_zip_code, ct.country AS contact_country,\n      ct.birthdate AS contact_birthdate, ct.lead_source AS contact_lead_source, ct.created_at AS contact_created_at, ct.updated_at AS contact_updated_at,\n      co.name AS company_name, co.id AS company_id, co.street_address AS company_street_address, co.zip_code AS company_zip_code,\n      co.phone AS company_phone, co.website AS company_website, co.city AS company_city, co.state AS company_state, co.country AS company_country, co.updated_at AS company_updated_at,\n      ow.name AS owner_name, ow.email AS owner_email, ow.phone AS owner_phone, ow.id AS owner_user_id,\n      (SELECT company_name FROM company_profile LIMIT 1) AS our_company_name\n    FROM tickets t\n    LEFT JOIN contacts ct ON ct.id = t.contact_id\n    LEFT JOIN companies co ON co.id = t.account_id\n    LEFT JOIN users ow ON ow.id = t.assigned_user\n    WHERE t.is_archived = false ORDER BY t.id DESC LIMIT ${SAMPLE_LIMIT};`,\n  pipeline: `SELECT o.id, o.name, o.deal_value, o.expected_close, o.source, o.priority, o.stage_entered_at,\n      o.status, o.probability, o.lost_reason, o.created_at, o.updated_at,\n      GREATEST(o.updated_at, COALESCE(la.last_activity, o.updated_at)) AS last_touched_at,\n      ct.first_name, ct.last_name, ct.email, ct.phone, ct.dnc_sms, ct.job_title, ct.lead_status, ct.city, ct.state, ct.country,\n      ct.id AS contact_id, ct.city AS contact_city, ct.state AS contact_state, ct.zip_code AS contact_zip_code, ct.country AS contact_country,\n      ct.birthdate AS contact_birthdate, ct.lead_source AS contact_lead_source, ct.created_at AS contact_created_at, ct.updated_at AS contact_updated_at,\n      co.name AS company_name, co.industry, co.website,\n      co.id AS company_id, co.street_address AS company_street_address, co.zip_code AS company_zip_code, co.phone AS company_phone, co.website AS company_website,\n      co.city AS company_city, co.state AS company_state, co.country AS company_country, co.updated_at AS company_updated_at,\n      ow.name AS owner_name, ow.email AS owner_email, ow.phone AS owner_phone, ow.id AS owner_user_id,\n      o.pipeline_id, o.stage_id, st.name AS stage_name, pl.name AS pipeline_name,\n      prop.id AS proposal_id, prop.public_token AS proposal_token, prop.status AS proposal_status, prop.emailed_at AS proposal_emailed_at, prop.viewed_at AS proposal_viewed_at,\n      contr.id AS contract_id, contr.public_token AS contract_token, contr.status AS contract_status, contr.sent_at AS contract_sent_at, contr.signed_at AS contract_signed_at,\n      (SELECT company_name FROM company_profile LIMIT 1) AS our_company_name,\n      ct.unsubscribe_token,\n      appt.activity_id, appt.due_at, appt.start_at, appt.end_at, appt.location,\n      appt.appointment_subject, appt.activity_is_completed\n    FROM opportunities o\n    LEFT JOIN contacts ct ON ct.id = o.contact_id\n    LEFT JOIN companies co ON co.id = o.account_id\n    LEFT JOIN users ow ON ow.id = o.assigned_user\n    LEFT JOIN (SELECT opportunity_id, MAX(created_at) AS last_activity FROM activities GROUP BY opportunity_id) la ON la.opportunity_id = o.id\n    LEFT JOIN stages st ON st.id = o.stage_id\n    LEFT JOIN pipelines pl ON pl.id = o.pipeline_id\n    LEFT JOIN LATERAL (\n      SELECT p.id, p.public_token, p.status, p.emailed_at, p.viewed_at FROM proposals p WHERE p.opportunity_id = o.id ORDER BY p.created_at DESC LIMIT 1\n    ) prop ON true\n    LEFT JOIN LATERAL (\n      SELECT c2.id, c2.public_token, c2.status, c2.sent_at, c2.signed_at FROM contracts c2 WHERE c2.opportunity_id = o.id ORDER BY c2.created_at DESC LIMIT 1\n    ) contr ON true\n    LEFT JOIN LATERAL (\n      SELECT a.id AS activity_id, a.due_at, a.start_at, a.end_at, a.location, a.subject AS appointment_subject, a.is_completed AS activity_is_completed\n      FROM activities a WHERE a.opportunity_id = o.id AND a.type = 'meeting'\n      ORDER BY a.is_completed ASC, a.due_at DESC LIMIT 1\n    ) appt ON true\n    WHERE o.is_archived = false ORDER BY o.id DESC LIMIT ${SAMPLE_LIMIT};`,\n};\nconst sqlQuery = queries[p.triggerType];\nif (!sqlQuery) throw new Error('Unsupported trigger_type.');\nreturn [{ json: { sqlQuery, queryParams: [] } }];"
       },
       "id": "aut5c0005-0000-4a5a-9b1a-automation405",
       "name": "Build Sample Query",
@@ -725,7 +521,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.all().map((i) => i.json);\nconst p = $('Validate & Payload (Test)').first().json;\nconst trigger = p.triggerConfig;\nconst condition = p.conditionTree;\nconst actions = p.actions;\n\nfunction getFieldValue(row, field) {\n  if (field === 'age') {\n    if (!row.birthdate) return null;\n    const ms = Date.now() - new Date(row.birthdate).getTime();\n    return Math.floor(ms / (365.25 * 24 * 3600 * 1000));\n  }\n  if (field === 'overdue') {\n    return !row.is_completed && row.due_at && new Date(row.due_at) < new Date();\n  }\n  if (field === 'location') {\n    return [row.city, row.state, row.country].filter(Boolean).join(', ');\n  }\n  if (field === 'days_since_stage_entered') {\n    if (!row.stage_entered_at) return null;\n    return Math.floor((Date.now() - new Date(row.stage_entered_at).getTime()) / 86400000);\n  }\n  if (field === 'days_since_last_activity') {\n    if (!row.last_contacted_at) return null;\n    return Math.floor((Date.now() - new Date(row.last_contacted_at).getTime()) / 86400000);\n  }\n  if (field === 'days_since_created') {\n    if (!row.created_at) return null;\n    return Math.floor((Date.now() - new Date(row.created_at).getTime()) / 86400000);\n  }\n  if (field === 'days_inactive') {\n    if (!row.last_touched_at) return null;\n    return Math.floor((Date.now() - new Date(row.last_touched_at).getTime()) / 86400000);\n  }\n  if (field === 'sla_overdue') {\n    if (!row.sla_due_at || row.status === 'resolved' || row.status === 'closed') return false;\n    return new Date(row.sla_due_at).getTime() < Date.now();\n  }\n  // Backed by contacts.email_logs \u2014 'received' entries come from a live\n  // Gmail-inbox poller (contacts-email-reply.json) that runs regardless of\n  // which flow sent the original email, so replies are always accurate.\n  // 'sent' entries only get an opened_at once the tracking pixel embedded\n  // in that HTML email is actually loaded \u2014 many email clients block\n  // remote images by default, so this is a best-effort signal, not a\n  // guarantee an unopened result means truly unread.\n  if (field === 'email_replied') {\n    const logs = Array.isArray(row.email_logs) ? row.email_logs : [];\n    const lastSent = logs.filter((l) => l && l.type === 'sent').sort((a, b) => new Date(b.sent_at) - new Date(a.sent_at))[0];\n    const referenceTime = lastSent ? new Date(lastSent.sent_at).getTime() : 0;\n    return logs.some((l) => l && l.type === 'received' && new Date(l.sent_at).getTime() > referenceTime);\n  }\n  if (field === 'email_opened') {\n    const logs = Array.isArray(row.email_logs) ? row.email_logs : [];\n    return logs.some((l) => l && l.type === 'sent' && l.opened_at);\n  }\n  if (field === 'days_since_proposal_sent') {\n    if (!row.proposal_emailed_at) return null;\n    return Math.floor((Date.now() - new Date(row.proposal_emailed_at).getTime()) / 86400000);\n  }\n  if (field === 'days_since_proposal_viewed') {\n    if (!row.proposal_viewed_at) return null;\n    return Math.floor((Date.now() - new Date(row.proposal_viewed_at).getTime()) / 86400000);\n  }\n  if (field === 'days_since_contract_sent') {\n    if (!row.contract_sent_at) return null;\n    return Math.floor((Date.now() - new Date(row.contract_sent_at).getTime()) / 86400000);\n  }\n  if (field === 'days_since_contract_signed') {\n    if (!row.contract_signed_at) return null;\n    return Math.floor((Date.now() - new Date(row.contract_signed_at).getTime()) / 86400000);\n  }\n  return row[field];\n}\n\nfunction evalCondition(row, cond) {\n  if (!cond || !cond.field) return true;\n  const actual = getFieldValue(row, cond.field);\n  const expected = cond.value;\n  switch (cond.operator) {\n    case 'equals': return Array.isArray(actual) ? actual.includes(expected) : String(actual) === String(expected);\n    case 'not_equals': return Array.isArray(actual) ? !actual.includes(expected) : String(actual) !== String(expected);\n    case 'contains': return String(actual || '').toLowerCase().includes(String(expected).toLowerCase());\n    case 'greater_than': { const n = Number(actual); return Number.isFinite(n) ? n > Number(expected) : new Date(actual) > new Date(expected); }\n    case 'less_than': { const n = Number(actual); return Number.isFinite(n) ? n < Number(expected) : new Date(actual) < new Date(expected); }\n    case 'is_true': return Boolean(actual) === true;\n    case 'is_false': return Boolean(actual) === false;\n    default: return false;\n  }\n}\n\nlet matched = null;\nlet branch = null;\nfor (const row of rows) {\n  if (!evalCondition(row, trigger)) continue;\n  matched = row;\n  branch = condition ? (evalCondition(row, condition) ? 'true' : 'false') : 'default';\n  break;\n}\n\nconst actionsWouldRun = matched\n  ? actions.filter((a) => a.branch === branch).map((a) => ({\n      action_type: a.action_type,\n      status: a.action_type === 'send_sms' ? 'unsupported' : 'would_run',\n    }))\n  : [];\n\nconst emailAction = matched ? (actions.filter((a) => a.branch === branch).find((a) => a.action_type === 'send_email') || null) : null;\n\nreturn [{\n  json: {\n    matched: !!matched,\n    branch,\n    sample_entity: matched\n      ? { id: matched.id, label: matched.name || [matched.first_name, matched.last_name].filter(Boolean).join(' ') || `#${matched.id}` }\n      : null,\n    actions_would_run: actionsWouldRun,\n    test_email_sent: false,\n    _shouldSendTestEmail: Boolean(p.testEmail) && Boolean(emailAction),\n    _testEmail: p.testEmail || null,\n    _matchedRow: matched,\n    _emailAction: emailAction,\n  },\n}];"
+        "jsCode": "const rows = $input.all().map((i) => i.json);\nconst p = $('Validate & Payload (Test)').first().json;\nconst trigger = p.triggerConfig;\nconst condition = p.conditionTree;\nconst actions = p.actions;\n\nfunction getFieldValue(row, field) {\n  if (field === 'age') {\n    if (!row.birthdate) return null;\n    const ms = Date.now() - new Date(row.birthdate).getTime();\n    return Math.floor(ms / (365.25 * 24 * 3600 * 1000));\n  }\n  if (field === 'overdue') {\n    return !row.is_completed && row.due_at && new Date(row.due_at) < new Date();\n  }\n  if (field === 'location') {\n    return [row.city, row.state, row.country].filter(Boolean).join(', ');\n  }\n  if (field === 'days_since_stage_entered') {\n    if (!row.stage_entered_at) return null;\n    return Math.floor((Date.now() - new Date(row.stage_entered_at).getTime()) / 86400000);\n  }\n  if (field === 'days_since_last_activity') {\n    if (!row.last_contacted_at) return null;\n    return Math.floor((Date.now() - new Date(row.last_contacted_at).getTime()) / 86400000);\n  }\n  if (field === 'days_since_created') {\n    if (!row.created_at) return null;\n    return Math.floor((Date.now() - new Date(row.created_at).getTime()) / 86400000);\n  }\n  if (field === 'days_inactive') {\n    if (!row.last_touched_at) return null;\n    return Math.floor((Date.now() - new Date(row.last_touched_at).getTime()) / 86400000);\n  }\n  if (field === 'sla_overdue') {\n    if (!row.sla_due_at || row.status === 'resolved' || row.status === 'closed') return false;\n    return new Date(row.sla_due_at).getTime() < Date.now();\n  }\n  // Backed by contacts.email_logs \u2014 'received' entries come from a live\n  // Gmail-inbox poller (contacts-email-reply.json) that runs regardless of\n  // which flow sent the original email, so replies are always accurate.\n  // 'sent' entries only get an opened_at once the tracking pixel embedded\n  // in that HTML email is actually loaded \u2014 many email clients block\n  // remote images by default, so this is a best-effort signal, not a\n  // guarantee an unopened result means truly unread.\n  if (field === 'email_replied') {\n    const logs = Array.isArray(row.email_logs) ? row.email_logs : [];\n    const lastSent = logs.filter((l) => l && l.type === 'sent').sort((a, b) => new Date(b.sent_at) - new Date(a.sent_at))[0];\n    const referenceTime = lastSent ? new Date(lastSent.sent_at).getTime() : 0;\n    return logs.some((l) => l && l.type === 'received' && new Date(l.sent_at).getTime() > referenceTime);\n  }\n  if (field === 'email_opened') {\n    const logs = Array.isArray(row.email_logs) ? row.email_logs : [];\n    return logs.some((l) => l && l.type === 'sent' && l.opened_at);\n  }\n  if (field === 'days_since_proposal_sent') {\n    if (!row.proposal_emailed_at) return null;\n    return Math.floor((Date.now() - new Date(row.proposal_emailed_at).getTime()) / 86400000);\n  }\n  if (field === 'days_since_proposal_viewed') {\n    if (!row.proposal_viewed_at) return null;\n    return Math.floor((Date.now() - new Date(row.proposal_viewed_at).getTime()) / 86400000);\n  }\n  if (field === 'days_since_contract_sent') {\n    if (!row.contract_sent_at) return null;\n    return Math.floor((Date.now() - new Date(row.contract_sent_at).getTime()) / 86400000);\n  }\n  if (field === 'days_since_contract_signed') {\n    if (!row.contract_signed_at) return null;\n    return Math.floor((Date.now() - new Date(row.contract_signed_at).getTime()) / 86400000);\n  }\n  return row[field];\n}\n\nfunction evalCondition(row, cond) {\n  if (!cond || !cond.field) return true;\n  const actual = getFieldValue(row, cond.field);\n  const expected = cond.value;\n  switch (cond.operator) {\n    case 'equals': return Array.isArray(actual) ? actual.includes(expected) : String(actual) === String(expected);\n    case 'not_equals': return Array.isArray(actual) ? !actual.includes(expected) : String(actual) !== String(expected);\n    case 'contains': return String(actual || '').toLowerCase().includes(String(expected).toLowerCase());\n    case 'greater_than': { const n = Number(actual); return Number.isFinite(n) ? n > Number(expected) : new Date(actual) > new Date(expected); }\n    case 'less_than': { const n = Number(actual); return Number.isFinite(n) ? n < Number(expected) : new Date(actual) < new Date(expected); }\n    case 'is_true': return Boolean(actual) === true;\n    case 'is_false': return Boolean(actual) === false;\n    default: return false;\n  }\n}\n\nlet matched = null;\nfor (const row of rows) {\n  if (!evalCondition(row, trigger)) continue;\n  matched = row;\n  break;\n}\n\n// Same depth-first tree walk as the real Engine (Automation Engine.json's\n// \"Evaluate & Expand Actions\"), simplified for a one-off preview: no\n// automation_runs dedup exists yet for an unsaved draft, so every step\n// along the resolved path is simply \"would run\", stopping at the first\n// wait (which genuinely would block everything after it in a real run).\nfunction collectWouldRun(steps, row, out) {\n  for (const step of steps) {\n    if (step.action_type === 'condition') {\n      const branch = evalCondition(row, step.action_config) ? 'true' : 'false';\n      const children = actions\n        .filter((a) => a.parent_step_key === step.step_key && a.branch === branch)\n        .slice()\n        .sort((a, b) => a.sort_order - b.sort_order);\n      if (collectWouldRun(children, row, out)) return true;\n      continue;\n    }\n    out.push({ action_type: step.action_type, status: 'would_run' });\n    if (step.action_type === 'wait') return true;\n  }\n  return false;\n}\n\nconst rootSteps = actions\n  .filter((a) => a.parent_step_key == null && a.branch === 'default')\n  .slice()\n  .sort((a, b) => a.sort_order - b.sort_order);\n\nconst actionsWouldRun = [];\nif (matched) collectWouldRun(rootSteps, matched, actionsWouldRun);\n\nconst emailAction = matched ? (actionsWouldRun.length ? actions.find((a) => a.action_type === 'send_email' && actionsWouldRun.some((r) => r.action_type === 'send_email')) : null) : null;\n\nreturn [{\n  json: {\n    matched: !!matched,\n    branch: null,\n    sample_entity: matched\n      ? { id: matched.id, label: matched.name || [matched.first_name, matched.last_name].filter(Boolean).join(' ') || `#${matched.id}` }\n      : null,\n    actions_would_run: actionsWouldRun,\n    test_email_sent: false,\n    _shouldSendTestEmail: Boolean(p.testEmail) && Boolean(emailAction),\n    _testEmail: p.testEmail || null,\n    _matchedRow: matched,\n    _emailAction: emailAction,\n    entityType: p.triggerType,\n  },\n}];"
       },
       "id": "aut5c0007-0000-4a5a-9b1a-automation407",
       "name": "Evaluate & Respond",
@@ -772,7 +568,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const meta = $('Evaluate & Respond').item.json;\nconst row = meta._matchedRow || {};\n// Mirrors src/utils/text.ts's toTitleCase so a test send previews the\n// same casing a real send would use, regardless of how the name is\n// actually capitalized in the database.\nfunction toTitleCase(s) {\n  return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' ');\n}\nfunction money(n) {\n  return n != null && n !== '' ? '$' + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';\n}\nfunction dateStr(d) {\n  return d ? new Date(d).toLocaleDateString() : '';\n}\nfunction dateTimeStr(d) {\n  return d ? new Date(d).toLocaleString() : '';\n}\nconst opp = meta.entityType === 'pipeline' ? row : {};\nconst appt = (meta.entityType === 'task' || meta.entityType === 'calendar') ? row : {};\nfunction fill(template) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, toTitleCase(row.last_name))\n    .replace(/{{\\s*deal_name\\s*}}/gi, row.name || 'Sample Deal')\n    .replace(/{{\\s*owner_name\\s*}}/gi, toTitleCase(row.owner_name) || 'your account team')\n    .replace(/{{\\s*proposal_link\\s*}}/gi, row.proposal_token ? `#proposal-${row.proposal_token}` : '#')\n    .replace(/{{\\s*email\\s*}}/gi, row.email || '')\n    .replace(/{{\\s*phone\\s*}}/gi, row.phone || '')\n    .replace(/{{\\s*job_title\\s*}}/gi, row.job_title || '')\n    .replace(/{{\\s*lead_status\\s*}}/gi, row.lead_status || '')\n    .replace(/{{\\s*city\\s*}}/gi, row.city || '')\n    .replace(/{{\\s*state\\s*}}/gi, row.state || '')\n    .replace(/{{\\s*country\\s*}}/gi, row.country || '')\n    .replace(/{{\\s*company_name\\s*}}/gi, row.company_name || '')\n    .replace(/{{\\s*industry\\s*}}/gi, row.industry || '')\n    .replace(/{{\\s*website\\s*}}/gi, row.website || '')\n    .replace(/{{\\s*deal_value\\s*}}/gi, money(row.deal_value))\n    .replace(/{{\\s*deal_stage\\s*}}/gi, row.stage_name || '')\n    .replace(/{{\\s*pipeline_name\\s*}}/gi, row.pipeline_name || '')\n    .replace(/{{\\s*expected_close\\s*}}/gi, dateStr(row.expected_close))\n    .replace(/{{\\s*task_name\\s*}}/gi, row.name || '')\n    .replace(/{{\\s*due_date\\s*}}/gi, dateStr(row.due_at))\n    .replace(/{{\\s*event_type\\s*}}/gi, row.event_type || '')\n    .replace(/{{\\s*owner_email\\s*}}/gi, row.owner_email || '')\n    .replace(/{{\\s*owner_phone\\s*}}/gi, row.owner_phone || '')\n    .replace(/{{\\s*contract_link\\s*}}/gi, row.contract_token ? `#contract-${row.contract_token}` : '#')\n    .replace(/{{\\s*today\\s*}}/gi, dateStr(new Date()))\n    // Namespaced tokens (GHL-style) added alongside the original flat ones\n    // above \u2014 both resolve the same underlying data, so every automation/\n    // template saved before this addition keeps working untouched.\n    .replace(/{{\\s*contact\\.id\\s*}}/gi, row.contact_id != null ? String(row.contact_id) : '')\n    .replace(/{{\\s*contact\\.first_name\\s*}}/gi, toTitleCase(row.first_name))\n    .replace(/{{\\s*contact\\.last_name\\s*}}/gi, toTitleCase(row.last_name))\n    .replace(/{{\\s*contact\\.full_name\\s*}}/gi, toTitleCase(`${row.first_name || ''} ${row.last_name || ''}`.trim()))\n    .replace(/{{\\s*contact\\.email\\s*}}/gi, row.email || '')\n    .replace(/{{\\s*contact\\.phone\\s*}}/gi, row.phone || '')\n    .replace(/{{\\s*contact\\.city\\s*}}/gi, row.contact_city || '')\n    .replace(/{{\\s*contact\\.state\\s*}}/gi, row.contact_state || '')\n    .replace(/{{\\s*contact\\.postal_code\\s*}}/gi, row.contact_zip_code || '')\n    .replace(/{{\\s*contact\\.country\\s*}}/gi, row.contact_country || '')\n    .replace(/{{\\s*contact\\.date_of_birth\\s*}}/gi, dateStr(row.contact_birthdate))\n    .replace(/{{\\s*contact\\.source\\s*}}/gi, row.contact_lead_source || '')\n    .replace(/{{\\s*contact\\.tags\\s*}}/gi, Array.isArray(row.tags) ? row.tags.join(', ') : '')\n    .replace(/{{\\s*contact\\.created_at\\s*}}/gi, dateStr(row.contact_created_at))\n    .replace(/{{\\s*contact\\.updated_at\\s*}}/gi, dateStr(row.contact_updated_at))\n    .replace(/{{\\s*company\\.id\\s*}}/gi, row.company_id != null ? String(row.company_id) : '')\n    .replace(/{{\\s*company\\.name\\s*}}/gi, row.company_name || '')\n    .replace(/{{\\s*company\\.phone\\s*}}/gi, row.company_phone || '')\n    .replace(/{{\\s*company\\.website\\s*}}/gi, row.company_website || '')\n    .replace(/{{\\s*company\\.address\\s*}}/gi, row.company_street_address || '')\n    .replace(/{{\\s*company\\.city\\s*}}/gi, row.company_city || '')\n    .replace(/{{\\s*company\\.state\\s*}}/gi, row.company_state || '')\n    .replace(/{{\\s*company\\.postal_code\\s*}}/gi, row.company_zip_code || '')\n    .replace(/{{\\s*company\\.country\\s*}}/gi, row.company_country || '')\n    // Opportunity fields only ever come from a Pipeline (Deal) trigger's own\n    // row \u2014 on any other trigger type `opp` is `{}` so these all resolve to\n    // '' instead of leaking a same-named column from the wrong entity (e.g.\n    // a Ticket's `row.status` under a Contact/Task trigger).\n    .replace(/{{\\s*opportunity\\.id\\s*}}/gi, opp.id != null ? String(opp.id) : '')\n    .replace(/{{\\s*opportunity\\.name\\s*}}/gi, opp.name || '')\n    .replace(/{{\\s*opportunity\\.status\\s*}}/gi, opp.status || '')\n    .replace(/{{\\s*opportunity\\.pipeline\\s*}}/gi, opp.pipeline_name || '')\n    .replace(/{{\\s*opportunity\\.pipeline_id\\s*}}/gi, opp.pipeline_id != null ? String(opp.pipeline_id) : '')\n    .replace(/{{\\s*opportunity\\.stage\\s*}}/gi, opp.stage_name || '')\n    .replace(/{{\\s*opportunity\\.stage_id\\s*}}/gi, opp.stage_id != null ? String(opp.stage_id) : '')\n    .replace(/{{\\s*opportunity\\.value\\s*}}/gi, money(opp.deal_value))\n    .replace(/{{\\s*opportunity\\.source\\s*}}/gi, opp.source || '')\n    .replace(/{{\\s*opportunity\\.created_at\\s*}}/gi, dateStr(opp.created_at))\n    .replace(/{{\\s*opportunity\\.updated_at\\s*}}/gi, dateStr(opp.updated_at))\n    // Appointment reuses Task/Calendar data (`activities`) \u2014 there is no\n    // separate appointments table in this schema. Only resolves on those\n    // two trigger types, same guard reasoning as Opportunity above.\n    .replace(/{{\\s*appointment\\.id\\s*}}/gi, appt.id != null ? String(appt.id) : '')\n    .replace(/{{\\s*appointment\\.title\\s*}}/gi, appt.name || '')\n    .replace(/{{\\s*appointment\\.start_time\\s*}}/gi, dateTimeStr(appt.start_at || appt.due_at))\n    .replace(/{{\\s*appointment\\.end_time\\s*}}/gi, dateTimeStr(appt.end_at))\n    .replace(/{{\\s*appointment\\.status\\s*}}/gi, appt.id != null ? (appt.is_completed ? 'Completed' : 'Not completed') : '')\n    .replace(/{{\\s*appointment\\.calendar\\s*}}/gi, appt.event_type || '')\n    .replace(/{{\\s*appointment\\.location\\s*}}/gi, appt.location || '')\n    .replace(/{{\\s*appointment\\.assigned_user\\s*}}/gi, appt.id != null ? (toTitleCase(row.owner_name) || '') : '')\n    .replace(/{{\\s*appointment\\.notes\\s*}}/gi, appt.notes || '')\n    // User/Sales Rep \u2014 the record's owner/assigned user, already resolved\n    // for every trigger type (same owner_* columns the flat tokens use).\n    .replace(/{{\\s*user\\.id\\s*}}/gi, row.owner_user_id != null ? String(row.owner_user_id) : '')\n    .replace(/{{\\s*user\\.full_name\\s*}}/gi, toTitleCase(row.owner_name) || 'your account team')\n    .replace(/{{\\s*user\\.email\\s*}}/gi, row.owner_email || '')\n    .replace(/{{\\s*user\\.phone\\s*}}/gi, row.owner_phone || '')\n    // System \u2014 always resolvable, no row data involved.\n    .replace(/{{\\s*system\\.current_date\\s*}}/gi, dateStr(new Date()))\n    .replace(/{{\\s*system\\.current_time\\s*}}/gi, new Date().toLocaleTimeString())\n    .replace(/{{\\s*system\\.current_datetime\\s*}}/gi, dateTimeStr(new Date()))\n    .replace(/{{\\s*system\\.timestamp\\s*}}/gi, new Date().toISOString())\n    // A real send clones the referenced template into an actual DB row via\n    // Automation Engine.json \u2014 a Test send deliberately does NOT (this whole\n    // flow is a dry run with no side effects), so these can't resolve to a\n    // real link here. Show a clearly-labeled placeholder instead of silently\n    // deleting the token via the generic {{ }} strip below, which is what\n    // made proposal/contract links vanish from test sends entirely.\n    .replace(/{{\\s*proposal_template:\\d+\\s*}}/gi, '[TEST \u2014 a real, unique proposal link appears here on an actual send]')\n    .replace(/{{\\s*contract_template:\\d+\\s*}}/gi, '[TEST \u2014 a real, unique contract link appears here on an actual send]')\n    // Safety net matching Automation Engine.json's Prepare Email \u2014 strips\n    // any OTHER unresolved \"{{ }}\" so a real send's preview matches what\n    // actually goes out instead of risking the \"undefined\" corruption\n    // n8n's own expression engine causes downstream on Send Test Email's\n    // `={{ $json.body }}` field.\n    .replace(/{{[^{}]*}}/g, '');\n}\nfunction escapeHtml(s) {\n  return (s || '').toString()\n    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')\n    .replace(/\"/g, '&quot;').replace(/'/g, '&#39;');\n}\n// No tracking pixel here \u2014 a Test send is explicitly a no-side-effects\n// dry run (see the module comment above), and the address typed into\n// \"Test email address\" isn't necessarily the real contact's own email,\n// so there's no legitimate contact to attribute an \"opened\" event to.\n// Still converted to HTML so the preview matches what a real send (which\n// IS html now) actually looks like.\nconst testBody = fill(meta._emailAction.action_config.body);\nreturn [{\n  json: {\n    to: meta._testEmail, subject: '[TEST] ' + fill(meta._emailAction.action_config.subject), body: testBody,\n    htmlBody: escapeHtml(testBody).replace(/\\n/g, '<br>'),\n  },\n}];"
+        "jsCode": "function safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\nconst meta = $('Evaluate & Respond').item.json;\nconst row = meta._matchedRow || {};\nconst ourCompanyName = row.our_company_name || '';\n// Mirrors src/utils/text.ts's toTitleCase so a test send previews the\n// same casing a real send would use, regardless of how the name is\n// actually capitalized in the database.\nfunction toTitleCase(s) {\n  return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' ');\n}\nfunction money(n) {\n  return n != null && n !== '' ? '$' + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';\n}\nfunction dateStr(d) {\n  return d ? new Date(d).toLocaleDateString() : '';\n}\nfunction dateTimeStr(d) {\n  return d ? new Date(d).toLocaleString() : '';\n}\nfunction dateTimePretty(d) {\n  if (!d) return '';\n  const dt = new Date(d);\n  const datePart = dt.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });\n  const timePart = dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });\n  return `${datePart} at ${timePart}`;\n}\nconst opp = meta.entityType === 'pipeline' ? row : {};\n// See Automation Engine.json's Prepare Email for why pipeline rows\n// can't reuse `row` directly here the way task/calendar do.\nconst appt = meta.entityType === 'pipeline'\n  ? { id: row.activity_id, name: row.appointment_subject, start_at: row.start_at, due_at: row.due_at, end_at: row.end_at, is_completed: row.activity_is_completed, event_type: 'meeting', location: row.location }\n  : (meta.entityType === 'task' || meta.entityType === 'calendar') ? row : {};\nconst cancelUrl = (appt.id && row.unsubscribe_token)\n  ? `${safeEnv('FRONTEND_BASE_URL')}/cancel-booking/${appt.id}?token=${row.unsubscribe_token}`\n  : '';\nfunction fill(template) {\n  return (template || '')\n    .replace(/{{\\s*proposal_link\\s*}}/gi, row.proposal_token ? `#proposal-${row.proposal_token}` : '#')\n    .replace(/{{\\s*cancel_link\\s*}}/gi, cancelUrl)\n    .replace(/{{\\s*contract_link\\s*}}/gi, row.contract_token ? `#contract-${row.contract_token}` : '#')\n    .replace(/{{\\s*user\\.company_name\\s*}}/gi, ourCompanyName)\n    // Namespaced tokens ({{contact.x}}-style) \u2014 legacy flat tokens removed.\n    .replace(/{{\\s*contact\\.id\\s*}}/gi, row.contact_id != null ? String(row.contact_id) : '')\n    .replace(/{{\\s*contact\\.first_name\\s*}}/gi, toTitleCase(row.first_name))\n    .replace(/{{\\s*contact\\.last_name\\s*}}/gi, toTitleCase(row.last_name))\n    .replace(/{{\\s*contact\\.full_name\\s*}}/gi, toTitleCase(`${row.first_name || ''} ${row.last_name || ''}`.trim()))\n    .replace(/{{\\s*contact\\.email\\s*}}/gi, row.email || '')\n    .replace(/{{\\s*contact\\.phone\\s*}}/gi, row.phone || '')\n    .replace(/{{\\s*contact\\.city\\s*}}/gi, row.contact_city || '')\n    .replace(/{{\\s*contact\\.state\\s*}}/gi, row.contact_state || '')\n    .replace(/{{\\s*contact\\.postal_code\\s*}}/gi, row.contact_zip_code || '')\n    .replace(/{{\\s*contact\\.country\\s*}}/gi, row.contact_country || '')\n    .replace(/{{\\s*contact\\.date_of_birth\\s*}}/gi, dateStr(row.contact_birthdate))\n    .replace(/{{\\s*contact\\.source\\s*}}/gi, row.contact_lead_source || '')\n    .replace(/{{\\s*contact\\.tags\\s*}}/gi, Array.isArray(row.tags) ? row.tags.join(', ') : '')\n    .replace(/{{\\s*contact\\.created_at\\s*}}/gi, dateStr(row.contact_created_at))\n    .replace(/{{\\s*contact\\.updated_at\\s*}}/gi, dateStr(row.contact_updated_at))\n    .replace(/{{\\s*company\\.id\\s*}}/gi, row.company_id != null ? String(row.company_id) : '')\n    .replace(/{{\\s*company\\.name\\s*}}/gi, row.company_name || '')\n    .replace(/{{\\s*company\\.phone\\s*}}/gi, row.company_phone || '')\n    .replace(/{{\\s*company\\.website\\s*}}/gi, row.company_website || '')\n    .replace(/{{\\s*company\\.address\\s*}}/gi, row.company_street_address || '')\n    .replace(/{{\\s*company\\.city\\s*}}/gi, row.company_city || '')\n    .replace(/{{\\s*company\\.state\\s*}}/gi, row.company_state || '')\n    .replace(/{{\\s*company\\.postal_code\\s*}}/gi, row.company_zip_code || '')\n    .replace(/{{\\s*company\\.country\\s*}}/gi, row.company_country || '')\n    // Opportunity fields only ever come from a Pipeline (Deal) trigger's own\n    // row \u2014 on any other trigger type `opp` is `{}` so these all resolve to\n    // '' instead of leaking a same-named column from the wrong entity (e.g.\n    // a Ticket's `row.status` under a Contact/Task trigger).\n    .replace(/{{\\s*opportunity\\.id\\s*}}/gi, opp.id != null ? String(opp.id) : '')\n    .replace(/{{\\s*opportunity\\.name\\s*}}/gi, opp.name || '')\n    .replace(/{{\\s*opportunity\\.status\\s*}}/gi, opp.status || '')\n    .replace(/{{\\s*opportunity\\.pipeline\\s*}}/gi, opp.pipeline_name || '')\n    .replace(/{{\\s*opportunity\\.pipeline_id\\s*}}/gi, opp.pipeline_id != null ? String(opp.pipeline_id) : '')\n    .replace(/{{\\s*opportunity\\.stage\\s*}}/gi, opp.stage_name || '')\n    .replace(/{{\\s*opportunity\\.stage_id\\s*}}/gi, opp.stage_id != null ? String(opp.stage_id) : '')\n    .replace(/{{\\s*opportunity\\.value\\s*}}/gi, money(opp.deal_value))\n    .replace(/{{\\s*opportunity\\.source\\s*}}/gi, opp.source || '')\n    .replace(/{{\\s*opportunity\\.created_at\\s*}}/gi, dateStr(opp.created_at))\n    .replace(/{{\\s*opportunity\\.updated_at\\s*}}/gi, dateStr(opp.updated_at))\n    // Appointment reuses Task/Calendar data (`activities`) \u2014 there is no\n    // separate appointments table in this schema. Only resolves on those\n    // two trigger types, same guard reasoning as Opportunity above.\n    .replace(/{{\\s*appointment\\.id\\s*}}/gi, appt.id != null ? String(appt.id) : '')\n    .replace(/{{\\s*appointment\\.title\\s*}}/gi, appt.name || '')\n    .replace(/{{\\s*appointment\\.start_time\\s*}}/gi, dateTimePretty(appt.start_at || appt.due_at))\n    .replace(/{{\\s*appointment\\.end_time\\s*}}/gi, dateTimeStr(appt.end_at))\n    .replace(/{{\\s*appointment\\.status\\s*}}/gi, appt.id != null ? (appt.is_completed ? 'Completed' : 'Not completed') : '')\n    .replace(/{{\\s*appointment\\.calendar\\s*}}/gi, appt.event_type || '')\n    .replace(/{{\\s*appointment\\.location\\s*}}/gi, appt.location || '')\n    .replace(/{{\\s*appointment\\.assigned_user\\s*}}/gi, appt.id != null ? (toTitleCase(row.owner_name) || '') : '')\n    .replace(/{{\\s*appointment\\.notes\\s*}}/gi, appt.notes || '')\n    // User/Sales Rep \u2014 the record's owner/assigned user, already resolved\n    // for every trigger type (same owner_* columns the flat tokens use).\n    .replace(/{{\\s*user\\.id\\s*}}/gi, row.owner_user_id != null ? String(row.owner_user_id) : '')\n    .replace(/{{\\s*user\\.full_name\\s*}}/gi, toTitleCase(row.owner_name) || 'your account team')\n    .replace(/{{\\s*user\\.email\\s*}}/gi, row.owner_email || '')\n    .replace(/{{\\s*user\\.phone\\s*}}/gi, row.owner_phone || '')\n    // System \u2014 always resolvable, no row data involved.\n    .replace(/{{\\s*system\\.current_date\\s*}}/gi, dateStr(new Date()))\n    .replace(/{{\\s*system\\.current_time\\s*}}/gi, new Date().toLocaleTimeString())\n    .replace(/{{\\s*system\\.current_datetime\\s*}}/gi, dateTimeStr(new Date()))\n    .replace(/{{\\s*system\\.timestamp\\s*}}/gi, new Date().toISOString())\n    // A real send clones the referenced template into an actual DB row via\n    // Automation Engine.json \u2014 a Test send deliberately does NOT (this whole\n    // flow is a dry run with no side effects), so these can't resolve to a\n    // real link here. Show a clearly-labeled placeholder instead of silently\n    // deleting the token via the generic {{ }} strip below, which is what\n    // made proposal/contract links vanish from test sends entirely.\n    .replace(/{{\\s*proposal_template:\\d+\\s*}}/gi, '[TEST \u2014 a real, unique proposal link appears here on an actual send]')\n    .replace(/{{\\s*contract_template:\\d+\\s*}}/gi, '[TEST \u2014 a real, unique contract link appears here on an actual send]')\n    // Safety net matching Automation Engine.json's Prepare Email \u2014 strips\n    // any OTHER unresolved \"{{ }}\" so a real send's preview matches what\n    // actually goes out instead of risking the \"undefined\" corruption\n    // n8n's own expression engine causes downstream on Send Test Email's\n    // `={{ $json.body }}` field.\n    .replace(/{{[^{}]*}}/g, '');\n}\nfunction escapeHtml(s) {\n  return (s || '').toString()\n    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')\n    .replace(/\"/g, '&quot;').replace(/'/g, '&#39;');\n}\n// No tracking pixel here \u2014 a Test send is explicitly a no-side-effects\n// dry run (see the module comment above), and the address typed into\n// \"Test email address\" isn't necessarily the real contact's own email,\n// so there's no legitimate contact to attribute an \"opened\" event to.\n// Still converted to HTML so the preview matches what a real send (which\n// IS html now) actually looks like.\nconst testBody = fill(meta._emailAction.action_config.body);\nconst apptTimePretty = dateTimePretty(appt.start_at || appt.due_at);\nconst escapedTestBody = escapeHtml(testBody).replace(/\\n/g, '<br>');\nconst boldedTestBody = apptTimePretty ? escapedTestBody.split(apptTimePretty).join(`<strong>${apptTimePretty}</strong>`) : escapedTestBody;\nreturn [{\n  json: {\n    to: meta._testEmail, subject: '[TEST] ' + fill(meta._emailAction.action_config.subject), body: testBody,\n    htmlBody: boldedTestBody,\n    senderName: ourCompanyName,\n  },\n}];"
       },
       "id": "aut5c0010-0000-4a5a-9b1a-automation410",
       "name": "Prepare Test Email",
@@ -790,7 +586,10 @@
         "subject": "={{ $json.subject }}",
         "emailType": "html",
         "message": "={{ $json.htmlBody }}",
-        "options": {}
+        "options": {
+          "appendAttribution": false,
+          "senderName": "={{ $json.senderName }}"
+        }
       },
       "id": "aut5g0011-0000-4a5a-9b1a-automation411",
       "name": "Send Test Email",
@@ -854,7 +653,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "responseBody": "={{ { success: false, error: (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Request failed.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -867,6 +666,291 @@
         1632,
         1280
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        80
+      ],
+      "id": "extract-bearer-parse-token-get",
+      "name": "Extract Bearer Token (Get)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-get",
+      "name": "Execute Workflow: Verify Session (Get)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1214,
+        95
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        80
+      ],
+      "id": "validate-session-parse-token-get",
+      "name": "Validate Session (Get)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        320
+      ],
+      "id": "extract-bearer-parse-token-save",
+      "name": "Extract Bearer Token (Save)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-save",
+      "name": "Execute Workflow: Verify Session (Save)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1214,
+        335
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        320
+      ],
+      "id": "validate-session-parse-token-save",
+      "name": "Validate Session (Save)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        560
+      ],
+      "id": "extract-bearer-parse-token-toggle",
+      "name": "Extract Bearer Token (Toggle)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-toggle",
+      "name": "Execute Workflow: Verify Session (Toggle)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1214,
+        575
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        560
+      ],
+      "id": "validate-session-parse-token-toggle",
+      "name": "Validate Session (Toggle)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        800
+      ],
+      "id": "extract-bearer-parse-token-delete",
+      "name": "Extract Bearer Token (Delete)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-delete",
+      "name": "Execute Workflow: Verify Session (Delete)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1214,
+        815
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        800
+      ],
+      "id": "validate-session-parse-token-delete",
+      "name": "Validate Session (Delete)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        1040
+      ],
+      "id": "extract-bearer-parse-token-test",
+      "name": "Extract Bearer Token (Test)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-test",
+      "name": "Execute Workflow: Verify Session (Test)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1214,
+        1055
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        1040
+      ],
+      "id": "validate-session-parse-token-test",
+      "name": "Validate Session (Test)",
+      "onError": "continueErrorOutput"
     }
   ],
   "connections": {
@@ -874,43 +958,7 @@
       "main": [
         [
           {
-            "node": "Parse Token (Get)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token (Get)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester (Get)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester (Get)": {
-      "main": [
-        [
-          {
-            "node": "Validate Session (Get)",
+            "node": "Extract Bearer Token (Get)",
             "type": "main",
             "index": 0
           }
@@ -964,43 +1012,7 @@
       "main": [
         [
           {
-            "node": "Parse Token (Save)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token (Save)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester (Save)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester (Save)": {
-      "main": [
-        [
-          {
-            "node": "Validate & Payload (Save)",
+            "node": "Extract Bearer Token (Save)",
             "type": "main",
             "index": 0
           }
@@ -1156,43 +1168,7 @@
       "main": [
         [
           {
-            "node": "Parse Token (Toggle)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token (Toggle)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester (Toggle)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester (Toggle)": {
-      "main": [
-        [
-          {
-            "node": "Validate & Payload (Toggle)",
+            "node": "Extract Bearer Token (Toggle)",
             "type": "main",
             "index": 0
           }
@@ -1264,43 +1240,7 @@
       "main": [
         [
           {
-            "node": "Parse Token (Delete)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token (Delete)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester (Delete)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester (Delete)": {
-      "main": [
-        [
-          {
-            "node": "Validate & Payload (Delete)",
+            "node": "Extract Bearer Token (Delete)",
             "type": "main",
             "index": 0
           }
@@ -1372,43 +1312,7 @@
       "main": [
         [
           {
-            "node": "Parse Token (Test)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token (Test)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester (Test)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester (Test)": {
-      "main": [
-        [
-          {
-            "node": "Validate & Payload (Test)",
+            "node": "Extract Bearer Token (Test)",
             "type": "main",
             "index": 0
           }
@@ -1583,14 +1487,266 @@
           }
         ]
       ]
+    },
+    "Extract Bearer Token (Get)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Get)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (Save)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Save)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (Save)": {
+      "main": [
+        [
+          {
+            "node": "Validate & Payload (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (Toggle)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Toggle)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Toggle)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (Toggle)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (Toggle)": {
+      "main": [
+        [
+          {
+            "node": "Validate & Payload (Toggle)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Validate & Payload (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (Test)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Test)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Test)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (Test)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (Test)": {
+      "main": [
+        [
+          {
+            "node": "Validate & Payload (Test)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "pinData": {},
-  "active": true,
   "settings": {
     "executionOrder": "v1",
+    "binaryMode": "separate",
     "availableInMCP": false,
     "timeSavedMode": "fixed",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
     "callerPolicy": "workflowsFromSameOwner"
   }
 }

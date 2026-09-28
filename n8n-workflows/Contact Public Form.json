@@ -6,36 +6,51 @@
         "httpMethod": "POST",
         "path": "add-contact-public",
         "responseMode": "responseNode",
-        "options": { "allowedOrigins": "*" }
+        "options": {
+          "allowedOrigins": "*"
+        }
       },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
-      "position": [0, 0],
+      "position": [
+        0,
+        0
+      ],
       "id": "cpf-webhook",
       "name": "Webhook: add-contact-public",
       "webhookId": "d3b3f1a0-3c1b-4a9e-8f2a-add-contact-public-01"
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || {};\n\n// Honeypot — a real visitor never fills this (hidden via CSS on the\n// public form); a bot filling every field will. Silently pretend\n// success without touching the database — same pattern as\n// create-ticket-public.\nif ((body.website_hp || '').toString().trim()) {\n  return [{ json: { spam: true } }];\n}\n\nconst firstName = (body.first_name || '').toString().trim();\nconst lastName = (body.last_name || '').toString().trim();\nconst email = (body.email || '').toString().trim().toLowerCase();\nconst phone = (body.phone || '').toString().trim();\nconst companyName = (body.company_name || '').toString().trim();\nconst jobTitle = (body.job_title || '').toString().trim();\nconst leadSource = (body.lead_source || 'Website Form').toString().trim();\nconst message = (body.message || '').toString().trim();\n\nif (!firstName) throw new Error('\"first_name\" is required.');\nif (!email && !phone) throw new Error('Either \"email\" or \"phone\" is required.');\nif (email && !email.includes('@')) throw new Error('\"email\" is not valid.');\n\nreturn [{\n  json: {\n    spam: false,\n    firstName, lastName, email, phone, companyName, jobTitle, leadSource, message,\n  },\n}];"
+        "jsCode": "const body = $('Webhook: add-contact-public').first().json.body || {};\n\n// Honeypot \u2014 a real visitor never fills this (hidden via CSS on the\n// public form); a bot filling every field will. Silently pretend\n// success without touching the database \u2014 same pattern as\n// create-ticket-public.\nif ((body.website_hp || '').toString().trim()) {\n  return [{ json: { spam: true } }];\n}\n\nconst firstName = (body.first_name || '').toString().trim();\nconst lastName = (body.last_name || '').toString().trim();\nconst email = (body.email || '').toString().trim().toLowerCase();\nconst phone = (body.phone || '').toString().trim();\nconst companyName = (body.company_name || '').toString().trim();\nconst jobTitle = (body.job_title || '').toString().trim();\nconst leadSource = (body.lead_source || 'Website Form').toString().trim();\nconst message = (body.message || '').toString().trim();\n\nif (!firstName) throw new Error('\"first_name\" is required.');\nif (!email && !phone) throw new Error('Either \"email\" or \"phone\" is required.');\nif (email && !email.includes('@')) throw new Error('\"email\" is not valid.');\n\nreturn [{\n  json: {\n    spam: false,\n    firstName, lastName, email, phone, companyName, jobTitle, leadSource, message,\n  },\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [220, 0],
+      "position": [
+        220,
+        0
+      ],
       "id": "cpf-check-payload",
       "name": "Check Payload: add-contact-public"
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
           "combinator": "and",
           "conditions": [
             {
               "id": "cpf-not-spam-cond",
               "leftValue": "={{ $json.spam }}",
               "rightValue": true,
-              "operator": { "type": "boolean", "operation": "notEquals" }
+              "operator": {
+                "type": "boolean",
+                "operation": "notEquals"
+              }
             }
           ]
         },
@@ -43,7 +58,10 @@
       },
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
-      "position": [440, 0],
+      "position": [
+        440,
+        0
+      ],
       "id": "cpf-not-spam",
       "name": "Not Spam?"
     },
@@ -51,23 +69,36 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT id FROM contacts WHERE lower(email) = $1 AND $1 <> '' AND is_archived = false LIMIT 1;",
-        "options": { "queryReplacement": "={{ [ $json.email ] }}" }
+        "options": {
+          "queryReplacement": "={{ [ $json.email ] }}"
+        }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [660, -60],
+      "position": [
+        660,
+        -60
+      ],
       "id": "cpf-match-existing",
       "name": "Postgres: Match Existing Contact",
       "alwaysOutputData": true,
-      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "// A resubmission from the same visitor updates the existing lead instead\n// of creating a duplicate — same principle as Check Duplicate Contact in\n// the internal add-contact flow, just resolved automatically here since\n// there's no rep present to pick \"merge or create new\".\nconst payload = $('Check Payload: add-contact-public').first().json;\nconst existing = $input.first().json;\nreturn [{ json: { ...payload, existingContactId: existing?.id || null } }];"
+        "jsCode": "// A resubmission from the same visitor updates the existing lead instead\n// of creating a duplicate \u2014 same principle as Check Duplicate Contact in\n// the internal add-contact flow, just resolved automatically here since\n// there's no rep present to pick \"merge or create new\".\nconst payload = $('Check Payload: add-contact-public').first().json;\nconst existing = $input.first().json;\nreturn [{ json: { ...payload, existingContactId: existing?.id || null } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [880, -60],
+      "position": [
+        880,
+        -60
+      ],
       "id": "cpf-merge-match",
       "name": "Merge Existing Match"
     },
@@ -81,32 +112,51 @@
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [1100, -60],
+      "position": [
+        1100,
+        -60
+      ],
       "id": "cpf-upsert-contact",
       "name": "Postgres: Upsert Contact",
-      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "// xmax = 0 (from the upsert's RETURNING) means this INSERT actually\n// inserted a fresh row rather than hitting the ON CONFLICT UPDATE path —\n// the \"contact created\" event should only fire for genuinely new leads,\n// not every resubmission of the same form by the same person.\nconst row = $input.first().json;\nconst payload = $('Merge Existing Match').first().json;\nreturn [{ json: { contactId: row.id, isNew: row.is_new === true, message: payload.message || '' } }];"
+        "jsCode": "// xmax = 0 (from the upsert's RETURNING) means this INSERT actually\n// inserted a fresh row rather than hitting the ON CONFLICT UPDATE path \u2014\n// the \"contact created\" event should only fire for genuinely new leads,\n// not every resubmission of the same form by the same person.\nconst row = $input.first().json;\nconst payload = $('Merge Existing Match').first().json;\nreturn [{ json: { contactId: row.id, isNew: row.is_new === true, message: payload.message || '' } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1320, -60],
+      "position": [
+        1320,
+        -60
+      ],
       "id": "cpf-prepare-dispatch",
       "name": "Prepare Dispatch"
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
           "combinator": "and",
           "conditions": [
             {
               "id": "cpf-is-new-cond",
               "leftValue": "={{ $json.isNew }}",
               "rightValue": true,
-              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
             }
           ]
         },
@@ -114,7 +164,10 @@
       },
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
-      "position": [1540, -60],
+      "position": [
+        1540,
+        -60
+      ],
       "id": "cpf-is-new",
       "name": "Is New Contact?"
     },
@@ -125,16 +178,21 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ { contact_id: $json.contactId, source: \"form\" } }}",
-        "options": { "timeout": 5000 }
+        "options": {
+          "timeout": 5000
+        }
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1760, -140],
+      "position": [
+        1760,
+        -140
+      ],
       "id": "cpf-notify-dispatch",
       "name": "Notify: Contact Created",
       "onError": "continueRegularOutput",
       "notesInFlow": true,
-      "notes": "Fire-and-forget — a dispatch failure must never block the visitor's form submission from succeeding."
+      "notes": "Fire-and-forget \u2014 a dispatch failure must never block the visitor's form submission from succeeding."
     },
     {
       "parameters": {
@@ -144,7 +202,10 @@
       },
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
-      "position": [1980, -60],
+      "position": [
+        1980,
+        -60
+      ],
       "id": "cpf-respond-success",
       "name": "Respond: Success"
     },
@@ -156,32 +217,171 @@
       },
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
-      "position": [660, 120],
+      "position": [
+        660,
+        120
+      ],
       "id": "cpf-respond-spam",
       "name": "Respond: Spam (fake success)"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Contact Public Form\" }}",
+            "workflow_id": "={{ \"TlHg9s4yaX9qhfxQ\" }}",
+            "entity_type": "={{ \"contacts\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-add-contact-public-0",
+      "name": "Log Workflow Run: Webhook: add-contact-public",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        15,
+        -15
+      ],
+      "onError": "continueRegularOutput"
     }
   ],
   "pinData": {},
   "connections": {
-    "Webhook: add-contact-public": { "main": [[{ "node": "Check Payload: add-contact-public", "type": "main", "index": 0 }]] },
-    "Check Payload: add-contact-public": { "main": [[{ "node": "Not Spam?", "type": "main", "index": 0 }]] },
+    "Webhook: add-contact-public": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: Webhook: add-contact-public",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload: add-contact-public": {
+      "main": [
+        [
+          {
+            "node": "Not Spam?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Not Spam?": {
       "main": [
-        [{ "node": "Postgres: Match Existing Contact", "type": "main", "index": 0 }],
-        [{ "node": "Respond: Spam (fake success)", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Postgres: Match Existing Contact",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond: Spam (fake success)",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "Postgres: Match Existing Contact": { "main": [[{ "node": "Merge Existing Match", "type": "main", "index": 0 }]] },
-    "Merge Existing Match": { "main": [[{ "node": "Postgres: Upsert Contact", "type": "main", "index": 0 }]] },
-    "Postgres: Upsert Contact": { "main": [[{ "node": "Prepare Dispatch", "type": "main", "index": 0 }]] },
-    "Prepare Dispatch": { "main": [[{ "node": "Is New Contact?", "type": "main", "index": 0 }]] },
+    "Postgres: Match Existing Contact": {
+      "main": [
+        [
+          {
+            "node": "Merge Existing Match",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Existing Match": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Upsert Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Upsert Contact": {
+      "main": [
+        [
+          {
+            "node": "Prepare Dispatch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Dispatch": {
+      "main": [
+        [
+          {
+            "node": "Is New Contact?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Is New Contact?": {
       "main": [
-        [{ "node": "Notify: Contact Created", "type": "main", "index": 0 }],
-        [{ "node": "Respond: Success", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Notify: Contact Created",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond: Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "Notify: Contact Created": { "main": [[{ "node": "Respond: Success", "type": "main", "index": 0 }]] }
+    "Notify: Contact Created": {
+      "main": [
+        [
+          {
+            "node": "Respond: Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: add-contact-public": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: add-contact-public",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "active": true,
   "settings": {

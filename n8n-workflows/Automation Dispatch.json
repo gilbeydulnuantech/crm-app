@@ -6,11 +6,16 @@
         "httpMethod": "POST",
         "path": "dispatch-contact-created",
         "responseMode": "responseNode",
-        "options": { "allowedOrigins": "*" }
+        "options": {
+          "allowedOrigins": "http://localhost:5173"
+        }
       },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
-      "position": [0, 0],
+      "position": [
+        0,
+        0
+      ],
       "id": "adisp-webhook-contact-created",
       "name": "Webhook: dispatch-contact-created",
       "webhookId": "e1a2b3c4-dispatch-contact-created-01"
@@ -21,7 +26,10 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [220, 0],
+      "position": [
+        220,
+        0
+      ],
       "id": "adisp-parse-payload",
       "name": "Parse Payload"
     },
@@ -33,19 +41,30 @@
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [440, 0],
+      "position": [
+        440,
+        0
+      ],
       "id": "adisp-select-matching",
       "name": "Postgres: Select Matching Automations",
       "alwaysOutputData": true,
-      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "// alwaysOutputData placeholder from a zero-row match (no compiled\n// contact-created automations exist yet) — nothing to fire, respond\n// success either way since the CALLER (a contact-creation flow) must\n// never fail just because no automation currently cares.\nconst contactId = $('Parse Payload').first().json.contactId;\nconst rows = $input.all().map((i) => i.json).filter((r) => r.id != null && r.n8n_workflow_id);\nreturn rows.map((r) => ({ json: { automationId: r.id, contactId, url: `http://localhost:5678/webhook/automation-${r.id}-trigger` } }));"
+        "jsCode": "// alwaysOutputData placeholder from a zero-row match (no compiled\n// contact-created automations exist yet) \u2014 nothing to fire, respond\n// success either way since the CALLER (a contact-creation flow) must\n// never fail just because no automation currently cares.\nconst contactId = $('Parse Payload').first().json.contactId;\nconst rows = $input.all().map((i) => i.json).filter((r) => r.id != null && r.n8n_workflow_id);\nreturn rows.map((r) => ({ json: { automationId: r.id, contactId, url: `http://localhost:5678/webhook/automation-${r.id}-trigger` } }));"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [660, 0],
+      "position": [
+        660,
+        0
+      ],
       "id": "adisp-build-targets",
       "name": "Build Fan-Out Targets"
     },
@@ -56,17 +75,22 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ { contact_id: $json.contactId } }}",
-        "options": { "timeout": 5000 }
+        "options": {
+          "timeout": 5000
+        }
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [880, 0],
+      "position": [
+        880,
+        0
+      ],
       "id": "adisp-fire-automation",
       "name": "Fire Automation Webhook",
       "onError": "continueRegularOutput",
       "alwaysOutputData": true,
       "notesInFlow": true,
-      "notes": "One automation's compiled workflow failing to receive the event must not block the others from firing. alwaysOutputData also covers the zero-target case (no compiled contact-created automations exist yet) — without it, zero fan-out targets means zero items reach Respond below, and the CALLER (a contact-creation flow) would hang waiting on a response that never comes."
+      "notes": "One automation's compiled workflow failing to receive the event must not block the others from firing. alwaysOutputData also covers the zero-target case (no compiled contact-created automations exist yet) \u2014 without it, zero fan-out targets means zero items reach Respond below, and the CALLER (a contact-creation flow) would hang waiting on a response that never comes."
     },
     {
       "parameters": {
@@ -76,18 +100,71 @@
       },
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
-      "position": [1100, 0],
+      "position": [
+        1100,
+        0
+      ],
       "id": "adisp-respond",
       "name": "Respond: dispatch-contact-created"
     }
   ],
   "pinData": {},
   "connections": {
-    "Webhook: dispatch-contact-created": { "main": [[{ "node": "Parse Payload", "type": "main", "index": 0 }]] },
-    "Parse Payload": { "main": [[{ "node": "Postgres: Select Matching Automations", "type": "main", "index": 0 }]] },
-    "Postgres: Select Matching Automations": { "main": [[{ "node": "Build Fan-Out Targets", "type": "main", "index": 0 }]] },
-    "Build Fan-Out Targets": { "main": [[{ "node": "Fire Automation Webhook", "type": "main", "index": 0 }]] },
-    "Fire Automation Webhook": { "main": [[{ "node": "Respond: dispatch-contact-created", "type": "main", "index": 0 }]] }
+    "Webhook: dispatch-contact-created": {
+      "main": [
+        [
+          {
+            "node": "Parse Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Payload": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Matching Automations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Matching Automations": {
+      "main": [
+        [
+          {
+            "node": "Build Fan-Out Targets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Fan-Out Targets": {
+      "main": [
+        [
+          {
+            "node": "Fire Automation Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fire Automation Webhook": {
+      "main": [
+        [
+          {
+            "node": "Respond: dispatch-contact-created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "active": true,
   "settings": {

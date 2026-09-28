@@ -4,31 +4,11 @@ import { usePipelines, useStages } from '../hooks/useOpportunities';
 import { useEmailTemplates } from '../hooks/useEmailTemplates';
 import { useStageReminders, useSaveStageReminder } from '../hooks/usePipelineStageReminders';
 import { StageReminderStepDraft } from '../api/pipelineStageReminders';
-import { insertAtCursor, DynamicField } from '../components/DynamicFieldDropdown';
+import DynamicFieldDropdown, { AUTOMATION_DYNAMIC_FIELDS, insertAtCursor } from '../components/DynamicFieldDropdown';
 
 const inputClass =
   'w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]';
 const labelClass = 'block text-xs font-medium text-slate-600 mb-1';
-
-// Matches exactly what the Pipeline Stage Reminder Engine's fill() function
-// resolves (n8n) — nothing more, nothing less, so inserting a field here is
-// guaranteed to actually populate when the email sends. Resolves in both
-// the reminder-step emails AND the after-inspection completion email.
-const REMINDER_DYNAMIC_FIELDS: DynamicField[] = [
-  { token: '{{first_name}}', label: 'First Name', group: 'Contact' },
-  { token: '{{last_name}}', label: 'Last Name', group: 'Contact' },
-  { token: '{{client_company_name}}', label: 'Client Company', group: 'Contact' },
-  { token: '{{client_address}}', label: 'Client Address', group: 'Contact' },
-  { token: '{{client_email}}', label: 'Client Email', group: 'Contact' },
-  { token: '{{client_phone}}', label: 'Client Phone', group: 'Contact' },
-  { token: '{{appointment_date}}', label: 'Appointment Date', group: 'Appointment' },
-  { token: '{{appointment_time}}', label: 'Appointment Time', group: 'Appointment' },
-  { token: '{{deal_name}}', label: 'Deal Name', group: 'Deal' },
-  { token: '{{owner_name}}', label: 'Owner Name', group: 'User' },
-  { token: '{{owner_email}}', label: 'Owner Email', group: 'User' },
-  { token: '{{owner_phone}}', label: 'Owner Phone', group: 'User' },
-  { token: '{{company_name}}', label: 'Company Name', group: 'User' },
-];
 
 interface StepDraft extends StageReminderStepDraft {
   key: string;
@@ -186,11 +166,6 @@ export default function StageReminderEditorPage() {
   if (isEdit && isLoading && !rule) {
     return <div className="flex-1 flex items-center justify-center text-sm text-slate-400">Loading...</div>;
   }
-
-  const fieldGroups = REMINDER_DYNAMIC_FIELDS.reduce<Record<string, DynamicField[]>>((acc, f) => {
-    (acc[f.group!] ||= []).push(f);
-    return acc;
-  }, {});
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-white">
@@ -420,26 +395,7 @@ export default function StageReminderEditorPage() {
             <p className="text-[10px] text-slate-400 mb-2">
               {focusTarget ? 'Inserts at your cursor in the last field you clicked into.' : 'Click a subject/body field first.'}
             </p>
-            <div className="flex flex-col gap-2.5">
-              {Object.entries(fieldGroups).map(([group, groupFields]) => (
-                <div key={group}>
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">{group}</p>
-                  <div className="flex flex-col gap-1.5">
-                    {groupFields.map((f) => (
-                      <button
-                        key={f.token}
-                        type="button"
-                        disabled={!focusTarget}
-                        onClick={() => insertField(f.token)}
-                        className="w-full text-left text-[11px] font-medium border border-slate-200 rounded-md px-2 py-1 text-slate-600 bg-white hover:border-[var(--theme-accent)] hover:text-[var(--theme-accent)] disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:text-slate-600"
-                      >
-                        {f.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <DynamicFieldDropdown fields={AUTOMATION_DYNAMIC_FIELDS} onInsert={insertField} />
           </div>
         </div>
       </div>

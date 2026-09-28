@@ -20,42 +20,6 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
-      },
-      "id": "95b7d135-f50b-4c81-97b5-da1f2ba21519",
-      "name": "Parse Token: get-tickets",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        440,
-        160
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.userId ] }}"
-        }
-      },
-      "id": "941a754f-a2e2-4d86-9125-15fbe9a3a596",
-      "name": "Look Up Requester: get-tickets",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        640,
-        160
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    },
-    {
-      "parameters": {
         "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nreturn [{ json: {} }];"
       },
       "id": "800adee0-3571-419a-af9f-aeaf66e1b062",
@@ -118,42 +82,6 @@
         380
       ],
       "webhookId": "83b8c9c2-a92e-4160-86b0-d4090ce7706e"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
-      },
-      "id": "9937fd48-d1b0-4095-91bb-9e4243acbff1",
-      "name": "Parse Token: get-ticket",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        440,
-        380
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.userId ] }}"
-        }
-      },
-      "id": "c8e40dbf-3a3e-4d57-826b-07cf25badf9e",
-      "name": "Look Up Requester: get-ticket",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        640,
-        380
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
     },
     {
       "parameters": {
@@ -275,42 +203,6 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
-      },
-      "id": "f1ca5242-edc0-4f15-a59f-b7f876228f98",
-      "name": "Parse Token: create-ticket",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        440,
-        600
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.userId ] }}"
-        }
-      },
-      "id": "420e360d-12ec-460a-8430-2281c8b215d6",
-      "name": "Look Up Requester: create-ticket",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        640,
-        600
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    },
-    {
-      "parameters": {
         "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: create-ticket').first().json.body || {};\nconst subject = (body.subject || '').toString().trim();\nif (!subject) throw new Error('\"subject\" is required.');\n\nconst VALID_PRIORITIES = ['low', 'normal', 'high', 'urgent'];\nconst priority = VALID_PRIORITIES.includes(body.priority) ? body.priority : 'normal';\nconst SLA_HOURS = { urgent: 4, high: 8, normal: 24, low: 72 };\n\nreturn [{\n  json: {\n    subject,\n    description: (body.description || '').toString(),\n    priority,\n    slaHours: SLA_HOURS[priority],\n    contactId: body.contact_id ? parseInt(body.contact_id, 10) : null,\n    accountId: body.account_id ? parseInt(body.account_id, 10) : null,\n    assignedUser: body.assigned_user ? parseInt(body.assigned_user, 10) : null,\n    requesterId: requester.id,\n    requesterName: requester.name,\n  },\n}];"
       },
       "id": "c77b1f48-6d34-4264-ba3d-ecf0ceadd518",
@@ -391,42 +283,6 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
-      },
-      "id": "7b9c6fcf-c14a-4f59-bac2-6ac89c3bb30b",
-      "name": "Parse Token: update-ticket",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        440,
-        820
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.userId ] }}"
-        }
-      },
-      "id": "a1b7ed29-beb9-4768-aa13-a459b0a987a8",
-      "name": "Look Up Requester: update-ticket",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        640,
-        820
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    },
-    {
-      "parameters": {
         "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: update-ticket').first().json.body || {};\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" is required.');\n\nconst VALID_STATUSES = ['open', 'pending', 'resolved', 'closed'];\nconst VALID_PRIORITIES = ['low', 'normal', 'high', 'urgent'];\nif (body.status !== undefined && !VALID_STATUSES.includes(body.status)) throw new Error('Invalid status.');\nif (body.priority !== undefined && !VALID_PRIORITIES.includes(body.priority)) throw new Error('Invalid priority.');\n\nconst resolving = body.status === 'resolved' || body.status === 'closed';\n\nreturn [{\n  json: {\n    id,\n    subject: body.subject !== undefined ? body.subject : null,\n    description: body.description !== undefined ? body.description : null,\n    status: body.status !== undefined ? body.status : null,\n    priority: body.priority !== undefined ? body.priority : null,\n    category: body.category !== undefined ? (body.category || null) : null,\n    contactId: body.contact_id !== undefined ? (body.contact_id || null) : null,\n    accountId: body.account_id !== undefined ? (body.account_id || null) : null,\n    assignedUser: body.assigned_user !== undefined ? (body.assigned_user || null) : null,\n    resolutionNotes: body.resolution_notes !== undefined ? (body.resolution_notes || null) : null,\n    resolvedAt: resolving ? new Date().toISOString() : null,\n    resolvedBy: resolving ? requester.id : null,\n    requesterId: requester.id,\n    requesterName: requester.name,\n  },\n}];"
       },
       "id": "339980bc-4e68-4612-bb75-bc0dd6f06ffa",
@@ -504,42 +360,6 @@
         1040
       ],
       "webhookId": "f9a8d951-5727-4cdb-a043-492438e1ad89"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
-      },
-      "id": "8081f033-32f5-4d3a-b493-b220985a61a5",
-      "name": "Parse Token: add-ticket-comment",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        440,
-        1040
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.userId ] }}"
-        }
-      },
-      "id": "35873b5d-ac9c-49f2-9f13-7e2ba271c622",
-      "name": "Look Up Requester: add-ticket-comment",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        640,
-        1040
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
     },
     {
       "parameters": {
@@ -643,42 +463,6 @@
         1260
       ],
       "webhookId": "9333f118-6cd8-48f7-bf4d-b5acf22a6119"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
-      },
-      "id": "739d0acf-8053-4db6-ba30-2a2f129ea3de",
-      "name": "Parse Token: archive-ticket",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        440,
-        1260
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.userId ] }}"
-        }
-      },
-      "id": "75b0595e-9aac-4d3c-98d7-5ef5b5790205",
-      "name": "Look Up Requester: archive-ticket",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        640,
-        1260
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
     },
     {
       "parameters": {
@@ -1115,7 +899,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT t.subject, COALESCE(ct.email, t.submitter_email) AS customer_email\nFROM tickets t LEFT JOIN contacts ct ON ct.id = t.contact_id\nWHERE t.id = $1;",
+        "query": "SELECT t.subject, ct.id AS contact_id, COALESCE(ct.email, t.submitter_email) AS customer_email, ct.unsubscribe_token\nFROM tickets t LEFT JOIN contacts ct ON ct.id = t.contact_id\nWHERE t.id = $1;",
         "options": {
           "queryReplacement": "={{ [ $('Check Payload: add-ticket-comment').first().json.ticketId ] }}"
         }
@@ -1172,8 +956,10 @@
         "sendTo": "={{ $('Postgres: Select Ticket For Reply').item.json.customer_email }}",
         "subject": "={{ 'Re: ' + $('Postgres: Select Ticket For Reply').item.json.subject }}",
         "emailType": "text",
-        "message": "={{ $('Check Payload: add-ticket-comment').item.json.text }}",
-        "options": {}
+        "message": "={{ $('Check Payload: add-ticket-comment').item.json.text + '\\n\\n' + \"Don't want these emails? Unsubscribe: \" + ($env.FRONTEND_BASE_URL || '') + '/unsubscribe/' + ($('Postgres: Select Ticket For Reply').item.json.unsubscribe_token || '') }}",
+        "options": {
+          "appendAttribution": false
+        }
       },
       "id": "b44be104-f9d7-428b-9a0c-ed5e96c0c634",
       "name": "Send Reply Email",
@@ -1190,6 +976,354 @@
         }
       },
       "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        160
+      ],
+      "id": "extract-bearer-parse-token-get-tickets",
+      "name": "Extract Bearer Token get-tickets"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-get-tickets",
+      "name": "Execute Workflow: Verify Session get-tickets",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        470,
+        175
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        160
+      ],
+      "id": "validate-session-parse-token-get-tickets",
+      "name": "Validate Session get-tickets"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        380
+      ],
+      "id": "extract-bearer-parse-token-get-ticket",
+      "name": "Extract Bearer Token get-ticket"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-get-ticket",
+      "name": "Execute Workflow: Verify Session get-ticket",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        470,
+        395
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        380
+      ],
+      "id": "validate-session-parse-token-get-ticket",
+      "name": "Validate Session get-ticket"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        600
+      ],
+      "id": "extract-bearer-parse-token-create-ticket",
+      "name": "Extract Bearer Token create-ticket"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-create-ticket",
+      "name": "Execute Workflow: Verify Session create-ticket",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        470,
+        615
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        600
+      ],
+      "id": "validate-session-parse-token-create-ticket",
+      "name": "Validate Session create-ticket"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        820
+      ],
+      "id": "extract-bearer-parse-token-update-ticket",
+      "name": "Extract Bearer Token update-ticket"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-update-ticket",
+      "name": "Execute Workflow: Verify Session update-ticket",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        470,
+        835
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        820
+      ],
+      "id": "validate-session-parse-token-update-ticket",
+      "name": "Validate Session update-ticket"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        1040
+      ],
+      "id": "extract-bearer-parse-token-add-ticket-comment",
+      "name": "Extract Bearer Token add-ticket-comment"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-add-ticket-comment",
+      "name": "Execute Workflow: Verify Session add-ticket-comment",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        470,
+        1055
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        1040
+      ],
+      "id": "validate-session-parse-token-add-ticket-comment",
+      "name": "Validate Session add-ticket-comment"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        1260
+      ],
+      "id": "extract-bearer-parse-token-archive-ticket",
+      "name": "Extract Bearer Token archive-ticket"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-archive-ticket",
+      "name": "Execute Workflow: Verify Session archive-ticket",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        470,
+        1275
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        1260
+      ],
+      "id": "validate-session-parse-token-archive-ticket",
+      "name": "Validate Session archive-ticket"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts SET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object('id', gen_random_uuid()::text, 'type', 'sent', 'subject', $1::text, 'message', $2::text, 'sent_at', NOW(), 'is_read', true) WHERE id = $3;",
+        "options": {
+          "queryReplacement": "={{ [ 'Re: ' + $('Postgres: Select Ticket For Reply').item.json.subject, $('Check Payload: add-ticket-comment').item.json.text + '\\n\\n' + \"Don't want these emails? Unsubscribe: \" + ($env.FRONTEND_BASE_URL || '') + '/unsubscribe/' + ($('Postgres: Select Ticket For Reply').item.json.unsubscribe_token || ''), $('Postgres: Select Ticket For Reply').item.json.contact_id ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1460,
+        660
+      ],
+      "id": "log-ticket-reply",
+      "name": "Log Sent Email: Ticket Reply",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
@@ -1197,29 +1331,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: get-tickets",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: get-tickets": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: get-tickets",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: get-tickets": {
-      "main": [
-        [
-          {
-            "node": "Check Requester: get-tickets",
+            "node": "Extract Bearer Token get-tickets",
             "type": "main",
             "index": 0
           }
@@ -1252,29 +1364,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: get-ticket",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: get-ticket": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: get-ticket",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: get-ticket": {
-      "main": [
-        [
-          {
-            "node": "Check Requester: get-ticket",
+            "node": "Extract Bearer Token get-ticket",
             "type": "main",
             "index": 0
           }
@@ -1340,29 +1430,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: create-ticket",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: create-ticket": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: create-ticket",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: create-ticket": {
-      "main": [
-        [
-          {
-            "node": "Check Payload: create-ticket",
+            "node": "Extract Bearer Token create-ticket",
             "type": "main",
             "index": 0
           }
@@ -1406,29 +1474,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: update-ticket",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: update-ticket": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: update-ticket",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: update-ticket": {
-      "main": [
-        [
-          {
-            "node": "Check Payload: update-ticket",
+            "node": "Extract Bearer Token update-ticket",
             "type": "main",
             "index": 0
           }
@@ -1472,29 +1518,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: add-ticket-comment",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: add-ticket-comment": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: add-ticket-comment",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: add-ticket-comment": {
-      "main": [
-        [
-          {
-            "node": "Check Payload: add-ticket-comment",
+            "node": "Extract Bearer Token add-ticket-comment",
             "type": "main",
             "index": 0
           }
@@ -1549,29 +1573,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: archive-ticket",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: archive-ticket": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: archive-ticket",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: archive-ticket": {
-      "main": [
-        [
-          {
-            "node": "Check Payload: archive-ticket",
+            "node": "Extract Bearer Token archive-ticket",
             "type": "main",
             "index": 0
           }
@@ -1842,6 +1844,215 @@
       ]
     },
     "Send Reply Email": {
+      "main": [
+        [
+          {
+            "node": "Log Sent Email: Ticket Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token get-tickets": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session get-tickets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session get-tickets": {
+      "main": [
+        [
+          {
+            "node": "Validate Session get-tickets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session get-tickets": {
+      "main": [
+        [
+          {
+            "node": "Check Requester: get-tickets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token get-ticket": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session get-ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session get-ticket": {
+      "main": [
+        [
+          {
+            "node": "Validate Session get-ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session get-ticket": {
+      "main": [
+        [
+          {
+            "node": "Check Requester: get-ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token create-ticket": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session create-ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session create-ticket": {
+      "main": [
+        [
+          {
+            "node": "Validate Session create-ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session create-ticket": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: create-ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token update-ticket": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session update-ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session update-ticket": {
+      "main": [
+        [
+          {
+            "node": "Validate Session update-ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session update-ticket": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: update-ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token add-ticket-comment": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session add-ticket-comment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session add-ticket-comment": {
+      "main": [
+        [
+          {
+            "node": "Validate Session add-ticket-comment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session add-ticket-comment": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: add-ticket-comment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token archive-ticket": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session archive-ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session archive-ticket": {
+      "main": [
+        [
+          {
+            "node": "Validate Session archive-ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session archive-ticket": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: archive-ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Sent Email: Ticket Reply": {
       "main": [
         [
           {

@@ -5,7 +5,7 @@
       "main": [
         [
           {
-            "node": "Recompute Win Scores",
+            "node": "Log Workflow Run: Schedule Trigger: every 15 min",
             "type": "main",
             "index": 0
           }
@@ -16,7 +16,7 @@
       "main": [
         [
           {
-            "node": "Recompute Win Scores",
+            "node": "Log Workflow Run: Webhook: manual-test",
             "type": "main",
             "index": 0
           }
@@ -39,6 +39,28 @@
         [
           {
             "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Schedule Trigger: every 15 min": {
+      "main": [
+        [
+          {
+            "node": "Recompute Win Scores",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: manual-test": {
+      "main": [
+        [
+          {
+            "node": "Recompute Win Scores",
             "type": "main",
             "index": 0
           }
@@ -131,6 +153,68 @@
         660,
         200
       ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Deal Intelligence Engine\" }}",
+            "workflow_id": "={{ \"3Ab4CgyrZBnCYrOE\" }}",
+            "entity_type": "={{ \"opportunities\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-schedule-trigger-every-15-min-0",
+      "name": "Log Workflow Run: Schedule Trigger: every 15 min",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        15,
+        -15
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Deal Intelligence Engine\" }}",
+            "workflow_id": "={{ \"3Ab4CgyrZBnCYrOE\" }}",
+            "entity_type": "={{ \"opportunities\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-manual-test-1",
+      "name": "Log Workflow Run: Webhook: manual-test",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        15,
+        185
+      ],
+      "onError": "continueRegularOutput"
     }
   ],
   "pinData": null,

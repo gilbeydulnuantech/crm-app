@@ -138,6 +138,37 @@
           "name": "myRag"
         }
       }
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Google Calendar Sync\" }}",
+            "workflow_id": "={{ \"Ul37hBys3jE13e0H\" }}",
+            "entity_type": "={{ \"activities,contacts\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-schedule-trigger-every-5-minutes-0",
+      "name": "Log Workflow Run: Schedule Trigger: every 5 minutes",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        255,
+        385
+      ],
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
@@ -145,7 +176,7 @@
       "main": [
         [
           {
-            "node": "Select Active Integrations",
+            "node": "Log Workflow Run: Schedule Trigger: every 5 minutes",
             "type": "main",
             "index": 0
           }
@@ -186,6 +217,17 @@
         [
           {
             "node": "Update Last Synced",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Schedule Trigger: every 5 minutes": {
+      "main": [
+        [
+          {
+            "node": "Select Active Integrations",
             "type": "main",
             "index": 0
           }

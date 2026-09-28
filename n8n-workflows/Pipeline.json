@@ -71,7 +71,7 @@
       "main": [
         [
           {
-            "node": "Postgres: Insert Opportunity",
+            "node": "Log Workflow Run: Webhook: add-opportunity",
             "type": "main",
             "index": 0
           }
@@ -109,7 +109,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: update-opportunity",
+            "node": "Log Workflow Run: Webhook: update-opportunity",
             "type": "main",
             "index": 0
           }
@@ -131,7 +131,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: move-opportunity-stage",
+            "node": "Log Workflow Run: Webhook: move-opportunity-stage",
             "type": "main",
             "index": 0
           }
@@ -153,7 +153,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: delete-opportunities",
+            "node": "Log Workflow Run: Webhook: delete-opportunities",
             "type": "main",
             "index": 0
           }
@@ -175,7 +175,7 @@
       "main": [
         [
           {
-            "node": "Validate & Build Stages",
+            "node": "Log Workflow Run: Webhook: pipeline-create-new",
             "type": "main",
             "index": 0
           }
@@ -248,28 +248,6 @@
         ]
       ]
     },
-    "Parse Token: update-opportunity": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: update-opportunity",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: update-opportunity": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Capture Before Stage: update-opportunity",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Postgres: Capture Before Stage: update-opportunity": {
       "main": [
         [
@@ -304,28 +282,6 @@
         [
           {
             "node": "Respond - Error: update-opportunity",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: move-opportunity-stage": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: move-opportunity-stage",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: move-opportunity-stage": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Capture Before Stage: move-opportunity-stage",
             "type": "main",
             "index": 0
           }
@@ -372,83 +328,11 @@
         ]
       ]
     },
-    "Parse Token: delete-opportunities": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: delete-opportunities",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: delete-opportunities",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: delete-opportunities": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Delete Opportunities",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: delete-opportunities",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Webhook: update-pipeline": {
       "main": [
         [
           {
-            "node": "Parse Token: update-pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: update-pipeline": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: update-pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: update-pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: update-pipeline": {
-      "main": [
-        [
-          {
-            "node": "Check Admin & Payload: update-pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: update-pipeline",
+            "node": "Log Workflow Run: Webhook: update-pipeline",
             "type": "main",
             "index": 0
           }
@@ -549,43 +433,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: delete-pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: delete-pipeline": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: delete-pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: delete-pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: delete-pipeline": {
-      "main": [
-        [
-          {
-            "node": "Check Admin & Payload: delete-pipeline",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: delete-pipeline",
+            "node": "Log Workflow Run: Webhook: delete-pipeline",
             "type": "main",
             "index": 0
           }
@@ -722,29 +570,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: update-pipeline-stages",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: update-pipeline-stages": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: update-pipeline-stages",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: update-pipeline-stages": {
-      "main": [
-        [
-          {
-            "node": "Check Admin & Payload: update-pipeline-stages",
+            "node": "Log Workflow Run: Webhook: update-pipeline-stages",
             "type": "main",
             "index": 0
           }
@@ -1029,43 +855,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: archive-opportunities",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: archive-opportunities": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: archive-opportunities",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: archive-opportunities",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: archive-opportunities": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Ensure Opportunities Archive Columns (archive)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: archive-opportunities",
+            "node": "Log Workflow Run: Webhook: archive-opportunities",
             "type": "main",
             "index": 0
           }
@@ -1108,43 +898,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: restore-opportunities",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: restore-opportunities": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: restore-opportunities",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: restore-opportunities",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: restore-opportunities": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Ensure Opportunities Archive Columns (restore)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: restore-opportunities",
+            "node": "Log Workflow Run: Webhook: restore-opportunities",
             "type": "main",
             "index": 0
           }
@@ -1193,6 +947,551 @@
           }
         ]
       ]
+    },
+    "Extract Bearer Token: update-opportunity": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: update-opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: update-opportunity": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: update-opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: update-opportunity": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Capture Before Stage: update-opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: move-opportunity-stage": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: move-opportunity-stage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: move-opportunity-stage": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: move-opportunity-stage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: move-opportunity-stage": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Capture Before Stage: move-opportunity-stage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: delete-opportunities": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: delete-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: delete-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: delete-opportunities": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: delete-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: delete-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: delete-opportunities": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Delete Opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: delete-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: update-pipeline": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: update-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: update-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: update-pipeline": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: update-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: update-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: update-pipeline": {
+      "main": [
+        [
+          {
+            "node": "Check Admin & Payload: update-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: update-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: delete-pipeline": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: delete-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: delete-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: delete-pipeline": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: delete-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: delete-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: delete-pipeline": {
+      "main": [
+        [
+          {
+            "node": "Check Admin & Payload: delete-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: delete-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: update-pipeline-stages": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: update-pipeline-stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: update-pipeline-stages": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: update-pipeline-stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: update-pipeline-stages": {
+      "main": [
+        [
+          {
+            "node": "Check Admin & Payload: update-pipeline-stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: archive-opportunities": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: archive-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: archive-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: archive-opportunities": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: archive-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: archive-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: archive-opportunities": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure Opportunities Archive Columns (archive)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: archive-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: restore-opportunities": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: restore-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: restore-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: restore-opportunities": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: restore-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: restore-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: restore-opportunities": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure Opportunities Archive Columns (restore)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: restore-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: add-opportunity": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: add-opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: add-opportunity": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: add-opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: add-opportunity": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Insert Opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: pipeline-create-new": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: pipeline-create-new",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: pipeline-create-new": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: pipeline-create-new",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: pipeline-create-new": {
+      "main": [
+        [
+          {
+            "node": "Validate & Build Stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: add-opportunity": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token: add-opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: update-opportunity": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token: update-opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: move-opportunity-stage": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token: move-opportunity-stage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: delete-opportunities": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token: delete-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: pipeline-create-new": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token: pipeline-create-new",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: update-pipeline": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token: update-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: delete-pipeline": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token: delete-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: update-pipeline-stages": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token: update-pipeline-stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: archive-opportunities": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token: archive-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: restore-opportunities": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token: restore-opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "name": "Pipeline",
@@ -1202,7 +1501,7 @@
         "path": "get-pipelines",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "1b888893-9eb9-42a4-b909-e2b12974f939",
@@ -1255,7 +1554,7 @@
         "path": "get-stages",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "ca78d35f-0b38-48c4-a221-6abe8737ae4e",
@@ -1310,7 +1609,7 @@
         "path": "get-opportunities",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "0750f340-6bcf-46e0-b5df-ccb78493bed3",
@@ -1366,7 +1665,7 @@
         "path": "add-opportunity",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "32a2ff3f-c4c3-4ee4-b5e6-51314004a489",
@@ -1384,7 +1683,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO opportunities (name, contact_id, account_id, pipeline_id, stage_id, assigned_user, created_by, deal_value, probability, status, expected_close, description, source, priority) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Open', $10, $11, $12, $13) RETURNING id, name, contact_id, account_id, stage_id, status, created_at;",
         "options": {
-          "queryReplacement": "={{ [$json.body.name, $json.body.contact_id, $json.body.account_id || null, $json.body.pipeline_id, $json.body.stage_id, $json.body.assigned_user || $json.body.requester_id || null, $json.body.requester_id || null, $json.body.deal_value || null, $json.body.probability || 0, $json.body.expected_close || null, $json.body.description || null, $json.body.source || null, $json.body.priority || null] }}"
+          "queryReplacement": "={{ [$('Webhook: add-opportunity').first().json.body.name, $('Webhook: add-opportunity').first().json.body.contact_id, $('Webhook: add-opportunity').first().json.body.account_id || null, $('Webhook: add-opportunity').first().json.body.pipeline_id, $('Webhook: add-opportunity').first().json.body.stage_id, $('Webhook: add-opportunity').first().json.body.assigned_user || $('Validate Session: add-opportunity').first().json.id, $('Validate Session: add-opportunity').first().json.id, $('Webhook: add-opportunity').first().json.body.deal_value || null, $('Webhook: add-opportunity').first().json.body.probability || 0, $('Webhook: add-opportunity').first().json.body.expected_close || null, $('Webhook: add-opportunity').first().json.body.description || null, $('Webhook: add-opportunity').first().json.body.source || null, $('Webhook: add-opportunity').first().json.body.priority || null] }}"
         }
       },
       "id": "ef469be0-736a-4908-863b-8ba7e5f951a7",
@@ -1485,7 +1784,7 @@
         "operation": "executeQuery",
         "query": "UPDATE opportunities SET name = COALESCE($1, name), contact_id = COALESCE($2, contact_id), account_id = COALESCE($3, account_id), stage_id = COALESCE($4, stage_id), assigned_user = COALESCE($5, assigned_user), deal_value = COALESCE($6, deal_value), probability = COALESCE($7, probability), status = COALESCE($8, status), lost_reason = COALESCE($9, lost_reason), expected_close = COALESCE($10, expected_close), closed_at = COALESCE($11, closed_at), description = COALESCE($12, description), source = COALESCE($13, source), priority = COALESCE($14, priority), maintenance_interval_months = COALESCE($18, maintenance_interval_months), updated_at = now() WHERE id = $15 AND ($16 = 'admin' OR assigned_user = $17) RETURNING id, name, assigned_user, pipeline_id;",
         "options": {
-          "queryReplacement": "={{ [ $('Webhook: update-opportunity').first().json.body.name || null, $('Webhook: update-opportunity').first().json.body.contact_id || null, $('Webhook: update-opportunity').first().json.body.account_id || null, $('Webhook: update-opportunity').first().json.body.stage_id || null, $('Webhook: update-opportunity').first().json.body.assigned_user || null, $('Webhook: update-opportunity').first().json.body.deal_value !== undefined ? $('Webhook: update-opportunity').first().json.body.deal_value : null, $('Webhook: update-opportunity').first().json.body.probability !== undefined ? $('Webhook: update-opportunity').first().json.body.probability : null, $('Webhook: update-opportunity').first().json.body.status || null, $('Webhook: update-opportunity').first().json.body.lost_reason || null, $('Webhook: update-opportunity').first().json.body.expected_close || null, $('Webhook: update-opportunity').first().json.body.closed_at || null, $('Webhook: update-opportunity').first().json.body.description !== undefined ? $('Webhook: update-opportunity').first().json.body.description : null, $('Webhook: update-opportunity').first().json.body.source !== undefined ? $('Webhook: update-opportunity').first().json.body.source : null, $('Webhook: update-opportunity').first().json.body.priority !== undefined ? $('Webhook: update-opportunity').first().json.body.priority : null, $('Webhook: update-opportunity').first().json.body.id, $('Look Up Requester: update-opportunity').first().json.role, $('Look Up Requester: update-opportunity').first().json.id, $('Webhook: update-opportunity').first().json.body.maintenance_interval_months !== undefined ? $('Webhook: update-opportunity').first().json.body.maintenance_interval_months : null ] }}"
+          "queryReplacement": "={{ [ $('Webhook: update-opportunity').first().json.body.name || null, $('Webhook: update-opportunity').first().json.body.contact_id || null, $('Webhook: update-opportunity').first().json.body.account_id || null, $('Webhook: update-opportunity').first().json.body.stage_id || null, $('Webhook: update-opportunity').first().json.body.assigned_user || null, $('Webhook: update-opportunity').first().json.body.deal_value !== undefined ? $('Webhook: update-opportunity').first().json.body.deal_value : null, $('Webhook: update-opportunity').first().json.body.probability !== undefined ? $('Webhook: update-opportunity').first().json.body.probability : null, $('Webhook: update-opportunity').first().json.body.status || null, $('Webhook: update-opportunity').first().json.body.lost_reason || null, $('Webhook: update-opportunity').first().json.body.expected_close || null, $('Webhook: update-opportunity').first().json.body.closed_at || null, $('Webhook: update-opportunity').first().json.body.description !== undefined ? $('Webhook: update-opportunity').first().json.body.description : null, $('Webhook: update-opportunity').first().json.body.source !== undefined ? $('Webhook: update-opportunity').first().json.body.source : null, $('Webhook: update-opportunity').first().json.body.priority !== undefined ? $('Webhook: update-opportunity').first().json.body.priority : null, $('Webhook: update-opportunity').first().json.body.id, $('Validate Session: update-opportunity').first().json.role, $('Validate Session: update-opportunity').first().json.id, $('Webhook: update-opportunity').first().json.body.maintenance_interval_months !== undefined ? $('Webhook: update-opportunity').first().json.body.maintenance_interval_months : null ] }}"
         }
       },
       "id": "d3b858ee-34a6-492d-9443-b6366d77169e",
@@ -1523,7 +1822,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO activity_log (actor_id, verb, entity_type, entity_id, entity_name, detail)\nSELECT $1, 'moved', 'opportunity', $2, $3, COALESCE(sf.name, '?') || ' \u2192 ' || COALESCE(st.name, '?')\nFROM stages sf, stages st\nWHERE sf.id = $4 AND st.id = $5 AND $4 IS DISTINCT FROM $5;",
         "options": {
-          "queryReplacement": "={{ [ $('Look Up Requester: update-opportunity').first().json.id, $('Webhook: update-opportunity').first().json.body.id, $('Postgres: Capture Before Stage: update-opportunity').first().json.deal_name, $('Postgres: Capture Before Stage: update-opportunity').first().json.before_stage_id, $('Webhook: update-opportunity').first().json.body.stage_id || $('Postgres: Capture Before Stage: update-opportunity').first().json.before_stage_id ] }}"
+          "queryReplacement": "={{ [ $('Validate Session: update-opportunity').first().json.id, $('Webhook: update-opportunity').first().json.body.id, $('Postgres: Capture Before Stage: update-opportunity').first().json.deal_name, $('Postgres: Capture Before Stage: update-opportunity').first().json.before_stage_id, $('Webhook: update-opportunity').first().json.body.stage_id || $('Postgres: Capture Before Stage: update-opportunity').first().json.before_stage_id ] }}"
         }
       },
       "id": "49b1aac1-4254-4493-9409-b69da9521d10",
@@ -1547,7 +1846,7 @@
         "path": "move-opportunity-stage",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "1afaf77f-8444-41fb-8714-3fcd2d208840",
@@ -1565,7 +1864,7 @@
         "operation": "executeQuery",
         "query": "UPDATE opportunities o SET stage_id = $1, status = CASE WHEN s.name ILIKE '%won%' THEN 'Won' WHEN s.name ILIKE '%lost%' THEN 'Lost' ELSE 'Open' END, closed_at = CASE WHEN s.name ILIKE '%won%' OR s.name ILIKE '%lost%' THEN now() ELSE NULL END, probability = COALESCE(s.win_probability, o.probability), updated_at = now() FROM stages s WHERE s.id = $1 AND o.id = $2 AND ($3 = 'admin' OR o.assigned_user = $4) RETURNING o.id, o.stage_id, o.status;",
         "options": {
-          "queryReplacement": "={{ [ $('Webhook: move-opportunity-stage').first().json.body.stage_id, $('Webhook: move-opportunity-stage').first().json.body.id, $('Look Up Requester: move-opportunity-stage').first().json.role, $('Look Up Requester: move-opportunity-stage').first().json.id ] }}"
+          "queryReplacement": "={{ [ $('Webhook: move-opportunity-stage').first().json.body.stage_id, $('Webhook: move-opportunity-stage').first().json.body.id, $('Validate Session: move-opportunity-stage').first().json.role, $('Validate Session: move-opportunity-stage').first().json.id ] }}"
         }
       },
       "id": "fce29fd2-01de-4492-ae54-230e8f4c4244",
@@ -1603,7 +1902,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO activity_log (actor_id, verb, entity_type, entity_id, entity_name, detail)\nSELECT $1, 'moved', 'opportunity', $2, $3, COALESCE(sf.name, '?') || ' \u2192 ' || COALESCE(st.name, '?')\nFROM stages sf, stages st\nWHERE sf.id = $4 AND st.id = $5 AND $4 IS DISTINCT FROM $5;",
         "options": {
-          "queryReplacement": "={{ [ $('Look Up Requester: move-opportunity-stage').first().json.id, $('Webhook: move-opportunity-stage').first().json.body.id, $('Postgres: Capture Before Stage: move-opportunity-stage').first().json.deal_name, $('Postgres: Capture Before Stage: move-opportunity-stage').first().json.before_stage_id, $('Webhook: move-opportunity-stage').first().json.body.stage_id ] }}"
+          "queryReplacement": "={{ [ $('Validate Session: move-opportunity-stage').first().json.id, $('Webhook: move-opportunity-stage').first().json.body.id, $('Postgres: Capture Before Stage: move-opportunity-stage').first().json.deal_name, $('Postgres: Capture Before Stage: move-opportunity-stage').first().json.before_stage_id, $('Webhook: move-opportunity-stage').first().json.body.stage_id ] }}"
         }
       },
       "id": "6509c7ef-9c49-457f-a329-ae1e61bacfa3",
@@ -1627,7 +1926,7 @@
         "path": "delete-opportunities",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "8c16f068-a719-424b-b0ac-2a54aad2ae70",
@@ -1645,7 +1944,7 @@
         "operation": "executeQuery",
         "query": "DELETE FROM opportunities WHERE id = ANY($1::int[]) AND ($2 = 'admin' OR assigned_user = $3) RETURNING id;",
         "options": {
-          "queryReplacement": "={{ [ $('Webhook: delete-opportunities').first().json.body.ids, $('Look Up Requester: delete-opportunities').first().json.role, $('Look Up Requester: delete-opportunities').first().json.id ] }}"
+          "queryReplacement": "={{ [ $('Webhook: delete-opportunities').first().json.body.ids, $('Validate Session: delete-opportunities').first().json.role, $('Validate Session: delete-opportunities').first().json.id ] }}"
         }
       },
       "id": "34ad342c-52ce-466f-a343-28b093c3d67d",
@@ -1684,7 +1983,7 @@
         "path": "pipeline-create-new",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "073a8f13-9fe5-49b2-a368-fc03f8d0a96a",
@@ -1699,7 +1998,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// No auth chain elsewhere in this workflow (add-opportunity, delete-\n// opportunities etc. are all unauthenticated too) \u2014 matching that existing\n// convention rather than introducing an inconsistent new pattern here.\nconst body = $json.body || {};\n\nconst name = (body.name || '').toString().trim();\nif (!name) {\n  throw new Error('\"name\" is required.');\n}\n\nconst isDefault = body.is_default === true || body.is_default === 'true';\n\nconst stagesInput = Array.isArray(body.stages) ? body.stages : [];\nconst stages = stagesInput\n  .map((s, i) => ({\n    name: (s.name || '').toString().trim(),\n    win_probability: Number(s.win_probability) || 0,\n    display_order: i + 1,\n  }))\n  .filter((s) => s.name);\n\nif (stages.length === 0) {\n  throw new Error('At least one stage is required.');\n}\n\nreturn [{ json: { name, isDefault, stages } }];"
+        "jsCode": "const body = $('Webhook: pipeline-create-new').first().json.body || {};\n\nconst name = (body.name || '').toString().trim();\nif (!name) {\n  throw new Error('\"name\" is required.');\n}\n\nconst isDefault = body.is_default === true || body.is_default === 'true';\n\nconst stagesInput = Array.isArray(body.stages) ? body.stages : [];\nconst stages = stagesInput\n  .map((s, i) => ({\n    name: (s.name || '').toString().trim(),\n    win_probability: Number(s.win_probability) || 0,\n    display_order: i + 1,\n  }))\n  .filter((s) => s.name);\n\nif (stages.length === 0) {\n  throw new Error('At least one stage is required.');\n}\n\nreturn [{ json: { name, isDefault, stages } }];"
       },
       "id": "3a6ef98d-d6c6-4933-bd7a-48a51e23cc98",
       "name": "Validate & Build Stages",
@@ -1824,42 +2123,6 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "0e503d68-ef5c-4dce-9ce9-6d2343a3bd35",
-      "name": "Parse Token: update-opportunity",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        42704,
-        37528
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "9b9e80ac-ba10-41e4-9ed9-5147959b9b7f",
-      "name": "Look Up Requester: update-opportunity",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        42928,
-        37528
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    },
-    {
-      "parameters": {
         "operation": "executeQuery",
         "query": "SELECT stage_id AS before_stage_id, name AS deal_name, assigned_user AS before_assigned_user FROM opportunities WHERE id = $1;",
         "options": {
@@ -1898,7 +2161,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Update failed.\" } }}",
+        "responseBody": "={{ { \"success\": false, \"error\": (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Update failed.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -1914,44 +2177,8 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "fcc8d00c-bc68-4dfd-89e0-4b2b3c81c53e",
-      "name": "Parse Token: move-opportunity-stage",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        42704,
-        37944
-      ]
-    },
-    {
-      "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "c70eac20-7b60-43ee-9159-75bc0a1e6bfd",
-      "name": "Look Up Requester: move-opportunity-stage",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        42928,
-        37944
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT o.stage_id AS before_stage_id, o.name AS deal_name, s_old.name AS old_stage_name, s_new.name AS new_stage_name FROM opportunities o LEFT JOIN stages s_old ON s_old.id = o.stage_id LEFT JOIN stages s_new ON s_new.id = $2 WHERE o.id = $1;",
+        "query": "SELECT o.stage_id AS before_stage_id, o.contact_id, o.name AS deal_name, s_old.name AS old_stage_name, s_new.name AS new_stage_name FROM opportunities o LEFT JOIN stages s_old ON s_old.id = o.stage_id LEFT JOIN stages s_new ON s_new.id = $2 WHERE o.id = $1;",
         "options": {
           "queryReplacement": "={{ [ $('Webhook: move-opportunity-stage').first().json.body.id, $('Webhook: move-opportunity-stage').first().json.body.stage_id ] }}"
         }
@@ -1988,7 +2215,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Move failed.\" } }}",
+        "responseBody": "={{ { \"success\": false, \"error\": (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Move failed.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -2004,46 +2231,8 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "7712c678-a41d-4de6-910b-90e98feaded9",
-      "name": "Parse Token: delete-opportunities",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        42704,
-        38384
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "d988d404-73a1-46c1-b8aa-b02f38b12c08",
-      "name": "Look Up Requester: delete-opportunities",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        42928,
-        38312
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Delete failed.\" } }}",
+        "responseBody": "={{ { \"success\": false, \"error\": (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Delete failed.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -2063,7 +2252,7 @@
         "path": "update-pipeline",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "4cca42b7-1349-4a09-8358-48c900701ba3",
@@ -2075,44 +2264,6 @@
         39408
       ],
       "webhookId": "e0c80a82-1b21-4cd5-a203-616983ff0961"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "da8713a0-0417-4cf9-acce-d461af40a1c7",
-      "name": "Parse Token: update-pipeline",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        42704,
-        39408
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "df6e02b3-1b42-4413-b6c3-f0daf6f522ea",
-      "name": "Look Up Requester: update-pipeline",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        42928,
-        39336
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -2224,7 +2375,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Update failed.\" } }}",
+        "responseBody": "={{ { \"success\": false, \"error\": (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Update failed.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -2244,7 +2395,7 @@
         "path": "delete-pipeline",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "5108dea3-d83c-4164-b264-442b38e6162b",
@@ -2256,44 +2407,6 @@
         41112
       ],
       "webhookId": "d9400ea3-9235-48b6-9d35-3decff2b2ea9"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "dea4ceb0-7d40-4e65-a5dc-377cd7062317",
-      "name": "Parse Token: delete-pipeline",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        42704,
-        41112
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "cc443a5a-254f-4102-af15-6f5ae1c95454",
-      "name": "Look Up Requester: delete-pipeline",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        42928,
-        41040
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -2443,7 +2556,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Delete failed.\" } }}",
+        "responseBody": "={{ { \"success\": false, \"error\": (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Delete failed.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -2463,7 +2576,7 @@
         "path": "update-pipeline-stages",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "27ae6e86-1e60-4fe3-b2e8-340a2144bc12",
@@ -2475,42 +2588,6 @@
         42088
       ],
       "webhookId": "7253344e-ead8-4e18-be1a-c731b2a3d6a5"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "b8d5ae4c-07c5-4edf-978a-959065e7918e",
-      "name": "Parse Token: update-pipeline-stages",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        42704,
-        42088
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "ad4334f9-d43f-4355-be8a-a57f1f9177c2",
-      "name": "Look Up Requester: update-pipeline-stages",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        42928,
-        42088
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
     },
     {
       "parameters": {
@@ -2769,7 +2846,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const requesterId = $('Look Up Requester: update-opportunity').first().json.id;\nconst before = $('Postgres: Capture Before Stage: update-opportunity').first().json;\nconst after = $('Postgres: Update Opportunity').first().json;\nconst oldOwnerId = before ? before.before_assigned_user : null;\nconst newOwnerId = after.assigned_user;\n// Only notify on an actual reassignment to someone else \u2014 not a\n// no-op resave of the same owner, and not an admin assigning themselves.\nconst notify = !!newOwnerId && newOwnerId !== oldOwnerId && newOwnerId !== requesterId;\nconst dmKey = notify ? [requesterId, newOwnerId].sort((a, b) => a - b).join('-') : null;\nreturn [{ json: { notify, dmKey, requesterId, ownerId: newOwnerId, dealId: after.id, pipelineId: after.pipeline_id, dealName: after.name || 'a deal' } }];"
+        "jsCode": "const requesterId = $('Validate Session: update-opportunity').first().json.id;\nconst before = $('Postgres: Capture Before Stage: update-opportunity').first().json;\nconst after = $('Postgres: Update Opportunity').first().json;\nconst oldOwnerId = before ? before.before_assigned_user : null;\nconst newOwnerId = after.assigned_user;\n// Only notify on an actual reassignment to someone else \u2014 not a\n// no-op resave of the same owner, and not an admin assigning themselves.\nconst notify = !!newOwnerId && newOwnerId !== oldOwnerId && newOwnerId !== requesterId;\nconst dmKey = notify ? [requesterId, newOwnerId].sort((a, b) => a - b).join('-') : null;\nreturn [{ json: { notify, dmKey, requesterId, ownerId: newOwnerId, dealId: after.id, pipelineId: after.pipeline_id, dealName: after.name || 'a deal' } }];"
       },
       "id": "6504bbe6-b57a-44b3-acc3-7767d5c09d82",
       "name": "Prepare Owner Notice: update-opportunity",
@@ -2834,7 +2911,9 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
@@ -2880,7 +2959,9 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
@@ -2924,14 +3005,16 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
         "path": "get-archived-opportunities",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "b08cd9d2-6c90-4b78-bdbf-5cfcc8364cc7",
@@ -2963,7 +3046,9 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
@@ -3008,7 +3093,7 @@
         "path": "archive-opportunities",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "af8da2b3-51eb-4b7b-bf2c-dec797d37011",
@@ -3020,44 +3105,6 @@
         40168
       ],
       "webhookId": "c115135f-bd95-4822-91db-dcdfbccbe287"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "85807034-9adc-4bb0-bf06-f790e55a8167",
-      "name": "Parse Token: archive-opportunities",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        42704,
-        40168
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "b6164de9-af2a-4ba5-998a-550de30ec8b8",
-      "name": "Look Up Requester: archive-opportunities",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        42928,
-        40096
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -3078,14 +3125,16 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
         "operation": "executeQuery",
         "query": "UPDATE opportunities SET is_archived = true, archived_at = now() WHERE id = ANY($1::int[]) AND status != 'Open' AND ($2 = 'admin' OR assigned_user = $3) RETURNING id, name, contact_id, account_id;",
         "options": {
-          "queryReplacement": "={{ [ $('Webhook: archive-opportunities').first().json.body.ids, $('Look Up Requester: archive-opportunities').first().json.role, $('Look Up Requester: archive-opportunities').first().json.id ] }}"
+          "queryReplacement": "={{ [ $('Webhook: archive-opportunities').first().json.body.ids, $('Validate Session: archive-opportunities').first().json.role, $('Validate Session: archive-opportunities').first().json.id ] }}"
         }
       },
       "id": "f4cd9984-934d-4d37-9b8d-cab333f59666",
@@ -3108,7 +3157,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO activity_log (actor_id, verb, entity_type, entity_id, entity_name) VALUES ($1, 'archived', 'opportunity', $2, $3);",
         "options": {
-          "queryReplacement": "={{ [ $('Look Up Requester: archive-opportunities').first().json.id, $json.id, $json.name ] }}"
+          "queryReplacement": "={{ [ $('Validate Session: archive-opportunities').first().json.id, $json.id, $json.name ] }}"
         }
       },
       "id": "07cff31d-03ff-4180-8505-168277317169",
@@ -3131,7 +3180,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'contact', $1, 'system_audit', 'archived', $4 || ' archived the linked deal \"' || $2 || '\"', jsonb_build_object('link_type', 'deal', 'link_id', $6), $5, $4\nWHERE $1 IS NOT NULL\nUNION ALL\nSELECT 'company', $3, 'system_audit', 'archived', $4 || ' archived the linked deal \"' || $2 || '\"', jsonb_build_object('link_type', 'deal', 'link_id', $6), $5, $4\nWHERE $3 IS NOT NULL;",
         "options": {
-          "queryReplacement": "={{ [ $json.contact_id, $json.name, $json.account_id, $('Look Up Requester: archive-opportunities').first().json.name || 'Someone', $('Look Up Requester: archive-opportunities').first().json.id, $json.id ] }}"
+          "queryReplacement": "={{ [ $json.contact_id, $json.name, $json.account_id, $('Validate Session: archive-opportunities').first().json.name || 'Someone', $('Validate Session: archive-opportunities').first().json.id, $json.id ] }}"
         }
       },
       "id": "bb8d773d-3403-477e-94cf-1dca9d503567",
@@ -3167,7 +3216,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Archive failed.\" } }}",
+        "responseBody": "={{ { \"success\": false, \"error\": (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Archive failed.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -3187,7 +3236,7 @@
         "path": "restore-opportunities",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "269396d7-07a3-41e1-b436-b3636c99d11e",
@@ -3199,44 +3248,6 @@
         41648
       ],
       "webhookId": "2467838a-b331-4aad-b1cb-9d5431ecfb00"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "68bcf133-7e5e-41f9-ba28-ea3c21c95533",
-      "name": "Parse Token: restore-opportunities",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        42704,
-        41648
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "deeafa32-0e7d-4649-9003-94dc941db30e",
-      "name": "Look Up Requester: restore-opportunities",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        42928,
-        41576
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -3257,14 +3268,16 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
         "operation": "executeQuery",
         "query": "UPDATE opportunities SET is_archived = false, archived_at = NULL WHERE id = ANY($1::int[]) AND ($2 = 'admin' OR assigned_user = $3) RETURNING id, name, contact_id, account_id;",
         "options": {
-          "queryReplacement": "={{ [ $('Webhook: restore-opportunities').first().json.body.ids, $('Look Up Requester: restore-opportunities').first().json.role, $('Look Up Requester: restore-opportunities').first().json.id ] }}"
+          "queryReplacement": "={{ [ $('Webhook: restore-opportunities').first().json.body.ids, $('Validate Session: restore-opportunities').first().json.role, $('Validate Session: restore-opportunities').first().json.id ] }}"
         }
       },
       "id": "bfb9fe3d-a18a-42ab-9527-5f34a089fbba",
@@ -3287,7 +3300,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO activity_log (actor_id, verb, entity_type, entity_id, entity_name) VALUES ($1, 'restored', 'opportunity', $2, $3);",
         "options": {
-          "queryReplacement": "={{ [ $('Look Up Requester: restore-opportunities').first().json.id, $json.id, $json.name ] }}"
+          "queryReplacement": "={{ [ $('Validate Session: restore-opportunities').first().json.id, $json.id, $json.name ] }}"
         }
       },
       "id": "bc6b7314-4c17-44e1-976f-80aca450a3f3",
@@ -3310,7 +3323,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'contact', $1, 'system_audit', 'restored', $4 || ' restored the linked deal \"' || $2 || '\"', jsonb_build_object('link_type', 'deal', 'link_id', $6), $5, $4\nWHERE $1 IS NOT NULL\nUNION ALL\nSELECT 'company', $3, 'system_audit', 'restored', $4 || ' restored the linked deal \"' || $2 || '\"', jsonb_build_object('link_type', 'deal', 'link_id', $6), $5, $4\nWHERE $3 IS NOT NULL;",
         "options": {
-          "queryReplacement": "={{ [ $json.contact_id, $json.name, $json.account_id, $('Look Up Requester: restore-opportunities').first().json.name || 'Someone', $('Look Up Requester: restore-opportunities').first().json.id, $json.id ] }}"
+          "queryReplacement": "={{ [ $json.contact_id, $json.name, $json.account_id, $('Validate Session: restore-opportunities').first().json.name || 'Someone', $('Validate Session: restore-opportunities').first().json.id, $json.id ] }}"
         }
       },
       "id": "222764fc-91a9-44d6-9617-9b82a41c7161",
@@ -3346,7 +3359,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Restore failed.\" } }}",
+        "responseBody": "={{ { \"success\": false, \"error\": (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Restore failed.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -3366,7 +3379,7 @@
         "url": "http://localhost:5678/webhook/deal-stage-tag-sync",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { opportunity_id: $json.id, deal_stage: $('Postgres: Capture Before Stage: move-opportunity-stage').item.json.new_stage_name } }}",
+        "jsonBody": "={{ { opportunity_id: $json.id, stage_name: $('Postgres: Capture Before Stage: move-opportunity-stage').item.json.new_stage_name, contact_id: $('Postgres: Capture Before Stage: move-opportunity-stage').item.json.contact_id } }}",
         "options": {
           "timeout": 8000
         }
@@ -3381,6 +3394,871 @@
       ],
       "onError": "continueRegularOutput",
       "notes": "Replaces the old narrow 'Untag Previous Stage'/'Tag New Stage' pair (which only removed the ONE specific previous-stage tag, letting older stray stage tags accumulate \u2014 e.g. dragging a card backward could leave a newer stage's tag still attached). Delegates to the Deal Stage Tag Sync Engine webhook, which removes ANY stray stage tag (for both the deal and its linked contact) before applying the current one. onError continues regardless \u2014 a tag-sync hiccup should never block the actual stage move from succeeding/responding."
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: update-opportunity').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        42704,
+        37528
+      ],
+      "id": "extract-bearer-update-opportunity",
+      "name": "Extract Bearer Token: update-opportunity"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-update-opportunity",
+      "name": "Execute Workflow: Verify Session: update-opportunity",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        42734,
+        37543
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        42928,
+        37528
+      ],
+      "id": "validate-session-update-opportunity",
+      "name": "Validate Session: update-opportunity"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: move-opportunity-stage').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        42704,
+        37944
+      ],
+      "id": "extract-bearer-move-opportunity-stage",
+      "name": "Extract Bearer Token: move-opportunity-stage"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-move-opportunity-stage",
+      "name": "Execute Workflow: Verify Session: move-opportunity-stage",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        42734,
+        37959
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        42928,
+        37944
+      ],
+      "id": "validate-session-move-opportunity-stage",
+      "name": "Validate Session: move-opportunity-stage"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: delete-opportunities').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        42704,
+        38384
+      ],
+      "id": "extract-bearer-delete-opportunities",
+      "name": "Extract Bearer Token: delete-opportunities",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-delete-opportunities",
+      "name": "Execute Workflow: Verify Session: delete-opportunities",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        42734,
+        38399
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        42928,
+        38312
+      ],
+      "id": "validate-session-delete-opportunities",
+      "name": "Validate Session: delete-opportunities",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: update-pipeline').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        42704,
+        39408
+      ],
+      "id": "extract-bearer-update-pipeline",
+      "name": "Extract Bearer Token: update-pipeline",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-update-pipeline",
+      "name": "Execute Workflow: Verify Session: update-pipeline",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        42734,
+        39423
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        42928,
+        39336
+      ],
+      "id": "validate-session-update-pipeline",
+      "name": "Validate Session: update-pipeline",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: delete-pipeline').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        42704,
+        41112
+      ],
+      "id": "extract-bearer-delete-pipeline",
+      "name": "Extract Bearer Token: delete-pipeline",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-delete-pipeline",
+      "name": "Execute Workflow: Verify Session: delete-pipeline",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        42734,
+        41127
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        42928,
+        41040
+      ],
+      "id": "validate-session-delete-pipeline",
+      "name": "Validate Session: delete-pipeline",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: update-pipeline-stages').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        42704,
+        42088
+      ],
+      "id": "extract-bearer-update-pipeline-stages",
+      "name": "Extract Bearer Token: update-pipeline-stages"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-update-pipeline-stages",
+      "name": "Execute Workflow: Verify Session: update-pipeline-stages",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        42734,
+        42103
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        42928,
+        42088
+      ],
+      "id": "validate-session-update-pipeline-stages",
+      "name": "Validate Session: update-pipeline-stages"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: archive-opportunities').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        42704,
+        40168
+      ],
+      "id": "extract-bearer-archive-opportunities",
+      "name": "Extract Bearer Token: archive-opportunities",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-archive-opportunities",
+      "name": "Execute Workflow: Verify Session: archive-opportunities",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        42734,
+        40183
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        42928,
+        40096
+      ],
+      "id": "validate-session-archive-opportunities",
+      "name": "Validate Session: archive-opportunities",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: restore-opportunities').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        42704,
+        41648
+      ],
+      "id": "extract-bearer-restore-opportunities",
+      "name": "Extract Bearer Token: restore-opportunities",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-restore-opportunities",
+      "name": "Execute Workflow: Verify Session: restore-opportunities",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        42734,
+        41663
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        42928,
+        41576
+      ],
+      "id": "validate-session-restore-opportunities",
+      "name": "Validate Session: restore-opportunities",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: add-opportunity').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        42480,
+        37000
+      ],
+      "id": "extract-bearer-add-opportunity",
+      "name": "Extract Bearer Token: add-opportunity"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-add-opportunity",
+      "name": "Execute Workflow: Verify Session: add-opportunity",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        42495,
+        37015
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        42510,
+        37030
+      ],
+      "id": "validate-session-add-opportunity",
+      "name": "Validate Session: add-opportunity"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: pipeline-create-new').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        42480,
+        38664
+      ],
+      "id": "extract-bearer-pipeline-create-new",
+      "name": "Extract Bearer Token: pipeline-create-new"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-pipeline-create-new",
+      "name": "Execute Workflow: Verify Session: pipeline-create-new",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        42495,
+        38679
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        42510,
+        38694
+      ],
+      "id": "validate-session-pipeline-create-new",
+      "name": "Validate Session: pipeline-create-new"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Pipeline\" }}",
+            "workflow_id": "={{ \"6uohZ5g6HXJNJwPK\" }}",
+            "entity_type": "={{ \"opportunities\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-add-opportunity-0",
+      "name": "Log Workflow Run: Webhook: add-opportunity",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        42495,
+        37025
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Pipeline\" }}",
+            "workflow_id": "={{ \"6uohZ5g6HXJNJwPK\" }}",
+            "entity_type": "={{ \"opportunities\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-update-opportunity-1",
+      "name": "Log Workflow Run: Webhook: update-opportunity",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        42495,
+        37513
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Pipeline\" }}",
+            "workflow_id": "={{ \"6uohZ5g6HXJNJwPK\" }}",
+            "entity_type": "={{ \"opportunities\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-move-opportunity-stage-2",
+      "name": "Log Workflow Run: Webhook: move-opportunity-stage",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        42495,
+        37929
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Pipeline\" }}",
+            "workflow_id": "={{ \"6uohZ5g6HXJNJwPK\" }}",
+            "entity_type": "={{ \"opportunities\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-delete-opportunities-3",
+      "name": "Log Workflow Run: Webhook: delete-opportunities",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        42495,
+        38369
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Pipeline\" }}",
+            "workflow_id": "={{ \"6uohZ5g6HXJNJwPK\" }}",
+            "entity_type": "={{ \"pipelines\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-pipeline-create-new-4",
+      "name": "Log Workflow Run: Webhook: pipeline-create-new",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        42495,
+        38689
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Pipeline\" }}",
+            "workflow_id": "={{ \"6uohZ5g6HXJNJwPK\" }}",
+            "entity_type": "={{ \"pipelines\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-update-pipeline-5",
+      "name": "Log Workflow Run: Webhook: update-pipeline",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        42495,
+        39393
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Pipeline\" }}",
+            "workflow_id": "={{ \"6uohZ5g6HXJNJwPK\" }}",
+            "entity_type": "={{ \"pipelines,stages\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-delete-pipeline-6",
+      "name": "Log Workflow Run: Webhook: delete-pipeline",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        42495,
+        41097
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Pipeline\" }}",
+            "workflow_id": "={{ \"6uohZ5g6HXJNJwPK\" }}",
+            "entity_type": "={{ \"stages\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-update-pipeline-stages-7",
+      "name": "Log Workflow Run: Webhook: update-pipeline-stages",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        42495,
+        42073
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Pipeline\" }}",
+            "workflow_id": "={{ \"6uohZ5g6HXJNJwPK\" }}",
+            "entity_type": "={{ \"opportunities\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-archive-opportunities-8",
+      "name": "Log Workflow Run: Webhook: archive-opportunities",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        42495,
+        40153
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Pipeline\" }}",
+            "workflow_id": "={{ \"6uohZ5g6HXJNJwPK\" }}",
+            "entity_type": "={{ \"opportunities\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-restore-opportunities-9",
+      "name": "Log Workflow Run: Webhook: restore-opportunities",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        42495,
+        41633
+      ],
+      "onError": "continueRegularOutput"
     }
   ],
   "pinData": {},

@@ -25,6 +25,7 @@ import ContractEditorPage from './pages/ContractEditorPage';
 import PagesListPage from './pages/PagesListPage';
 import PageEditorPage from './pages/PageEditorPage';
 import Automations from './pages/Automations';
+import AutomationBuilderPage from './pages/AutomationBuilderPage';
 import AutomationLogsPage from './pages/AutomationLogsPage';
 import AutomationEmailStepsPage from './pages/AutomationEmailStepsPage';
 import PipelineStageRemindersPage from './pages/PipelineStageRemindersPage';
@@ -42,6 +43,7 @@ import PublicProposalPage from './pages/PublicProposalPage';
 import PublicContractPage from './pages/PublicContractPage';
 import PublicPayInvoicePage from './pages/PublicPayInvoicePage';
 import PublicUnsubscribePage from './pages/PublicUnsubscribePage';
+import PublicCancelBookingPage from './pages/PublicCancelBookingPage';
 import PrintContractPage from './pages/PrintContractPage';
 import PublicTicketPage from './pages/PublicTicketPage';
 import PublicBookingPage from './pages/PublicBookingPage';
@@ -64,6 +66,7 @@ export default function App() {
           <Route path="/documents/contract/:token" element={<PublicContractPage />} />
           <Route path="/documents/invoice/:token" element={<PublicPayInvoicePage />} />
           <Route path="/unsubscribe/:token" element={<PublicUnsubscribePage />} />
+          <Route path="/cancel-booking/:activityId" element={<PublicCancelBookingPage />} />
           <Route path="/print/contract/:token" element={<PrintContractPage />} />
           <Route path="/support/new" element={<PublicTicketPage />} />
           <Route path="/book/:token" element={<PublicBookingPage />} />
@@ -104,6 +107,8 @@ export default function App() {
             <Route path="/documents/pages/new" element={<PageEditorPage />} />
             <Route path="/documents/pages/:id/edit" element={<PageEditorPage />} />
             <Route path="/automations" element={<Automations />} />
+            <Route path="/automations/new" element={<AutomationBuilderPage />} />
+            <Route path="/automations/:id/edit" element={<AutomationBuilderPage />} />
             <Route path="/automations/logs" element={<AutomationLogsPage />} />
             <Route path="/automations/stage-reminders" element={<PipelineStageRemindersPage />} />
             <Route path="/automations/stage-reminders/new" element={<StageReminderEditorPage />} />

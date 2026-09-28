@@ -20,42 +20,6 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
-      },
-      "id": "82f76b66-281c-42a2-8c2d-9136395bc6c1",
-      "name": "Parse Token: get-conversations",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        440,
-        160
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, color, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.userId ] }}"
-        }
-      },
-      "id": "dfa77662-de80-4442-852a-e863d7f37f16",
-      "name": "Look Up Requester: get-conversations",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        640,
-        160
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    },
-    {
-      "parameters": {
         "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nreturn [{ json: { userId: requester.id } }];"
       },
       "id": "507d05d7-e85b-40c2-8f12-ea28f929bf3a",
@@ -120,42 +84,6 @@
         380
       ],
       "webhookId": "8fc6e8f7-ecb7-41b1-9fce-8f6e7409d5b1"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
-      },
-      "id": "47cf35ab-888c-427e-b842-322a79f7a58d",
-      "name": "Parse Token: get-messages",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        440,
-        380
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, color, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.userId ] }}"
-        }
-      },
-      "id": "540691d6-dbe2-4315-be91-cedbba649dfa",
-      "name": "Look Up Requester: get-messages",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        640,
-        380
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
     },
     {
       "parameters": {
@@ -259,42 +187,6 @@
         600
       ],
       "webhookId": "f50144fa-2aee-4abb-be5b-290947f1efaf"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
-      },
-      "id": "82a55ca7-b2e6-4dd9-8bba-9a7035e009c6",
-      "name": "Parse Token: send-message",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        440,
-        600
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, color, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.userId ] }}"
-        }
-      },
-      "id": "b0480c96-b0b8-473c-81ca-09c617e325ca",
-      "name": "Look Up Requester: send-message",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        640,
-        600
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
     },
     {
       "parameters": {
@@ -437,42 +329,6 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
-      },
-      "id": "416db502-bc2b-48cc-97db-e7bb5740f46d",
-      "name": "Parse Token: mark-conversation-read",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        440,
-        820
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, color, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.userId ] }}"
-        }
-      },
-      "id": "d5491ba2-861b-41ce-aba2-ee1eb8f309aa",
-      "name": "Look Up Requester: mark-conversation-read",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        640,
-        820
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    },
-    {
-      "parameters": {
         "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: mark-conversation-read').first().json.body || {};\nconst conversationId = parseInt(body.conversation_id, 10);\nif (!Number.isInteger(conversationId)) throw new Error('\"conversation_id\" is required.');\n\nreturn [{ json: { userId: requester.id, conversationId } }];"
       },
       "id": "bdc3e984-d19b-4866-a256-89a6603fb28d",
@@ -538,42 +394,6 @@
         1040
       ],
       "webhookId": "873d912e-efac-4bdb-9378-c3a1cb0bc255"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
-      },
-      "id": "895379a5-6a09-4410-80c6-f162b221c482",
-      "name": "Parse Token: start-dm",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        440,
-        1040
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, color, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.userId ] }}"
-        }
-      },
-      "id": "b6095bcb-46a6-474b-98db-74eb23682beb",
-      "name": "Look Up Requester: start-dm",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        640,
-        1040
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
     },
     {
       "parameters": {
@@ -709,6 +529,276 @@
         2240,
         1040
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        160
+      ],
+      "id": "extract-bearer-parse-token-get-conversations",
+      "name": "Extract Bearer Token get-conversations"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-get-conversations",
+      "name": "Execute Workflow: Verify Session get-conversations",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        470,
+        175
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        160
+      ],
+      "id": "validate-session-parse-token-get-conversations",
+      "name": "Validate Session get-conversations"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        380
+      ],
+      "id": "extract-bearer-parse-token-get-messages",
+      "name": "Extract Bearer Token get-messages"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-get-messages",
+      "name": "Execute Workflow: Verify Session get-messages",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        470,
+        395
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        380
+      ],
+      "id": "validate-session-parse-token-get-messages",
+      "name": "Validate Session get-messages"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        600
+      ],
+      "id": "extract-bearer-parse-token-send-message",
+      "name": "Extract Bearer Token send-message"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-send-message",
+      "name": "Execute Workflow: Verify Session send-message",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        470,
+        615
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        600
+      ],
+      "id": "validate-session-parse-token-send-message",
+      "name": "Validate Session send-message"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        820
+      ],
+      "id": "extract-bearer-parse-token-mark-conversation-read",
+      "name": "Extract Bearer Token mark-conversation-read"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-mark-conversation-read",
+      "name": "Execute Workflow: Verify Session mark-conversation-read",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        470,
+        835
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        820
+      ],
+      "id": "validate-session-parse-token-mark-conversation-read",
+      "name": "Validate Session mark-conversation-read"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        1040
+      ],
+      "id": "extract-bearer-parse-token-start-dm",
+      "name": "Extract Bearer Token start-dm"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-start-dm",
+      "name": "Execute Workflow: Verify Session start-dm",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        470,
+        1055
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        1040
+      ],
+      "id": "validate-session-parse-token-start-dm",
+      "name": "Validate Session start-dm"
     }
   ],
   "connections": {
@@ -716,29 +806,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: get-conversations",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: get-conversations": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: get-conversations",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: get-conversations": {
-      "main": [
-        [
-          {
-            "node": "Check Requester: get-conversations",
+            "node": "Extract Bearer Token get-conversations",
             "type": "main",
             "index": 0
           }
@@ -771,29 +839,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: get-messages",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: get-messages": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: get-messages",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: get-messages": {
-      "main": [
-        [
-          {
-            "node": "Check Requester: get-messages",
+            "node": "Extract Bearer Token get-messages",
             "type": "main",
             "index": 0
           }
@@ -848,29 +894,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: send-message",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: send-message": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: send-message",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: send-message": {
-      "main": [
-        [
-          {
-            "node": "Check Payload: send-message",
+            "node": "Extract Bearer Token send-message",
             "type": "main",
             "index": 0
           }
@@ -947,29 +971,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: mark-conversation-read",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: mark-conversation-read": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: mark-conversation-read",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: mark-conversation-read": {
-      "main": [
-        [
-          {
-            "node": "Check Payload: mark-conversation-read",
+            "node": "Extract Bearer Token mark-conversation-read",
             "type": "main",
             "index": 0
           }
@@ -1002,29 +1004,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: start-dm",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: start-dm": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: start-dm",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: start-dm": {
-      "main": [
-        [
-          {
-            "node": "Check Payload: start-dm",
+            "node": "Extract Bearer Token start-dm",
             "type": "main",
             "index": 0
           }
@@ -1102,6 +1082,171 @@
         [
           {
             "node": "Respond: start-dm",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token get-conversations": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session get-conversations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session get-conversations": {
+      "main": [
+        [
+          {
+            "node": "Validate Session get-conversations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session get-conversations": {
+      "main": [
+        [
+          {
+            "node": "Check Requester: get-conversations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token get-messages": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session get-messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session get-messages": {
+      "main": [
+        [
+          {
+            "node": "Validate Session get-messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session get-messages": {
+      "main": [
+        [
+          {
+            "node": "Check Requester: get-messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token send-message": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session send-message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session send-message": {
+      "main": [
+        [
+          {
+            "node": "Validate Session send-message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session send-message": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: send-message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token mark-conversation-read": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session mark-conversation-read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session mark-conversation-read": {
+      "main": [
+        [
+          {
+            "node": "Validate Session mark-conversation-read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session mark-conversation-read": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: mark-conversation-read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token start-dm": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session start-dm",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session start-dm": {
+      "main": [
+        [
+          {
+            "node": "Validate Session start-dm",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session start-dm": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: start-dm",
             "type": "main",
             "index": 0
           }

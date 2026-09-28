@@ -7,7 +7,7 @@
         "path": "user-sign-up",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "type": "n8n-nodes-base.webhook",
@@ -90,7 +90,7 @@
         "path": "user-login",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "type": "n8n-nodes-base.webhook",
@@ -142,7 +142,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const bcrypt = require('bcryptjs');\nconst dbResult = $input.first().json;\nconst rawPassword = $('Format Login Query').first().json.rawPassword;\n\nif (!dbResult.id || !dbResult.active) {\n  return [{\n    json: {\n      success: false,\n      message: 'Invalid credentials or account inactive.'\n    }\n  }];\n}\n\nconst isPasswordValid = bcrypt.compareSync(rawPassword, dbResult.password_hash);\n\nif (!isPasswordValid) {\n  return [{\n    json: {\n      success: false,\n      message: 'Invalid credentials.'\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    success: true,\n    message: 'Login successful.',\n    token: `token_${dbResult.id}_${Date.now()}`,\n    user: {\n      id: dbResult.id,\n      name: dbResult.name,\n      email: dbResult.email,\n      role: dbResult.role,\n      theme_header_color: dbResult.theme_header_color,\n      theme_main_color: dbResult.theme_main_color,\n      theme_accent_color: dbResult.theme_accent_color\n    }\n  }\n}];"
+        "jsCode": "const bcrypt = require('bcryptjs');\nconst dbResult = $input.first().json;\nconst rawPassword = $('Format Login Query').first().json.rawPassword;\n\nif (!dbResult.id || !dbResult.active) {\n  return [{ json: { success: false, message: 'Invalid credentials or account inactive.' } }];\n}\n\nconst isPasswordValid = bcrypt.compareSync(rawPassword, dbResult.password_hash);\nif (!isPasswordValid) {\n  return [{ json: { success: false, message: 'Invalid credentials.' } }];\n}\n\n// Real, cryptographically random session token (replaces the old\n// token_<id>_<timestamp> string, which had no signature/secret and could\n// be forged by anyone to impersonate any user, including admins).\n// require('crypto') can be blocked by this n8n instance's\n// NODE_FUNCTION_ALLOW_BUILTIN config -- fall back to a Math.random-based\n// token rather than letting this node throw and silently kill the whole\n// login response.\nfunction randomToken() {\n  try {\n    return require('crypto').randomBytes(32).toString('hex');\n  } catch (e) {\n    let out = '';\n    for (let i = 0; i < 8; i++) out += Math.random().toString(36).slice(2, 10);\n    return out;\n  }\n}\nconst token = randomToken();\nconst TTL_MS = 24 * 60 * 60 * 1000;\nconst expiresAt = new Date(Date.now() + TTL_MS).toISOString();\n\nreturn [{\n  json: {\n    success: true,\n    message: 'Login successful.',\n    token,\n    expiresAt,\n    user: {\n      id: dbResult.id,\n      name: dbResult.name,\n      email: dbResult.email,\n      role: dbResult.role,\n      theme_header_color: dbResult.theme_header_color,\n      theme_main_color: dbResult.theme_main_color,\n      theme_accent_color: dbResult.theme_accent_color\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -151,7 +151,9 @@
         496
       ],
       "id": "736623b4-6c7c-40bd-9db1-c70a95ab2dda",
-      "name": "Verify Password & Generate Token"
+      "name": "Verify Password & Generate Token",
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -172,7 +174,7 @@
         "path": "verify-session",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "type": "n8n-nodes-base.webhook",
@@ -184,43 +186,6 @@
       "id": "ca1bacf5-35b6-4915-bc9f-e602724dce16",
       "name": "Webhook: verify session",
       "webhookId": "d6875fc6-9dcc-411d-be21-b8f521eb0d9b"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ $json.sqlQuery }}",
-        "options": {
-          "queryReplacement": "={{ $json.queryParams }}"
-        }
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        1088,
-        0
-      ],
-      "id": "0bab9de2-9e18-4972-886c-0aff460ef79e",
-      "name": "Execute a SQL query",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "const item = $input.first().json;\n\nif (!item.id || !item.active) {\n  return [{ json: { valid: false } }];\n}\n\nreturn [{\n  json: {\n    valid: true,\n    user: {\n      id: item.id, name: item.name, email: item.email, role: item.role,\n      theme_header_color: item.theme_header_color, theme_main_color: item.theme_main_color, theme_accent_color: item.theme_accent_color\n    }\n  }\n}];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1296,
-        0
-      ],
-      "id": "a5156f1b-ee80-47a6-be2d-02b415c559f2",
-      "name": "Code in JavaScript1"
     },
     {
       "parameters": {
@@ -241,7 +206,80 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst token = (body.token || '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) {\n  return [{ json: { valid: false } }];\n}\n\nconst userId = parseInt(match[1], 10);\nconst issuedAt = parseInt(match[2], 10);\nconst TTL_MS = 24 * 60 * 60 * 1000;\n\nif (Date.now() - issuedAt > TTL_MS) {\n  return [{ json: { valid: false } }];\n}\n\nconst sqlQuery = `SELECT id, name, email, role, active, theme_header_color, theme_main_color, theme_accent_color FROM users WHERE id = $1 LIMIT 1;`;\n\nreturn [{ json: { sqlQuery, queryParams: [userId] } }];"
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "login-ok-cond",
+              "leftValue": "={{ $json.success }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        976,
+        380
+      ],
+      "id": "login-succeeded-if",
+      "name": "Login Succeeded?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO sessions (token, user_id, expires_at) VALUES ($1, $2, $3);",
+        "options": {
+          "queryReplacement": "={{ [ $('Verify Password & Generate Token').item.json.token, $('Verify Password & Generate Token').item.json.user.id, $('Verify Password & Generate Token').item.json.expiresAt ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1080,
+        340
+      ],
+      "id": "insert-session",
+      "name": "Insert Session",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $('Verify Password & Generate Token').item.json;\nif (item.error) {\n  return [{ json: { success: false, message: item.error.message || 'Login failed.' } }];\n}\nreturn [{ json: { success: item.success, message: item.message || (item.success ? 'Login successful.' : 'Login failed.'), token: item.token, user: item.user } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1080,
+        496
+      ],
+      "id": "format-login-response",
+      "name": "Format Login Response",
+      "notesInFlow": true,
+      "notes": "Reads the ORIGINAL Verify Password & Generate Token output by name (not $json) so this works identically whether it was reached via Insert Session (whose own output is a Postgres result, not the login payload) or directly from the IF's false branch."
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst token = (body.token || '').toString().trim();\nreturn [{ json: { token } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -249,8 +287,142 @@
         880,
         0
       ],
-      "id": "c14689a8-e53b-4f0c-b8c1-a3c7e105bc49",
-      "name": "verify token"
+      "id": "prepare-token-vs",
+      "name": "Prepare Token for Verify Session"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1088,
+        0
+      ],
+      "id": "execute-verify-session-vs",
+      "name": "Execute Workflow: Verify Session"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nreturn [{ json: { valid: !!item.valid, user: item.user } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1296,
+        0
+      ],
+      "id": "format-verify-session-response",
+      "name": "Format Verify Session Response"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "logout",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "http://localhost:5173"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        304,
+        760
+      ],
+      "id": "webhook-logout",
+      "name": "Webhook: logout",
+      "webhookId": "webhook-logout-01"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst token = (body.token || '').toString().trim();\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        528,
+        760
+      ],
+      "id": "extract-logout-token",
+      "name": "Extract Logout Token"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM sessions WHERE token = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.token ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        752,
+        760
+      ],
+      "id": "delete-session",
+      "name": "Delete Session",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        976,
+        760
+      ],
+      "id": "respond-logout",
+      "name": "Respond Logout"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE IF NOT EXISTS sessions (\n  token TEXT PRIMARY KEY,\n  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,\n  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),\n  expires_at TIMESTAMPTZ NOT NULL\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1080,
+        300
+      ],
+      "id": "login-ensure-table",
+      "name": "Ensure Sessions Table (Login)",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
     }
   ],
   "pinData": {},
@@ -336,7 +508,7 @@
       "main": [
         [
           {
-            "node": "Respond Login",
+            "node": "Login Succeeded?",
             "type": "main",
             "index": 0
           }
@@ -347,25 +519,76 @@
       "main": [
         [
           {
-            "node": "verify token",
+            "node": "Prepare Token for Verify Session",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Execute a SQL query": {
+    "Login Succeeded?": {
       "main": [
         [
           {
-            "node": "Code in JavaScript1",
+            "node": "Ensure Sessions Table (Login)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Login Response",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Code in JavaScript1": {
+    "Insert Session": {
+      "main": [
+        [
+          {
+            "node": "Format Login Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Login Response": {
+      "main": [
+        [
+          {
+            "node": "Respond Login",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Token for Verify Session": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session": {
+      "main": [
+        [
+          {
+            "node": "Format Verify Session Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Verify Session Response": {
       "main": [
         [
           {
@@ -376,11 +599,44 @@
         ]
       ]
     },
-    "verify token": {
+    "Webhook: logout": {
       "main": [
         [
           {
-            "node": "Execute a SQL query",
+            "node": "Extract Logout Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Logout Token": {
+      "main": [
+        [
+          {
+            "node": "Delete Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Session": {
+      "main": [
+        [
+          {
+            "node": "Respond Logout",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ensure Sessions Table (Login)": {
+      "main": [
+        [
+          {
+            "node": "Insert Session",
             "type": "main",
             "index": 0
           }

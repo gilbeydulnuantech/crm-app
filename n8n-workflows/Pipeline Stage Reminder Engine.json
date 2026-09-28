@@ -24,7 +24,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT\n  o.id AS opportunity_id, o.name AS opportunity_name, o.stage_id,\n  st.id AS step_id, st.offset_hours, st.email_subject, st.email_body,\n  a.id AS activity_id, a.due_at,\n  c.email, c.first_name, c.last_name\nFROM pipeline_stage_reminders r\nJOIN pipeline_stage_reminder_steps st ON st.rule_id = r.id\nJOIN opportunities o ON o.stage_id = r.stage_id AND o.is_archived = false AND o.status = 'Open'\nJOIN contacts c ON c.id = o.contact_id AND c.is_archived = false AND c.email IS NOT NULL AND c.email <> ''\nJOIN LATERAL (\n  SELECT a2.id, a2.due_at FROM activities a2\n  WHERE a2.opportunity_id = o.id AND a2.type = 'meeting' AND a2.due_at IS NOT NULL\n  ORDER BY a2.due_at DESC LIMIT 1\n) a ON true\nLEFT JOIN pipeline_stage_reminder_sends snt ON snt.step_id = st.id AND snt.opportunity_id = o.id AND snt.activity_id = a.id\nWHERE r.is_active = true AND snt.id IS NULL;",
+        "query": "SELECT\n  o.id AS opportunity_id, o.name AS opportunity_name, o.stage_id,\n  st.id AS step_id, st.offset_hours, st.email_subject, st.email_body,\n  a.id AS activity_id, a.due_at,\n  c.id AS contact_id, c.email, c.first_name, c.last_name, c.unsubscribe_token, c.phone, c.city, c.state,\n  co.name AS client_company_name,\n  u.name AS owner_name, u.email AS owner_email, u.phone AS owner_phone,\n  (SELECT company_name FROM company_profile LIMIT 1) AS our_company_name\nFROM pipeline_stage_reminders r\nJOIN pipeline_stage_reminder_steps st ON st.rule_id = r.id\nJOIN opportunities o ON o.stage_id = r.stage_id AND o.is_archived = false AND o.status = 'Open'\nJOIN contacts c ON c.id = o.contact_id AND c.is_archived = false AND c.email IS NOT NULL AND c.email <> ''\nLEFT JOIN companies co ON co.id = c.account_id\nLEFT JOIN users u ON u.id = o.assigned_user\nJOIN LATERAL (\n  SELECT a2.id, a2.due_at FROM activities a2\n  WHERE a2.opportunity_id = o.id AND a2.type = 'meeting' AND a2.due_at IS NOT NULL\n  ORDER BY a2.due_at DESC LIMIT 1\n) a ON true\nLEFT JOIN pipeline_stage_reminder_sends snt ON snt.step_id = st.id AND snt.opportunity_id = o.id AND snt.activity_id = a.id\nWHERE r.is_active = true AND snt.id IS NULL;",
         "options": {}
       },
       "id": "psreng0002-2222-4a5a-9b1a-pstreng000002",
@@ -45,7 +45,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// offset_hours > 0 = reminder fires that many hours BEFORE the appointment\n// (e.g. 24 = day-before, 2 = hours-before). offset_hours <= 0 = fires\n// |offset_hours| AFTER the appointment time (no-show follow-up).\nconst row = $input.item.json;\nconst dueAt = new Date(row.due_at).getTime() - row.offset_hours * 3600000;\nconst now = Date.now();\nconst catchWindowMs = 6 * 3600000; // tolerate up to 6h of engine downtime without skipping a reminder\nconst due = now >= dueAt && now < dueAt + catchWindowMs;\n\nfunction fill(template) {\n  const apptDate = new Date(row.due_at).toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' });\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, row.first_name || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, row.last_name || '')\n    .replace(/{{\\s*appointment_date\\s*}}/gi, apptDate)\n    .replace(/{{\\s*deal_name\\s*}}/gi, row.opportunity_name || '');\n}\n\nreturn [{\n  json: {\n    due,\n    stepId: row.step_id,\n    opportunityId: row.opportunity_id,\n    activityId: row.activity_id,\n    to: row.email,\n    subject: fill(row.email_subject),\n    body: fill(row.email_body),\n  },\n}];"
+        "jsCode": "// offset_hours > 0 = reminder fires that many hours BEFORE the appointment\n// (e.g. 24 = day-before, 2 = hours-before). offset_hours <= 0 = fires\n// |offset_hours| AFTER the appointment time (no-show follow-up).\nconst row = $input.item.json;\nconst dueAt = new Date(row.due_at).getTime() - row.offset_hours * 3600000;\nconst now = Date.now();\nconst catchWindowMs = 6 * 3600000; // tolerate up to 6h of engine downtime without skipping a reminder\nconst due = now >= dueAt && now < dueAt + catchWindowMs;\n\nfunction fill(template) {\n  const apptDateObj = new Date(row.due_at);\n  const apptDate = apptDateObj.toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' });\n  return (template || '')\n    .replace(/{{\\s*user\\.company_name\\s*}}/gi, row.our_company_name || '')\n    .replace(/{{\\s*contact\\.first_name\\s*}}/gi, row.first_name || 'there')\n    .replace(/{{\\s*contact\\.last_name\\s*}}/gi, row.last_name || '')\n    .replace(/{{\\s*contact\\.email\\s*}}/gi, row.email || '')\n    .replace(/{{\\s*contact\\.phone\\s*}}/gi, row.phone || '')\n    .replace(/{{\\s*contact\\.address\\s*}}/gi, [row.city, row.state].filter(Boolean).join(', '))\n    .replace(/{{\\s*company\\.name\\s*}}/gi, row.client_company_name || '')\n    .replace(/{{\\s*user\\.full_name\\s*}}/gi, row.owner_name || 'your account team')\n    .replace(/{{\\s*user\\.email\\s*}}/gi, row.owner_email || '')\n    .replace(/{{\\s*user\\.phone\\s*}}/gi, row.owner_phone || '')\n    .replace(/{{\\s*opportunity\\.name\\s*}}/gi, row.opportunity_name || '')\n    .replace(/{{\\s*appointment\\.start_time\\s*}}/gi, apptDate);\n}\n\nlet base = '';\ntry { base = $env.FRONTEND_BASE_URL || ''; } catch (e) { base = ''; }\nconst unsubUrl = base + '/unsubscribe/' + (row.unsubscribe_token || '');\nconst body = fill(row.email_body) + `\n\nDon't want these emails? Unsubscribe: ${unsubUrl}`;\n\nreturn [{\n  json: {\n    due,\n    stepId: row.step_id,\n    opportunityId: row.opportunity_id,\n    activityId: row.activity_id,\n    contactId: row.contact_id,\n    to: row.email,\n    subject: fill(row.email_subject),\n    body,\n  },\n}];"
       },
       "id": "psreng0003-3333-4a5a-9b1a-pstreng000003",
       "name": "Check Due & Personalize",
@@ -95,7 +95,9 @@
         "subject": "={{ $json.subject }}",
         "emailType": "text",
         "message": "={{ $json.body }}",
-        "options": {}
+        "options": {
+          "appendAttribution": false
+        }
       },
       "id": "psreng0005-5555-4a5a-9b1a-pstreng000005",
       "name": "Send Reminder Email",
@@ -140,7 +142,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT\n  o.id AS opportunity_id, o.name AS opportunity_name,\n  r.id AS rule_id, r.on_complete_advance_stage_id, r.on_complete_email_subject, r.on_complete_email_body,\n  a.id AS activity_id,\n  c.id AS contact_id, c.email, c.first_name, c.last_name\nFROM pipeline_stage_reminders r\nJOIN opportunities o ON o.stage_id = r.stage_id AND o.is_archived = false AND o.status = 'Open'\nJOIN contacts c ON c.id = o.contact_id AND c.is_archived = false\nJOIN LATERAL (\n  SELECT a2.id FROM activities a2\n  WHERE a2.opportunity_id = o.id AND a2.type = 'meeting' AND a2.is_completed = true\n  ORDER BY a2.completed_at DESC NULLS LAST, a2.due_at DESC LIMIT 1\n) a ON true\nLEFT JOIN pipeline_stage_reminder_completions cmp ON cmp.rule_id = r.id AND cmp.opportunity_id = o.id AND cmp.activity_id = a.id\nWHERE r.is_active = true\n  AND (r.on_complete_advance_stage_id IS NOT NULL OR COALESCE(r.on_complete_email_subject, '') <> '')\n  AND cmp.id IS NULL;",
+        "query": "SELECT\n  o.id AS opportunity_id, o.name AS opportunity_name,\n  r.id AS rule_id, r.on_complete_advance_stage_id, r.on_complete_email_subject, r.on_complete_email_body,\n  a.id AS activity_id,\n  c.id AS contact_id, c.email, c.first_name, c.last_name, c.unsubscribe_token\nFROM pipeline_stage_reminders r\nJOIN opportunities o ON o.stage_id = r.stage_id AND o.is_archived = false AND o.status = 'Open'\nJOIN contacts c ON c.id = o.contact_id AND c.is_archived = false\nJOIN LATERAL (\n  SELECT a2.id FROM activities a2\n  WHERE a2.opportunity_id = o.id AND a2.type = 'meeting' AND a2.is_completed = true\n  ORDER BY a2.completed_at DESC NULLS LAST, a2.due_at DESC LIMIT 1\n) a ON true\nLEFT JOIN pipeline_stage_reminder_completions cmp ON cmp.rule_id = r.id AND cmp.opportunity_id = o.id AND cmp.activity_id = a.id\nWHERE r.is_active = true\n  AND (r.on_complete_advance_stage_id IS NOT NULL OR COALESCE(r.on_complete_email_subject, '') <> '')\n  AND cmp.id IS NULL;",
         "options": {}
       },
       "id": "psreng0007-7777-4a5a-9b1a-pstreng000007",
@@ -161,7 +163,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const row = $input.item.json;\n\nfunction fill(template) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, row.first_name || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, row.last_name || '')\n    .replace(/{{\\s*deal_name\\s*}}/gi, row.opportunity_name || '');\n}\n\nreturn [{\n  json: {\n    hasEmail: !!(row.on_complete_email_subject && row.on_complete_email_subject.trim()),\n    to: row.email,\n    subject: fill(row.on_complete_email_subject),\n    body: fill(row.on_complete_email_body),\n    onCompleteAdvanceStageId: row.on_complete_advance_stage_id,\n    opportunityId: row.opportunity_id,\n    ruleId: row.rule_id,\n    activityId: row.activity_id,\n    contactId: row.contact_id,\n  },\n}];"
+        "jsCode": "const row = $input.item.json;\n\nfunction fill(template) {\n  return (template || '')\n    .replace(/{{\\s*contact\\.first_name\\s*}}/gi, row.first_name || 'there')\n    .replace(/{{\\s*contact\\.last_name\\s*}}/gi, row.last_name || '')\n    .replace(/{{\\s*opportunity\\.name\\s*}}/gi, row.opportunity_name || '');\n}\n\nlet base = '';\ntry { base = $env.FRONTEND_BASE_URL || ''; } catch (e) { base = ''; }\nconst unsubUrl = base + '/unsubscribe/' + (row.unsubscribe_token || '');\nconst body = fill(row.on_complete_email_body) + `\n\nDon't want these emails? Unsubscribe: ${unsubUrl}`;\n\nreturn [{\n  json: {\n    hasEmail: !!(row.on_complete_email_subject && row.on_complete_email_subject.trim()),\n    to: row.email,\n    subject: fill(row.on_complete_email_subject),\n    body,\n    onCompleteAdvanceStageId: row.on_complete_advance_stage_id,\n    opportunityId: row.opportunity_id,\n    ruleId: row.rule_id,\n    activityId: row.activity_id,\n    contactId: row.contact_id,\n  },\n}];"
       },
       "id": "psreng0008-8888-4a5a-9b1a-pstreng000008",
       "name": "Prepare Completion Actions",
@@ -211,7 +213,9 @@
         "subject": "={{ $json.subject }}",
         "emailType": "text",
         "message": "={{ $json.body }}",
-        "options": {}
+        "options": {
+          "appendAttribution": false
+        }
       },
       "id": "psreng0010-1010-4a5a-9b1a-pstreng000010",
       "name": "Send Completion Email",
@@ -252,6 +256,85 @@
         }
       },
       "notes": "Referencing the Code node directly (not $json) keeps this correct on both branches: the no-email path feeds in unchanged, and the emailed path passes through Gmail first, which preserves paired-item lineage since it's a 1:1 passthrough."
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Pipeline Stage Reminder Engine\" }}",
+            "workflow_id": "={{ \"jv5aC14FwPzUkQKG\" }}",
+            "entity_type": "={{ \"opportunities\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-schedule-trigger-every-30-min-0",
+      "name": "Log Workflow Run: Schedule Trigger: every 30 min",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        255,
+        385
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts SET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object('id', gen_random_uuid()::text, 'type', 'sent', 'subject', $1::text, 'message', $2::text, 'sent_at', NOW(), 'is_read', true) WHERE id = $3;",
+        "options": {
+          "queryReplacement": "={{ [ $('Check Due & Personalize').item.json.subject, $('Check Due & Personalize').item.json.body, $('Check Due & Personalize').item.json.contactId ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1156,
+        396
+      ],
+      "id": "log-stage-reminder",
+      "name": "Log Sent Email: Stage Reminder",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts SET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object('id', gen_random_uuid()::text, 'type', 'sent', 'subject', $1::text, 'message', $2::text, 'sent_at', NOW(), 'is_read', true) WHERE id = $3;",
+        "options": {
+          "queryReplacement": "={{ [ $('Prepare Completion Actions').item.json.subject, $('Prepare Completion Actions').item.json.body, $('Prepare Completion Actions').item.json.contactId ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1156,
+        588
+      ],
+      "id": "log-stage-completion",
+      "name": "Log Sent Email: Stage Completion",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
@@ -259,12 +342,7 @@
       "main": [
         [
           {
-            "node": "Select Due Candidates",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Select Completion Candidates",
+            "node": "Log Workflow Run: Schedule Trigger: every 30 min",
             "type": "main",
             "index": 0
           }
@@ -309,7 +387,7 @@
       "main": [
         [
           {
-            "node": "Record Send & Log",
+            "node": "Log Sent Email: Stage Reminder",
             "type": "main",
             "index": 0
           }
@@ -361,12 +439,50 @@
       "main": [
         [
           {
-            "node": "Advance Stage & Record",
+            "node": "Log Sent Email: Stage Completion",
             "type": "main",
             "index": 0
           }
         ],
         []
+      ]
+    },
+    "Log Workflow Run: Schedule Trigger: every 30 min": {
+      "main": [
+        [
+          {
+            "node": "Select Due Candidates",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Select Completion Candidates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Sent Email: Stage Reminder": {
+      "main": [
+        [
+          {
+            "node": "Record Send & Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Sent Email: Stage Completion": {
+      "main": [
+        [
+          {
+            "node": "Advance Stage & Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },

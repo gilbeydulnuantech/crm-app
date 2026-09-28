@@ -21,45 +21,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "cb1a0002-2222-4a5a-9b1a-calint0000002",
-      "name": "Parse Token (Get)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1184,
-        480
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "cb1a0003-3333-4a5a-9b1a-calint0000003",
-      "name": "Look Up Requester Role (Get)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1408,
-        480
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\nreturn [{ json: {} }];"
+        "jsCode": "const requester = $input.first().json;\nif (!requester.valid) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\nreturn [{ json: {} }];"
       },
       "id": "cb1a0004-4444-4a5a-9b1a-calint0000004",
       "name": "Validate Admin (Get)",
@@ -127,45 +89,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "cb1a0008-8888-4a5a-9b1a-calint0000008",
-      "name": "Parse Token (Add)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1184,
-        704
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "cb1a0009-9999-4a5a-9b1a-calint0000009",
-      "name": "Look Up Requester Role (Add)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1408,
-        704
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Add Calendar Integration').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst rawLink = (body.calendar_link || '').toString().trim();\nif (!rawLink) throw new Error('\"calendar_link\" is required.');\n\n// calendar.app.google/xxx links are Appointment Schedule *booking pages* \u2014\n// opaque short links Google resolves server-side, not calendar IDs. The\n// Calendar API can't read events off them directly. Bookings made through\n// one of these land on the rep's own regular calendar instead, so that's\n// what we actually need here.\nif (/calendar\\.app\\.google/i.test(rawLink)) {\n  throw new Error(\n    'That looks like a booking-page link (calendar.app.google/...), not a calendar ID. ' +\n    'Paste the rep\\'s calendar ID instead \u2014 usually their Gmail address, or \"primary\" for their default calendar. ' +\n    'Find it in Google Calendar under Settings > [calendar name] > \"Integrate calendar\" > Calendar ID. ' +\n    'That calendar must also be shared with the Google account this integration is authorized as.'\n  );\n}\n\n// Accepts either a raw calendar ID/email (xxx@group.calendar.google.com),\n// or a full \"Share this calendar\" / embed URL like\n// https://calendar.google.com/calendar/embed?src=xxx%40group.calendar.google.com&ctz=...\n// \u2014 extracts the src= param when present, otherwise uses the pasted value\n// as-is so a plain calendar ID (or \"primary\") also works.\nlet calendarId = rawLink;\ntry {\n  const url = new URL(rawLink);\n  const src = url.searchParams.get('src');\n  if (src) calendarId = src;\n} catch {\n  // Not a URL \u2014 treat the whole pasted value as the calendar ID.\n}\n\nconst ownerUserId = parseInt(body.owner_user_id, 10);\nif (!Number.isInteger(ownerUserId)) throw new Error('\"owner_user_id\" must be an integer.');\n\nconst label = (body.label || '').toString().trim() || null;\n\nreturn [{ json: { label, calendarLink: rawLink, calendarId, ownerUserId, requesterId: requester.id } }];"
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Add Calendar Integration').first().json.body || {};\n\nif (!requester.valid) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst rawLink = (body.calendar_link || '').toString().trim();\nif (!rawLink) throw new Error('\"calendar_link\" is required.');\n\n// calendar.app.google/xxx links are Appointment Schedule *booking pages* \u2014\n// opaque short links Google resolves server-side, not calendar IDs. The\n// Calendar API can't read events off them directly. Bookings made through\n// one of these land on the rep's own regular calendar instead, so that's\n// what we actually need here.\nif (/calendar\\.app\\.google/i.test(rawLink)) {\n  throw new Error(\n    'That looks like a booking-page link (calendar.app.google/...), not a calendar ID. ' +\n    'Paste the rep\\'s calendar ID instead \u2014 usually their Gmail address, or \"primary\" for their default calendar. ' +\n    'Find it in Google Calendar under Settings > [calendar name] > \"Integrate calendar\" > Calendar ID. ' +\n    'That calendar must also be shared with the Google account this integration is authorized as.'\n  );\n}\n\n// Accepts either a raw calendar ID/email (xxx@group.calendar.google.com),\n// or a full \"Share this calendar\" / embed URL like\n// https://calendar.google.com/calendar/embed?src=xxx%40group.calendar.google.com&ctz=...\n// \u2014 extracts the src= param when present, otherwise uses the pasted value\n// as-is so a plain calendar ID (or \"primary\") also works.\nlet calendarId = rawLink;\ntry {\n  const url = new URL(rawLink);\n  const src = url.searchParams.get('src');\n  if (src) calendarId = src;\n} catch {\n  // Not a URL \u2014 treat the whole pasted value as the calendar ID.\n}\n\nconst ownerUserId = parseInt(body.owner_user_id, 10);\nif (!Number.isInteger(ownerUserId)) throw new Error('\"owner_user_id\" must be an integer.');\n\nconst label = (body.label || '').toString().trim() || null;\n\nreturn [{ json: { label, calendarLink: rawLink, calendarId, ownerUserId, requesterId: requester.userId } }];"
       },
       "id": "cb1a0010-1010-4a5a-9b1a-calint0000010",
       "name": "Validate Admin & Parse Link",
@@ -250,45 +174,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "cb1a0015-1515-4a5a-9b1a-calint0000015",
-      "name": "Parse Token (Update)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1184,
-        928
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "cb1a0016-1616-4a5a-9b1a-calint0000016",
-      "name": "Look Up Requester Role (Update)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1408,
-        928
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Update Calendar Integration').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" must be an integer.');\n\nif (typeof body.is_active !== 'boolean') throw new Error('\"is_active\" must be true or false.');\n\nreturn [{ json: { id, isActive: body.is_active } }];"
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Update Calendar Integration').first().json.body || {};\n\nif (!requester.valid) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" must be an integer.');\n\nif (typeof body.is_active !== 'boolean') throw new Error('\"is_active\" must be true or false.');\n\nreturn [{ json: { id, isActive: body.is_active } }];"
       },
       "id": "cb1a0017-1717-4a5a-9b1a-calint0000017",
       "name": "Validate Admin & Payload (Update)",
@@ -373,45 +259,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "cb1a0022-2222-4a5a-9b1a-calint0000022",
-      "name": "Parse Token (Delete)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1184,
-        1152
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "cb1a0023-2323-4a5a-9b1a-calint0000023",
-      "name": "Look Up Requester Role (Delete)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1408,
-        1152
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Delete Calendar Integration').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" must be an integer.');\n\nreturn [{ json: { id } }];"
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Delete Calendar Integration').first().json.body || {};\n\nif (!requester.valid) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" must be an integer.');\n\nreturn [{ json: { id } }];"
       },
       "id": "cb1a0024-2424-4a5a-9b1a-calint0000024",
       "name": "Validate Admin & Payload (Delete)",
@@ -479,7 +327,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "responseBody": "={{ { success: false, error: (typeof $json.error === 'string' ? $json.error : $json.error?.message) || $json.message || \"Request failed.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -492,6 +340,178 @@
         1408,
         1360
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "id": "extract-token-get",
+      "name": "Extract Bearer Token (Get)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        480
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-verify-session-get",
+      "name": "Execute Workflow: Verify Session (Get)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1408,
+        480
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "id": "extract-token-add",
+      "name": "Extract Bearer Token (Add)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        704
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-verify-session-add",
+      "name": "Execute Workflow: Verify Session (Add)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1408,
+        704
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "id": "extract-token-update",
+      "name": "Extract Bearer Token (Update)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        928
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-verify-session-update",
+      "name": "Execute Workflow: Verify Session (Update)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1408,
+        928
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "id": "extract-token-delete",
+      "name": "Extract Bearer Token (Delete)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        1152
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-verify-session-delete",
+      "name": "Execute Workflow: Verify Session (Delete)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1408,
+        1152
+      ],
+      "onError": "continueErrorOutput"
     }
   ],
   "connections": {
@@ -499,43 +519,7 @@
       "main": [
         [
           {
-            "node": "Parse Token (Get)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token (Get)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester Role (Get)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester Role (Get)": {
-      "main": [
-        [
-          {
-            "node": "Validate Admin (Get)",
+            "node": "Extract Bearer Token (Get)",
             "type": "main",
             "index": 0
           }
@@ -589,43 +573,7 @@
       "main": [
         [
           {
-            "node": "Parse Token (Add)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token (Add)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester Role (Add)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester Role (Add)": {
-      "main": [
-        [
-          {
-            "node": "Validate Admin & Parse Link",
+            "node": "Extract Bearer Token (Add)",
             "type": "main",
             "index": 0
           }
@@ -690,43 +638,7 @@
       "main": [
         [
           {
-            "node": "Parse Token (Update)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token (Update)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester Role (Update)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester Role (Update)": {
-      "main": [
-        [
-          {
-            "node": "Validate Admin & Payload (Update)",
+            "node": "Extract Bearer Token (Update)",
             "type": "main",
             "index": 0
           }
@@ -791,43 +703,7 @@
       "main": [
         [
           {
-            "node": "Parse Token (Delete)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token (Delete)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester Role (Delete)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester Role (Delete)": {
-      "main": [
-        [
-          {
-            "node": "Validate Admin & Payload (Delete)",
+            "node": "Extract Bearer Token (Delete)",
             "type": "main",
             "index": 0
           }
@@ -882,6 +758,150 @@
         [
           {
             "node": "Respond - Delete Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (Get)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Get)": {
+      "main": [
+        [
+          {
+            "node": "Validate Admin (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (Add)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Add)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Add)": {
+      "main": [
+        [
+          {
+            "node": "Validate Admin & Parse Link",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (Update)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Update)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Update)": {
+      "main": [
+        [
+          {
+            "node": "Validate Admin & Payload (Update)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Validate Admin & Payload (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
             "type": "main",
             "index": 0
           }

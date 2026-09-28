@@ -71,7 +71,7 @@
       "main": [
         [
           {
-            "node": "Check Duplicate Company",
+            "node": "Log Workflow Run: Webhook: add-companies",
             "type": "main",
             "index": 0
           }
@@ -110,7 +110,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: update-companies",
+            "node": "Extract Bearer Token: update-companies",
             "type": "main",
             "index": 0
           }
@@ -139,7 +139,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: archive-companies",
+            "node": "Log Workflow Run: Webhook: archive-companies",
             "type": "main",
             "index": 0
           }
@@ -176,43 +176,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: restore-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: restore-companies": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: restore-companies",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: restore-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: restore-companies": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Restore Companies",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: restore-companies",
+            "node": "Log Workflow Run: Webhook: restore-companies",
             "type": "main",
             "index": 0
           }
@@ -249,7 +213,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: delete-companies",
+            "node": "Log Workflow Run: Webhook: delete-companies",
             "type": "main",
             "index": 0
           }
@@ -267,42 +231,6 @@
         ]
       ]
     },
-    "Parse Token: update-companies": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: update-companies",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: update-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: update-companies": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Capture Before Owner: update-companies",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: update-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Check Result: update-companies": {
       "main": [
         [
@@ -313,78 +241,6 @@
           },
           {
             "node": "Postgres: Insert Company Audit: update-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: archive-companies": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: archive-companies",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: archive-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: archive-companies": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Archive Companies",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: archive-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: delete-companies": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: delete-companies",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: delete-companies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: delete-companies": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Delete Companies",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: delete-companies",
             "type": "main",
             "index": 0
           }
@@ -539,6 +395,320 @@
           }
         ]
       ]
+    },
+    "Extract Bearer Token: update-companies": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: update-companies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: update-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: update-companies": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: update-companies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: update-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: archive-companies": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: archive-companies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: archive-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: archive-companies": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: archive-companies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: archive-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: delete-companies": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: delete-companies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: delete-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: delete-companies": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: delete-companies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: delete-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: restore-companies": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: restore-companies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: restore-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: restore-companies": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: restore-companies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: restore-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: update-companies": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Capture Before Owner: update-companies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: update-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: archive-companies": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Archive Companies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: archive-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: delete-companies": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Delete Companies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: delete-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: restore-companies": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Restore Companies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: restore-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: add-companies": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: add-companies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: add-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: add-companies": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: add-companies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: add-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: add-companies": {
+      "main": [
+        [
+          {
+            "node": "Check Duplicate Company",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: add-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: add-companies": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token: add-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: archive-companies": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token: archive-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: delete-companies": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token: delete-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: restore-companies": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token: restore-companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "name": "Companies-add-delete-system",
@@ -548,7 +718,7 @@
         "path": "get-companies",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "75423062-a23f-4823-97d6-1a7c1449eab5",
@@ -616,7 +786,7 @@
         "path": "get-archived-companies",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "eea97caa-16f5-41cf-8010-0b930a7c696d",
@@ -685,7 +855,7 @@
         "path": "add-companies",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "b29b027a-9c24-485d-bd04-bc6850554585",
@@ -703,7 +873,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO companies (name, website, industry, city, state, country, phone, street_address, zip_code, owner_id, created_by, parent_company_id, tier, annual_revenue, employee_count, territory) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING id, name, is_archived, created_at, created_by;",
         "options": {
-          "queryReplacement": "={{ [ $('Webhook: add-companies').first().json.body.name, $('Webhook: add-companies').first().json.body.website || null, $('Webhook: add-companies').first().json.body.industry || null, $('Webhook: add-companies').first().json.body.city || null, $('Webhook: add-companies').first().json.body.state || null, $('Webhook: add-companies').first().json.body.country || null, $('Webhook: add-companies').first().json.body.phone || null, $('Webhook: add-companies').first().json.body.street_address || null, $('Webhook: add-companies').first().json.body.zip_code || null, $('Webhook: add-companies').first().json.body.owner_id || null, $('Webhook: add-companies').first().json.body.requester_id || $('Webhook: add-companies').first().json.body.owner_id || null, $('Webhook: add-companies').first().json.body.parent_company_id || null, $('Webhook: add-companies').first().json.body.tier || null, $('Webhook: add-companies').first().json.body.annual_revenue || null, $('Webhook: add-companies').first().json.body.employee_count || null, $('Webhook: add-companies').first().json.body.territory || null ] }}"
+          "queryReplacement": "={{ [ $('Webhook: add-companies').first().json.body.name, $('Webhook: add-companies').first().json.body.website || null, $('Webhook: add-companies').first().json.body.industry || null, $('Webhook: add-companies').first().json.body.city || null, $('Webhook: add-companies').first().json.body.state || null, $('Webhook: add-companies').first().json.body.country || null, $('Webhook: add-companies').first().json.body.phone || null, $('Webhook: add-companies').first().json.body.street_address || null, $('Webhook: add-companies').first().json.body.zip_code || null, $('Webhook: add-companies').first().json.body.owner_id || null, $('Validate Session: add-companies').first().json.id, $('Webhook: add-companies').first().json.body.parent_company_id || null, $('Webhook: add-companies').first().json.body.tier || null, $('Webhook: add-companies').first().json.body.annual_revenue || null, $('Webhook: add-companies').first().json.body.employee_count || null, $('Webhook: add-companies').first().json.body.territory || null ] }}"
         }
       },
       "id": "b3f2a463-5075-4b4f-95b4-67cf39d13dcf",
@@ -766,7 +936,7 @@
         "path": "update-companies",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "a5c6f102-317b-42fa-8601-3e4a72a0c2a8",
@@ -824,7 +994,7 @@
         "path": "archive-companies",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "4318a40d-feb7-47d3-9c30-e86487500994",
@@ -842,7 +1012,7 @@
         "operation": "executeQuery",
         "query": "UPDATE companies SET is_archived = true, updated_at = now() WHERE id = ANY($1::int[]) AND ($2 = 'admin' OR owner_id = $3) RETURNING id, name;",
         "options": {
-          "queryReplacement": "={{ [ $('Webhook: archive-companies').first().json.body.ids, $('Look Up Requester: archive-companies').first().json.role, $('Look Up Requester: archive-companies').first().json.id ] }}"
+          "queryReplacement": "={{ [ $('Webhook: archive-companies').first().json.body.ids, $('Validate Session: archive-companies').first().json.role, $('Validate Session: archive-companies').first().json.id ] }}"
         }
       },
       "id": "b057e9e9-d74c-4cb8-b159-e7d2580011f8",
@@ -865,7 +1035,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO activity_log (actor_id, verb, entity_type, entity_id, entity_name) VALUES ($1, 'archived', 'company', $2, $3);",
         "options": {
-          "queryReplacement": "={{ [ $('Look Up Requester: archive-companies').first().json.id, $json.id, $json.name ] }}"
+          "queryReplacement": "={{ [ $('Validate Session: archive-companies').first().json.id, $json.id, $json.name ] }}"
         }
       },
       "id": "2b3c4d5e-6f7a-48b9-c0d1-e2f3a4b5c6d7",
@@ -888,7 +1058,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'contact', c.id, 'system_audit', 'archived', ($1 || ' archived the linked company \"' || $2 || '\"'), NULL, $3, $1\nFROM contacts c\nWHERE c.account_id = $4 AND c.is_archived = false;",
         "options": {
-          "queryReplacement": "={{ [ $('Look Up Requester: archive-companies').first().json.name || 'Someone', $json.name, $('Look Up Requester: archive-companies').first().json.id, $json.id ] }}"
+          "queryReplacement": "={{ [ $('Validate Session: archive-companies').first().json.name || 'Someone', $json.name, $('Validate Session: archive-companies').first().json.id, $json.id ] }}"
         }
       },
       "id": "4d5e6f7a-8b9c-40d1-e2f3-a4b5c6d7e8f9",
@@ -911,7 +1081,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name) VALUES ('company', $1, 'system_audit', 'archived', $2, NULL, $3, $4);",
         "options": {
-          "queryReplacement": "={{ [ $json.id, ($('Look Up Requester: archive-companies').first().json.name || 'Someone') + ' archived this company', $('Look Up Requester: archive-companies').first().json.id, $('Look Up Requester: archive-companies').first().json.name || 'Someone' ] }}"
+          "queryReplacement": "={{ [ $json.id, ($('Validate Session: archive-companies').first().json.name || 'Someone') + ' archived this company', $('Validate Session: archive-companies').first().json.id, $('Validate Session: archive-companies').first().json.name || 'Someone' ] }}"
         }
       },
       "id": "3c4d5e6f-7a8b-49c0-d1e2-f3a4b5c6d7e8",
@@ -950,7 +1120,7 @@
         "path": "delete-companies",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "43337c1d-5af3-4176-8437-bcc200ab2499",
@@ -968,7 +1138,7 @@
         "operation": "executeQuery",
         "query": "DELETE FROM companies WHERE id = ANY($1::int[]) AND ($2 = 'admin' OR owner_id = $3) RETURNING id;",
         "options": {
-          "queryReplacement": "={{ [ $('Webhook: delete-companies').first().json.body.ids, $('Look Up Requester: delete-companies').first().json.role, $('Look Up Requester: delete-companies').first().json.id ] }}"
+          "queryReplacement": "={{ [ $('Webhook: delete-companies').first().json.body.ids, $('Validate Session: delete-companies').first().json.role, $('Validate Session: delete-companies').first().json.id ] }}"
         }
       },
       "id": "99e7cefd-05ea-4e2f-8fbe-90f7e416884d",
@@ -1003,44 +1173,6 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "6e757c38-cadf-4819-a3a4-6c76b7de9f8c",
-      "name": "Parse Token: update-companies",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        656,
-        912
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "71cd65df-bc30-4ea5-bfb2-e095f540f628",
-      "name": "Look Up Requester: update-companies",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        856,
-        912
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
         "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) {\n  throw new Error(\"Company not found or you do not have permission to edit it.\");\n}\nreturn [{ json: { success: true, id: result.json.id } }];"
       },
       "id": "2e8fc506-41aa-490e-b1cf-e6567781587f",
@@ -1055,7 +1187,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Update failed.\" } }}",
+        "responseBody": "={{ { \"success\": false, \"error\": (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Update failed.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -1071,46 +1203,8 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "132c0ead-df95-4f55-8608-86b3ea6c3d99",
-      "name": "Parse Token: archive-companies",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        656,
-        1104
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "144d1e89-d322-44e8-8607-3c6d367fc93d",
-      "name": "Look Up Requester: archive-companies",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        856,
-        1104
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Archive failed.\" } }}",
+        "responseBody": "={{ { \"success\": false, \"error\": (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Archive failed.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -1126,46 +1220,8 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "e1db9f92-a579-430a-b485-ef9dbe6db98e",
-      "name": "Parse Token: delete-companies",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        656,
-        1312
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "a272889b-2d59-4c1a-af45-a463b8be0fb1",
-      "name": "Look Up Requester: delete-companies",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        856,
-        1312
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Delete failed.\" } }}",
+        "responseBody": "={{ { \"success\": false, \"error\": (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Delete failed.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -1204,7 +1260,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const requesterId = $('Parse Token: update-companies').first().json.requesterId;\nconst before = $('Postgres: Capture Before Owner: update-companies').first().json;\nconst after = $('Postgres: Update Company').first().json;\nconst oldOwnerId = before ? before.owner_id : null;\nconst newOwnerId = after.owner_id;\n// Only notify on an actual reassignment to someone else \u2014 not a\n// no-op resave of the same owner, and not an admin assigning themselves.\nconst notify = !!newOwnerId && newOwnerId !== oldOwnerId && newOwnerId !== requesterId;\nconst dmKey = notify ? [requesterId, newOwnerId].sort((a, b) => a - b).join('-') : null;\nreturn [{ json: { notify, dmKey, requesterId, ownerId: newOwnerId, companyId: after.id, companyName: after.name || 'a company' } }];"
+        "jsCode": "const requesterId = $('Validate Session: update-companies').first().json.id;\nconst before = $('Postgres: Capture Before Owner: update-companies').first().json;\nconst after = $('Postgres: Update Company').first().json;\nconst oldOwnerId = before ? before.owner_id : null;\nconst newOwnerId = after.owner_id;\n// Only notify on an actual reassignment to someone else \u2014 not a\n// no-op resave of the same owner, and not an admin assigning themselves.\nconst notify = !!newOwnerId && newOwnerId !== oldOwnerId && newOwnerId !== requesterId;\nconst dmKey = notify ? [requesterId, newOwnerId].sort((a, b) => a - b).join('-') : null;\nreturn [{ json: { notify, dmKey, requesterId, ownerId: newOwnerId, companyId: after.id, companyName: after.name || 'a company' } }];"
       },
       "id": "c524fd2e-bcbf-4821-b4cf-5bf995e8690a",
       "name": "Prepare Owner Notice: update-companies",
@@ -1345,7 +1401,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name) VALUES ('company', $1, 'system_audit', 'field_change', $2, $3::jsonb, $4, $5);",
         "options": {
-          "queryReplacement": "={{ [ $('Postgres: Update Company').first().json.id, (() => { const tc = (s) => (s || '').replace(/\\b\\w/g, (c) => c.toUpperCase()); const actor = tc($('Look Up Requester: update-companies').first().json.name) || 'Someone'; const co = tc($('Postgres: Update Company').first().json.name) || 'this company'; const reason = $('Webhook: update-companies').first().json.body.edit_reason || 'No reason provided'; return `${actor} updated ${co}: ${reason}`; })(), JSON.stringify({ reason: $('Webhook: update-companies').first().json.body.edit_reason || null }), $('Look Up Requester: update-companies').first().json.id, $('Look Up Requester: update-companies').first().json.name || 'Unknown' ] }}"
+          "queryReplacement": "={{ [ $('Postgres: Update Company').first().json.id, (() => { const tc = (s) => (s || '').replace(/\\b\\w/g, (c) => c.toUpperCase()); const actor = tc($('Validate Session: update-companies').first().json.name) || 'Someone'; const co = tc($('Postgres: Update Company').first().json.name) || 'this company'; const reason = $('Webhook: update-companies').first().json.body.edit_reason || 'No reason provided'; return `${actor} updated ${co}: ${reason}`; })(), JSON.stringify({ reason: $('Webhook: update-companies').first().json.body.edit_reason || null }), $('Validate Session: update-companies').first().json.id, $('Validate Session: update-companies').first().json.name || 'Unknown' ] }}"
         }
       },
       "id": "c49aeaef-30a2-4a09-9735-0a031ee31161",
@@ -1440,7 +1496,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Add failed.\" } }}",
+        "responseBody": "={{ { \"success\": false, \"error\": (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Add failed.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -1456,7 +1512,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const requester = $('Look Up Requester: update-companies').first().json;\nconst body = $('Webhook: update-companies').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst companyId = parseInt(body.id, 10);\nif (!Number.isInteger(companyId)) throw new Error('\"id\" must be an integer.');\n\n// Only a field actually present in the request body gets written \u2014\n// an omitted key leaves that column untouched (true partial-update\n// semantics, same as contacts-update.json's Parse Token & Payload).\nfunction field(name) {\n  if (body[name] === undefined) return undefined;\n  return (body[name] === null || body[name] === '') ? null : body[name];\n}\nfunction intField(name) {\n  const v = field(name);\n  if (v === undefined) return undefined;\n  if (v === null || v === '') return null;\n  const n = parseInt(v, 10);\n  return Number.isInteger(n) ? n : null;\n}\n\nconst textColumns = [\n  'name', 'website', 'industry', 'city', 'state', 'country', 'phone',\n  'street_address', 'zip_code', 'tier', 'annual_revenue', 'employee_count',\n  'territory', 'account_status', 'account_health',\n];\nconst intColumns = ['owner_id', 'parent_company_id', 'se_user_id', 'csm_user_id'];\n\nconst setClauses = [];\nconst queryParams = [];\nlet idx = 1;\n\nfor (const col of textColumns) {\n  const v = field(col);\n  if (v === undefined) continue;\n  setClauses.push(`${col} = $${idx}`);\n  queryParams.push(v);\n  idx++;\n}\nfor (const col of intColumns) {\n  const v = intField(col);\n  if (v === undefined) continue;\n  setClauses.push(`${col} = $${idx}`);\n  queryParams.push(v);\n  idx++;\n}\n\nif (setClauses.length === 0) throw new Error('No fields to update.');\n\nsetClauses.push('updated_at = now()');\n\nconst sqlQuery = `\n  UPDATE companies SET\n    ${setClauses.join(',\\n    ')}\n  WHERE id = $${idx} AND ($${idx + 1} = 'admin' OR owner_id = $${idx + 2})\n  RETURNING id, name, owner_id;\n`;\n\nqueryParams.push(companyId, requester.role, requester.id);\n\nreturn [{ json: { sqlQuery, queryParams } }];"
+        "jsCode": "const requester = $('Validate Session: update-companies').first().json;\nconst body = $('Webhook: update-companies').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst companyId = parseInt(body.id, 10);\nif (!Number.isInteger(companyId)) throw new Error('\"id\" must be an integer.');\n\n// Only a field actually present in the request body gets written \u2014\n// an omitted key leaves that column untouched (true partial-update\n// semantics, same as contacts-update.json's Parse Token & Payload).\nfunction field(name) {\n  if (body[name] === undefined) return undefined;\n  return (body[name] === null || body[name] === '') ? null : body[name];\n}\nfunction intField(name) {\n  const v = field(name);\n  if (v === undefined) return undefined;\n  if (v === null || v === '') return null;\n  const n = parseInt(v, 10);\n  return Number.isInteger(n) ? n : null;\n}\n\nconst textColumns = [\n  'name', 'website', 'industry', 'city', 'state', 'country', 'phone',\n  'street_address', 'zip_code', 'tier', 'annual_revenue', 'employee_count',\n  'territory', 'account_status', 'account_health',\n];\nconst intColumns = ['owner_id', 'parent_company_id', 'se_user_id', 'csm_user_id'];\n\nconst setClauses = [];\nconst queryParams = [];\nlet idx = 1;\n\nfor (const col of textColumns) {\n  const v = field(col);\n  if (v === undefined) continue;\n  setClauses.push(`${col} = $${idx}`);\n  queryParams.push(v);\n  idx++;\n}\nfor (const col of intColumns) {\n  const v = intField(col);\n  if (v === undefined) continue;\n  setClauses.push(`${col} = $${idx}`);\n  queryParams.push(v);\n  idx++;\n}\n\nif (setClauses.length === 0) throw new Error('No fields to update.');\n\nsetClauses.push('updated_at = now()');\n\nconst sqlQuery = `\n  UPDATE companies SET\n    ${setClauses.join(',\\n    ')}\n  WHERE id = $${idx} AND ($${idx + 1} = 'admin' OR owner_id = $${idx + 2})\n  RETURNING id, name, owner_id;\n`;\n\nqueryParams.push(companyId, requester.role, requester.id);\n\nreturn [{ json: { sqlQuery, queryParams } }];"
       },
       "id": "313ece28-aadd-4882-84ee-2b7fd2500b92",
       "name": "Build Update Query: update-companies",
@@ -1474,7 +1530,7 @@
         "path": "restore-companies",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "6a7b8c9d-0e1f-42a3-b4c5-d6e7f8a9b0c1",
@@ -1489,48 +1545,10 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "8c9d0e1f-2a3b-44c5-d6e7-f8a9b0c1d2e3",
-      "name": "Parse Token: restore-companies",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        656,
-        1600
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "9d0e1f2a-3b4c-45d6-e7f8-a9b0c1d2e3f4",
-      "name": "Look Up Requester: restore-companies",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        856,
-        1600
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
         "operation": "executeQuery",
         "query": "UPDATE companies SET is_archived = false, updated_at = now() WHERE id = ANY($1::int[]) AND ($2 = 'admin' OR owner_id = $3) RETURNING id, name;",
         "options": {
-          "queryReplacement": "={{ [ $('Webhook: restore-companies').first().json.body.ids, $('Look Up Requester: restore-companies').first().json.role, $('Look Up Requester: restore-companies').first().json.id ] }}"
+          "queryReplacement": "={{ [ $('Webhook: restore-companies').first().json.body.ids, $('Validate Session: restore-companies').first().json.role, $('Validate Session: restore-companies').first().json.id ] }}"
         }
       },
       "id": "a0e1f2a3-4b5c-46d7-e8f9-a0b1c2d3e4f5",
@@ -1566,7 +1584,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Restore failed.\" } }}",
+        "responseBody": "={{ { \"success\": false, \"error\": (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Restore failed.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -1585,7 +1603,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO activity_log (actor_id, verb, entity_type, entity_id, entity_name) VALUES ($1, 'restored', 'company', $2, $3);",
         "options": {
-          "queryReplacement": "={{ [ $('Look Up Requester: restore-companies').first().json.id, $json.id, $json.name ] }}"
+          "queryReplacement": "={{ [ $('Validate Session: restore-companies').first().json.id, $json.id, $json.name ] }}"
         }
       },
       "id": "d3b4c5d6-7e8f-49a0-b1c2-d3e4f5a6b7c8",
@@ -1608,7 +1626,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name) VALUES ('company', $1, 'system_audit', 'restored', $2, NULL, $3, $4);",
         "options": {
-          "queryReplacement": "={{ [ $json.id, ($('Look Up Requester: restore-companies').first().json.name || 'Someone') + ' restored this company', $('Look Up Requester: restore-companies').first().json.id, $('Look Up Requester: restore-companies').first().json.name || 'Someone' ] }}"
+          "queryReplacement": "={{ [ $json.id, ($('Validate Session: restore-companies').first().json.name || 'Someone') + ' restored this company', $('Validate Session: restore-companies').first().json.id, $('Validate Session: restore-companies').first().json.name || 'Someone' ] }}"
         }
       },
       "id": "e4c5d6e7-8f9a-40b1-c2d3-e4f5a6b7c8d9",
@@ -1631,7 +1649,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'contact', c.id, 'system_audit', 'restored', ($1 || ' restored the linked company \"' || $2 || '\"'), NULL, $3, $1\nFROM contacts c\nWHERE c.account_id = $4 AND c.is_archived = false;",
         "options": {
-          "queryReplacement": "={{ [ $('Look Up Requester: restore-companies').first().json.name || 'Someone', $json.name, $('Look Up Requester: restore-companies').first().json.id, $json.id ] }}"
+          "queryReplacement": "={{ [ $('Validate Session: restore-companies').first().json.name || 'Someone', $json.name, $('Validate Session: restore-companies').first().json.id, $json.id ] }}"
         }
       },
       "id": "f5d6e7f8-9a0b-41c2-d3e4-f5a6b7c8d9e0",
@@ -1648,6 +1666,415 @@
           "name": "myRag"
         }
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        656,
+        912
+      ],
+      "id": "extract-bearer-update-companies",
+      "name": "Extract Bearer Token: update-companies",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-update-companies",
+      "name": "Execute Workflow: Verify Session: update-companies",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        696,
+        932
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        856,
+        912
+      ],
+      "id": "validate-session-update-companies",
+      "name": "Validate Session: update-companies",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: archive-companies').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        656,
+        1104
+      ],
+      "id": "extract-bearer-archive-companies",
+      "name": "Extract Bearer Token: archive-companies",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-archive-companies",
+      "name": "Execute Workflow: Verify Session: archive-companies",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        696,
+        1124
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        856,
+        1104
+      ],
+      "id": "validate-session-archive-companies",
+      "name": "Validate Session: archive-companies",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: delete-companies').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        656,
+        1312
+      ],
+      "id": "extract-bearer-delete-companies",
+      "name": "Extract Bearer Token: delete-companies",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-delete-companies",
+      "name": "Execute Workflow: Verify Session: delete-companies",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        696,
+        1332
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        856,
+        1312
+      ],
+      "id": "validate-session-delete-companies",
+      "name": "Validate Session: delete-companies",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: restore-companies').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        656,
+        1600
+      ],
+      "id": "extract-bearer-restore-companies",
+      "name": "Extract Bearer Token: restore-companies",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-restore-companies",
+      "name": "Execute Workflow: Verify Session: restore-companies",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        696,
+        1620
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        856,
+        1600
+      ],
+      "id": "validate-session-restore-companies",
+      "name": "Validate Session: restore-companies",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: add-companies').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        512,
+        700
+      ],
+      "id": "extract-bearer-add-companies",
+      "name": "Extract Bearer Token: add-companies",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-add-companies",
+      "name": "Execute Workflow: Verify Session: add-companies",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        528,
+        720
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        544,
+        740
+      ],
+      "id": "validate-session-add-companies",
+      "name": "Validate Session: add-companies",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Companies-add-delete-system\" }}",
+            "workflow_id": "={{ \"ovG5ygtMRz1k72Mr\" }}",
+            "entity_type": "={{ \"companies,contacts\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-add-companies-0",
+      "name": "Log Workflow Run: Webhook: add-companies",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        511,
+        769
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Companies-add-delete-system\" }}",
+            "workflow_id": "={{ \"ovG5ygtMRz1k72Mr\" }}",
+            "entity_type": "={{ \"companies\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-archive-companies-1",
+      "name": "Log Workflow Run: Webhook: archive-companies",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        511,
+        1169
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Companies-add-delete-system\" }}",
+            "workflow_id": "={{ \"ovG5ygtMRz1k72Mr\" }}",
+            "entity_type": "={{ \"companies\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-delete-companies-2",
+      "name": "Log Workflow Run: Webhook: delete-companies",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        511,
+        1377
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Companies-add-delete-system\" }}",
+            "workflow_id": "={{ \"ovG5ygtMRz1k72Mr\" }}",
+            "entity_type": "={{ \"companies\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-restore-companies-3",
+      "name": "Log Workflow Run: Webhook: restore-companies",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        511,
+        1585
+      ],
+      "onError": "continueRegularOutput"
     }
   ],
   "pinData": {},

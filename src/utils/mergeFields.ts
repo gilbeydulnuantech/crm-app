@@ -6,10 +6,9 @@ import { toTitleCase } from './text';
 // resolves per-recipient at view/preview time instead of being baked in.
 export interface MergeFieldValues {
   client_name?: string | null;
-  // Separate from client_name — the contract editor's dynamic-fields picker
-  // offers {{first_name}}/{{last_name}} individually (e.g. for "Dear
-  // {{first_name}},"), so these need to resolve on their own too, not just
-  // as part of the combined client_name token.
+  // Separate from client_name — {{contact.first_name}}/{{contact.last_name}}
+  // resolve on their own too (e.g. for "Dear {{contact.first_name}},"), not
+  // just as part of the combined {{contact.full_name}} token.
   first_name?: string | null;
   last_name?: string | null;
   client_company_name?: string | null;
@@ -44,26 +43,28 @@ export interface MergeFieldValues {
 }
 
 export const MERGE_FIELD_TOKENS: { token: string; label: string; key: keyof MergeFieldValues }[] = [
-  { token: '{{client_name}}', label: 'Client Name', key: 'client_name' },
-  { token: '{{first_name}}', label: 'Client First Name', key: 'first_name' },
-  { token: '{{last_name}}', label: 'Client Last Name', key: 'last_name' },
-  { token: '{{client_company_name}}', label: 'Client Company', key: 'client_company_name' },
-  { token: '{{client_address}}', label: 'Client Address', key: 'client_address' },
-  { token: '{{client_email}}', label: 'Client Email', key: 'client_email' },
-  { token: '{{client_phone}}', label: 'Client Phone', key: 'client_phone' },
-  { token: '{{owner_name}}', label: 'Owner Name', key: 'owner_name' },
-  { token: '{{owner_email}}', label: 'Owner Email', key: 'owner_email' },
-  { token: '{{owner_phone}}', label: 'Owner Phone', key: 'owner_phone' },
-  { token: '{{company_name}}', label: 'Company Name', key: 'company_name' },
-  { token: '{{inspection_date}}', label: 'Inspection Date', key: 'inspection_date' },
-  { token: '{{deal_value}}', label: 'Deal Value', key: 'deal_value' },
-  { token: '{{deal_name}}', label: 'Deal Name', key: 'deal_name' },
-  { token: '{{deal_created_at}}', label: 'Created At', key: 'deal_created_at' },
-  { token: '{{deal_due_at}}', label: 'Due At', key: 'deal_due_at' },
-  { token: '{{down_payment_amount}}', label: 'Down Payment Amount', key: 'down_payment_amount' },
-  { token: '{{down_payment_paid_at}}', label: 'Down Payment Paid At', key: 'down_payment_paid_at' },
-  { token: '{{balance_amount}}', label: 'Balance Amount', key: 'balance_amount' },
-  { token: '{{balance_paid_at}}', label: 'Balance Paid At', key: 'balance_paid_at' },
+  // Namespaced tokens (AUTOMATION_DYNAMIC_FIELDS) — {{contact.x}}-style
+  // naming only; legacy flat/client_-prefixed tokens were removed.
+  { token: '{{contact.first_name}}', label: 'First Name', key: 'first_name' },
+  { token: '{{contact.last_name}}', label: 'Last Name', key: 'last_name' },
+  { token: '{{contact.full_name}}', label: 'Full Name', key: 'client_name' },
+  { token: '{{contact.email}}', label: 'Email', key: 'client_email' },
+  { token: '{{contact.phone}}', label: 'Phone', key: 'client_phone' },
+  { token: '{{contact.address}}', label: 'City, State', key: 'client_address' },
+  { token: '{{company.name}}', label: 'Company Name', key: 'client_company_name' },
+  { token: '{{user.full_name}}', label: 'Full Name', key: 'owner_name' },
+  { token: '{{user.email}}', label: 'Email', key: 'owner_email' },
+  { token: '{{user.phone}}', label: 'Phone', key: 'owner_phone' },
+  { token: '{{user.company_name}}', label: 'Company Name', key: 'company_name' },
+  { token: '{{opportunity.name}}', label: 'Name', key: 'deal_name' },
+  { token: '{{opportunity.value}}', label: 'Value', key: 'deal_value' },
+  { token: '{{opportunity.created_at}}', label: 'Created At', key: 'deal_created_at' },
+  { token: '{{opportunity.due_at}}', label: 'Due At', key: 'deal_due_at' },
+  { token: '{{appointment.start_time}}', label: 'Start Time', key: 'inspection_date' },
+  { token: '{{payment.down_payment_amount}}', label: 'Down Payment Amount', key: 'down_payment_amount' },
+  { token: '{{payment.down_payment_paid_at}}', label: 'Down Payment Paid At', key: 'down_payment_paid_at' },
+  { token: '{{payment.balance_amount}}', label: 'Balance Amount', key: 'balance_amount' },
+  { token: '{{payment.balance_paid_at}}', label: 'Balance Paid At', key: 'balance_paid_at' },
 ];
 
 // Contact/user names only — not emails/phones/addresses/company names,
@@ -127,16 +128,23 @@ export interface PageFieldValues {
 
 export function fillPageFields(html: string, values: PageFieldValues): string {
   let result = html || '';
+  const fullName = values.contact_full_name ? toTitleCase(values.contact_full_name) : '';
+  const firstName = values.first_name ? toTitleCase(values.first_name) : '';
+  const lastName = values.last_name ? toTitleCase(values.last_name) : '';
+  const ownerName = values.owner_name ? toTitleCase(values.owner_name) : '';
+  const signatureName = values.signature_name ? toTitleCase(values.signature_name) : '';
+  const signedAt = values.signed_at ? new Date(values.signed_at).toLocaleDateString() : '';
   const map: Record<string, string> = {
-    contact_full_name: values.contact_full_name ? toTitleCase(values.contact_full_name) : '',
-    first_name: values.first_name ? toTitleCase(values.first_name) : '',
-    last_name: values.last_name ? toTitleCase(values.last_name) : '',
-    owner_name: values.owner_name ? toTitleCase(values.owner_name) : '',
-    signature_name: values.signature_name ? toTitleCase(values.signature_name) : '',
-    signed_at: values.signed_at ? new Date(values.signed_at).toLocaleDateString() : '',
+    // Namespaced tokens only — {{contact.x}}-style naming.
+    'contact.first_name': firstName,
+    'contact.last_name': lastName,
+    'contact.full_name': fullName,
+    'user.full_name': ownerName,
+    'contract.signature_name': signatureName,
+    'contract.signed_at': signedAt,
   };
   for (const [key, value] of Object.entries(map)) {
-    result = result.replace(new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'gi'), value);
+    result = result.replace(new RegExp(`\\{\\{\\s*${key.replace('.', '\\.')}\\s*\\}\\}`, 'gi'), value);
   }
   return result;
 }

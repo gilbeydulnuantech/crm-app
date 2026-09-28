@@ -31,6 +31,7 @@ export default function CalendarIntegrationsModal({ open, onClose }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deletedMessage, setDeletedMessage] = useState<string | null>(null);
 
   if (!open) return null;
 
@@ -61,7 +62,7 @@ export default function CalendarIntegrationsModal({ open, onClose }: Props) {
   return (
     <>
       <div
-        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+        className="fixed inset-0 bg-slate-900/70 z-[100] flex items-center justify-center p-4"
         onClick={onClose}
       >
       <div
@@ -123,6 +124,12 @@ export default function CalendarIntegrationsModal({ open, onClose }: Props) {
         </form>
 
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2">
+          {deletedMessage && (
+            <p className="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-2.5 py-1.5 flex items-center gap-1.5">
+              <i className="fa-solid fa-circle-check" />
+              {deletedMessage}
+            </p>
+          )}
           {isLoading ? (
             <p className="text-sm text-slate-400 py-4 text-center">Loading...</p>
           ) : integrations.length === 0 ? (
@@ -188,10 +195,13 @@ export default function CalendarIntegrationsModal({ open, onClose }: Props) {
         }}
         onConfirm={() => {
           if (confirmDeleteId == null) return;
+          const removed = integrations.find((ci) => ci.id === confirmDeleteId);
           deleteIntegration.mutate(confirmDeleteId, {
             onSuccess: () => {
               setConfirmDeleteId(null);
               setDeleteError(null);
+              setDeletedMessage(`Removed "${removed?.label || removed?.calendar_id || 'calendar'}".`);
+              setTimeout(() => setDeletedMessage(null), 4000);
             },
             onError: (err) => setDeleteError(err instanceof Error ? err.message : 'Failed to remove calendar.'),
           });

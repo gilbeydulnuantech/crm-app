@@ -4,6 +4,7 @@ import { NewPipelineResult } from '../../api/opportunities';
 import { useDeletePipeline } from '../../hooks/useOpportunities';
 import CreatePipelineModal from './CreatePipelineModal';
 import EditPipelineModal from './EditPipelineModal';
+import ConfirmDialog from '../ConfirmDialog';
 
 interface Props {
   pipelines: Pipeline[];
@@ -18,6 +19,7 @@ export default function PipelineSelector({ pipelines, pipelineId, isAdmin, onCha
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const deletePipeline = useDeletePipeline();
 
   const current = pipelines.find((p) => p.id === pipelineId);
@@ -30,10 +32,13 @@ export default function PipelineSelector({ pipelines, pipelineId, isAdmin, onCha
   function handleDelete() {
     if (!current) return;
     setDeleteError(null);
-    if (!confirm(`Delete pipeline "${current.name}"? This also deletes its stages and cannot be undone.`)) {
-      return;
-    }
+    setDeleteConfirmOpen(true);
+  }
+
+  function confirmDelete() {
+    if (!current) return;
     deletePipeline.mutate(current.id, {
+      onSuccess: () => setDeleteConfirmOpen(false),
       onError: (err) => setDeleteError(err instanceof Error ? err.message : 'Failed to delete pipeline.'),
     });
   }
@@ -72,8 +77,6 @@ export default function PipelineSelector({ pipelines, pipelineId, isAdmin, onCha
           </>
         )}
       </div>
-
-      {deleteError && <p className="absolute top-full mt-1 text-xs text-rose-600 whitespace-nowrap">{deleteError}</p>}
 
       {open && (
         <>
@@ -120,6 +123,20 @@ export default function PipelineSelector({ pipelines, pipelineId, isAdmin, onCha
       />
 
       <EditPipelineModal open={editOpen} pipeline={current ?? null} onClose={() => setEditOpen(false)} />
+
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        title="Delete this pipeline?"
+        body={current ? `Delete pipeline "${current.name}"? This also deletes its stages and cannot be undone.` : undefined}
+        confirmLabel="Delete"
+        isSubmitting={deletePipeline.isPending}
+        error={deleteError}
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          setDeleteConfirmOpen(false);
+          setDeleteError(null);
+        }}
+      />
     </div>
   );
 }

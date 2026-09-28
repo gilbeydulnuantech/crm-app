@@ -21,58 +21,6 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "cpro0002-2222-4a5a-9b1a-companyprof002",
-      "name": "Parse Token (Get)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1184,
-        400
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "cpro0003-3333-4a5a-9b1a-companyprof003",
-      "name": "Look Up Requester (Get)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1408,
-        400
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nreturn [{ json: {} }];"
-      },
-      "id": "cpro0004-4444-4a5a-9b1a-companyprof004",
-      "name": "Validate (Get)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1632,
-        400
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
         "operation": "executeQuery",
         "query": "SELECT cp.company_name, cp.email, cp.phone, cp.logo_url, cp.address, cp.website, cp.brand_color\nFROM (SELECT 1) dummy\nLEFT JOIN company_profile cp ON cp.id = 1;",
         "options": {}
@@ -124,44 +72,6 @@
       ],
       "onError": "continueErrorOutput",
       "webhookId": "5ed7bdd1-3101-4f57-ac21-79776f79c308"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "cpro0008-8888-4a5a-9b1a-companyprof008",
-      "name": "Parse Token (Save)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1184,
-        624
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "cpro0009-9999-4a5a-9b1a-companyprof009",
-      "name": "Look Up Requester (Save)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1408,
-        624
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -218,7 +128,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "responseBody": "={{ { success: false, error: (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Request failed.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -249,58 +159,6 @@
       ],
       "onError": "continueErrorOutput",
       "webhookId": "0d6610e8-a47c-469f-8fc0-d0c68c703d15"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nconst requesterId = parseInt(match[1], 10);\n\nconst body = $input.first().json.body || {};\nconst photo = body.photo || {};\nconst dataUrl = photo.url || '';\n\nconst m = /^data:([^;,]+)?(?:;[^,]*)?,(.*)$/s.exec(dataUrl);\nif (!m) throw new Error('\"photo.url\" must be a base64 data URL.');\nconst [, mimeType, base64] = m;\n\nif (!mimeType || !mimeType.startsWith('image/')) {\n  throw new Error('Logo must be an image file.');\n}\nif (base64.length > 7000000) {\n  throw new Error('Logo is too large (max ~5MB).');\n}\n\nreturn [{\n  json: { requesterId },\n  binary: {\n    data: {\n      data: base64,\n      mimeType,\n      fileName: photo.name || 'logo.png'\n    }\n  }\n}];"
-      },
-      "id": "cplogo02-2222-4a5a-9b1a-companylogo02",
-      "name": "Parse Token & Logo",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1184,
-        848
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "cplogo03-3333-4a5a-9b1a-companylogo03",
-      "name": "Look Up Requester (Logo)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1408,
-        848
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\nreturn [{ json: $('Parse Token & Logo').first().json, binary: $('Parse Token & Logo').first().binary }];"
-      },
-      "id": "cplogo04-4444-4a5a-9b1a-companylogo04",
-      "name": "Validate Logo Admin",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1632,
-        848
-      ],
-      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -364,7 +222,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const fileId = $('Upload Logo to Drive').first().json.id;\nconst requesterId = $('Validate Logo Admin').first().json.requesterId;\nconst logoUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`;\nreturn [{ json: { requesterId, logoUrl } }];"
+        "jsCode": "const fileId = $('Upload Logo to Drive').first().json.id;\nconst requesterId = $('Validate Session & Logo').first().json.requesterId;\nconst logoUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`;\nreturn [{ json: { requesterId, logoUrl } }];"
       },
       "id": "cplogo07-7777-4a5a-9b1a-companylogo07",
       "name": "Build Logo URL",
@@ -428,6 +286,177 @@
         2976,
         848
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        400
+      ],
+      "id": "extract-bearer-get",
+      "name": "Extract Bearer Token (Get)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-get",
+      "name": "Execute Workflow: Verify Session (Get)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1214,
+        415
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: {} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        400
+      ],
+      "id": "validate-session-get",
+      "name": "Validate Session (Get)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        624
+      ],
+      "id": "extract-bearer-save",
+      "name": "Extract Bearer Token (Save)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-save",
+      "name": "Execute Workflow: Verify Session (Save)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1214,
+        639
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        624
+      ],
+      "id": "validate-session-save",
+      "name": "Validate Session (Save)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        848
+      ],
+      "id": "extract-bearer-logo",
+      "name": "Extract Bearer Token (Logo)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-logo",
+      "name": "Execute Workflow: Verify Session (Logo)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1214,
+        863
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nif (r.role !== 'admin') throw new Error('Admin access required.');\nconst requesterId = r.userId;\n\nconst body = $('Webhook - Upload Company Logo').first().json.body || {};\nconst photo = body.photo || {};\nconst dataUrl = photo.url || '';\n\nconst m = /^data:([^;,]+)?(?:;[^,]*)?,(.*)$/s.exec(dataUrl);\nif (!m) throw new Error('\"photo.url\" must be a base64 data URL.');\nconst [, mimeType, base64] = m;\n\nif (!mimeType || !mimeType.startsWith('image/')) {\n  throw new Error('Logo must be an image file.');\n}\nif (base64.length > 7000000) {\n  throw new Error('Logo is too large (max ~5MB).');\n}\n\nreturn [{\n  json: { requesterId },\n  binary: {\n    data: {\n      data: base64,\n      mimeType,\n      fileName: photo.name || 'logo.png'\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        848
+      ],
+      "id": "validate-session-logo",
+      "name": "Validate Session & Logo",
+      "onError": "continueErrorOutput"
     }
   ],
   "connections": {
@@ -435,61 +464,7 @@
       "main": [
         [
           {
-            "node": "Parse Token (Get)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token (Get)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester (Get)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester (Get)": {
-      "main": [
-        [
-          {
-            "node": "Validate (Get)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Validate (Get)": {
-      "main": [
-        [
-          {
-            "node": "Select Company Profile",
+            "node": "Extract Bearer Token (Get)",
             "type": "main",
             "index": 0
           }
@@ -518,43 +493,7 @@
       "main": [
         [
           {
-            "node": "Parse Token (Save)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token (Save)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester (Save)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester (Save)": {
-      "main": [
-        [
-          {
-            "node": "Validate & Payload (Save)",
+            "node": "Extract Bearer Token (Save)",
             "type": "main",
             "index": 0
           }
@@ -608,61 +547,7 @@
       "main": [
         [
           {
-            "node": "Parse Token & Logo",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token & Logo": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester (Logo)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester (Logo)": {
-      "main": [
-        [
-          {
-            "node": "Validate Logo Admin",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Validate Logo Admin": {
-      "main": [
-        [
-          {
-            "node": "Upload Logo to Drive",
+            "node": "Extract Bearer Token (Logo)",
             "type": "main",
             "index": 0
           }
@@ -753,6 +638,168 @@
         [
           {
             "node": "Respond - Upload Logo Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (Get)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Get)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (Get)": {
+      "main": [
+        [
+          {
+            "node": "Select Company Profile",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (Save)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Save)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (Save)": {
+      "main": [
+        [
+          {
+            "node": "Validate & Payload (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (Logo)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Logo)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Logo)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session & Logo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session & Logo": {
+      "main": [
+        [
+          {
+            "node": "Upload Logo to Drive",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
             "type": "main",
             "index": 0
           }

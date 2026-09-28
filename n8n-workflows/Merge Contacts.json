@@ -7,7 +7,7 @@
         "path": "merge-contacts",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "cc46038b-e6b3-4e1c-89ae-e74fc773a3a1",
@@ -22,48 +22,10 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst requesterId = parseInt(match[1], 10);\nconst body = $input.first().json.body || {};\n// 'primary' is the contact that survives; 'duplicate' gets archived after\n// everything of value on it (deals, tasks, notes, activity, tags) is\n// reassigned onto primary.\nconst primaryId = parseInt(body.primary_id, 10);\nconst duplicateId = parseInt(body.duplicate_id, 10);\n\nif (!Number.isInteger(primaryId) || !Number.isInteger(duplicateId)) {\n  throw new Error('\"primary_id\" and \"duplicate_id\" must be integers.');\n}\nif (primaryId === duplicateId) {\n  throw new Error('\"primary_id\" and \"duplicate_id\" must be different contacts.');\n}\n\nreturn [{ json: { requesterId, primaryId, duplicateId } }];"
-      },
-      "id": "e929a629-8509-493e-a84e-dc2c1ca9102a",
-      "name": "Parse Token & Payload",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        800,
-        360
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "86c4a14a-0028-4afc-b2dc-e419e8a37c55",
-      "name": "Look Up Requester",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        800,
-        520
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
         "operation": "executeQuery",
         "query": "SELECT id, first_name, last_name, email_logs FROM contacts WHERE id = $1 OR id = $2;",
         "options": {
-          "queryReplacement": "={{ [ $('Parse Token & Payload').first().json.primaryId, $('Parse Token & Payload').first().json.duplicateId ] }}"
+          "queryReplacement": "={{ [ $('Validate Session').first().json.primaryId, $('Validate Session').first().json.duplicateId ] }}"
         }
       },
       "id": "1236c0ca-b046-42b3-a2de-3b4029402c8c",
@@ -84,7 +46,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const requester = $('Look Up Requester').first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Only admins can merge contacts.');\n\nconst { primaryId, duplicateId } = $('Parse Token & Payload').first().json;\nconst rows = $input.all().map((i) => i.json);\nconst primary = rows.find((r) => r.id === primaryId);\nconst duplicate = rows.find((r) => r.id === duplicateId);\nif (!primary || !duplicate) {\n  throw new Error('One or both contacts were not found.');\n}\n\nconst duplicateName = `${duplicate.first_name || ''} ${duplicate.last_name || ''}`.trim() || 'Unknown Contact';\nconst primaryName = `${primary.first_name || ''} ${primary.last_name || ''}`.trim() || 'Unknown Contact';\n\n// email_logs is a jsonb array column on each row \u2014 concatenate rather\n// than picking one side, so replies/sends recorded against the\n// duplicate aren't silently lost.\nconst primaryLogs = Array.isArray(primary.email_logs) ? primary.email_logs : [];\nconst duplicateLogs = Array.isArray(duplicate.email_logs) ? duplicate.email_logs : [];\nconst mergedEmailLogsJson = JSON.stringify([...primaryLogs, ...duplicateLogs]);\n\nconst summary = `${requester.name || 'Someone'} merged \"${duplicateName}\" (contact #${duplicateId}) into this contact`;\nconst detail = JSON.stringify({ merged_contact_id: duplicateId, merged_contact_name: duplicateName });\n\nreturn [{\n  json: {\n    primaryId, duplicateId, mergedEmailLogsJson, summary, detail,\n    requesterId: requester.id, requesterName: requester.name || 'Someone',\n    duplicateName, primaryName,\n  }\n}];"
+        "jsCode": "const requester = $('Validate Session').first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Only admins can merge contacts.');\n\nconst { primaryId, duplicateId } = $('Validate Session').first().json;\nconst rows = $input.all().map((i) => i.json);\nconst primary = rows.find((r) => r.id === primaryId);\nconst duplicate = rows.find((r) => r.id === duplicateId);\nif (!primary || !duplicate) {\n  throw new Error('One or both contacts were not found.');\n}\n\nconst duplicateName = `${duplicate.first_name || ''} ${duplicate.last_name || ''}`.trim() || 'Unknown Contact';\nconst primaryName = `${primary.first_name || ''} ${primary.last_name || ''}`.trim() || 'Unknown Contact';\n\n// email_logs is a jsonb array column on each row \u2014 concatenate rather\n// than picking one side, so replies/sends recorded against the\n// duplicate aren't silently lost.\nconst primaryLogs = Array.isArray(primary.email_logs) ? primary.email_logs : [];\nconst duplicateLogs = Array.isArray(duplicate.email_logs) ? duplicate.email_logs : [];\nconst mergedEmailLogsJson = JSON.stringify([...primaryLogs, ...duplicateLogs]);\n\nconst summary = `${requester.name || 'Someone'} merged \"${duplicateName}\" (contact #${duplicateId}) into this contact`;\nconst detail = JSON.stringify({ merged_contact_id: duplicateId, merged_contact_name: duplicateName });\n\nreturn [{\n  json: {\n    primaryId, duplicateId, mergedEmailLogsJson, summary, detail,\n    requesterId: requester.id, requesterName: requester.name || 'Someone',\n    duplicateName, primaryName,\n  }\n}];"
       },
       "id": "c0adcc92-30f5-4c4d-b273-c3627768a328",
       "name": "Validate Merge",
@@ -101,7 +63,7 @@
         "operation": "executeQuery",
         "query": "UPDATE opportunities SET contact_id = $1 WHERE contact_id = $2;",
         "options": {
-          "queryReplacement": "={{ [ $('Parse Token & Payload').first().json.primaryId, $('Parse Token & Payload').first().json.duplicateId ] }}"
+          "queryReplacement": "={{ [ $('Validate Session').first().json.primaryId, $('Validate Session').first().json.duplicateId ] }}"
         }
       },
       "id": "fc75f2b8-e518-4b23-8588-25826e47c483",
@@ -125,7 +87,7 @@
         "operation": "executeQuery",
         "query": "UPDATE activities SET contact_id = $1 WHERE contact_id = $2;",
         "options": {
-          "queryReplacement": "={{ [ $('Parse Token & Payload').first().json.primaryId, $('Parse Token & Payload').first().json.duplicateId ] }}"
+          "queryReplacement": "={{ [ $('Validate Session').first().json.primaryId, $('Validate Session').first().json.duplicateId ] }}"
         }
       },
       "id": "0c5d9bc5-8c5a-4fca-8ac2-5d4a3d6030af",
@@ -149,7 +111,7 @@
         "operation": "executeQuery",
         "query": "UPDATE notes SET entity_id = $1 WHERE entity_type = 'contact' AND entity_id = $2;",
         "options": {
-          "queryReplacement": "={{ [ $('Parse Token & Payload').first().json.primaryId, $('Parse Token & Payload').first().json.duplicateId ] }}"
+          "queryReplacement": "={{ [ $('Validate Session').first().json.primaryId, $('Validate Session').first().json.duplicateId ] }}"
         }
       },
       "id": "0e08697d-9b52-4e1a-bff9-3be90d5b482c",
@@ -173,7 +135,7 @@
         "operation": "executeQuery",
         "query": "UPDATE entity_activity_log SET entity_id = $1 WHERE entity_type = 'contact' AND entity_id = $2;",
         "options": {
-          "queryReplacement": "={{ [ $('Parse Token & Payload').first().json.primaryId, $('Parse Token & Payload').first().json.duplicateId ] }}"
+          "queryReplacement": "={{ [ $('Validate Session').first().json.primaryId, $('Validate Session').first().json.duplicateId ] }}"
         }
       },
       "id": "cc88845c-1063-4cd4-89bd-9767795817da",
@@ -197,7 +159,7 @@
         "operation": "executeQuery",
         "query": "DELETE FROM taggables WHERE entity_type = 'contact' AND entity_id = $2 AND tag_id IN (SELECT tag_id FROM taggables WHERE entity_type = 'contact' AND entity_id = $1);",
         "options": {
-          "queryReplacement": "={{ [ $('Parse Token & Payload').first().json.primaryId, $('Parse Token & Payload').first().json.duplicateId ] }}"
+          "queryReplacement": "={{ [ $('Validate Session').first().json.primaryId, $('Validate Session').first().json.duplicateId ] }}"
         }
       },
       "id": "da72da64-6c99-44ed-bff8-171b2b1d4078",
@@ -221,7 +183,7 @@
         "operation": "executeQuery",
         "query": "UPDATE taggables SET entity_id = $1 WHERE entity_type = 'contact' AND entity_id = $2;",
         "options": {
-          "queryReplacement": "={{ [ $('Parse Token & Payload').first().json.primaryId, $('Parse Token & Payload').first().json.duplicateId ] }}"
+          "queryReplacement": "={{ [ $('Validate Session').first().json.primaryId, $('Validate Session').first().json.duplicateId ] }}"
         }
       },
       "id": "f09a3314-8f18-4370-9c1b-2749b35d089b",
@@ -330,7 +292,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "responseBody": "={{ { success: false, error: (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Request failed.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -349,7 +311,7 @@
         "operation": "executeQuery",
         "query": "UPDATE contacts p\nSET job_title = CASE WHEN COALESCE(p.job_title, '') = '' THEN d.job_title ELSE p.job_title END,\n    account_id = COALESCE(p.account_id, d.account_id),\n    email = CASE WHEN COALESCE(p.email, '') = '' THEN d.email ELSE p.email END,\n    secondary_email = CASE WHEN COALESCE(p.secondary_email, '') = '' THEN d.secondary_email ELSE p.secondary_email END,\n    phone = CASE WHEN COALESCE(p.phone, '') = '' THEN d.phone ELSE p.phone END,\n    secondary_phone = CASE WHEN COALESCE(p.secondary_phone, '') = '' THEN d.secondary_phone ELSE p.secondary_phone END,\n    linkedin_url = CASE WHEN COALESCE(p.linkedin_url, '') = '' THEN d.linkedin_url ELSE p.linkedin_url END,\n    city = CASE WHEN COALESCE(p.city, '') = '' THEN d.city ELSE p.city END,\n    state = CASE WHEN COALESCE(p.state, '') = '' THEN d.state ELSE p.state END,\n    zip_code = CASE WHEN COALESCE(p.zip_code, '') = '' THEN d.zip_code ELSE p.zip_code END,\n    country = CASE WHEN COALESCE(p.country, '') = '' THEN d.country ELSE p.country END,\n    lead_source = CASE WHEN COALESCE(p.lead_source, '') = '' THEN d.lead_source ELSE p.lead_source END,\n    timezone = CASE WHEN COALESCE(p.timezone, '') = '' THEN d.timezone ELSE p.timezone END,\n    do_not_contact = p.do_not_contact OR d.do_not_contact,\n    dnc_email = p.dnc_email OR d.dnc_email,\n    dnc_call = p.dnc_call OR d.dnc_call,\n    dnc_sms = p.dnc_sms OR d.dnc_sms,\n    updated_at = NOW()\nFROM contacts d\nWHERE p.id = $1 AND d.id = $2;",
         "options": {
-          "queryReplacement": "={{ [ $('Parse Token & Payload').first().json.primaryId, $('Parse Token & Payload').first().json.duplicateId ] }}"
+          "queryReplacement": "={{ [ $('Validate Session').first().json.primaryId, $('Validate Session').first().json.duplicateId ] }}"
         }
       },
       "id": "625c8a27-c3e9-4ebb-b27c-76c208f3113e",
@@ -367,6 +329,94 @@
         }
       },
       "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: merge-contacts').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        360
+      ],
+      "id": "extract-bearer-merge",
+      "name": "Extract Bearer Token",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-merge",
+      "name": "Execute Workflow: Verify Session",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        830,
+        375
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nconst body = $('Webhook: merge-contacts').first().json.body || {};\nconst primaryId = parseInt(body.primary_id, 10);\nconst duplicateId = parseInt(body.duplicate_id, 10);\nif (!Number.isInteger(primaryId) || !Number.isInteger(duplicateId)) throw new Error('\"primary_id\" and \"duplicate_id\" must be integers.');\nif (primaryId === duplicateId) throw new Error('\"primary_id\" and \"duplicate_id\" must be different contacts.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active, primaryId, duplicateId } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        520
+      ],
+      "id": "validate-session-merge",
+      "name": "Validate Session",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Merge Contacts\" }}",
+            "workflow_id": "={{ \"PFNGlY8JEVMJBgMA\" }}",
+            "entity_type": "={{ \"activities,contacts,opportunities\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-merge-contacts-0",
+      "name": "Log Workflow Run: Webhook: merge-contacts",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        815,
+        185
+      ],
+      "onError": "continueRegularOutput"
     }
   ],
   "pinData": {},
@@ -375,43 +425,7 @@
       "main": [
         [
           {
-            "node": "Parse Token & Payload",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token & Payload": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester": {
-      "main": [
-        [
-          {
-            "node": "Look Up Both Contacts",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
+            "node": "Log Workflow Run: Webhook: merge-contacts",
             "type": "main",
             "index": 0
           }
@@ -628,6 +642,71 @@
         [
           {
             "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session": {
+      "main": [
+        [
+          {
+            "node": "Validate Session",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session": {
+      "main": [
+        [
+          {
+            "node": "Look Up Both Contacts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: merge-contacts": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token",
             "type": "main",
             "index": 0
           }

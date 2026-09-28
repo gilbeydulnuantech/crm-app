@@ -76,7 +76,7 @@ export default function EditPipelineModal({ open, pipeline, onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-slate-900/70 z-[110] flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
         <h3 className="text-lg font-bold text-slate-800">Edit Pipeline</h3>
 

@@ -6,7 +6,7 @@
         "path": "get-saved-views",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "84a8432a-504a-4eee-8803-97ba2e73dcfd",
@@ -21,7 +21,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst requesterId = parseInt(match[1], 10);\nconst entityType = ($input.first().json.query || {}).entity_type || 'contact';\n\nreturn [{ json: { requesterId, entityType } }];"
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nconst requesterId = r.userId;\n\nconst entityType = ($('Webhook: get-saved-views').first().json.query || {}).entity_type || 'contact';\n\nreturn [{ json: { requesterId, entityType } }];"
       },
       "id": "b808842f-468b-41ae-bcf3-983a720f2608",
       "name": "Parse Token: get-saved-views",
@@ -55,12 +55,14 @@
           "name": "myRag"
         }
       },
-      "onError": "continueErrorOutput"
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "respondWith": "allIncomingItems",
-        "options": {}
+        "respondWith": "json",
+        "options": {},
+        "responseBody": "={{ $json.rows }}"
       },
       "id": "a51e50e7-f377-4360-a1fd-4cc6f8009143",
       "name": "Respond: get-saved-views",
@@ -97,7 +99,7 @@
             "entries": [
               {
                 "name": "Access-Control-Allow-Origin",
-                "value": "*"
+                "value": "http://localhost:5173"
               },
               {
                 "name": "Access-Control-Allow-Methods",
@@ -123,7 +125,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "responseBody": "={{ { success: false, error: (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Request failed.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -143,7 +145,7 @@
         "path": "add-saved-view",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "9f09110d-b767-4b72-b4fb-1c9eaed4b586",
@@ -158,7 +160,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst requesterId = parseInt(match[1], 10);\nconst body = $input.first().json.body || {};\n\nconst entityType = (body.entity_type || '').toString().trim();\nconst name = (body.name || '').toString().trim();\nif (!entityType) throw new Error('\"entity_type\" is required.');\nif (!name) throw new Error('\"name\" is required.');\nif (name.length > 100) throw new Error('\"name\" must be 100 characters or fewer.');\nif (typeof body.filters !== 'object' || body.filters === null) {\n  throw new Error('\"filters\" must be an object.');\n}\nconst isShared = body.is_shared === true || body.is_shared === 'true';\n\nreturn [{ json: { requesterId, entityType, name, filters: JSON.stringify(body.filters), isShared } }];"
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nconst requesterId = r.userId;\n\nconst body = $('Webhook: add-saved-view').first().json.body || {};\n\nconst entityType = (body.entity_type || '').toString().trim();\nconst name = (body.name || '').toString().trim();\nif (!entityType) throw new Error('\"entity_type\" is required.');\nif (!name) throw new Error('\"name\" is required.');\nif (name.length > 100) throw new Error('\"name\" must be 100 characters or fewer.');\nif (typeof body.filters !== 'object' || body.filters === null) {\n  throw new Error('\"filters\" must be an object.');\n}\nconst isShared = body.is_shared === true || body.is_shared === 'true';\n\nreturn [{ json: { requesterId, entityType, name, filters: JSON.stringify(body.filters), isShared } }];"
       },
       "id": "c2ef69ce-3b4a-40ae-b1da-512588c8864f",
       "name": "Validate Saved View Payload",
@@ -215,7 +217,7 @@
         "path": "delete-saved-view",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "95bb90ee-151e-4fac-bb1e-17b755dd0109",
@@ -227,44 +229,6 @@
         620
       ],
       "webhookId": "c1742fe6-77c1-4178-b34e-75b66adff0da"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst requesterId = parseInt(match[1], 10);\nconst body = $input.first().json.body || {};\nconst viewId = parseInt(body.id, 10);\nif (!Number.isInteger(viewId)) throw new Error('\"id\" must be an integer.');\n\nreturn [{ json: { requesterId, viewId } }];"
-      },
-      "id": "1716c1a4-2c64-46f0-b4d4-501725211262",
-      "name": "Parse Token: delete-saved-view",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1024,
-        620
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "DELETE FROM saved_views\nWHERE id = $1\n  AND (user_id = $2 OR EXISTS (SELECT 1 FROM users WHERE id = $2 AND role = 'admin'))\nRETURNING id;",
-        "options": {
-          "queryReplacement": "={{ [ $json.viewId, $json.requesterId ] }}"
-        }
-      },
-      "id": "dcee6ef8-f1ae-458b-9ebc-2d415c2867c6",
-      "name": "Postgres: Delete Saved View",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        1248,
-        780
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -301,7 +265,7 @@
         "path": "update-saved-view",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "fc03d8ee-b8f5-4439-99ee-f0662cda7365",
@@ -313,44 +277,6 @@
         940
       ],
       "webhookId": "c8a820ef-b85d-420c-8cb6-65bbb783d95a"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst requesterId = parseInt(match[1], 10);\nconst body = $input.first().json.body || {};\nconst viewId = parseInt(body.id, 10);\nif (!Number.isInteger(viewId)) throw new Error('\"id\" must be an integer.');\n\n// Partial update \u2014 only fields actually present in the body get\n// changed (COALESCE against the existing row in the UPDATE query),\n// same semantics as update-contact's partial-update behavior.\nlet name = null;\nif (body.name !== undefined) {\n  name = (body.name || '').toString().trim();\n  if (!name) throw new Error('\"name\" is required.');\n  if (name.length > 100) throw new Error('\"name\" must be 100 characters or fewer.');\n}\n\nlet filters = null;\nif (body.filters !== undefined) {\n  if (typeof body.filters !== 'object' || body.filters === null) {\n    throw new Error('\"filters\" must be an object.');\n  }\n  filters = JSON.stringify(body.filters);\n}\n\nconst isShared = body.is_shared === undefined\n  ? null\n  : (body.is_shared === true || body.is_shared === 'true');\n\nif (name === null && filters === null && isShared === null) {\n  throw new Error('Nothing to update.');\n}\n\nreturn [{ json: { requesterId, viewId, name, filters, isShared } }];"
-      },
-      "id": "202cfd9b-77a0-470a-af62-479d3eebf2e5",
-      "name": "Validate Update Saved View Payload",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1024,
-        940
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "UPDATE saved_views\nSET name = COALESCE($3, name),\n    filters = COALESCE($4::jsonb, filters),\n    is_shared = COALESCE($5, is_shared)\nWHERE id = $1\n  AND (user_id = $2 OR EXISTS (SELECT 1 FROM users WHERE id = $2 AND role = 'admin'))\nRETURNING id, entity_type, name, filters, created_at, user_id, is_shared;",
-        "options": {
-          "queryReplacement": "={{ [ $json.viewId, $json.requesterId, $json.name, $json.filters, $json.isShared ] }}"
-        }
-      },
-      "id": "1fa6d109-8b89-4997-bcde-36613e04f098",
-      "name": "Postgres: Update Saved View",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        1248,
-        940
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -380,6 +306,219 @@
         1696,
         940
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1024,
+        620
+      ],
+      "id": "extract-bearer-parse-token-delete-saved-view",
+      "name": "Extract Bearer Token delete-saved-view",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-delete-saved-view",
+      "name": "Execute Workflow: Verify Session delete-saved-view",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1054,
+        635
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nconst body = $('Webhook: delete-saved-view').first().json.body || {};\nconst viewId = parseInt(body.id, 10);\nif (!Number.isInteger(viewId)) throw new Error('\"id\" must be an integer.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active, viewId } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        780
+      ],
+      "id": "validate-session-parse-token-delete-saved-view",
+      "name": "Validate Session delete-saved-view",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1024,
+        940
+      ],
+      "id": "extract-bearer-validate-update-saved-view-payload",
+      "name": "Extract Bearer Token date Saved View Payload",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-validate-update-saved-view-payload",
+      "name": "Execute Workflow: Verify Session date Saved View Payload",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1054,
+        955
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nconst body = $('Webhook: update-saved-view').first().json.body || {};\nconst viewId = parseInt(body.id, 10);\nif (!Number.isInteger(viewId)) throw new Error('\"id\" must be an integer.');\n\n// Partial update \u2014 only fields actually present in the body get\n// changed (COALESCE against the existing row in the UPDATE query),\n// same semantics as update-contact's partial-update behavior.\nlet name = null;\nif (body.name !== undefined) {\n  name = (body.name || '').toString().trim();\n  if (!name) throw new Error('\"name\" is required.');\n  if (name.length > 100) throw new Error('\"name\" must be 100 characters or fewer.');\n}\n\nlet filters = null;\nif (body.filters !== undefined) {\n  if (typeof body.filters !== 'object' || body.filters === null) {\n    throw new Error('\"filters\" must be an object.');\n  }\n  filters = JSON.stringify(body.filters);\n}\n\nconst isShared = body.is_shared === undefined\n  ? null\n  : (body.is_shared === true || body.is_shared === 'true');\n\nif (name === null && filters === null && isShared === null) {\n  throw new Error('Nothing to update.');\n}\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active, viewId, name, filters, isShared } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        940
+      ],
+      "id": "validate-session-validate-update-saved-view-payload",
+      "name": "Validate Session date Saved View Payload",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        964,
+        180
+      ],
+      "id": "extract-bearer-b808842f-468b-41ae-bcf3-983a720f2608",
+      "name": "Extract Bearer Token (Parse Token: get-saved-views)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-b808842f-468b-41ae-bcf3-983a720f2608",
+      "name": "Execute Workflow: Verify Session (Parse Token: get-saved-views)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        994,
+        190
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        964,
+        440
+      ],
+      "id": "extract-bearer-c2ef69ce-3b4a-40ae-b1da-512588c8864f",
+      "name": "Extract Bearer Token (Validate Saved View Payload)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-c2ef69ce-3b4a-40ae-b1da-512588c8864f",
+      "name": "Execute Workflow: Verify Session (Validate Saved View Payload)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        994,
+        450
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map((i) => i.json).filter((r) => r && Object.keys(r).length > 0);\nreturn [{ json: { rows } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "id": "ensure-array-postgres-select-saved-views",
+      "name": "Ensure Array Response: Postgres: Select Saved Views",
+      "position": [
+        1278,
+        215
+      ]
     }
   ],
   "pinData": {},
@@ -388,7 +527,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: get-saved-views",
+            "node": "Extract Bearer Token (Parse Token: get-saved-views)",
             "type": "main",
             "index": 0
           }
@@ -417,7 +556,7 @@
       "main": [
         [
           {
-            "node": "Respond: get-saved-views",
+            "node": "Ensure Array Response: Postgres: Select Saved Views",
             "type": "main",
             "index": 0
           }
@@ -446,7 +585,7 @@
       "main": [
         [
           {
-            "node": "Validate Saved View Payload",
+            "node": "Extract Bearer Token (Validate Saved View Payload)",
             "type": "main",
             "index": 0
           }
@@ -493,43 +632,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: delete-saved-view",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: delete-saved-view": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Delete Saved View",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Delete Saved View": {
-      "main": [
-        [
-          {
-            "node": "Check Delete Result",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
+            "node": "Extract Bearer Token delete-saved-view",
             "type": "main",
             "index": 0
           }
@@ -558,43 +661,7 @@
       "main": [
         [
           {
-            "node": "Validate Update Saved View Payload",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Validate Update Saved View Payload": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Update Saved View",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres: Update Saved View": {
-      "main": [
-        [
-          {
-            "node": "Check Update Result",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
+            "node": "Extract Bearer Token date Saved View Payload",
             "type": "main",
             "index": 0
           }
@@ -613,6 +680,169 @@
         [
           {
             "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token delete-saved-view": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session delete-saved-view",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session delete-saved-view": {
+      "main": [
+        [
+          {
+            "node": "Validate Session delete-saved-view",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session delete-saved-view": {
+      "main": [
+        [
+          {
+            "node": "Check Delete Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token date Saved View Payload": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session date Saved View Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session date Saved View Payload": {
+      "main": [
+        [
+          {
+            "node": "Validate Session date Saved View Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session date Saved View Payload": {
+      "main": [
+        [
+          {
+            "node": "Check Update Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (Parse Token: get-saved-views)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Parse Token: get-saved-views)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Parse Token: get-saved-views)": {
+      "main": [
+        [
+          {
+            "node": "Parse Token: get-saved-views",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (Validate Saved View Payload)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Validate Saved View Payload)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Validate Saved View Payload)": {
+      "main": [
+        [
+          {
+            "node": "Validate Saved View Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ensure Array Response: Postgres: Select Saved Views": {
+      "main": [
+        [
+          {
+            "node": "Respond: get-saved-views",
             "type": "main",
             "index": 0
           }

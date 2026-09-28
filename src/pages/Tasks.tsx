@@ -26,6 +26,7 @@ import TaskEditModal from '../components/tasks/TaskEditModal';
 import TaskQuickView from '../components/tasks/TaskQuickView';
 import TaskDetailModal from '../components/tasks/TaskDetailModal';
 import SearchToolbar from '../components/SearchToolbar';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 type BoardView = 'list' | 'board';
 
@@ -71,6 +72,8 @@ export default function Tasks() {
   const [usersInitialized, setUsersInitialized] = useState(false);
   const [priorityFilters, setPriorityFilters] = useState<Set<TaskPriority>>(new Set());
   const [statFilter, setStatFilter] = useState<TaskStatFilter | null>(null);
+  const [deleteConfirmTask, setDeleteConfirmTask] = useState<Task | null>(null);
+  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
 
   const { data: allTasks = [], isLoading } = useTasks();
   const { data: archivedTasks = [], isLoading: isLoadingArchived } = useArchivedTasks(view === 'archived');
@@ -265,8 +268,12 @@ export default function Tasks() {
   }
 
   function handleDeleteTask(task: Task) {
-    if (!confirm(`Permanently delete "${task.subject}"? This cannot be undone.`)) return;
-    deleteTasks.mutate([task.id]);
+    setDeleteConfirmTask(task);
+  }
+
+  function confirmDeleteTask() {
+    if (!deleteConfirmTask) return;
+    deleteTasks.mutate([deleteConfirmTask.id], { onSuccess: () => setDeleteConfirmTask(null) });
   }
 
   // View All, Edit Owned Only: standard users can see every task but only
@@ -307,8 +314,16 @@ export default function Tasks() {
 
   function handleDeleteSelected() {
     if (selectedIds.size === 0) return;
-    if (!confirm(`Delete ${selectedIds.size} task(s)? This cannot be undone.`)) return;
-    deleteTasks.mutate(Array.from(selectedIds), { onSuccess: () => setSelectedIds(new Set()) });
+    setBulkDeleteConfirmOpen(true);
+  }
+
+  function confirmDeleteSelected() {
+    deleteTasks.mutate(Array.from(selectedIds), {
+      onSuccess: () => {
+        setSelectedIds(new Set());
+        setBulkDeleteConfirmOpen(false);
+      },
+    });
   }
 
   return (
@@ -458,6 +473,25 @@ export default function Tasks() {
 
       <TaskFormModal open={addOpen} onClose={() => setAddOpen(false)} />
       <TaskEditModal open={!!editingTask} task={editingTask} onClose={() => setEditingTaskId(null)} />
+
+      <ConfirmDialog
+        open={deleteConfirmTask !== null}
+        title="Permanently delete this task?"
+        body={deleteConfirmTask ? `Permanently delete "${deleteConfirmTask.subject}"? This cannot be undone.` : undefined}
+        confirmLabel="Delete"
+        isSubmitting={deleteTasks.isPending}
+        onConfirm={confirmDeleteTask}
+        onCancel={() => setDeleteConfirmTask(null)}
+      />
+      <ConfirmDialog
+        open={bulkDeleteConfirmOpen}
+        title="Delete tasks?"
+        body={`Delete ${selectedIds.size} task(s)? This cannot be undone.`}
+        confirmLabel="Delete"
+        isSubmitting={deleteTasks.isPending}
+        onConfirm={confirmDeleteSelected}
+        onCancel={() => setBulkDeleteConfirmOpen(false)}
+      />
     </div>
   );
 }

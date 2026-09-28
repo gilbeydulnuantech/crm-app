@@ -6,39 +6,62 @@
         "httpMethod": "POST",
         "path": "add-contact-public",
         "responseMode": "responseNode",
-        "options": { "allowedOrigins": "*" }
+        "options": {
+          "allowedOrigins": "*"
+        }
       },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
-      "position": [0, 0],
+      "position": [
+        0,
+        0
+      ],
       "id": "nce-webhook-public",
       "name": "Webhook: add-contact-public",
       "webhookId": "nce-webhook-public-01"
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || {};\n\n// Honeypot — a real visitor never fills this (hidden via CSS on the\n// public form); a bot filling every field will. Silently pretend\n// success without touching the database.\nif ((body.website_hp || '').toString().trim()) {\n  return [{ json: { spam: true } }];\n}\n\nconst firstName = (body.first_name || '').toString().trim();\nconst lastName = (body.last_name || '').toString().trim();\nconst email = (body.email || '').toString().trim().toLowerCase();\nconst phone = (body.phone || '').toString().trim();\nconst jobTitle = (body.job_title || '').toString().trim();\nconst leadSource = (body.lead_source || 'Website Form').toString().trim();\n\nif (!firstName) throw new Error('\"first_name\" is required.');\nif (!email && !phone) throw new Error('Either \"email\" or \"phone\" is required.');\nif (email && !email.includes('@')) throw new Error('\"email\" is not valid.');\n\nreturn [{\n  json: {\n    spam: false, source: 'public',\n    first_name: firstName, last_name: lastName, email, secondary_email: '', phone, secondary_phone: '',\n    job_title: jobTitle, account_id: null, linkedin_url: '', city: '', state: '', zip_code: '', country: '',\n    lead_status: 'New', lead_source: leadSource, timezone: '',\n    do_not_contact: false, dnc_email: false, dnc_call: false, dnc_sms: false,\n    ownerId: null, createdBy: null,\n  },\n}];"
+        "jsCode": "const body = $('Webhook: add-contact-public').first().json.body || {};\n\n// Honeypot \u2014 a real visitor never fills this (hidden via CSS on the\n// public form); a bot filling every field will. Silently pretend\n// success without touching the database.\nif ((body.website_hp || '').toString().trim()) {\n  return [{ json: { spam: true } }];\n}\n\nconst firstName = (body.first_name || '').toString().trim();\nconst lastName = (body.last_name || '').toString().trim();\nconst email = (body.email || '').toString().trim().toLowerCase();\nconst phone = (body.phone || '').toString().trim();\nconst jobTitle = (body.job_title || '').toString().trim();\nconst leadSource = (body.lead_source || 'Website Form').toString().trim();\n\nif (!firstName) throw new Error('\"first_name\" is required.');\nif (!email && !phone) throw new Error('Either \"email\" or \"phone\" is required.');\nif (email && !email.includes('@')) throw new Error('\"email\" is not valid.');\n\nreturn [{\n  json: {\n    spam: false, source: 'public',\n    first_name: firstName, last_name: lastName, email, secondary_email: '', phone, secondary_phone: '',\n    job_title: jobTitle, account_id: null, linkedin_url: '', city: '', state: '', zip_code: '', country: '',\n    lead_status: 'New', lead_source: leadSource, timezone: '',\n    do_not_contact: false, dnc_email: false, dnc_call: false, dnc_sms: false,\n    ownerId: null, createdBy: null,\n  },\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [220, 0],
+      "position": [
+        220,
+        0
+      ],
       "id": "nce-check-payload-public",
       "name": "Check Payload: public"
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
           "combinator": "and",
           "conditions": [
-            { "id": "nce-not-spam-cond", "leftValue": "={{ $json.spam }}", "rightValue": true, "operator": { "type": "boolean", "operation": "notEquals" } }
+            {
+              "id": "nce-not-spam-cond",
+              "leftValue": "={{ $json.spam }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "notEquals"
+              }
+            }
           ]
         },
         "options": {}
       },
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
-      "position": [440, 0],
+      "position": [
+        440,
+        0
+      ],
       "id": "nce-not-spam",
       "name": "Not Spam?"
     },
@@ -50,7 +73,10 @@
       },
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
-      "position": [660, 200],
+      "position": [
+        660,
+        200
+      ],
       "id": "nce-respond-spam",
       "name": "Respond: Spam (fake success)"
     },
@@ -59,39 +85,19 @@
         "httpMethod": "POST",
         "path": "add-contact",
         "responseMode": "responseNode",
-        "options": { "allowedOrigins": "*" }
+        "options": {
+          "allowedOrigins": "http://localhost:5173"
+        }
       },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
-      "position": [0, 400],
+      "position": [
+        0,
+        400
+      ],
       "id": "nce-webhook-manual",
       "name": "Webhook: add-contact",
       "webhookId": "nce-webhook-manual-01"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [220, 400],
-      "id": "nce-parse-token-manual",
-      "name": "Parse Token: manual",
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, active, role FROM users WHERE id = $1 LIMIT 1;",
-        "options": { "queryReplacement": "={{ [ $json.requesterId ] }}" }
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [440, 400],
-      "id": "nce-lookup-requester-manual",
-      "name": "Look Up Requester: manual",
-      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
-      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -99,7 +105,10 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [660, 400],
+      "position": [
+        660,
+        400
+      ],
       "id": "nce-check-payload-manual",
       "name": "Check Payload: manual",
       "onError": "continueErrorOutput"
@@ -107,12 +116,17 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
-        "options": { "responseCode": 400 }
+        "responseBody": "={{ { success: false, error: (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Request failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
       },
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
-      "position": [660, 600],
+      "position": [
+        660,
+        600
+      ],
       "id": "nce-respond-error",
       "name": "Respond - Error"
     },
@@ -122,83 +136,292 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [660, 100],
+      "position": [
+        660,
+        100
+      ],
       "id": "nce-normalize-payload",
       "name": "Normalize Payload",
       "notesInFlow": true,
-      "notes": "Single convergence point for both entry paths — both upstream branches already produce the same shape, this just gives downstream nodes one safe, always-ran node name to reference instead of guessing which branch actually fired."
+      "notes": "Single convergence point for both entry paths \u2014 both upstream branches already produce the same shape, this just gives downstream nodes one safe, always-ran node name to reference instead of guessing which branch actually fired."
     },
     {
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT id FROM contacts WHERE lower(email) = lower($1) AND $1 <> '' AND is_archived = false LIMIT 1;",
-        "options": { "queryReplacement": "={{ [ $json.email ] }}" }
+        "options": {
+          "queryReplacement": "={{ [ $json.email ] }}"
+        }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [880, 200],
+      "position": [
+        880,
+        200
+      ],
       "id": "nce-match-existing",
       "name": "Postgres: Match Existing Contact",
       "alwaysOutputData": true,
-      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "// A resubmission / repeat manual-add of the same email updates the\n// existing lead instead of creating a duplicate or rejecting outright —\n// consistent dedup-by-email across both entry points now.\nconst payload = $('Normalize Payload').item.json;\nconst existing = $input.first().json;\nreturn [{ json: { ...payload, existingContactId: existing?.id || null } }];"
+        "jsCode": "// A resubmission / repeat manual-add of the same email updates the\n// existing lead instead of creating a duplicate or rejecting outright \u2014\n// consistent dedup-by-email across both entry points now.\nconst payload = $('Normalize Payload').item.json;\nconst existing = $input.first().json;\nreturn [{ json: { ...payload, existingContactId: existing?.id || null } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 200],
+      "position": [
+        1100,
+        200
+      ],
       "id": "nce-merge-match",
       "name": "Merge Existing Match"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO contacts (\n  id, first_name, last_name, email, secondary_email, phone, secondary_phone,\n  job_title, account_id, linkedin_url, city, state, zip_code, country,\n  lead_status, lead_source, timezone, do_not_contact, dnc_email, dnc_call, dnc_sms,\n  owner_id, created_by, created_at, updated_at\n)\nVALUES (\n  COALESCE($1, nextval(pg_get_serial_sequence('contacts', 'id'))), $2, $3, $4, $5, $6, $7,\n  $8, $9, $10, $11, $12, $13, $14,\n  $15, $16, $17, $18, $19, $20, $21,\n  $22, $23, now(), now()\n)\nON CONFLICT (id) DO UPDATE SET\n  phone = COALESCE(NULLIF(EXCLUDED.phone, ''), contacts.phone),\n  job_title = COALESCE(NULLIF(EXCLUDED.job_title, ''), contacts.job_title),\n  updated_at = now()\nRETURNING id, first_name, email, (xmax = 0) AS is_new;",
+        "query": "INSERT INTO contacts (\n  id, first_name, last_name, email, secondary_email, phone, secondary_phone,\n  job_title, account_id, linkedin_url, city, state, zip_code, country,\n  lead_status, lead_source, timezone, do_not_contact, dnc_email, dnc_call, dnc_sms,\n  owner_id, created_by, created_at, updated_at\n)\nVALUES (\n  COALESCE($1, nextval(pg_get_serial_sequence('contacts', 'id'))), $2, $3, $4, $5, $6, $7,\n  $8, $9, $10, $11, $12, $13, $14,\n  $15, $16, $17, $18, $19, $20, $21,\n  $22, $23, now(), now()\n)\nON CONFLICT (id) DO UPDATE SET\n  phone = COALESCE(NULLIF(EXCLUDED.phone, ''), contacts.phone),\n  job_title = COALESCE(NULLIF(EXCLUDED.job_title, ''), contacts.job_title),\n  updated_at = now()\nRETURNING id, first_name, email, unsubscribe_token, (xmax = 0) AS is_new;",
         "options": {
           "queryReplacement": "={{ [ $json.existingContactId, $json.first_name, $json.last_name, $json.email, $json.secondary_email, $json.phone, $json.secondary_phone, $json.job_title, $json.account_id, $json.linkedin_url, $json.city, $json.state, $json.zip_code, $json.country, $json.lead_status, $json.lead_source, $json.timezone, $json.do_not_contact, $json.dnc_email, $json.dnc_call, $json.dnc_sms, $json.ownerId, $json.createdBy ] }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [1320, 200],
+      "position": [
+        1320,
+        200
+      ],
       "id": "nce-upsert-contact",
       "name": "Postgres: Upsert Contact",
-      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
       "onError": "continueErrorOutput"
     },
     {
       "parameters": {
         "operation": "executeQuery",
         "query": "INSERT INTO activity_log (actor_id, verb, entity_type, entity_id, entity_name) VALUES ($1, 'created', 'contact', $2, $3);",
-        "options": { "queryReplacement": "={{ [ $('Merge Existing Match').first().json.requesterId || null, $json.id, $json.first_name ] }}" }
+        "options": {
+          "queryReplacement": "={{ [ $('Merge Existing Match').first().json.requesterId || null, $json.id, $json.first_name ] }}"
+        }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [1540, 320],
+      "position": [
+        1540,
+        320
+      ],
       "id": "nce-log-activity",
       "name": "Postgres: Log Activity (created)",
       "notesInFlow": true,
-      "notes": "actor_id is null for public-form submissions — no requester exists for those.",
-      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+      "notes": "actor_id is null for public-form submissions \u2014 no requester exists for those.",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
           "combinator": "and",
           "conditions": [
-            { "id": "nce-is-new-cond", "leftValue": "={{ $json.is_new }}", "rightValue": true, "operator": { "type": "boolean", "operation": "true", "singleValue": true } }
+            {
+              "id": "nce-is-new-cond",
+              "leftValue": "={{ $json.is_new }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
           ]
         },
         "options": {}
       },
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
-      "position": [1540, 200],
+      "position": [
+        1540,
+        200
+      ],
       "id": "nce-is-new",
       "name": "Is New Contact?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "nce-manual-source-cond",
+              "leftValue": "={{ $('Normalize Payload').item.json.source }}",
+              "rightValue": "manual",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "nce-manual-status-cond",
+              "leftValue": "={{ $('Normalize Payload').item.json.lead_status }}",
+              "rightValue": "New",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1760,
+        60
+      ],
+      "id": "nce-is-manual-new",
+      "name": "Is Manual & New Lead?",
+      "notesInFlow": true,
+      "notes": "A rep manually adding a contact isn't a lead form submission \u2014 no thank-you email. Only fires the (separate, trigger_event-driven) 'Contact Added Manually' template, and only while the contact is still lead_status = New (an admin adding an existing Customer/etc. shouldn't get a cold-outreach-style email)."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "nce-public-source-cond",
+              "leftValue": "={{ $('Normalize Payload').item.json.source }}",
+              "rightValue": "public",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1980,
+        320
+      ],
+      "id": "nce-is-public",
+      "name": "Is Public Submission?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT subject, body FROM email_templates WHERE trigger_event = 'contact_added_manually' AND is_active = true LIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1980,
+        0
+      ],
+      "id": "nce-lookup-template-manual",
+      "name": "Look Up Template: Contact Added Manually",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "function toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\nfunction fill(t, row) { return (t || '').replace(/{{\\s*contact\\.first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there').replace(/{{\\s*contact\\.email\\s*}}/gi, row.email || '').replace(/{{[^{}]*}}/g, ''); }\nconst tmpl = $input.item.json;\nconst row = $('Postgres: Upsert Contact').item.json;\nconst unsubUrl = safeEnv('FRONTEND_BASE_URL') + '/unsubscribe/' + (row.unsubscribe_token || '');\nconst footer = `<br><br><span style=\"font-size:11px;color:#94a3b8\">Don't want these emails? <a href=\"${unsubUrl}\">Unsubscribe</a></span>`;\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject, row), htmlBody: fill(tmpl.body, row).replace(/\\n/g, '<br>') + footer } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        0
+      ],
+      "id": "nce-fill-email-manual",
+      "name": "Fill Email: Contact Added Manually"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.htmlBody }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2420,
+        0
+      ],
+      "id": "nce-send-email-manual",
+      "name": "Send Email: Contact Added Manually",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts SET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object('id', gen_random_uuid()::text, 'type', 'sent', 'subject', $1::text, 'message', $2::text, 'sent_at', NOW(), 'is_read', true) WHERE id = $3;",
+        "options": {
+          "queryReplacement": "={{ [ $('Fill Email: Contact Added Manually').item.json.subject, $('Fill Email: Contact Added Manually').item.json.htmlBody.replace(/<br\\s*\\/?\\s*>/gi, '\\n').replace(/<[^>]+>/g, ''), $('Postgres: Upsert Contact').item.json.id ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2640,
+        0
+      ],
+      "id": "nce-log-sent-email-manual",
+      "name": "Log Sent Email: Contact Added Manually",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
@@ -208,18 +431,29 @@
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [1760, 100],
+      "position": [
+        2200,
+        320
+      ],
       "id": "nce-lookup-template",
       "name": "Look Up Template: Thank You",
-      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "function toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction fill(t, row) { return (t || '').replace(/{{\\s*first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there').replace(/{{\\s*email\\s*}}/gi, row.email || '').replace(/{{[^{}]*}}/g, ''); }\nconst tmpl = $input.item.json;\nconst row = $('Postgres: Upsert Contact').item.json;\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject, row), htmlBody: fill(tmpl.body, row).replace(/\\n/g, '<br>') } }];"
+        "jsCode": "function toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\nfunction fill(t, row) { return (t || '').replace(/{{\\s*contact\\.first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there').replace(/{{\\s*contact\\.email\\s*}}/gi, row.email || '').replace(/{{[^{}]*}}/g, ''); }\nconst tmpl = $input.item.json;\nconst row = $('Postgres: Upsert Contact').item.json;\nconst unsubUrl = safeEnv('FRONTEND_BASE_URL') + '/unsubscribe/' + (row.unsubscribe_token || '');\nconst footer = `<br><br><span style=\"font-size:11px;color:#94a3b8\">Don't want these emails? <a href=\"${unsubUrl}\">Unsubscribe</a></span>`;\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject, row), htmlBody: fill(tmpl.body, row).replace(/\\n/g, '<br>') + footer } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1980, 100],
+      "position": [
+        2420,
+        320
+      ],
       "id": "nce-fill-email",
       "name": "Fill Email: Thank You"
     },
@@ -229,14 +463,24 @@
         "subject": "={{ $json.subject }}",
         "emailType": "html",
         "message": "={{ $json.htmlBody }}",
-        "options": {}
+        "options": {
+          "appendAttribution": false
+        }
       },
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
-      "position": [2200, 100],
+      "position": [
+        2640,
+        320
+      ],
       "id": "nce-send-email",
       "name": "Send Email: Thank You",
-      "credentials": { "gmailOAuth2": { "id": "VKDbMYV2U0WoSc16", "name": "n8n072826" } },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      },
       "onError": "continueRegularOutput"
     },
     {
@@ -249,10 +493,18 @@
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [2420, 100],
+      "position": [
+        2860,
+        320
+      ],
       "id": "nce-log-sent-email",
       "name": "Log Sent Email: Thank You",
-      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
       "onError": "continueRegularOutput"
     },
     {
@@ -265,13 +517,21 @@
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [2640, 100],
+      "position": [
+        2640,
+        100
+      ],
       "id": "nce-record-email-send",
       "name": "Record Email Send",
-      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
       "onError": "continueRegularOutput",
       "notesInFlow": true,
-      "notes": "This is where Workflow 1's job ends — it does not wait or check anything further. The reply-handler and nurture-progression workflows pick up from this row independently."
+      "notes": "This is where Workflow 1's job ends \u2014 it does not wait or check anything further. The reply-handler and nurture-progression workflows pick up from this row independently."
     },
     {
       "parameters": {
@@ -281,64 +541,474 @@
       },
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
-      "position": [1760, 320],
+      "position": [
+        1760,
+        320
+      ],
       "id": "nce-respond-success",
       "name": "Respond: Success"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: add-contact').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        400
+      ],
+      "id": "extract-bearer-parse-token-manual",
+      "name": "Extract Bearer Token manual",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-manual",
+      "name": "Execute Workflow: Verify Session manual",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        250,
+        415
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        400
+      ],
+      "id": "validate-session-parse-token-manual",
+      "name": "Validate Session manual",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"New Contact Entry\" }}",
+            "workflow_id": "={{ \"v7Cq4VxU4SKj66GU\" }}",
+            "entity_type": "={{ \"contacts\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-add-contact-public-0",
+      "name": "Log Workflow Run: Webhook: add-contact-public",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        15,
+        -15
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"New Contact Entry\" }}",
+            "workflow_id": "={{ \"v7Cq4VxU4SKj66GU\" }}",
+            "entity_type": "={{ \"contacts\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-add-contact-1",
+      "name": "Log Workflow Run: Webhook: add-contact",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        15,
+        385
+      ],
+      "onError": "continueRegularOutput"
     }
   ],
   "pinData": {},
   "connections": {
-    "Webhook: add-contact-public": { "main": [[{ "node": "Check Payload: public", "type": "main", "index": 0 }]] },
-    "Check Payload: public": { "main": [[{ "node": "Not Spam?", "type": "main", "index": 0 }]] },
+    "Webhook: add-contact-public": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: Webhook: add-contact-public",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload: public": {
+      "main": [
+        [
+          {
+            "node": "Not Spam?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Not Spam?": {
       "main": [
-        [{ "node": "Normalize Payload", "type": "main", "index": 0 }],
-        [{ "node": "Respond: Spam (fake success)", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Normalize Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond: Spam (fake success)",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "Webhook: add-contact": { "main": [[{ "node": "Parse Token: manual", "type": "main", "index": 0 }]] },
-    "Parse Token: manual": {
+    "Webhook: add-contact": {
       "main": [
-        [{ "node": "Look Up Requester: manual", "type": "main", "index": 0 }],
-        [{ "node": "Respond - Error", "type": "main", "index": 0 }]
-      ]
-    },
-    "Look Up Requester: manual": {
-      "main": [
-        [{ "node": "Check Payload: manual", "type": "main", "index": 0 }],
-        [{ "node": "Respond - Error", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Log Workflow Run: Webhook: add-contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Check Payload: manual": {
       "main": [
-        [{ "node": "Normalize Payload", "type": "main", "index": 0 }],
-        [{ "node": "Respond - Error", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Normalize Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "Normalize Payload": { "main": [[{ "node": "Postgres: Match Existing Contact", "type": "main", "index": 0 }]] },
-    "Postgres: Match Existing Contact": { "main": [[{ "node": "Merge Existing Match", "type": "main", "index": 0 }]] },
-    "Merge Existing Match": { "main": [[{ "node": "Postgres: Upsert Contact", "type": "main", "index": 0 }]] },
+    "Normalize Payload": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Match Existing Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Match Existing Contact": {
+      "main": [
+        [
+          {
+            "node": "Merge Existing Match",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Existing Match": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Upsert Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Postgres: Upsert Contact": {
       "main": [
         [
-          { "node": "Postgres: Log Activity (created)", "type": "main", "index": 0 },
-          { "node": "Is New Contact?", "type": "main", "index": 0 },
-          { "node": "Respond: Success", "type": "main", "index": 0 }
+          {
+            "node": "Postgres: Log Activity (created)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is New Contact?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond: Success",
+            "type": "main",
+            "index": 0
+          }
         ],
-        [{ "node": "Respond - Error", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Is New Contact?": {
       "main": [
-        [{ "node": "Look Up Template: Thank You", "type": "main", "index": 0 }],
+        [
+          {
+            "node": "Is Manual & New Lead?",
+            "type": "main",
+            "index": 0
+          }
+        ],
         []
       ]
     },
-    "Look Up Template: Thank You": { "main": [[{ "node": "Fill Email: Thank You", "type": "main", "index": 0 }]] },
-    "Fill Email: Thank You": { "main": [[{ "node": "Send Email: Thank You", "type": "main", "index": 0 }]] },
-    "Send Email: Thank You": { "main": [[{ "node": "Log Sent Email: Thank You", "type": "main", "index": 0 }]] },
-    "Log Sent Email: Thank You": { "main": [[{ "node": "Record Email Send", "type": "main", "index": 0 }]] }
+    "Is Manual & New Lead?": {
+      "main": [
+        [
+          {
+            "node": "Look Up Template: Contact Added Manually",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is Public Submission?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Public Submission?": {
+      "main": [
+        [
+          {
+            "node": "Look Up Template: Thank You",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Look Up Template: Contact Added Manually": {
+      "main": [
+        [
+          {
+            "node": "Fill Email: Contact Added Manually",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fill Email: Contact Added Manually": {
+      "main": [
+        [
+          {
+            "node": "Send Email: Contact Added Manually",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email: Contact Added Manually": {
+      "main": [
+        [
+          {
+            "node": "Log Sent Email: Contact Added Manually",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Sent Email: Contact Added Manually": {
+      "main": [
+        [
+          {
+            "node": "Record Email Send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Template: Thank You": {
+      "main": [
+        [
+          {
+            "node": "Fill Email: Thank You",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fill Email: Thank You": {
+      "main": [
+        [
+          {
+            "node": "Send Email: Thank You",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email: Thank You": {
+      "main": [
+        [
+          {
+            "node": "Log Sent Email: Thank You",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Sent Email: Thank You": {
+      "main": [
+        [
+          {
+            "node": "Record Email Send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token manual": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session manual",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session manual": {
+      "main": [
+        [
+          {
+            "node": "Validate Session manual",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session manual": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: manual",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: add-contact-public": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: public",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: add-contact": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token manual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "active": true,
-  "settings": { "executionOrder": "v1" }
+  "settings": {
+    "executionOrder": "v1"
+  }
 }

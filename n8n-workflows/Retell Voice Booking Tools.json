@@ -106,7 +106,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst secret = process.env.VOICE_TOOL_SECRET;\nif (secret && headers['x-tool-secret'] !== secret) {\n  throw new Error('Invalid tool secret.');\n}\n\nconst body = $input.first().json.body || {};\nconst args = body.args || body.parameters || {};\n\nconst date = (args.date || '').toString().trim();\nconst time = (args.time || '').toString().trim();\nconst name = (args.name || '').toString().trim();\nconst phone = (args.phone || '').toString().trim();\nconst email = (args.email || '').toString().trim();\nconst durationMinutes = parseInt(args.duration_minutes, 10) || 60;\nconst reason = (args.reason || 'Phone booking').toString().trim();\n\nif (!date || !time) throw new Error('\"date\" and \"time\" are required.');\nif (!name || (!phone && !email)) throw new Error('\"name\" and either \"phone\" or \"email\" are required.');\n\nconst dueAt = new Date(`${date}T${time}`);\nif (isNaN(dueAt.getTime())) throw new Error('Could not parse the requested date/time.');\nconst endAt = new Date(dueAt.getTime() + durationMinutes * 60000);\n\nconst nameParts = name.split(/\\s+/);\nreturn [{\n  json: {\n    firstName: nameParts[0] || 'Unknown',\n    lastName: nameParts.slice(1).join(' ') || '-',\n    phone: phone || null,\n    email: email || null,\n    dueAt: dueAt.toISOString(),\n    endAt: endAt.toISOString(),\n    subject: reason,\n    displayDate: dueAt.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }),\n  },\n}];"
+        "jsCode": "const headers = $('Webhook - Retell Book Appointment').first().json.headers || {};\nconst secret = process.env.VOICE_TOOL_SECRET;\nif (secret && headers['x-tool-secret'] !== secret) {\n  throw new Error('Invalid tool secret.');\n}\n\nconst body = $('Webhook - Retell Book Appointment').first().json.body || {};\nconst args = body.args || body.parameters || {};\n\nconst date = (args.date || '').toString().trim();\nconst time = (args.time || '').toString().trim();\nconst name = (args.name || '').toString().trim();\nconst phone = (args.phone || '').toString().trim();\nconst email = (args.email || '').toString().trim();\nconst durationMinutes = parseInt(args.duration_minutes, 10) || 60;\nconst reason = (args.reason || 'Phone booking').toString().trim();\n\nif (!date || !time) throw new Error('\"date\" and \"time\" are required.');\nif (!name || (!phone && !email)) throw new Error('\"name\" and either \"phone\" or \"email\" are required.');\n\nconst dueAt = new Date(`${date}T${time}`);\nif (isNaN(dueAt.getTime())) throw new Error('Could not parse the requested date/time.');\nconst endAt = new Date(dueAt.getTime() + durationMinutes * 60000);\n\nconst nameParts = name.split(/\\s+/);\nreturn [{\n  json: {\n    firstName: nameParts[0] || 'Unknown',\n    lastName: nameParts.slice(1).join(' ') || '-',\n    phone: phone || null,\n    email: email || null,\n    dueAt: dueAt.toISOString(),\n    endAt: endAt.toISOString(),\n    subject: reason,\n    displayDate: dueAt.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }),\n  },\n}];"
       },
       "id": "rb1c0007-0007-4a5a-9b1a-retellbook00007",
       "name": "Parse Booking Request",
@@ -234,6 +234,37 @@
         1408,
         960
       ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Retell Voice Booking Tools\" }}",
+            "workflow_id": "={{ \"TL0xoUzP9Kv3Z9jk\" }}",
+            "entity_type": "={{ \"activities,contacts\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-retell-book-appointment-0",
+      "name": "Log Workflow Run: Webhook - Retell Book Appointment",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        975,
+        625
+      ],
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
@@ -313,7 +344,7 @@
       "main": [
         [
           {
-            "node": "Parse Booking Request",
+            "node": "Log Workflow Run: Webhook - Retell Book Appointment",
             "type": "main",
             "index": 0
           }
@@ -411,6 +442,17 @@
         [
           {
             "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook - Retell Book Appointment": {
+      "main": [
+        [
+          {
+            "node": "Parse Booking Request",
             "type": "main",
             "index": 0
           }

@@ -1,0 +1,1462 @@
+{
+  "updatedAt": "2026-09-10T12:56:26.502Z",
+  "createdAt": "2026-08-26T11:15:09.452Z",
+  "id": "o26dsls8uT96li7T",
+  "name": "Nurture Progression Engine",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "np-sched",
+      "name": "Schedule Trigger: every hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        200,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "np-find-due",
+      "name": "Find Due Sends",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        420,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT es.id AS send_id, es.contact_id, es.workflow_step, es.sent_at, c.first_name, c.last_name, c.email, c.phone, c.owner_id, c.unsubscribe_token, c.dnc_sms, EXISTS (SELECT 1 FROM taggables tg JOIN tags t ON t.id = tg.tag_id WHERE tg.entity_type = 'contact' AND tg.entity_id = c.id AND t.name = 'Engaged Lead') AS already_engaged FROM email_sends es JOIN contacts c ON c.id = es.contact_id WHERE es.workflow_id = 'new_lead' AND es.reply_status = 'waiting' AND es.sent_at <= now() - interval '24 hours' AND c.is_archived = false;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "np-next-step",
+      "name": "Determine Next Step",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const NEXT = { thank_you: { step: 'nurture_1', templateId: 15 }, nurture_1: { step: 'nurture_2', templateId: 16 }, nurture_2: { step: 'nurture_3', templateId: 17 }, nurture_3: null };\nconst row = $input.item.json;\nconst next = NEXT[row.workflow_step] || null;\nreturn [{ json: { ...row, nextStep: next ? next.step : null, nextTemplateId: next ? next.templateId : null } }];"
+      }
+    },
+    {
+      "id": "np-should-stop",
+      "name": "Already Engaged?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        860,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "np-engaged-cond",
+              "leftValue": "={{ $json.already_engaged || !!$json.owner_id }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "np-mark-stopped",
+      "name": "Mark Send Stopped (Engaged)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1080,
+        180
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE email_sends SET reply_status = 'stopped' WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.send_id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "np-has-next",
+      "name": "Has Next Step?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1080,
+        400
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "np-next-cond",
+              "leftValue": "={{ !!$json.nextStep }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "np-mark-exhausted",
+      "name": "Mark Send Exhausted",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1300,
+        480
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE email_sends SET reply_status = 'exhausted' WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.send_id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "np-lookup-tmpl",
+      "name": "Look Up Next Template",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1300,
+        320
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT subject, body FROM email_templates WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.nextTemplateId ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "np-fill",
+      "name": "Fill Nurture Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        320
+      ],
+      "parameters": {
+        "jsCode": "\nfunction toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction fill(template, row) {\n  let base = '';\n  try { base = $env.FRONTEND_BASE_URL || ''; } catch (e) { base = ''; }\n  return (template || '')\n    .replace(/{{\\s*contact\\.first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*email\\s*}}/gi, row.email || '')\n    .replace(/{{\\s*unsubscribe_link\\s*}}/gi, base + '/unsubscribe/' + row.unsubscribe_token)\n    .replace(/{{(?!\\s*company_name\\s*}})[^{}]*}}/gi, '');\n}\n\nconst tmpl = $input.item.json;\nconst row = $('Determine Next Step').item.json;\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject, row), htmlBody: fill(tmpl.body, row).replace(/\\n/g, '<br>') } }];"
+      }
+    },
+    {
+      "id": "np-send",
+      "name": "Send Nurture Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1740,
+        320
+      ],
+      "parameters": {
+        "sendTo": "={{ $('Fill Nurture Email').item.json.to }}",
+        "subject": "={{ ($('Fill Nurture Email').item.json.subject).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Nurture Email').item.json.company_name) }}",
+        "emailType": "html",
+        "message": "={{ (($('Fill Nurture Email').item.json.htmlBody).replace(/The Team/g, $('Get Company Name: Nurture Email').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Nurture Email').item.json.company_name) }}",
+        "options": {
+          "senderName": "={{ $('Get Company Name: Nurture Email').item.json.company_name }}"
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VKDbMYV2U0WoSc16",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "np-log",
+      "name": "Log Sent Email: Nurture",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1960,
+        320
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts SET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object('id', gen_random_uuid()::text, 'type', 'sent', 'subject', $1::text, 'message', $2::text, 'sent_at', NOW(), 'is_read', true) WHERE id = $3;",
+        "options": {
+          "queryReplacement": "={{ [ ($('Fill Nurture Email').item.json.subject).replace(/\\{\\{\\s*company[._]name\\s*\\}\\}/gi, $('Get Company Name: Nurture Email').item.json.company_name), $('Fill Nurture Email').item.json.htmlBody.replace(/<br\\s*\\/?\\s*>/gi, '\\n').replace(/<[^>]+>/g, '').replace(/The Team/g, $('Get Company Name: Nurture Email').item.json.company_name + ' Team').replace(/\\{\\{\\s*company[._]name\\s*\\}\\}/gi, $('Get Company Name: Nurture Email').item.json.company_name), $('Determine Next Step').item.json.contact_id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "np-record-next",
+      "name": "Record Next Send",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2180,
+        320
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO email_sends (contact_id, thread_id, message_id, workflow_id, workflow_step, sent_at, reply_status) VALUES ($1, $2, $3, 'new_lead', $4, now(), 'waiting');",
+        "options": {
+          "queryReplacement": "={{ [ $('Determine Next Step').item.json.contact_id, $('Send Nurture Email').item.json.threadId, $('Send Nurture Email').item.json.id, $('Determine Next Step').item.json.nextStep ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "np-mark-expired",
+      "name": "Mark Current Send Expired",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2400,
+        320
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE email_sends SET reply_status = 'expired' WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Determine Next Step').item.json.send_id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "mt-webhook-o26dsls8uT96li7T",
+      "name": "Webhook: manual-test",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "webhookId": "1e23f7e1-74a6-4e13-a136-d3b0ff1c3010",
+      "position": [
+        200,
+        500
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "manual-test-o26dsls8uT96li7T",
+        "responseMode": "onReceived",
+        "options": {}
+      }
+    },
+    {
+      "id": "log-8saye0b6",
+      "name": "Log Automation Run",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2380,
+        470
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO automation_runs (automation_id, action_id, entity_type, entity_id, branch, status, detail) VALUES (37, 109, 'contact', $1, 'default', 'success', $2);",
+        "options": {
+          "queryReplacement": "={{ [ $('Determine Next Step').item.json.contact_id, 'Nurture step sent: ' + ($('Determine Next Step').item.json.nextStep || '') ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "sms-twcfg-swugfs",
+      "name": "Get Twilio Config: Nurture",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2380,
+        470
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT (SELECT value FROM integration_secrets WHERE key='twilio_account_sid') AS account_sid, (SELECT value FROM integration_secrets WHERE key='twilio_from_number') AS from_number;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "sms-if-wivd2n",
+      "name": "Can Send SMS: Nurture",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2580,
+        470
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ !!$('Find Due Sends').item.json.phone }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "c2",
+              "leftValue": "={{ $('Find Due Sends').item.json.dnc_sms === true }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "sms-send-zie310",
+      "name": "Send SMS: Nurture",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2780,
+        470
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.twilio.com/2010-04-01/Accounts/' + $('Get Twilio Config: Nurture').item.json.account_sid + '/Messages.json' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "To",
+              "value": "={{ $('Find Due Sends').item.json.phone }}"
+            },
+            {
+              "name": "From",
+              "value": "={{ $('Get Twilio Config: Nurture').item.json.from_number }}"
+            },
+            {
+              "name": "Body",
+              "value": "={{ 'Hi ' + ($('Find Due Sends').item.json.first_name || 'there') + ', just checking in on your roofing project - reply here with any questions! Reply STOP to opt out.' }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "xELUPXoNdBY2j9Eu",
+          "name": "Twilio Auth (PLACEHOLDER - replace me)"
+        }
+      }
+    },
+    {
+      "id": "sms-log-e07dwk",
+      "name": "Log Automation Run: SMS Nurture",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2980,
+        470
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO automation_runs (automation_id, action_id, entity_type, entity_id, branch, status, detail) VALUES (37, 124, 'contact', $1, 'default', 'success', $2);",
+        "options": {
+          "queryReplacement": "={{ [ $('Find Due Sends').item.json.contact_id, 'Nurture check-in SMS sent' ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "cname-olaqkzx4",
+      "name": "Get Company Name: Nurture Email",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1590,
+        440
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT company_name FROM company_profile LIMIT 1;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger: every hour": {
+      "main": [
+        [
+          {
+            "node": "Find Due Sends",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Due Sends": {
+      "main": [
+        [
+          {
+            "node": "Determine Next Step",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Determine Next Step": {
+      "main": [
+        [
+          {
+            "node": "Already Engaged?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Already Engaged?": {
+      "main": [
+        [
+          {
+            "node": "Mark Send Stopped (Engaged)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Has Next Step?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Next Step?": {
+      "main": [
+        [
+          {
+            "node": "Look Up Next Template",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Send Exhausted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Next Template": {
+      "main": [
+        [
+          {
+            "node": "Fill Nurture Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fill Nurture Email": {
+      "main": [
+        [
+          {
+            "node": "Get Company Name: Nurture Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Nurture Email": {
+      "main": [
+        [
+          {
+            "node": "Log Sent Email: Nurture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Sent Email: Nurture": {
+      "main": [
+        [
+          {
+            "node": "Record Next Send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Next Send": {
+      "main": [
+        [
+          {
+            "node": "Mark Current Send Expired",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Automation Run",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Twilio Config: Nurture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: manual-test": {
+      "main": [
+        [
+          {
+            "node": "Find Due Sends",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Twilio Config: Nurture": {
+      "main": [
+        [
+          {
+            "node": "Can Send SMS: Nurture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Can Send SMS: Nurture": {
+      "main": [
+        [
+          {
+            "node": "Send SMS: Nurture",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Send SMS: Nurture": {
+      "main": [
+        [
+          {
+            "node": "Log Automation Run: SMS Nurture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Company Name: Nurture Email": {
+      "main": [
+        [
+          {
+            "node": "Send Nurture Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": {
+    "node:Schedule Trigger: every hour": {
+      "recurrenceRules": []
+    }
+  },
+  "meta": null,
+  "pinData": null,
+  "versionId": "b3e725c7-e4e4-41ea-b165-6d26c9f0af2e",
+  "activeVersionId": "b3e725c7-e4e4-41ea-b165-6d26c9f0af2e",
+  "versionCounter": 106,
+  "triggerCount": 2,
+  "shared": [
+    {
+      "updatedAt": "2026-08-26T11:15:09.455Z",
+      "createdAt": "2026-08-26T11:15:09.455Z",
+      "role": "workflow:owner",
+      "workflowId": "o26dsls8uT96li7T",
+      "projectId": "U0P93jei8wmFLHlK",
+      "project": {
+        "updatedAt": "2026-07-06T11:46:20.993Z",
+        "createdAt": "2026-07-06T11:44:35.291Z",
+        "id": "U0P93jei8wmFLHlK",
+        "name": "gilbey dulnuan <gd.ai.systems@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "9ac1f4b8-fab2-4b63-88c5-9586529a2543"
+      }
+    }
+  ],
+  "tags": [
+    {
+      "updatedAt": "2026-08-25T11:47:48.864Z",
+      "createdAt": "2026-08-25T11:47:48.864Z",
+      "id": "nFdOj1wgPrD3lVS0",
+      "name": "automation"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-08-30T12:16:54.889Z",
+    "createdAt": "2026-08-30T12:16:54.889Z",
+    "versionId": "b3e725c7-e4e4-41ea-b165-6d26c9f0af2e",
+    "workflowId": "o26dsls8uT96li7T",
+    "nodes": [
+      {
+        "id": "np-sched",
+        "name": "Schedule Trigger: every hour",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          200,
+          300
+        ],
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "hours",
+                "hoursInterval": 1
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "np-find-due",
+        "name": "Find Due Sends",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          420,
+          300
+        ],
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT es.id AS send_id, es.contact_id, es.workflow_step, es.sent_at, c.first_name, c.last_name, c.email, c.phone, c.owner_id, c.unsubscribe_token, c.dnc_sms, EXISTS (SELECT 1 FROM taggables tg JOIN tags t ON t.id = tg.tag_id WHERE tg.entity_type = 'contact' AND tg.entity_id = c.id AND t.name = 'Engaged Lead') AS already_engaged FROM email_sends es JOIN contacts c ON c.id = es.contact_id WHERE es.workflow_id = 'new_lead' AND es.reply_status = 'waiting' AND es.sent_at <= now() - interval '24 hours' AND c.is_archived = false;",
+          "options": {}
+        },
+        "credentials": {
+          "postgres": {
+            "id": "OJlr1rmibAS2w3rj",
+            "name": "myRag"
+          }
+        }
+      },
+      {
+        "id": "np-next-step",
+        "name": "Determine Next Step",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          640,
+          300
+        ],
+        "parameters": {
+          "jsCode": "const NEXT = { thank_you: { step: 'nurture_1', templateId: 15 }, nurture_1: { step: 'nurture_2', templateId: 16 }, nurture_2: { step: 'nurture_3', templateId: 17 }, nurture_3: null };\nconst row = $input.item.json;\nconst next = NEXT[row.workflow_step] || null;\nreturn [{ json: { ...row, nextStep: next ? next.step : null, nextTemplateId: next ? next.templateId : null } }];"
+        }
+      },
+      {
+        "id": "np-should-stop",
+        "name": "Already Engaged?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          860,
+          300
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict"
+            },
+            "combinator": "and",
+            "conditions": [
+              {
+                "id": "np-engaged-cond",
+                "leftValue": "={{ $json.already_engaged || !!$json.owner_id }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ]
+          },
+          "options": {}
+        }
+      },
+      {
+        "id": "np-mark-stopped",
+        "name": "Mark Send Stopped (Engaged)",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          1080,
+          180
+        ],
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "UPDATE email_sends SET reply_status = 'stopped' WHERE id = $1;",
+          "options": {
+            "queryReplacement": "={{ [ $json.send_id ] }}"
+          }
+        },
+        "credentials": {
+          "postgres": {
+            "id": "OJlr1rmibAS2w3rj",
+            "name": "myRag"
+          }
+        }
+      },
+      {
+        "id": "np-has-next",
+        "name": "Has Next Step?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          1080,
+          400
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict"
+            },
+            "combinator": "and",
+            "conditions": [
+              {
+                "id": "np-next-cond",
+                "leftValue": "={{ !!$json.nextStep }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ]
+          },
+          "options": {}
+        }
+      },
+      {
+        "id": "np-mark-exhausted",
+        "name": "Mark Send Exhausted",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          1300,
+          480
+        ],
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "UPDATE email_sends SET reply_status = 'exhausted' WHERE id = $1;",
+          "options": {
+            "queryReplacement": "={{ [ $json.send_id ] }}"
+          }
+        },
+        "credentials": {
+          "postgres": {
+            "id": "OJlr1rmibAS2w3rj",
+            "name": "myRag"
+          }
+        }
+      },
+      {
+        "id": "np-lookup-tmpl",
+        "name": "Look Up Next Template",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          1300,
+          320
+        ],
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT subject, body FROM email_templates WHERE id = $1;",
+          "options": {
+            "queryReplacement": "={{ [ $json.nextTemplateId ] }}"
+          }
+        },
+        "credentials": {
+          "postgres": {
+            "id": "OJlr1rmibAS2w3rj",
+            "name": "myRag"
+          }
+        }
+      },
+      {
+        "id": "np-fill",
+        "name": "Fill Nurture Email",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1520,
+          320
+        ],
+        "parameters": {
+          "jsCode": "\nfunction toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction fill(template, row) {\n  let base = '';\n  try { base = $env.FRONTEND_BASE_URL || ''; } catch (e) { base = ''; }\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*email\\s*}}/gi, row.email || '')\n    .replace(/{{\\s*unsubscribe_link\\s*}}/gi, base + '/unsubscribe/' + row.unsubscribe_token)\n    .replace(/{{(?!\\s*company_name\\s*}})[^{}]*}}/gi, '');\n}\n\nconst tmpl = $input.item.json;\nconst row = $('Determine Next Step').item.json;\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject, row), htmlBody: fill(tmpl.body, row).replace(/\\n/g, '<br>') } }];"
+        }
+      },
+      {
+        "id": "np-send",
+        "name": "Send Nurture Email",
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 2.2,
+        "position": [
+          1740,
+          320
+        ],
+        "parameters": {
+          "sendTo": "={{ $('Fill Nurture Email').item.json.to }}",
+          "subject": "={{ ($('Fill Nurture Email').item.json.subject).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Nurture Email').item.json.company_name) }}",
+          "emailType": "html",
+          "message": "={{ (($('Fill Nurture Email').item.json.htmlBody).replace(/The Team/g, $('Get Company Name: Nurture Email').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Nurture Email').item.json.company_name) }}",
+          "options": {
+            "senderName": "={{ $('Get Company Name: Nurture Email').item.json.company_name }}"
+          }
+        },
+        "credentials": {
+          "gmailOAuth2": {
+            "id": "VKDbMYV2U0WoSc16",
+            "name": "n8n072826"
+          }
+        },
+        "onError": "continueRegularOutput"
+      },
+      {
+        "id": "np-log",
+        "name": "Log Sent Email: Nurture",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          1960,
+          320
+        ],
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "UPDATE contacts SET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object('id', gen_random_uuid()::text, 'type', 'sent', 'subject', $1::text, 'message', $2::text, 'sent_at', NOW(), 'is_read', true) WHERE id = $3;",
+          "options": {
+            "queryReplacement": "={{ [ ($('Fill Nurture Email').item.json.subject).replace(/\\{\\{\\s*company[._]name\\s*\\}\\}/gi, $('Get Company Name: Nurture Email').item.json.company_name), $('Fill Nurture Email').item.json.htmlBody.replace(/<br\\s*\\/?\\s*>/gi, '\\n').replace(/<[^>]+>/g, '').replace(/The Team/g, $('Get Company Name: Nurture Email').item.json.company_name + ' Team').replace(/\\{\\{\\s*company[._]name\\s*\\}\\}/gi, $('Get Company Name: Nurture Email').item.json.company_name), $('Determine Next Step').item.json.contact_id ] }}"
+          }
+        },
+        "credentials": {
+          "postgres": {
+            "id": "OJlr1rmibAS2w3rj",
+            "name": "myRag"
+          }
+        }
+      },
+      {
+        "id": "np-record-next",
+        "name": "Record Next Send",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          2180,
+          320
+        ],
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "INSERT INTO email_sends (contact_id, thread_id, message_id, workflow_id, workflow_step, sent_at, reply_status) VALUES ($1, $2, $3, 'new_lead', $4, now(), 'waiting');",
+          "options": {
+            "queryReplacement": "={{ [ $('Determine Next Step').item.json.contact_id, $('Send Nurture Email').item.json.threadId, $('Send Nurture Email').item.json.id, $('Determine Next Step').item.json.nextStep ] }}"
+          }
+        },
+        "credentials": {
+          "postgres": {
+            "id": "OJlr1rmibAS2w3rj",
+            "name": "myRag"
+          }
+        }
+      },
+      {
+        "id": "np-mark-expired",
+        "name": "Mark Current Send Expired",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          2400,
+          320
+        ],
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "UPDATE email_sends SET reply_status = 'expired' WHERE id = $1;",
+          "options": {
+            "queryReplacement": "={{ [ $('Determine Next Step').item.json.send_id ] }}"
+          }
+        },
+        "credentials": {
+          "postgres": {
+            "id": "OJlr1rmibAS2w3rj",
+            "name": "myRag"
+          }
+        }
+      },
+      {
+        "id": "mt-webhook-o26dsls8uT96li7T",
+        "name": "Webhook: manual-test",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "webhookId": "1e23f7e1-74a6-4e13-a136-d3b0ff1c3010",
+        "position": [
+          200,
+          500
+        ],
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "manual-test-o26dsls8uT96li7T",
+          "responseMode": "onReceived",
+          "options": {}
+        }
+      },
+      {
+        "id": "log-8saye0b6",
+        "name": "Log Automation Run",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          2380,
+          470
+        ],
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "INSERT INTO automation_runs (automation_id, action_id, entity_type, entity_id, branch, status, detail) VALUES (37, 109, 'contact', $1, 'default', 'success', $2);",
+          "options": {
+            "queryReplacement": "={{ [ $('Determine Next Step').item.json.contact_id, 'Nurture step sent: ' + ($('Determine Next Step').item.json.nextStep || '') ] }}"
+          }
+        },
+        "credentials": {
+          "postgres": {
+            "id": "OJlr1rmibAS2w3rj",
+            "name": "myRag"
+          }
+        }
+      },
+      {
+        "id": "sms-twcfg-swugfs",
+        "name": "Get Twilio Config: Nurture",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          2380,
+          470
+        ],
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT (SELECT value FROM integration_secrets WHERE key='twilio_account_sid') AS account_sid, (SELECT value FROM integration_secrets WHERE key='twilio_from_number') AS from_number;",
+          "options": {}
+        },
+        "credentials": {
+          "postgres": {
+            "id": "OJlr1rmibAS2w3rj",
+            "name": "myRag"
+          }
+        }
+      },
+      {
+        "id": "sms-if-wivd2n",
+        "name": "Can Send SMS: Nurture",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          2580,
+          470
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict"
+            },
+            "combinator": "and",
+            "conditions": [
+              {
+                "id": "c1",
+                "leftValue": "={{ !!$('Find Due Sends').item.json.phone }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              },
+              {
+                "id": "c2",
+                "leftValue": "={{ $('Find Due Sends').item.json.dnc_sms === true }}",
+                "rightValue": false,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ]
+          },
+          "options": {}
+        }
+      },
+      {
+        "id": "sms-send-zie310",
+        "name": "Send SMS: Nurture",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          2780,
+          470
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "={{ 'https://api.twilio.com/2010-04-01/Accounts/' + $('Get Twilio Config: Nurture').item.json.account_sid + '/Messages.json' }}",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpBasicAuth",
+          "sendBody": true,
+          "contentType": "form-urlencoded",
+          "bodyParameters": {
+            "parameters": [
+              {
+                "name": "To",
+                "value": "={{ $('Find Due Sends').item.json.phone }}"
+              },
+              {
+                "name": "From",
+                "value": "={{ $('Get Twilio Config: Nurture').item.json.from_number }}"
+              },
+              {
+                "name": "Body",
+                "value": "={{ 'Hi ' + ($('Find Due Sends').item.json.first_name || 'there') + ', just checking in on your roofing project - reply here with any questions! Reply STOP to opt out.' }}"
+              }
+            ]
+          },
+          "options": {
+            "timeout": 5000
+          }
+        },
+        "onError": "continueRegularOutput",
+        "credentials": {
+          "httpBasicAuth": {
+            "id": "xELUPXoNdBY2j9Eu",
+            "name": "Twilio Auth (PLACEHOLDER - replace me)"
+          }
+        }
+      },
+      {
+        "id": "sms-log-e07dwk",
+        "name": "Log Automation Run: SMS Nurture",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          2980,
+          470
+        ],
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "INSERT INTO automation_runs (automation_id, action_id, entity_type, entity_id, branch, status, detail) VALUES (37, 124, 'contact', $1, 'default', 'success', $2);",
+          "options": {
+            "queryReplacement": "={{ [ $('Find Due Sends').item.json.contact_id, 'Nurture check-in SMS sent' ] }}"
+          }
+        },
+        "credentials": {
+          "postgres": {
+            "id": "OJlr1rmibAS2w3rj",
+            "name": "myRag"
+          }
+        }
+      },
+      {
+        "id": "cname-olaqkzx4",
+        "name": "Get Company Name: Nurture Email",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          1590,
+          440
+        ],
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT company_name FROM company_profile LIMIT 1;",
+          "options": {}
+        },
+        "credentials": {
+          "postgres": {
+            "id": "OJlr1rmibAS2w3rj",
+            "name": "myRag"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Schedule Trigger: every hour": {
+        "main": [
+          [
+            {
+              "node": "Find Due Sends",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Find Due Sends": {
+        "main": [
+          [
+            {
+              "node": "Determine Next Step",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Determine Next Step": {
+        "main": [
+          [
+            {
+              "node": "Already Engaged?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Already Engaged?": {
+        "main": [
+          [
+            {
+              "node": "Mark Send Stopped (Engaged)",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Has Next Step?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Has Next Step?": {
+        "main": [
+          [
+            {
+              "node": "Look Up Next Template",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Mark Send Exhausted",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Look Up Next Template": {
+        "main": [
+          [
+            {
+              "node": "Fill Nurture Email",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Fill Nurture Email": {
+        "main": [
+          [
+            {
+              "node": "Get Company Name: Nurture Email",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Send Nurture Email": {
+        "main": [
+          [
+            {
+              "node": "Log Sent Email: Nurture",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Log Sent Email: Nurture": {
+        "main": [
+          [
+            {
+              "node": "Record Next Send",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Record Next Send": {
+        "main": [
+          [
+            {
+              "node": "Mark Current Send Expired",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Log Automation Run",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Get Twilio Config: Nurture",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Webhook: manual-test": {
+        "main": [
+          [
+            {
+              "node": "Find Due Sends",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Twilio Config: Nurture": {
+        "main": [
+          [
+            {
+              "node": "Can Send SMS: Nurture",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Can Send SMS: Nurture": {
+        "main": [
+          [
+            {
+              "node": "Send SMS: Nurture",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          []
+        ]
+      },
+      "Send SMS: Nurture": {
+        "main": [
+          [
+            {
+              "node": "Log Automation Run: SMS Nurture",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Company Name: Nurture Email": {
+        "main": [
+          [
+            {
+              "node": "Send Nurture Email",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "gilbey dulnuan",
+    "name": null,
+    "description": null,
+    "autosaved": false,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-08-30T12:16:54.949Z",
+        "id": 2677,
+        "workflowId": "o26dsls8uT96li7T",
+        "versionId": "b3e725c7-e4e4-41ea-b165-6d26c9f0af2e",
+        "event": "activated",
+        "userId": "9ac1f4b8-fab2-4b63-88c5-9586529a2543"
+      },
+      {
+        "createdAt": "2026-08-30T12:16:55.056Z",
+        "id": 2679,
+        "workflowId": "o26dsls8uT96li7T",
+        "versionId": "b3e725c7-e4e4-41ea-b165-6d26c9f0af2e",
+        "event": "activated",
+        "userId": "9ac1f4b8-fab2-4b63-88c5-9586529a2543"
+      },
+      {
+        "createdAt": "2026-08-30T12:16:54.930Z",
+        "id": 2676,
+        "workflowId": "o26dsls8uT96li7T",
+        "versionId": "b3e725c7-e4e4-41ea-b165-6d26c9f0af2e",
+        "event": "deactivated",
+        "userId": "9ac1f4b8-fab2-4b63-88c5-9586529a2543"
+      },
+      {
+        "createdAt": "2026-08-30T12:16:54.997Z",
+        "id": 2678,
+        "workflowId": "o26dsls8uT96li7T",
+        "versionId": "b3e725c7-e4e4-41ea-b165-6d26c9f0af2e",
+        "event": "deactivated",
+        "userId": "9ac1f4b8-fab2-4b63-88c5-9586529a2543"
+      }
+    ]
+  }
+}

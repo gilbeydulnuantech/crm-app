@@ -6,7 +6,7 @@
         "path": "get-users",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "39cc5640-aac2-4586-93ec-0bce795eb323",
@@ -64,7 +64,7 @@
         "path": "assign-contact-owner",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "227b265c-e5fc-4863-8355-f062affdfee7",
@@ -79,45 +79,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) {\n  throw new Error('Invalid or missing session token.');\n}\n\nconst requesterId = parseInt(match[1], 10);\n\nreturn [{ json: { requesterId } }];"
-      },
-      "id": "ce9a2811-4253-400a-9a93-b141a3f90ec8",
-      "name": "Parse Requester Token",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1184,
-        1088
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "85b30d63-f8e5-45ca-a8ba-9657bdaecf4d",
-      "name": "Look Up Requester Role",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        1408,
-        1088
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Assign Contact Owner').first().json.body || {};\n\nif (!requester.id || !requester.active) {\n  throw new Error('Invalid session.');\n}\n\nif (requester.role !== 'admin') {\n  throw new Error('Only admins can assign contact owners.');\n}\n\nconst contactId = parseInt(body.contact_id, 10);\nconst ownerIdRaw = body.owner_id;\nconst ownerId = (ownerIdRaw === null || ownerIdRaw === undefined || ownerIdRaw === '')\n  ? null\n  : parseInt(ownerIdRaw, 10);\n\nif (!Number.isInteger(contactId)) {\n  throw new Error('\"contact_id\" must be an integer.');\n}\nif (ownerId !== null && !Number.isInteger(ownerId)) {\n  throw new Error('\"owner_id\" must be an integer or null.');\n}\n\nreturn [{ json: { contactId, ownerId } }];"
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Assign Contact Owner').first().json.body || {};\n\nif (!requester.valid) {\n  throw new Error('Invalid session.');\n}\n\nif (requester.role !== 'admin') {\n  throw new Error('Only admins can assign contact owners.');\n}\n\nconst contactId = parseInt(body.contact_id, 10);\nconst ownerIdRaw = body.owner_id;\nconst ownerId = (ownerIdRaw === null || ownerIdRaw === undefined || ownerIdRaw === '')\n  ? null\n  : parseInt(ownerIdRaw, 10);\n\nif (!Number.isInteger(contactId)) {\n  throw new Error('\"contact_id\" must be an integer.');\n}\nif (ownerId !== null && !Number.isInteger(ownerId)) {\n  throw new Error('\"owner_id\" must be an integer or null.');\n}\n\nreturn [{ json: { contactId, ownerId } }];"
       },
       "id": "b797039c-8668-460b-9e16-894146608f81",
       "name": "Validate Admin & Payload",
@@ -202,7 +164,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const requesterName = $('Look Up Requester Role').first().json.name || 'Someone';\nconst requesterId = $('Parse Requester Token').first().json.requesterId;\nconst payload = $('Validate Admin & Payload').first().json;\nconst contact = $('Update Contact Owner').first().json;\nconst oldOwnerName = $('Look Up Old Owner').first().json.old_owner_name || 'Unassigned';\nconst newOwnerName = $input.first().json.new_owner_name || 'Unassigned';\nconst contactName = `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'Unknown Contact';\n\nif (oldOwnerName === newOwnerName) {\n  // A no-op query that always returns exactly one row \u2014 a downstream\n  // Postgres node that yields zero output items would silently stop the\n  // rest of this chain (owner notification DM etc.), so \"SELECT 1;\" is\n  // used instead of an insert with a WHERE-false-style skip.\n  return [{ json: { sqlQuery: 'SELECT 1;', queryParams: [] } }];\n}\n\nconst summary = `${requesterName} transferred ownership of \"${contactName}\" from ${oldOwnerName} to ${newOwnerName}`;\nconst detail = JSON.stringify({ from: oldOwnerName, to: newOwnerName });\n\nconst sqlQuery = 'INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8) RETURNING id;';\nconst queryParams = ['contact', payload.contactId, 'system_audit', 'ownership_change', summary, detail, requesterId, requesterName];\n\nreturn [{ json: { sqlQuery, queryParams } }];"
+        "jsCode": "const requesterName = $('Execute Workflow: Verify Session (US1)').first().json.user.name || 'Someone';\nconst requesterId = $('Execute Workflow: Verify Session (US1)').first().json.userId;\nconst payload = $('Validate Admin & Payload').first().json;\nconst contact = $('Update Contact Owner').first().json;\nconst oldOwnerName = $('Look Up Old Owner').first().json.old_owner_name || 'Unassigned';\nconst newOwnerName = $input.first().json.new_owner_name || 'Unassigned';\nconst contactName = `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'Unknown Contact';\n\nif (oldOwnerName === newOwnerName) {\n  // A no-op query that always returns exactly one row \u2014 a downstream\n  // Postgres node that yields zero output items would silently stop the\n  // rest of this chain (owner notification DM etc.), so \"SELECT 1;\" is\n  // used instead of an insert with a WHERE-false-style skip.\n  return [{ json: { sqlQuery: 'SELECT 1;', queryParams: [] } }];\n}\n\nconst summary = `${requesterName} transferred ownership of \"${contactName}\" from ${oldOwnerName} to ${newOwnerName}`;\nconst detail = JSON.stringify({ from: oldOwnerName, to: newOwnerName });\n\nconst sqlQuery = 'INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8) RETURNING id;';\nconst queryParams = ['contact', payload.contactId, 'system_audit', 'ownership_change', summary, detail, requesterId, requesterName];\n\nreturn [{ json: { sqlQuery, queryParams } }];"
       },
       "id": "a1b2c3d4-0032-4a5a-9b1a-usg000000032",
       "name": "Build Ownership Audit",
@@ -269,7 +231,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "responseBody": "={{ { success: false, error: (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Request failed.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -298,49 +260,12 @@
         960,
         1456
       ],
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "webhookId": "c08367ec-f39c-4792-8f57-748519d52458"
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) {\n  throw new Error('Invalid or missing session token.');\n}\n\nconst requesterId = parseInt(match[1], 10);\n\nreturn [{ json: { requesterId } }];"
-      },
-      "id": "d1e2f002-2222-4a5a-9b1a-usercolor0002",
-      "name": "Parse Requester Token (Color)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1184,
-        1456
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "d1e2f003-3333-4a5a-9b1a-usercolor0003",
-      "name": "Look Up Requester Role (Color)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1408,
-        1456
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Update User Color').first().json.body || {};\n\nif (!requester.id || !requester.active) {\n  throw new Error('Invalid session.');\n}\n\nconst targetUserId = parseInt(body.user_id, 10);\nif (!Number.isInteger(targetUserId)) {\n  throw new Error('\"user_id\" must be an integer.');\n}\n\n// Admins can recolor anyone; everyone else can only recolor themselves.\nif (requester.role !== 'admin' && requester.id !== targetUserId) {\n  throw new Error('You can only change your own color.');\n}\n\nconst color = (body.color || '').toString().trim();\nif (!/^#[0-9A-Fa-f]{6}$/.test(color)) {\n  throw new Error('\"color\" must be a hex code like #3B82F6.');\n}\n\nreturn [{ json: { targetUserId, color } }];"
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Update User Color').first().json.body || {};\n\nif (!requester.valid) {\n  throw new Error('Invalid session.');\n}\n\nconst targetUserId = parseInt(body.user_id, 10);\nif (!Number.isInteger(targetUserId)) {\n  throw new Error('\"user_id\" must be an integer.');\n}\n\n// Admins can recolor anyone; everyone else can only recolor themselves.\nif (requester.role !== 'admin' && requester.userId !== targetUserId) {\n  throw new Error('You can only change your own color.');\n}\n\nconst color = (body.color || '').toString().trim();\nif (!/^#[0-9A-Fa-f]{6}$/.test(color)) {\n  throw new Error('\"color\" must be a hex code like #3B82F6.');\n}\n\nreturn [{ json: { targetUserId, color } }];"
       },
       "id": "d1e2f004-4444-4a5a-9b1a-usercolor0004",
       "name": "Validate Color Payload",
@@ -407,7 +332,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const payload = $('Validate Admin & Payload').first().json;\nconst requesterId = $('Parse Requester Token').first().json.requesterId;\nconst contact = $('Update Contact Owner').first().json;\nconst ownerId = payload.ownerId;\n// Only notify when the deal is actually handed to someone else \u2014 not on\n// unassign (ownerId null) or an admin assigning themselves.\nconst notify = !!ownerId && ownerId !== requesterId;\nconst dmKey = notify ? [requesterId, ownerId].sort((a, b) => a - b).join('-') : null;\nconst contactName = `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'a contact';\nreturn [{ json: { notify, dmKey, requesterId, ownerId, contactId: payload.contactId, contactName } }];"
+        "jsCode": "const payload = $('Validate Admin & Payload').first().json;\nconst requesterId = $('Execute Workflow: Verify Session (US1)').first().json.userId;\nconst contact = $('Update Contact Owner').first().json;\nconst ownerId = payload.ownerId;\n// Only notify when the deal is actually handed to someone else \u2014 not on\n// unassign (ownerId null) or an admin assigning themselves.\nconst notify = !!ownerId && ownerId !== requesterId;\nconst dmKey = notify ? [requesterId, ownerId].sort((a, b) => a - b).join('-') : null;\nconst contactName = `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'a contact';\nreturn [{ json: { notify, dmKey, requesterId, ownerId, contactId: payload.contactId, contactName } }];"
       },
       "id": "b79cdc74-b54a-433e-b224-5830cb47c6bb",
       "name": "Prepare Owner Notice: assign-contact-owner",
@@ -563,45 +488,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) {\n  throw new Error('Invalid or missing session token.');\n}\n\nconst requesterId = parseInt(match[1], 10);\n\nreturn [{ json: { requesterId } }];"
-      },
-      "id": "5e13ad06-3494-4899-89ca-1437c4247c46",
-      "name": "Parse Requester Token (Theme)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1184,
-        1440
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "81f318dc-db96-4ee9-8492-d7771536a6e0",
-      "name": "Look Up Requester Role (Theme)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        1408,
-        1440
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Update User Theme').first().json.body || {};\n\nif (!requester.id || !requester.active) {\n  throw new Error('Invalid session.');\n}\n\nconst targetUserId = parseInt(body.user_id, 10);\nif (!Number.isInteger(targetUserId)) {\n  throw new Error('\"user_id\" must be an integer.');\n}\n\n// Admins can re-theme anyone; everyone else can only style their own account.\nif (requester.role !== 'admin' && requester.id !== targetUserId) {\n  throw new Error('You can only change your own theme.');\n}\n\nconst hex = /^#[0-9A-Fa-f]{6}$/;\nconst fields = ['header_color', 'main_color', 'accent_color'];\nconst values = {};\nfor (const field of fields) {\n  const raw = body[field];\n  // Any of the three may be explicitly null to reset that slot back\n  // to the app default \u2014 only a present, non-null value is validated.\n  if (raw === null || raw === undefined) { values[field] = null; continue; }\n  const v = raw.toString().trim();\n  if (!hex.test(v)) {\n    throw new Error(`\"${field}\" must be a hex code like #3B82F6.`);\n  }\n  values[field] = v;\n}\n\nreturn [{ json: { targetUserId, ...values } }];"
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Update User Theme').first().json.body || {};\n\nif (!requester.valid) {\n  throw new Error('Invalid session.');\n}\n\nconst targetUserId = parseInt(body.user_id, 10);\nif (!Number.isInteger(targetUserId)) {\n  throw new Error('\"user_id\" must be an integer.');\n}\n\n// Admins can re-theme anyone; everyone else can only style their own account.\nif (requester.role !== 'admin' && requester.userId !== targetUserId) {\n  throw new Error('You can only change your own theme.');\n}\n\nconst hex = /^#[0-9A-Fa-f]{6}$/;\nconst fields = ['header_color', 'main_color', 'accent_color'];\nconst values = {};\nfor (const field of fields) {\n  const raw = body[field];\n  // Any of the three may be explicitly null to reset that slot back\n  // to the app default \u2014 only a present, non-null value is validated.\n  if (raw === null || raw === undefined) { values[field] = null; continue; }\n  const v = raw.toString().trim();\n  if (!hex.test(v)) {\n    throw new Error(`\"${field}\" must be a hex code like #3B82F6.`);\n  }\n  values[field] = v;\n}\n\nreturn [{ json: { targetUserId, ...values } }];"
       },
       "id": "c195e1a3-17a8-4d35-87ac-1a2d5889d80b",
       "name": "Validate Theme Payload",
@@ -681,49 +568,12 @@
         960,
         1680
       ],
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "webhookId": "7508493f-69ef-49be-81fa-582f51713a31"
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) {\n  throw new Error('Invalid or missing session token.');\n}\n\nconst requesterId = parseInt(match[1], 10);\n\nreturn [{ json: { requesterId } }];"
-      },
-      "id": "e2f3a002-2222-4a5a-9b1a-notifprefs002",
-      "name": "Parse Requester Token (Notif Prefs)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1184,
-        1680
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "e2f3a003-3333-4a5a-9b1a-notifprefs003",
-      "name": "Look Up Requester Role (Notif Prefs)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1408,
-        1680
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Update Notification Preferences').first().json.body || {};\n\nif (!requester.id || !requester.active) {\n  throw new Error('Invalid session.');\n}\n\n// Users only ever manage their own notification preferences \u2014 unlike color,\n// there's no admin-on-behalf-of-someone-else case for this.\nconst targetUserId = requester.id;\n\nconst allowedKeys = ['email', 'chat', 'tasks_due'];\nconst prefs = body.preferences && typeof body.preferences === 'object' ? body.preferences : {};\nconst cleaned = {};\nfor (const key of allowedKeys) {\n  if (key in prefs) cleaned[key] = !!prefs[key];\n}\nif (Object.keys(cleaned).length === 0) {\n  throw new Error('No valid preference keys provided.');\n}\n\nreturn [{ json: { targetUserId, preferences: JSON.stringify(cleaned) } }];"
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Update Notification Preferences').first().json.body || {};\n\nif (!requester.valid) {\n  throw new Error('Invalid session.');\n}\n\n// Users only ever manage their own notification preferences \u2014 unlike color,\n// there's no admin-on-behalf-of-someone-else case for this.\nconst targetUserId = requester.userId;\n\nconst allowedKeys = ['email', 'chat', 'tasks_due'];\nconst prefs = body.preferences && typeof body.preferences === 'object' ? body.preferences : {};\nconst cleaned = {};\nfor (const key of allowedKeys) {\n  if (key in prefs) cleaned[key] = !!prefs[key];\n}\nif (Object.keys(cleaned).length === 0) {\n  throw new Error('No valid preference keys provided.');\n}\n\nreturn [{ json: { targetUserId, preferences: JSON.stringify(cleaned) } }];"
       },
       "id": "e2f3a004-4444-4a5a-9b1a-notifprefs004",
       "name": "Validate Notif Prefs Payload",
@@ -794,7 +644,7 @@
         "path": "get-all-users",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "e2f3b001-1111-4a5a-9b1a-usermgmt0001",
@@ -805,49 +655,12 @@
         960,
         1904
       ],
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "webhookId": "09d86dac-1101-47e0-8602-8e25da85eeea"
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "e2f3b002-2222-4a5a-9b1a-usermgmt0002",
-      "name": "Parse Token (Get All Users)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1184,
-        1904
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "e2f3b003-3333-4a5a-9b1a-usermgmt0003",
-      "name": "Look Up Requester Role (Get All Users)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1408,
-        1904
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\nreturn [{ json: {} }];"
+        "jsCode": "const requester = $input.first().json;\nif (!requester.valid) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\nreturn [{ json: {} }];"
       },
       "id": "e2f3b004-4444-4a5a-9b1a-usermgmt0004",
       "name": "Validate Admin (Get All Users)",
@@ -910,49 +723,12 @@
         960,
         2128
       ],
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "webhookId": "0d9cc47b-d87f-4c41-9aba-a28e42343c19"
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "e2f3b008-8888-4a5a-9b1a-usermgmt0008",
-      "name": "Parse Token (Update Role)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1184,
-        2128
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "e2f3b009-9999-4a5a-9b1a-usermgmt0009",
-      "name": "Look Up Requester Role (Update Role)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1408,
-        2128
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Update User Role').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst targetUserId = parseInt(body.user_id, 10);\nif (!Number.isInteger(targetUserId)) throw new Error('\"user_id\" must be an integer.');\n\nif (targetUserId === requester.id) throw new Error('You cannot change your own role.');\n\nconst role = (body.role || '').toString().trim();\nif (!['admin', 'user'].includes(role)) throw new Error('\"role\" must be \"admin\" or \"user\".');\n\nreturn [{ json: { targetUserId, role } }];"
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Update User Role').first().json.body || {};\n\nif (!requester.valid) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst targetUserId = parseInt(body.user_id, 10);\nif (!Number.isInteger(targetUserId)) throw new Error('\"user_id\" must be an integer.');\n\nif (targetUserId === requester.userId) throw new Error('You cannot change your own role.');\n\nconst role = (body.role || '').toString().trim();\nif (!['admin', 'user'].includes(role)) throw new Error('\"role\" must be \"admin\" or \"user\".');\n\nreturn [{ json: { targetUserId, role } }];"
       },
       "id": "e2f3b010-1010-4a5a-9b1a-usermgmt0010",
       "name": "Validate Admin & Payload (Update Role)",
@@ -1032,49 +808,12 @@
         960,
         2352
       ],
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "webhookId": "49eb18b4-8d6e-4947-b9ce-25004625486c"
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "e2f3b015-1515-4a5a-9b1a-usermgmt0015",
-      "name": "Parse Token (Update Active)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1184,
-        2352
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "e2f3b016-1616-4a5a-9b1a-usermgmt0016",
-      "name": "Look Up Requester Role (Update Active)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1408,
-        2352
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Update User Active').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst targetUserId = parseInt(body.user_id, 10);\nif (!Number.isInteger(targetUserId)) throw new Error('\"user_id\" must be an integer.');\n\nif (targetUserId === requester.id) throw new Error('You cannot deactivate your own account.');\n\nif (typeof body.active !== 'boolean') throw new Error('\"active\" must be true or false.');\n\nreturn [{ json: { targetUserId, active: body.active } }];"
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Update User Active').first().json.body || {};\n\nif (!requester.valid) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst targetUserId = parseInt(body.user_id, 10);\nif (!Number.isInteger(targetUserId)) throw new Error('\"user_id\" must be an integer.');\n\nif (targetUserId === requester.userId) throw new Error('You cannot deactivate your own account.');\n\nif (typeof body.active !== 'boolean') throw new Error('\"active\" must be true or false.');\n\nreturn [{ json: { targetUserId, active: body.active } }];"
       },
       "id": "e2f3b017-1717-4a5a-9b1a-usermgmt0017",
       "name": "Validate Admin & Payload (Update Active)",
@@ -1154,18 +893,19 @@
         960,
         2576
       ],
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "webhookId": "bfaeeabf-39ee-4913-a09b-76ae9a902e70"
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nconst requesterId = parseInt(match[1], 10);\n\nconst body = $input.first().json.body || {};\nconst photo = body.photo || {};\nconst dataUrl = photo.url || '';\n\n// Frontend sends { name, url } where url is a data: URL from FileReader \u2014\n// same convention contacts-mail-send.json already uses for attachments.\nconst m = /^data:([^;,]+)?(?:;[^,]*)?,(.*)$/s.exec(dataUrl);\nif (!m) throw new Error('\"photo.url\" must be a base64 data URL.');\nconst [, mimeType, base64] = m;\n\nif (!mimeType || !mimeType.startsWith('image/')) {\n  throw new Error('Photo must be an image file.');\n}\n// ~5MB raw cap (base64 runs ~33% larger than the source bytes).\nif (base64.length > 7000000) {\n  throw new Error('Photo is too large (max ~5MB).');\n}\n\nreturn [{\n  json: { requesterId },\n  binary: {\n    data: {\n      data: base64,\n      mimeType,\n      fileName: photo.name || 'avatar.jpg'\n    }\n  }\n}];"
+        "jsCode": "const requester = $input.first().json;\nif (!requester.valid) throw new Error('Invalid session.');\nconst requesterId = requester.userId;\n\nconst body = $('Webhook - Upload Avatar').first().json.body || {};\nconst photo = body.photo || {};\nconst dataUrl = photo.url || '';\n\nconst m = /^data:([^;,]+)?(?:;[^,]*)?,(.*)$/s.exec(dataUrl);\nif (!m) throw new Error('\"photo.url\" must be a base64 data URL.');\nconst [, mimeType, base64] = m;\n\nif (!mimeType || !mimeType.startsWith('image/')) {\n  throw new Error('Photo must be an image file.');\n}\nif (base64.length > 7000000) {\n  throw new Error('Photo is too large (max ~5MB).');\n}\n\nreturn [{\n  json: { requesterId },\n  binary: {\n    data: {\n      data: base64,\n      mimeType,\n      fileName: photo.name || 'avatar.jpg'\n    }\n  }\n}];"
       },
       "id": "f3a4c002-2222-4a5a-9b1a-avatarup0002",
-      "name": "Parse Token & Photo",
+      "name": "Validate Photo Session",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1184,
+        1628,
         2576
       ],
       "onError": "continueErrorOutput"
@@ -1232,7 +972,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const fileId = $('Upload Avatar to Drive').first().json.id;\nconst requesterId = $('Parse Token & Photo').first().json.requesterId;\nconst avatarUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w200`;\nreturn [{ json: { requesterId, avatarUrl } }];"
+        "jsCode": "const fileId = $('Upload Avatar to Drive').first().json.id;\nconst requesterId = $('Validate Photo Session').first().json.requesterId;\nconst avatarUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w200`;\nreturn [{ json: { requesterId, avatarUrl } }];"
       },
       "id": "f3a4c005-5555-4a5a-9b1a-avatarup0005",
       "name": "Build Avatar URL",
@@ -1312,49 +1052,12 @@
         960,
         2800
       ],
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "webhookId": "5f383c19-6e06-4b51-9130-7804d017b281"
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "a5b6c002-2222-4a5a-9b1a-changepwd002",
-      "name": "Parse Token (Change Password)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1184,
-        2800
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, password_hash, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "a5b6c003-3333-4a5a-9b1a-changepwd003",
-      "name": "Look Up Requester (Change Password)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1408,
-        2800
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const bcrypt = require('bcryptjs');\nconst requester = $input.first().json;\nconst body = $('Webhook - Change Password').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst currentPassword = body.current_password || '';\nconst newPassword = body.new_password || '';\n\nif (!currentPassword || !newPassword) {\n  throw new Error('Current and new password are required.');\n}\nif (newPassword.length < 8) {\n  throw new Error('New password must be at least 8 characters.');\n}\n\nconst isValid = bcrypt.compareSync(currentPassword, requester.password_hash);\nif (!isValid) {\n  throw new Error('Current password is incorrect.');\n}\n\nconst salt = bcrypt.genSaltSync(10);\nconst newHash = bcrypt.hashSync(newPassword, salt);\n\nreturn [{ json: { targetUserId: requester.id, newHash } }];"
+        "jsCode": "const bcrypt = require('bcryptjs');\nconst requester = $('Execute Workflow: Verify Session (US8)').first().json;\nconst passwordHash = $input.first().json.password_hash;\nconst body = $('Webhook - Change Password').first().json.body || {};\n\nif (!requester.valid) throw new Error('Invalid session.');\n\nconst currentPassword = body.current_password || '';\nconst newPassword = body.new_password || '';\n\nif (!currentPassword || !newPassword) {\n  throw new Error('Current and new password are required.');\n}\nif (newPassword.length < 8) {\n  throw new Error('New password must be at least 8 characters.');\n}\n\nconst isValid = bcrypt.compareSync(currentPassword, passwordHash);\nif (!isValid) {\n  throw new Error('Current password is incorrect.');\n}\n\nconst salt = bcrypt.genSaltSync(10);\nconst newHash = bcrypt.hashSync(newPassword, salt);\n\nreturn [{ json: { targetUserId: requester.userId, newHash } }];"
       },
       "id": "a5b6c004-4444-4a5a-9b1a-changepwd004",
       "name": "Verify & Hash New Password",
@@ -1434,49 +1137,12 @@
         960,
         1680
       ],
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "webhookId": "008e7447-86cf-4cf6-b70a-86525f0a5e76"
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) {\n  throw new Error('Invalid or missing session token.');\n}\n\nconst requesterId = parseInt(match[1], 10);\n\nreturn [{ json: { requesterId } }];"
-      },
-      "id": "d1e2f102-2222-4a5a-9b1a-userphone0002",
-      "name": "Parse Requester Token (Phone)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1184,
-        1680
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "d1e2f103-3333-4a5a-9b1a-userphone0003",
-      "name": "Look Up Requester Role (Phone)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1408,
-        1680
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Update User Phone').first().json.body || {};\n\nif (!requester.id || !requester.active) {\n  throw new Error('Invalid session.');\n}\n\nconst targetUserId = parseInt(body.user_id, 10);\nif (!Number.isInteger(targetUserId)) {\n  throw new Error('\"user_id\" must be an integer.');\n}\n\n// Admins can edit anyone's phone; everyone else can only edit their own.\nif (requester.role !== 'admin' && requester.id !== targetUserId) {\n  throw new Error('You can only change your own phone number.');\n}\n\nconst phone = (body.phone || '').toString().trim();\n\nreturn [{ json: { targetUserId, phone } }];"
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Update User Phone').first().json.body || {};\n\nif (!requester.valid) {\n  throw new Error('Invalid session.');\n}\n\nconst targetUserId = parseInt(body.user_id, 10);\nif (!Number.isInteger(targetUserId)) {\n  throw new Error('\"user_id\" must be an integer.');\n}\n\n// Admins can edit anyone's phone; everyone else can only edit their own.\nif (requester.role !== 'admin' && requester.userId !== targetUserId) {\n  throw new Error('You can only change your own phone number.');\n}\n\nconst phone = (body.phone || '').toString().trim();\n\nreturn [{ json: { targetUserId, phone } }];"
       },
       "id": "d1e2f104-4444-4a5a-9b1a-userphone0004",
       "name": "Validate Phone Payload",
@@ -1556,49 +1222,12 @@
         960,
         1904
       ],
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "webhookId": "7887e91e-0d89-4bc1-b3f4-1becb02292fe"
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nconst requesterId = parseInt(match[1], 10);\n\nconst body = $input.first().json.body || {};\nconst photo = body.photo || {};\nconst dataUrl = photo.url || '';\n\nconst m = /^data:([^;,]+)?(?:;[^,]*)?,(.*)$/s.exec(dataUrl);\nif (!m) throw new Error('\"photo.url\" must be a base64 data URL.');\nconst [, mimeType, base64] = m;\n\nif (!mimeType || !mimeType.startsWith('image/')) {\n  throw new Error('File must be an image.');\n}\nif (base64.length > 10000000) {\n  throw new Error('Image is too large (max ~7MB).');\n}\n\nreturn [{\n  json: { requesterId },\n  binary: {\n    data: {\n      data: base64,\n      mimeType,\n      fileName: photo.name || 'image.png'\n    }\n  }\n}];"
-      },
-      "id": "ctimg0002-2222-4a5a-9b1a-contentimg002",
-      "name": "Parse Token & Image",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1184,
-        1904
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "ctimg0003-3333-4a5a-9b1a-contentimg003",
-      "name": "Look Up Requester (Image)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1408,
-        1904
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nreturn [{ json: $('Parse Token & Image').first().json, binary: $('Parse Token & Image').first().binary }];"
+        "jsCode": "const requester = $input.first().json;\nif (!requester.valid) throw new Error('Invalid session.');\n\nconst body = $('Webhook - Upload Content Image').first().json.body || {};\nconst photo = body.photo || {};\nconst dataUrl = photo.url || '';\n\nconst m = /^data:([^;,]+)?(?:;[^,]*)?,(.*)$/s.exec(dataUrl);\nif (!m) throw new Error('\"photo.url\" must be a base64 data URL.');\nconst [, mimeType, base64] = m;\n\nif (!mimeType || !mimeType.startsWith('image/')) {\n  throw new Error('File must be an image.');\n}\nif (base64.length > 10000000) {\n  throw new Error('Image is too large (max ~7MB).');\n}\n\nreturn [{\n  json: { requesterId: requester.userId },\n  binary: {\n    data: {\n      data: base64,\n      mimeType,\n      fileName: photo.name || 'image.png'\n    }\n  }\n}];"
       },
       "id": "ctimg0004-4444-4a5a-9b1a-contentimg004",
       "name": "Validate Image Session",
@@ -1698,6 +1327,665 @@
         2528,
         1904
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $('Webhook - Assign Contact Owner').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "id": "extract-token-us1",
+      "name": "Extract Bearer Token (US1)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        580
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-us1",
+      "name": "Execute Workflow: Verify Session (US1)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1408,
+        580
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "id": "extract-token-us2",
+      "name": "Extract Bearer Token (US2)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        680
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-us2",
+      "name": "Execute Workflow: Verify Session (US2)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1408,
+        680
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "id": "extract-token-us3",
+      "name": "Extract Bearer Token (US3)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        780
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-us3",
+      "name": "Execute Workflow: Verify Session (US3)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1408,
+        780
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "id": "extract-token-us4",
+      "name": "Extract Bearer Token (US4)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        880
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-us4",
+      "name": "Execute Workflow: Verify Session (US4)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1408,
+        880
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "id": "extract-token-us5",
+      "name": "Extract Bearer Token (US5)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        980
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-us5",
+      "name": "Execute Workflow: Verify Session (US5)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1408,
+        980
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "id": "extract-token-us6",
+      "name": "Extract Bearer Token (US6)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        1080
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-us6",
+      "name": "Execute Workflow: Verify Session (US6)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1408,
+        1080
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "id": "extract-token-us7",
+      "name": "Extract Bearer Token (US7)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        1180
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-us7",
+      "name": "Execute Workflow: Verify Session (US7)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1408,
+        1180
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "id": "extract-token-us8",
+      "name": "Extract Bearer Token (US8)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        1280
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-us8",
+      "name": "Execute Workflow: Verify Session (US8)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1408,
+        1280
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "id": "extract-token-us9",
+      "name": "Extract Bearer Token (US9)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        1380
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-us9",
+      "name": "Execute Workflow: Verify Session (US9)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1408,
+        1380
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "id": "extract-token-us10",
+      "name": "Extract Bearer Token (US10)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        1480
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-us10",
+      "name": "Execute Workflow: Verify Session (US10)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1408,
+        1480
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT password_hash FROM users WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1428,
+        1280
+      ],
+      "id": "lookup-pwhash-change-password",
+      "name": "Look Up Password Hash (Change Password)",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        2576
+      ],
+      "id": "extract-bearer-us11",
+      "name": "Extract Bearer Token (US11)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-us11",
+      "name": "Execute Workflow: Verify Session (US11)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1408,
+        2576
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "tz-wh-qywfnd",
+      "name": "Webhook - Update User Timezone",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        21408,
+        12524
+      ],
+      "webhookId": "155116fa-1809-4e97-b9ee-f375d6594bb1",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "update-user-timezone",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "http://localhost:5173"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "tz-validate-xy47jn",
+      "name": "Validate Timezone Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        22080,
+        12836
+      ],
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Update User Timezone').first().json.body || {};\n\nif (!requester.valid) {\n  throw new Error('Invalid session.');\n}\n\nconst targetUserId = body.user_id != null ? parseInt(body.user_id, 10) : requester.userId;\nif (!Number.isInteger(targetUserId)) {\n  throw new Error('\"user_id\" must be an integer.');\n}\n\n// Admins can edit anyone's timezone; everyone else can only edit their own.\nif (requester.role !== 'admin' && requester.userId !== targetUserId) {\n  throw new Error('You can only change your own timezone.');\n}\n\nconst timezone = (body.timezone || '').toString().trim();\nif (!timezone) {\n  throw new Error('\"timezone\" is required.');\n}\n\nreturn [{ json: { targetUserId, timezone } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "tz-update-7lwsas",
+      "name": "Update User Timezone",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        22304,
+        12908
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE users SET timezone = $1 WHERE id = $2 RETURNING id, name, timezone;",
+        "options": {
+          "queryReplacement": "={{ [ $json.timezone, $json.targetUserId ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "tz-check-1elr4p",
+      "name": "Check Timezone Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        22528,
+        12980
+      ],
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) {\n  throw new Error('User not found.');\n}\nreturn [{ json: { success: true, user: result.json } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "tz-respond-dw03qo",
+      "name": "Respond - Update User Timezone Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        22752,
+        13824
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        21632,
+        12668
+      ],
+      "id": "extract-bearer-us12",
+      "name": "Extract Bearer Token (US12)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-us12",
+      "name": "Execute Workflow: Verify Session (US12)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        21856,
+        12764
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Users: Assignment\" }}",
+            "workflow_id": "={{ \"S3TBILMyfflok8tu\" }}",
+            "entity_type": "={{ \"contacts\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-assign-contact-owner-0",
+      "name": "Log Workflow Run: Webhook - Assign Contact Owner",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        975,
+        1073
+      ],
+      "onError": "continueRegularOutput"
     }
   ],
   "pinData": {},
@@ -1735,43 +2023,7 @@
       "main": [
         [
           {
-            "node": "Parse Requester Token",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Requester Token": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester Role",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester Role": {
-      "main": [
-        [
-          {
-            "node": "Validate Admin & Payload",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
+            "node": "Log Workflow Run: Webhook - Assign Contact Owner",
             "type": "main",
             "index": 0
           }
@@ -1880,43 +2132,7 @@
       "main": [
         [
           {
-            "node": "Parse Requester Token (Color)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Requester Token (Color)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester Role (Color)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester Role (Color)": {
-      "main": [
-        [
-          {
-            "node": "Validate Color Payload",
+            "node": "Extract Bearer Token (US2)",
             "type": "main",
             "index": 0
           }
@@ -2061,43 +2277,7 @@
       "main": [
         [
           {
-            "node": "Parse Requester Token (Theme)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Requester Token (Theme)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester Role (Theme)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester Role (Theme)": {
-      "main": [
-        [
-          {
-            "node": "Validate Theme Payload",
+            "node": "Extract Bearer Token (US3)",
             "type": "main",
             "index": 0
           }
@@ -2169,43 +2349,7 @@
       "main": [
         [
           {
-            "node": "Parse Requester Token (Notif Prefs)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Requester Token (Notif Prefs)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester Role (Notif Prefs)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester Role (Notif Prefs)": {
-      "main": [
-        [
-          {
-            "node": "Validate Notif Prefs Payload",
+            "node": "Extract Bearer Token (US4)",
             "type": "main",
             "index": 0
           }
@@ -2277,43 +2421,7 @@
       "main": [
         [
           {
-            "node": "Parse Token (Get All Users)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token (Get All Users)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester Role (Get All Users)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester Role (Get All Users)": {
-      "main": [
-        [
-          {
-            "node": "Validate Admin (Get All Users)",
+            "node": "Extract Bearer Token (US5)",
             "type": "main",
             "index": 0
           }
@@ -2367,43 +2475,7 @@
       "main": [
         [
           {
-            "node": "Parse Token (Update Role)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token (Update Role)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester Role (Update Role)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester Role (Update Role)": {
-      "main": [
-        [
-          {
-            "node": "Validate Admin & Payload (Update Role)",
+            "node": "Extract Bearer Token (US6)",
             "type": "main",
             "index": 0
           }
@@ -2468,43 +2540,7 @@
       "main": [
         [
           {
-            "node": "Parse Token (Update Active)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token (Update Active)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester Role (Update Active)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester Role (Update Active)": {
-      "main": [
-        [
-          {
-            "node": "Validate Admin & Payload (Update Active)",
+            "node": "Extract Bearer Token (US7)",
             "type": "main",
             "index": 0
           }
@@ -2569,25 +2605,7 @@
       "main": [
         [
           {
-            "node": "Parse Token & Photo",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token & Photo": {
-      "main": [
-        [
-          {
-            "node": "Upload Avatar to Drive",
+            "node": "Extract Bearer Token (US11)",
             "type": "main",
             "index": 0
           }
@@ -2688,43 +2706,7 @@
       "main": [
         [
           {
-            "node": "Parse Token (Change Password)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token (Change Password)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester (Change Password)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester (Change Password)": {
-      "main": [
-        [
-          {
-            "node": "Verify & Hash New Password",
+            "node": "Extract Bearer Token (US8)",
             "type": "main",
             "index": 0
           }
@@ -2789,43 +2771,7 @@
       "main": [
         [
           {
-            "node": "Parse Requester Token (Phone)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Requester Token (Phone)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester Role (Phone)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester Role (Phone)": {
-      "main": [
-        [
-          {
-            "node": "Validate Phone Payload",
+            "node": "Extract Bearer Token (US9)",
             "type": "main",
             "index": 0
           }
@@ -2897,43 +2843,7 @@
       "main": [
         [
           {
-            "node": "Parse Token & Image",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token & Image": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester (Image)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester (Image)": {
-      "main": [
-        [
-          {
-            "node": "Validate Image Session",
+            "node": "Extract Bearer Token (US10)",
             "type": "main",
             "index": 0
           }
@@ -3006,6 +2916,550 @@
         [
           {
             "node": "Respond - Upload Content Image Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (US1)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (US1)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (US1)": {
+      "main": [
+        [
+          {
+            "node": "Validate Admin & Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (US2)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (US2)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (US2)": {
+      "main": [
+        [
+          {
+            "node": "Validate Color Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (US3)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (US3)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (US3)": {
+      "main": [
+        [
+          {
+            "node": "Validate Theme Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (US4)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (US4)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (US4)": {
+      "main": [
+        [
+          {
+            "node": "Validate Notif Prefs Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (US5)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (US5)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (US5)": {
+      "main": [
+        [
+          {
+            "node": "Validate Admin (Get All Users)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (US6)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (US6)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (US6)": {
+      "main": [
+        [
+          {
+            "node": "Validate Admin & Payload (Update Role)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (US7)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (US7)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (US7)": {
+      "main": [
+        [
+          {
+            "node": "Validate Admin & Payload (Update Active)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (US8)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (US8)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (US8)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Password Hash (Change Password)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (US9)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (US9)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (US9)": {
+      "main": [
+        [
+          {
+            "node": "Validate Phone Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (US10)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (US10)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (US10)": {
+      "main": [
+        [
+          {
+            "node": "Validate Image Session",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Password Hash (Change Password)": {
+      "main": [
+        [
+          {
+            "node": "Verify & Hash New Password",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (US11)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (US11)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (US11)": {
+      "main": [
+        [
+          {
+            "node": "Validate Photo Session",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Photo Session": {
+      "main": [
+        [
+          {
+            "node": "Upload Avatar to Drive",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Timezone Payload": {
+      "main": [
+        [
+          {
+            "node": "Update User Timezone",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Update User Timezone": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token (US12)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Timezone Result": {
+      "main": [
+        [
+          {
+            "node": "Respond - Update User Timezone Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update User Timezone": {
+      "main": [
+        [
+          {
+            "node": "Check Timezone Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (US12)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (US12)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (US12)": {
+      "main": [
+        [
+          {
+            "node": "Validate Timezone Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook - Assign Contact Owner": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token (US1)",
             "type": "main",
             "index": 0
           }

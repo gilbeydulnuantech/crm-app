@@ -7,7 +7,7 @@
         "path": "add-contact",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "22ac7aa5-737d-47b1-9efe-09d47d7aeb6e",
@@ -22,7 +22,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) {\n  throw new Error('Invalid or missing session token.');\n}\n\nconst requesterId = parseInt(match[1], 10);\nconst body = $input.first().json.body || {};\n\nconst firstName = (body.first_name || '').trim();\nconst lastName = (body.last_name || '').trim();\nconst jobTitle = (body.job_title || '').trim();\nconst accountId = body.account_id ? parseInt(body.account_id, 10) : null;\nconst email = (body.email || '').trim();\nconst secondaryEmail = (body.secondary_email || '').trim();\nconst phone = (body.phone || '').trim();\nconst secondaryPhone = (body.secondary_phone || '').trim();\nconst linkedinUrl = (body.linkedin_url || '').trim();\nconst city = (body.city || '').trim();\nconst state = (body.state || '').trim();\nconst zipCode = (body.zip_code || '').trim();\nconst country = (body.country || '').trim();\nconst leadStatus = (body.lead_status || 'New').trim();\nconst leadSource = (body.lead_source || '').trim();\nconst timezone = (body.timezone || '').trim();\nconst doNotContact = body.do_not_contact === true || body.do_not_contact === 'true';\nconst dncEmail = body.dnc_email === true || body.dnc_email === 'true';\nconst dncCall = body.dnc_call === true || body.dnc_call === 'true';\nconst dncSms = body.dnc_sms === true || body.dnc_sms === 'true';\n// Optional explicit owner for the new contact \u2014 only an admin's choice is\n// honored (checked against requester.role in Build Insert Query once the\n// requester row is loaded); anyone else's new contacts stay owned by\n// themselves regardless of what's sent here.\nconst ownerId = (body.owner_id === undefined || body.owner_id === null || body.owner_id === '')\n  ? null\n  : parseInt(body.owner_id, 10);\n\nif (!firstName) {\n  throw new Error('\"first_name\" is required.');\n}\nif (accountId !== null && !Number.isInteger(accountId)) {\n  throw new Error('\"account_id\" must be an integer.');\n}\nif (ownerId !== null && !Number.isInteger(ownerId)) {\n  throw new Error('\"owner_id\" must be an integer.');\n}\n\nreturn [{\n  json: {\n    requesterId,\n    first_name: firstName,\n    last_name: lastName,\n    job_title: jobTitle,\n    account_id: accountId,\n    email,\n    secondary_email: secondaryEmail,\n    phone,\n    secondary_phone: secondaryPhone,\n    linkedin_url: linkedinUrl,\n    city,\n    state,\n    zip_code: zipCode,\n    country,\n    lead_status: leadStatus,\n    lead_source: leadSource,\n    timezone,\n    do_not_contact: doNotContact,\n    dnc_email: dncEmail,\n    dnc_call: dncCall,\n    dnc_sms: dncSms,\n    ownerId\n  }\n}];"
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nconst requesterId = r.userId;\n\nconst body = $('Webhook - Submit New Contact').first().json.body || {};\n\nconst firstName = (body.first_name || '').trim();\nconst lastName = (body.last_name || '').trim();\nconst jobTitle = (body.job_title || '').trim();\nconst accountId = body.account_id ? parseInt(body.account_id, 10) : null;\nconst email = (body.email || '').trim();\nconst secondaryEmail = (body.secondary_email || '').trim();\nconst phone = (body.phone || '').trim();\nconst secondaryPhone = (body.secondary_phone || '').trim();\nconst linkedinUrl = (body.linkedin_url || '').trim();\nconst city = (body.city || '').trim();\nconst state = (body.state || '').trim();\nconst zipCode = (body.zip_code || '').trim();\nconst country = (body.country || '').trim();\nconst leadStatus = (body.lead_status || 'New').trim();\nconst leadSource = (body.lead_source || '').trim();\nconst timezone = (body.timezone || '').trim();\nconst doNotContact = body.do_not_contact === true || body.do_not_contact === 'true';\nconst dncEmail = body.dnc_email === true || body.dnc_email === 'true';\nconst dncCall = body.dnc_call === true || body.dnc_call === 'true';\nconst dncSms = body.dnc_sms === true || body.dnc_sms === 'true';\n// Optional explicit owner for the new contact \u2014 only an admin's choice is\n// honored (checked against requester.role in Build Insert Query once the\n// requester row is loaded); anyone else's new contacts stay owned by\n// themselves regardless of what's sent here.\nconst ownerId = (body.owner_id === undefined || body.owner_id === null || body.owner_id === '')\n  ? null\n  : parseInt(body.owner_id, 10);\n\nif (!firstName) {\n  throw new Error('\"first_name\" is required.');\n}\nif (accountId !== null && !Number.isInteger(accountId)) {\n  throw new Error('\"account_id\" must be an integer.');\n}\nif (ownerId !== null && !Number.isInteger(ownerId)) {\n  throw new Error('\"owner_id\" must be an integer.');\n}\n\nreturn [{\n  json: {\n    requesterId,\n    first_name: firstName,\n    last_name: lastName,\n    job_title: jobTitle,\n    account_id: accountId,\n    email,\n    secondary_email: secondaryEmail,\n    phone,\n    secondary_phone: secondaryPhone,\n    linkedin_url: linkedinUrl,\n    city,\n    state,\n    zip_code: zipCode,\n    country,\n    lead_status: leadStatus,\n    lead_source: leadSource,\n    timezone,\n    do_not_contact: doNotContact,\n    dnc_email: dncEmail,\n    dnc_call: dncCall,\n    dnc_sms: dncSms,\n    ownerId\n  }\n}];"
       },
       "id": "4c3d6bef-38f1-4147-a47d-f661ef776dec",
       "name": "Validate Token & Payload",
@@ -126,16 +126,21 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ { contact_id: $json.id, source: \"manual\" } }}",
-        "options": { "timeout": 5000 }
+        "options": {
+          "timeout": 5000
+        }
       },
       "id": "b1e2c3d4-5a6b-47c8-9d0e-notifydispatch1",
       "name": "Notify: Contact Created",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1104, 320],
+      "position": [
+        1104,
+        320
+      ],
       "onError": "continueRegularOutput",
       "notesInFlow": true,
-      "notes": "Fire-and-forget — a dispatch failure must never block the contact creation response."
+      "notes": "Fire-and-forget \u2014 a dispatch failure must never block the contact creation response."
     },
     {
       "parameters": {
@@ -157,7 +162,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "responseBody": "={{ { success: false, error: (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Request failed.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -208,6 +213,49 @@
         0
       ],
       "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        164,
+        -20
+      ],
+      "id": "extract-bearer-4c3d6bef-38f1-4147-a47d-f661ef776dec",
+      "name": "Extract Bearer Token (Validate Token & Payload)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-4c3d6bef-38f1-4147-a47d-f661ef776dec",
+      "name": "Execute Workflow: Verify Session (Validate Token & Payload)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        194,
+        -10
+      ],
+      "onError": "continueErrorOutput"
     }
   ],
   "pinData": {},
@@ -216,7 +264,7 @@
       "main": [
         [
           {
-            "node": "Validate Token & Payload",
+            "node": "Extract Bearer Token (Validate Token & Payload)",
             "type": "main",
             "index": 0
           }
@@ -335,6 +383,28 @@
         [
           {
             "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (Validate Token & Payload)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Validate Token & Payload)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Validate Token & Payload)": {
+      "main": [
+        [
+          {
+            "node": "Validate Token & Payload",
             "type": "main",
             "index": 0
           }

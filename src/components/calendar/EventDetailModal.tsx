@@ -3,6 +3,7 @@ import { CalendarEvent, EVENT_TYPE_META } from '../../types/event';
 import { useDeleteEvent, useUpdateEvent } from '../../hooks/useEvents';
 import { toTitleCase } from '../../utils/text';
 import OwnerBadge from '../OwnerBadge';
+import ConfirmDialog from '../ConfirmDialog';
 
 interface Props {
   event: CalendarEvent | null;
@@ -33,6 +34,7 @@ export default function EventDetailModal({
   const [newDate, setNewDate] = useState('');
   const [rescheduleError, setRescheduleError] = useState<string | null>(null);
   const [completeError, setCompleteError] = useState<string | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const reschedulePanelRef = useRef<HTMLDivElement>(null);
 
   // The reschedule panel renders at the bottom of a scrollable content area,
@@ -94,13 +96,17 @@ export default function EventDetailModal({
   }
 
   function handleDelete() {
-    if (!confirm(`Delete "${event!.subject}"? This cannot be undone.`)) return;
+    setDeleteConfirmOpen(true);
+  }
+
+  function confirmDelete() {
     deleteEvent.mutate(event!.id, { onSuccess: onClose });
   }
 
   return (
+    <>
     <div
-      className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4"
+      className="fixed inset-0 bg-slate-900/70 z-[110] flex items-center justify-center p-4"
       onClick={onClose}
     >
       <div
@@ -288,6 +294,17 @@ export default function EventDetailModal({
         )}
       </div>
     </div>
+
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        title="Delete this event?"
+        body={`Delete "${event.subject}"? This cannot be undone.`}
+        confirmLabel="Delete"
+        isSubmitting={deleteEvent.isPending}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteConfirmOpen(false)}
+      />
+    </>
   );
 }
 

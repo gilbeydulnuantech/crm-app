@@ -5,7 +5,7 @@ import { useContractTemplates } from '../../hooks/useContractTemplates';
 import { Proposal } from '../../api/proposals';
 import ScopeOfWorkEditor from '../ScopeOfWorkEditor';
 import ConfirmDialog from '../ConfirmDialog';
-import DynamicFieldDropdown, { insertAtCursor } from '../DynamicFieldDropdown';
+import DynamicFieldDropdown, { AUTOMATION_DYNAMIC_FIELDS, insertAtCursor } from '../DynamicFieldDropdown';
 
 interface Props {
   opportunityId: number;
@@ -331,6 +331,8 @@ export default function ProposalsSection({ opportunityId, canEdit, onCreateNew }
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-medium text-slate-500">Subject</span>
                 <DynamicFieldDropdown
+                  fields={AUTOMATION_DYNAMIC_FIELDS}
+                  mode="popover"
                   onInsert={(token) =>
                     insertAtCursor(emailSubjectRef.current, form.email_subject, token, (v) =>
                       setForm((f) => ({ ...f, email_subject: v }))
@@ -349,6 +351,8 @@ export default function ProposalsSection({ opportunityId, canEdit, onCreateNew }
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-medium text-slate-500">Body</span>
                 <DynamicFieldDropdown
+                  fields={AUTOMATION_DYNAMIC_FIELDS}
+                  mode="popover"
                   onInsert={(token) =>
                     insertAtCursor(emailBodyRef.current, form.email_body, token, (v) => setForm((f) => ({ ...f, email_body: v })))
                   }

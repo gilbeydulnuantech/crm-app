@@ -120,7 +120,7 @@ export default function PipelineStageRemindersPage() {
       </div>
 
       {confirmDelete && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-slate-900/70 z-[100] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
             <h3 className="text-base font-bold text-slate-800 mb-2">Delete "{confirmDelete.name}"?</h3>
             <p className="text-sm text-slate-500 mb-5">

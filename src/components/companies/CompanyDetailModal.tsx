@@ -5,7 +5,7 @@ import { Company } from '../../types/company';
 import { Contact } from '../../types/contact';
 import { CalendarEvent } from '../../types/event';
 import { ActivityLogEntry } from '../../types/activity';
-import { useContacts, useUsers } from '../../hooks/useContacts';
+import { useContactsByCompany, useUsers } from '../../hooks/useContacts';
 import { usePipelines, useAllOpportunities, useAllStages } from '../../hooks/useOpportunities';
 import { useEntityActivity } from '../../hooks/useActivity';
 import { useAddNote, useDeleteNote, useNotes, useUpdateNote } from '../../hooks/useNotes';
@@ -161,7 +161,7 @@ export default function CompanyDetailModal({
     setSelectedActivity(null);
   }, [company?.id]);
 
-  const { data: allContacts = [], isLoading: contactsLoading } = useContacts();
+  const { data: companyContacts = [], isLoading: contactsLoading } = useContactsByCompany(company?.id ?? null);
   const { data: pipelines = [] } = usePipelines();
   const defaultPipelineId = pipelines.find((p) => p.is_default)?.id ?? pipelines[0]?.id;
   // Fan out across every pipeline (not just the default one) so a deal
@@ -195,7 +195,6 @@ export default function CompanyDetailModal({
   // View All, Edit Owned Only: matches Contacts/Companies table policy.
   const canEdit = isAdmin || company.owner_id === currentUserId;
 
-  const companyContacts = allContacts.filter((c) => c.account_id === company.id);
   const companyOpportunities = opportunities.filter((o) => o.account_id === company.id);
   // Open items first, soonest-due/most-overdue before items further out;
   // items with no date sort last within their group. Finished items (done
@@ -292,7 +291,7 @@ export default function CompanyDetailModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-slate-900/75 z-[100] flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl h-[85vh] flex flex-col overflow-hidden">
         {/* Header — just the close button; company identity/actions now live at the top of the left column */}
         <div className="flex justify-end px-4 py-2 shrink-0">

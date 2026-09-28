@@ -1,9 +1,10 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CalendarEvent } from '../../types/event';
 import { useDeleteEvent } from '../../hooks/useEvents';
 import { toTitleCase } from '../../utils/text';
 import OwnerBadge from '../OwnerBadge';
+import ConfirmDialog from '../ConfirmDialog';
 
 interface Props {
   event: CalendarEvent | null;
@@ -27,6 +28,7 @@ function Row({ icon, children }: { icon: string; children: ReactNode }) {
 export default function EventQuickView({ event, onClose, onViewFullDetails, onEdit, isAdmin, currentUserId, timezone }: Props) {
   const navigate = useNavigate();
   const deleteEvent = useDeleteEvent();
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   if (!event) return null;
 
@@ -39,7 +41,10 @@ export default function EventQuickView({ event, onClose, onViewFullDetails, onEd
     : null;
 
   function handleDelete() {
-    if (!confirm(`Delete "${event!.subject}"? This cannot be undone.`)) return;
+    setDeleteConfirmOpen(true);
+  }
+
+  function confirmDelete() {
     deleteEvent.mutate(event!.id, { onSuccess: onClose });
   }
 
@@ -56,6 +61,7 @@ export default function EventQuickView({ event, onClose, onViewFullDetails, onEd
   }
 
   return (
+    <>
     <div
       className="fixed inset-0 bg-slate-900/40 z-[95] flex items-center justify-center p-4"
       onClick={onClose}
@@ -133,5 +139,16 @@ export default function EventQuickView({ event, onClose, onViewFullDetails, onEd
         </button>
       </div>
     </div>
+
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        title="Delete this event?"
+        body={`Delete "${event.subject}"? This cannot be undone.`}
+        confirmLabel="Delete"
+        isSubmitting={deleteEvent.isPending}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteConfirmOpen(false)}
+      />
+    </>
   );
 }

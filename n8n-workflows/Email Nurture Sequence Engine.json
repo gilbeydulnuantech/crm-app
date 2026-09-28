@@ -69,7 +69,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT ne.id AS enrollment_id, ne.sequence_id, ne.contact_id, ne.current_step, ne.enrolled_at, ne.last_step_sent_at,\n  ns.exit_on_reply, ns.exit_lead_status, ns.on_reply_workflow_id, ns.on_complete_tag_name,\n  c.email, c.first_name, c.last_name, c.email_logs,\n  (SELECT COUNT(*) FROM nurture_sequence_steps WHERE sequence_id = ns.id) AS total_steps\nFROM nurture_enrollments ne\nJOIN nurture_sequences ns ON ns.id = ne.sequence_id AND ns.is_active = true\nJOIN contacts c ON c.id = ne.contact_id AND c.is_archived = false\nWHERE ne.status = 'active';",
+        "query": "SELECT ne.id AS enrollment_id, ne.sequence_id, ne.contact_id, ne.current_step, ne.enrolled_at, ne.last_step_sent_at,\n  ns.exit_on_reply, ns.exit_lead_status, ns.on_reply_workflow_id, ns.on_complete_tag_name,\n  c.email, c.first_name, c.last_name, c.email_logs, c.unsubscribe_token,\n  (SELECT COUNT(*) FROM nurture_sequence_steps WHERE sequence_id = ns.id) AS total_steps\nFROM nurture_enrollments ne\nJOIN nurture_sequences ns ON ns.id = ne.sequence_id AND ns.is_active = true\nJOIN contacts c ON c.id = ne.contact_id AND c.is_archived = false\nWHERE ne.status = 'active';",
         "options": {}
       },
       "id": "ee1g0004-4444-4a5a-9b1a-nureng0000004",
@@ -214,14 +214,22 @@
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
           "combinator": "and",
           "conditions": [
             {
               "id": "nureng-has-reply-hook-cond",
               "leftValue": "={{ $('Check Reply & Determine Action').item.json.on_reply_workflow_id }}",
               "rightValue": "",
-              "operator": { "type": "string", "operation": "notEmpty", "singleValue": true }
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
             }
           ]
         },
@@ -231,7 +239,10 @@
       "name": "Has Reply Hook?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
-      "position": [1360, 400]
+      "position": [
+        1360,
+        400
+      ]
     },
     {
       "parameters": {
@@ -241,33 +252,51 @@
       "name": "Prepare Reply Hook Input",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1584, 400]
+      "position": [
+        1584,
+        400
+      ]
     },
     {
       "parameters": {
-        "workflowId": { "__rl": true, "value": "={{ $('Check Reply & Determine Action').item.json.on_reply_workflow_id }}", "mode": "id" },
+        "workflowId": {
+          "__rl": true,
+          "value": "={{ $('Check Reply & Determine Action').item.json.on_reply_workflow_id }}",
+          "mode": "id"
+        },
         "options": {}
       },
       "id": "nureng-run-reply-hook",
       "name": "Run Reply Hook Workflow",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
-      "position": [1808, 400],
+      "position": [
+        1808,
+        400
+      ],
       "onError": "continueRegularOutput",
       "notesInFlow": true,
-      "notes": "Opt-in per-sequence hook (nurture_sequences.on_reply_workflow_id) — most sequences leave this NULL and behave exactly as before."
+      "notes": "Opt-in per-sequence hook (nurture_sequences.on_reply_workflow_id) \u2014 most sequences leave this NULL and behave exactly as before."
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
           "combinator": "and",
           "conditions": [
             {
               "id": "nureng-has-complete-tag-cond",
               "leftValue": "={{ $('Check Reply & Determine Action').item.json.on_complete_tag_name }}",
               "rightValue": "",
-              "operator": { "type": "string", "operation": "notEmpty", "singleValue": true }
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
             }
           ]
         },
@@ -277,35 +306,58 @@
       "name": "Has Complete Tag?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
-      "position": [1584, 592]
+      "position": [
+        1584,
+        592
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
         "query": "INSERT INTO tags (name) VALUES ($1) ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id;",
-        "options": { "queryReplacement": "={{ [ $('Check Reply & Determine Action').item.json.on_complete_tag_name ] }}" }
+        "options": {
+          "queryReplacement": "={{ [ $('Check Reply & Determine Action').item.json.on_complete_tag_name ] }}"
+        }
       },
       "id": "nureng-resolve-complete-tag",
       "name": "Resolve Complete Tag",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1808, 592],
-      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } },
-      "notes": "Opt-in per-sequence hook (nurture_sequences.on_complete_tag_name) — most sequences leave this NULL and behave exactly as before.",
+      "position": [
+        1808,
+        592
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "notes": "Opt-in per-sequence hook (nurture_sequences.on_complete_tag_name) \u2014 most sequences leave this NULL and behave exactly as before.",
       "notesInFlow": true
     },
     {
       "parameters": {
         "operation": "executeQuery",
         "query": "INSERT INTO taggables (tag_id, entity_type, entity_id) VALUES ($1, 'contact', $2) ON CONFLICT (tag_id, entity_type, entity_id) DO NOTHING;",
-        "options": { "queryReplacement": "={{ [ $json.id, $('Check Reply & Determine Action').item.json.contact_id ] }}" }
+        "options": {
+          "queryReplacement": "={{ [ $json.id, $('Check Reply & Determine Action').item.json.contact_id ] }}"
+        }
       },
       "id": "nureng-insert-complete-taggable",
       "name": "Insert Complete Taggable",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [2032, 592],
-      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+      "position": [
+        2032,
+        592
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
     },
     {
       "parameters": {
@@ -332,7 +384,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// delay_days counts from enrollment for step 1, or from the previous\n// step's send time for every step after that.\nconst step = $input.item.json;\nconst enrollment = $('Check Reply & Determine Action').item.json;\n\nconst referenceTime = new Date(enrollment.last_step_sent_at || enrollment.enrolled_at);\nconst dueAt = new Date(referenceTime.getTime() + step.delay_days * 24 * 60 * 60 * 1000);\nconst due = new Date() >= dueAt;\n\nfunction fill(template) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, enrollment.first_name || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, enrollment.last_name || '');\n}\n\nreturn [{\n  json: {\n    due,\n    enrollmentId: enrollment.enrollment_id,\n    nextStep: enrollment.nextStep,\n    to: enrollment.email,\n    subject: fill(step.email_subject),\n    body: fill(step.email_body),\n  },\n}];"
+        "jsCode": "// delay_days counts from enrollment for step 1, or from the previous\n// step's send time for every step after that.\nconst step = $input.item.json;\nconst enrollment = $('Check Reply & Determine Action').item.json;\n\nconst referenceTime = new Date(enrollment.last_step_sent_at || enrollment.enrolled_at);\nconst dueAt = new Date(referenceTime.getTime() + step.delay_days * 24 * 60 * 60 * 1000);\nconst due = new Date() >= dueAt;\n\nfunction fill(template) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, enrollment.first_name || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, enrollment.last_name || '');\n}\n\nlet unsubBase = '';\ntry { unsubBase = $env.FRONTEND_BASE_URL || ''; } catch (e) { unsubBase = ''; }\nconst unsubUrl = unsubBase + '/unsubscribe/' + (enrollment.unsubscribe_token || '');\nconst unsubFooter = \"\\n\\nDon't want these emails? Unsubscribe: \" + unsubUrl;\n\nreturn [{\n  json: {\n    due,\n    enrollmentId: enrollment.enrollment_id,\n    nextStep: enrollment.nextStep,\n    to: enrollment.email,\n    subject: fill(step.email_subject),\n    body: fill(step.email_body) + unsubFooter,\n  },\n}];"
       },
       "id": "ee1g0011-1111-4a5a-9b1a-nureng0000011",
       "name": "Check Due & Personalize",
@@ -382,7 +434,9 @@
         "subject": "={{ $json.subject }}",
         "emailType": "text",
         "message": "={{ $json.body }}",
-        "options": {}
+        "options": {
+          "appendAttribution": false
+        }
       },
       "id": "ee1g0013-1313-4a5a-9b1a-nureng0000013",
       "name": "Send Step Email",
@@ -496,19 +550,35 @@
     "Exit Enrollment (Reply)": {
       "main": [
         [
-          { "node": "Has Reply Hook?", "type": "main", "index": 0 }
+          {
+            "node": "Has Reply Hook?",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Has Reply Hook?": {
       "main": [
-        [ { "node": "Prepare Reply Hook Input", "type": "main", "index": 0 } ],
+        [
+          {
+            "node": "Prepare Reply Hook Input",
+            "type": "main",
+            "index": 0
+          }
+        ],
         []
       ]
     },
     "Prepare Reply Hook Input": {
       "main": [
-        [ { "node": "Run Reply Hook Workflow", "type": "main", "index": 0 } ]
+        [
+          {
+            "node": "Run Reply Hook Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Is Complete?": {
@@ -531,18 +601,36 @@
     },
     "Mark Completed": {
       "main": [
-        [ { "node": "Has Complete Tag?", "type": "main", "index": 0 } ]
+        [
+          {
+            "node": "Has Complete Tag?",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Has Complete Tag?": {
       "main": [
-        [ { "node": "Resolve Complete Tag", "type": "main", "index": 0 } ],
+        [
+          {
+            "node": "Resolve Complete Tag",
+            "type": "main",
+            "index": 0
+          }
+        ],
         []
       ]
     },
     "Resolve Complete Tag": {
       "main": [
-        [ { "node": "Insert Complete Taggable", "type": "main", "index": 0 } ]
+        [
+          {
+            "node": "Insert Complete Taggable",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Look Up Next Step": {

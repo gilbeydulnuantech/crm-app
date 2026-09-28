@@ -21,48 +21,10 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst body = $input.first().json.body || {};\nconst contactId = parseInt(body.contact_id, 10);\nif (!Number.isInteger(contactId)) throw new Error('\"contact_id\" must be an integer.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10), contactId } }];"
-      },
-      "id": "va1b0002-2222-4a5a-9b1a-vapicall000002",
-      "name": "Parse Token & Payload",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1184,
-        480
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "va1b0003-3333-4a5a-9b1a-vapicall000003",
-      "name": "Look Up Requester",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1408,
-        480
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
         "operation": "executeQuery",
         "query": "SELECT phone, first_name, last_name FROM contacts WHERE id = $1 AND is_archived = false LIMIT 1;",
         "options": {
-          "queryReplacement": "={{ [ $('Parse Token & Payload').item.json.contactId ] }}"
+          "queryReplacement": "={{ [ $('Validate Session Payload').item.json.contactId ] }}"
         }
       },
       "id": "va1b0004-4444-4a5a-9b1a-vapicall000004",
@@ -167,7 +129,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "responseBody": "={{ { success: false, error: (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Request failed.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -180,6 +142,111 @@
         1408,
         704
       ]
+    },
+    {
+      "id": "ai-has-integration",
+      "name": "Has Active Integration?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        900,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "ai-has-cond",
+              "leftValue": "={{ !!$json.api_key }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "ai-respond-not-configured",
+      "name": "Respond - Not Configured",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1100,
+        100
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: \"No active Vapi integration is configured. Add your API key in Settings \u2192 Integrations.\" } }}",
+        "options": {}
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        480
+      ],
+      "id": "extract-bearer-parse-token-payload",
+      "name": "Extract Bearer Token Payload",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-payload",
+      "name": "Execute Workflow: Verify Session Payload",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1214,
+        495
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nconst body = $('Webhook - Trigger Vapi Call').first().json.body || {};\nconst contactId = parseInt(body.contact_id, 10);\nif (!Number.isInteger(contactId)) throw new Error('\"contact_id\" must be an integer.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active, contactId } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        480
+      ],
+      "id": "validate-session-parse-token-payload",
+      "name": "Validate Session Payload",
+      "onError": "continueErrorOutput"
     }
   ],
   "connections": {
@@ -187,43 +254,7 @@
       "main": [
         [
           {
-            "node": "Parse Token & Payload",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token & Payload": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester": {
-      "main": [
-        [
-          {
-            "node": "Look Up Contact",
+            "node": "Extract Bearer Token Payload",
             "type": "main",
             "index": 0
           }
@@ -259,7 +290,7 @@
       "main": [
         [
           {
-            "node": "Build Vapi Request",
+            "node": "Has Active Integration?",
             "type": "main",
             "index": 0
           }
@@ -296,6 +327,78 @@
         [
           {
             "node": "Respond - Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Active Integration?": {
+      "main": [
+        [
+          {
+            "node": "Build Vapi Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Not Configured",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token Payload": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session Payload": {
+      "main": [
+        [
+          {
+            "node": "Validate Session Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session Payload": {
+      "main": [
+        [
+          {
+            "node": "Look Up Contact",
             "type": "main",
             "index": 0
           }

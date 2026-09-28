@@ -82,7 +82,7 @@ export default function DealCard({
     borderLeftColor: ownerColor || '#E2E8F0',
   };
 
-  const allTags = [...(opportunity.tags ?? []), ...(opportunity.contact_tags ?? [])];
+  const allTags = opportunity.contact_tags ?? [];
 
   // Reads from the same ['tasks'] cache every other task view already
   // populates (activities table, type='task') — no extra network round trip
@@ -125,10 +125,10 @@ export default function DealCard({
         highlighted ? 'ring-2 ring-[var(--theme-accent)] ring-offset-2 shadow-lg' : ''
       }`}
     >
-      {/* Deal Name + Value */}
+      {/* Deal Name */}
       <div className="flex items-center gap-1.5">
         <div className="text-xs font-bold text-slate-800 truncate flex-1">
-          {toTitleCase(opportunity.name)} <span className="font-semibold text-emerald-600">- {currency(opportunity.deal_value)}</span>
+          {toTitleCase(opportunity.name)}
         </div>
         {opportunity.status === 'Open' && (
           <WinScoreBadge score={opportunity.win_score} reason={opportunity.win_score_reason} size="xs" />
@@ -174,15 +174,20 @@ export default function DealCard({
         />
       </div>
 
+      {/* Deal Value */}
+      <div className="text-[11px] font-semibold text-emerald-600 mt-0.5">
+        {currency(opportunity.deal_value)}
+      </div>
+
       {/* Contact - Company */}
       <div className="text-[11px] text-slate-500 truncate mt-0.5">
         {toTitleCase(opportunity.contact_name) || 'No Contact'}
         {opportunity.company_name && ` - ${toTitleCase(opportunity.company_name)}`}
       </div>
 
-      {/* Tags (deal's own tags, plus the contact's own tags for context) —
+      {/* Tags shown here are the linked contact's tags, not the deal's own —
           only the first 2 show, the rest collapse into a "+N" badge so a
-          heavily-tagged deal doesn't blow out the card's height. */}
+          heavily-tagged contact doesn't blow out the card's height. */}
       {allTags.length > 0 && (
         <div className="flex flex-wrap gap-1 mt-1.5">
           {allTags.slice(0, 2).map((t) => (

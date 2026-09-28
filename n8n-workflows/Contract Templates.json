@@ -16,59 +16,8 @@
         960,
         400
       ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "ctpl0002-2222-4a5a-9b1a-conttemp0002",
-      "name": "Parse Token (Get)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1184,
-        400
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "ctpl0003-3333-4a5a-9b1a-conttemp0003",
-      "name": "Look Up Requester (Get)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1408,
-        400
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nreturn [{ json: {} }];"
-      },
-      "id": "ctpl0004-4444-4a5a-9b1a-conttemp0004",
-      "name": "Validate (Get)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1632,
-        400
-      ],
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "webhookId": "29f4e9c5-3c71-4f27-8769-cf36d34bba07"
     },
     {
       "parameters": {
@@ -121,45 +70,8 @@
         960,
         624
       ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "ctpl0008-8888-4a5a-9b1a-conttemp0008",
-      "name": "Parse Token (Save)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1184,
-        624
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "ctpl0009-9999-4a5a-9b1a-conttemp0009",
-      "name": "Look Up Requester (Save)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1408,
-        624
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "webhookId": "64321f1f-d971-4327-9ada-86f9f0073909"
     },
     {
       "parameters": {
@@ -187,7 +99,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const existing = $input.item.json;\nconst requester = $('Look Up Requester (Save)').first().json;\nconst body = $('Webhook - Save Contract Template').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst id = body.id ? parseInt(body.id, 10) : null;\nif (id && existing.created_by != null && requester.role !== 'admin' && existing.created_by !== requester.id) {\n  throw new Error('Only an admin or the template\\'s creator can edit it.');\n}\n\nconst title = (body.title || '').toString().trim();\nconst contentHtml = (body.content_html || '').toString();\nconst totalAmount = body.total_amount !== undefined && body.total_amount !== null && body.total_amount !== '' ? Number(body.total_amount) : 0;\nconst emailSubject = (body.email_subject || '').toString().trim() || 'Your contract is ready to sign';\nconst emailBody = (body.email_body || '').toString().trim() || 'Hi {{first_name}}, please review and sign your contract here: {{contract_link}}';\n\nconst thankYouPageId = body.thank_you_page_id ? parseInt(body.thank_you_page_id, 10) : null;\n\nif (!title) throw new Error('\"title\" is required.');\nif (!contentHtml.trim()) throw new Error('Contract content is required.');\nif (!Number.isFinite(totalAmount) || totalAmount < 0) throw new Error('\"total_amount\" must be 0 or more.');\n\nreturn [{ json: { id, title, contentHtml, totalAmount, emailSubject, emailBody, thankYouPageId, requesterId: requester.id } }];"
+        "jsCode": "const existing = $input.item.json;\nconst requester = $('Validate Session (Save)').first().json;\nconst body = $('Webhook - Save Contract Template').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst id = body.id ? parseInt(body.id, 10) : null;\nif (id && existing.created_by != null && requester.role !== 'admin' && existing.created_by !== requester.id) {\n  throw new Error('Only an admin or the template\\'s creator can edit it.');\n}\n\nconst title = (body.title || '').toString().trim();\nconst contentHtml = (body.content_html || '').toString();\nconst totalAmount = body.total_amount !== undefined && body.total_amount !== null && body.total_amount !== '' ? Number(body.total_amount) : 0;\nconst emailSubject = (body.email_subject || '').toString().trim() || 'Your contract is ready to sign';\nconst emailBody = (body.email_body || '').toString().trim() || 'Hi {{contact.first_name}}, please review and sign your contract here: {{contract_link}}';\n\nconst thankYouPageId = body.thank_you_page_id ? parseInt(body.thank_you_page_id, 10) : null;\n\nif (!title) throw new Error('\"title\" is required.');\nif (!contentHtml.trim()) throw new Error('Contract content is required.');\nif (!Number.isFinite(totalAmount) || totalAmount < 0) throw new Error('\"total_amount\" must be 0 or more.');\n\nreturn [{ json: { id, title, contentHtml, totalAmount, emailSubject, emailBody, thankYouPageId, requesterId: requester.id } }];"
       },
       "id": "ctpl0011-1111-4a5a-9b1a-conttemp0011",
       "name": "Validate & Payload (Save)",
@@ -252,45 +164,8 @@
         960,
         848
       ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "ctpl0015-1515-4a5a-9b1a-conttemp0015",
-      "name": "Parse Token (Delete)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1184,
-        848
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "ctpl0016-1616-4a5a-9b1a-conttemp0016",
-      "name": "Look Up Requester (Delete)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1408,
-        848
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "webhookId": "a47b96a6-f71e-40f2-8cf4-499fa8f88b36"
     },
     {
       "parameters": {
@@ -318,7 +193,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const existing = $input.item.json;\nconst requester = $('Look Up Requester (Delete)').first().json;\nconst body = $('Webhook - Delete Contract Template').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" must be an integer.');\nif (existing.created_by != null && requester.role !== 'admin' && existing.created_by !== requester.id) {\n  throw new Error('Only an admin or the template\\'s creator can delete it.');\n}\n\nreturn [{ json: { id } }];"
+        "jsCode": "const existing = $input.item.json;\nconst requester = $('Validate Session (Delete)').first().json;\nconst body = $('Webhook - Delete Contract Template').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" must be an integer.');\nif (existing.created_by != null && requester.role !== 'admin' && existing.created_by !== requester.id) {\n  throw new Error('Only an admin or the template\\'s creator can delete it.');\n}\n\nreturn [{ json: { id } }];"
       },
       "id": "ctpl0018-1818-4a5a-9b1a-conttemp0018",
       "name": "Validate & Payload (Delete)",
@@ -385,7 +260,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "responseBody": "={{ { success: false, error: (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Request failed.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -398,6 +273,177 @@
         1408,
         1072
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        400
+      ],
+      "id": "extract-bearer-get",
+      "name": "Extract Bearer Token (Get)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-get",
+      "name": "Execute Workflow: Verify Session (Get)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1214,
+        415
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        400
+      ],
+      "id": "validate-session-get",
+      "name": "Validate Session (Get)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        624
+      ],
+      "id": "extract-bearer-save",
+      "name": "Extract Bearer Token (Save)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-save",
+      "name": "Execute Workflow: Verify Session (Save)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1214,
+        639
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        624
+      ],
+      "id": "validate-session-save",
+      "name": "Validate Session (Save)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        848
+      ],
+      "id": "extract-bearer-delete",
+      "name": "Extract Bearer Token (Delete)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-delete",
+      "name": "Execute Workflow: Verify Session (Delete)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1214,
+        863
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        848
+      ],
+      "id": "validate-session-delete",
+      "name": "Validate Session (Delete)",
+      "onError": "continueErrorOutput"
     }
   ],
   "connections": {
@@ -405,61 +451,7 @@
       "main": [
         [
           {
-            "node": "Parse Token (Get)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token (Get)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester (Get)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester (Get)": {
-      "main": [
-        [
-          {
-            "node": "Validate (Get)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Validate (Get)": {
-      "main": [
-        [
-          {
-            "node": "Select Contract Templates",
+            "node": "Extract Bearer Token (Get)",
             "type": "main",
             "index": 0
           }
@@ -495,43 +487,7 @@
       "main": [
         [
           {
-            "node": "Parse Token (Save)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token (Save)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester (Save)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester (Save)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Existing Template (Save)",
+            "node": "Extract Bearer Token (Save)",
             "type": "main",
             "index": 0
           }
@@ -603,43 +559,7 @@
       "main": [
         [
           {
-            "node": "Parse Token (Delete)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token (Delete)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester (Delete)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester (Delete)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Existing Template (Delete)",
+            "node": "Extract Bearer Token (Delete)",
             "type": "main",
             "index": 0
           }
@@ -712,6 +632,168 @@
         [
           {
             "node": "Respond - Delete Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (Get)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Get)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (Get)": {
+      "main": [
+        [
+          {
+            "node": "Select Contract Templates",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (Save)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Save)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (Save)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Existing Template (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Existing Template (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
             "type": "main",
             "index": 0
           }

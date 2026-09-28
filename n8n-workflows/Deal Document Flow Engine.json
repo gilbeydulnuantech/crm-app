@@ -23,7 +23,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT DISTINCT ON (o.id)\n  o.id AS opportunity_id, o.name AS deal_name,\n  p.id AS proposal_id, p.public_token, p.email_subject, p.email_body,\n  c.id AS contact_id, c.email, c.first_name, c.last_name, c.phone, c.dnc_sms,\n  u.name AS owner_name, u.email AS owner_email, u.phone AS owner_phone\nFROM deal_document_flows f\nJOIN opportunities o ON o.stage_id = f.trigger_stage_id AND o.is_archived = false AND o.status = 'Open'\nJOIN contacts c ON c.id = o.contact_id AND c.is_archived = false AND c.email IS NOT NULL AND c.email <> ''\nJOIN proposals p ON p.opportunity_id = o.id AND p.emailed_at IS NULL\nLEFT JOIN users u ON u.id = o.assigned_user\nWHERE f.is_active = true\n  AND o.stage_entered_at <= now() - (f.delay_hours || ' hours')::interval\nORDER BY o.id, p.created_at DESC;",
+        "query": "SELECT DISTINCT ON (o.id)\n  o.id AS opportunity_id, o.name AS deal_name,\n  p.id AS proposal_id, p.public_token, p.email_subject, p.email_body,\n  c.id AS contact_id, c.email, c.first_name, c.last_name, c.phone, c.dnc_sms, c.unsubscribe_token,\n  u.name AS owner_name, u.email AS owner_email, u.phone AS owner_phone\nFROM deal_document_flows f\nJOIN opportunities o ON o.stage_id = f.trigger_stage_id AND o.is_archived = false AND o.status = 'Open'\nJOIN contacts c ON c.id = o.contact_id AND c.is_archived = false AND c.email IS NOT NULL AND c.email <> ''\nJOIN proposals p ON p.opportunity_id = o.id AND p.emailed_at IS NULL\nLEFT JOIN users u ON u.id = o.assigned_user\nWHERE f.is_active = true\n  AND o.stage_entered_at <= now() - (f.delay_hours || ' hours')::interval\nORDER BY o.id, p.created_at DESC;",
         "options": {}
       },
       "id": "ddfe0002-2222-4a5a-9b1a-docengine00002",
@@ -44,7 +44,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// FRONTEND_BASE_URL must be set as an n8n environment variable (the origin\n// the React app is served from) \u2014 same idea as the ngrok backend URL, just\n// for the other direction (links n8n emails point back INTO the app).\nconst row = $input.item.json;\n// $env access can be blocked entirely by the n8n instance's own security settings (N8N_BLOCK_ENV_ACCESS_IN_NODE) \u2014 reading a blocked var THROWS rather than returning undefined, so the `|| ''` fallback never gets a chance to run without this try/catch.\nlet base = '';\ntry { base = $env.FRONTEND_BASE_URL || ''; } catch (e) { base = ''; }\nconst link = `${base}/documents/proposal/${row.public_token}`;\n\nfunction fill(template) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, row.first_name || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, row.last_name || '')\n    .replace(/{{\\s*deal_name\\s*}}/gi, row.deal_name || '')\n    .replace(/{{\\s*owner_name\\s*}}/gi, row.owner_name || 'your account team')\n    .replace(/{{\\s*owner_email\\s*}}/gi, row.owner_email || '')\n    .replace(/{{\\s*owner_phone\\s*}}/gi, row.owner_phone || '')\n    .replace(/{{\\s*proposal_link\\s*}}/gi, link);\n}\n\nreturn [{\n  json: {\n    proposalId: row.proposal_id,\n    to: row.email,\n    subject: fill(row.email_subject),\n    body: fill(row.email_body),\n  },\n}];"
+        "jsCode": "// FRONTEND_BASE_URL must be set as an n8n environment variable (the origin\n// the React app is served from) \u2014 same idea as the ngrok backend URL, just\n// for the other direction (links n8n emails point back INTO the app).\nconst row = $input.item.json;\n// $env access can be blocked entirely by the n8n instance's own security settings (N8N_BLOCK_ENV_ACCESS_IN_NODE) \u2014 reading a blocked var THROWS rather than returning undefined, so the `|| ''` fallback never gets a chance to run without this try/catch.\nlet base = '';\ntry { base = $env.FRONTEND_BASE_URL || ''; } catch (e) { base = ''; }\nconst link = `${base}/documents/proposal/${row.public_token}`;\n\nfunction fill(template) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, row.first_name || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, row.last_name || '')\n    .replace(/{{\\s*deal_name\\s*}}/gi, row.deal_name || '')\n    .replace(/{{\\s*owner_name\\s*}}/gi, row.owner_name || 'your account team')\n    .replace(/{{\\s*owner_email\\s*}}/gi, row.owner_email || '')\n    .replace(/{{\\s*owner_phone\\s*}}/gi, row.owner_phone || '')\n    .replace(/{{\\s*proposal_link\\s*}}/gi, link);\n}\n\nconst unsubUrl = base + '/unsubscribe/' + (row.unsubscribe_token || '');\nconst body = fill(row.email_body) + `\n\nDon't want these emails? Unsubscribe: ${unsubUrl}`;\n\nreturn [{\n  json: {\n    proposalId: row.proposal_id,\n    to: row.email,\n    subject: fill(row.email_subject),\n    body,\n  },\n}];"
       },
       "id": "ddfe0003-3333-4a5a-9b1a-docengine00003",
       "name": "Personalize",
@@ -62,7 +62,8 @@
         "emailType": "text",
         "message": "={{ (($('Personalize').item.json.body).replace(/The Team/g, $('Get Company Name: Proposal Email').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Proposal Email').item.json.company_name) }}",
         "options": {
-          "senderName": "={{ $('Get Company Name: Proposal Email').item.json.company_name }}"
+          "senderName": "={{ $('Get Company Name: Proposal Email').item.json.company_name }}",
+          "appendAttribution": false
         }
       },
       "id": "ddfe0004-4444-4a5a-9b1a-docengine00004",
@@ -109,7 +110,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT p.id AS proposal_id, p.public_token, f.proposal_reminder_email_subject, f.proposal_reminder_email_body,\n  c.email, c.first_name, c.last_name, o.name AS deal_name\nFROM deal_document_flows f\nJOIN proposals p ON p.flow_id = f.id AND p.status = 'viewed'\nJOIN opportunities o ON o.id = p.opportunity_id AND o.is_archived = false AND o.status = 'Open'\nJOIN contacts c ON c.id = o.contact_id AND c.is_archived = false AND c.email IS NOT NULL AND c.email <> ''\nWHERE f.is_active = true\n  AND f.proposal_reminder_delay_hours IS NOT NULL\n  AND p.viewed_at IS NOT NULL\n  AND p.viewed_at <= now() - (f.proposal_reminder_delay_hours || ' hours')::interval\n  AND p.reminder_sent_at IS NULL;",
+        "query": "SELECT p.id AS proposal_id, p.public_token, f.proposal_reminder_email_subject, f.proposal_reminder_email_body,\n  c.email, c.first_name, c.last_name, c.unsubscribe_token, o.name AS deal_name\nFROM deal_document_flows f\nJOIN proposals p ON p.flow_id = f.id AND p.status = 'viewed'\nJOIN opportunities o ON o.id = p.opportunity_id AND o.is_archived = false AND o.status = 'Open'\nJOIN contacts c ON c.id = o.contact_id AND c.is_archived = false AND c.email IS NOT NULL AND c.email <> ''\nWHERE f.is_active = true\n  AND f.proposal_reminder_delay_hours IS NOT NULL\n  AND p.viewed_at IS NOT NULL\n  AND p.viewed_at <= now() - (f.proposal_reminder_delay_hours || ' hours')::interval\n  AND p.reminder_sent_at IS NULL;",
         "options": {}
       },
       "id": "ddfe0006-6666-4a5a-9b1a-docengine00006",
@@ -130,7 +131,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const row = $input.item.json;\n// $env access can be blocked entirely by the n8n instance's own security settings (N8N_BLOCK_ENV_ACCESS_IN_NODE) \u2014 reading a blocked var THROWS rather than returning undefined, so the `|| ''` fallback never gets a chance to run without this try/catch.\nlet base = '';\ntry { base = $env.FRONTEND_BASE_URL || ''; } catch (e) { base = ''; }\nconst link = `${base}/documents/proposal/${row.public_token}`;\n\nfunction fill(template) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, row.first_name || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, row.last_name || '')\n    .replace(/{{\\s*deal_name\\s*}}/gi, row.deal_name || '')\n    .replace(/{{\\s*proposal_link\\s*}}/gi, link);\n}\n\nreturn [{\n  json: {\n    proposalId: row.proposal_id,\n    to: row.email,\n    subject: fill(row.proposal_reminder_email_subject),\n    body: fill(row.proposal_reminder_email_body),\n  },\n}];\n"
+        "jsCode": "const row = $input.item.json;\n// $env access can be blocked entirely by the n8n instance's own security settings (N8N_BLOCK_ENV_ACCESS_IN_NODE) \u2014 reading a blocked var THROWS rather than returning undefined, so the `|| ''` fallback never gets a chance to run without this try/catch.\nlet base = '';\ntry { base = $env.FRONTEND_BASE_URL || ''; } catch (e) { base = ''; }\nconst link = `${base}/documents/proposal/${row.public_token}`;\n\nfunction fill(template) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, row.first_name || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, row.last_name || '')\n    .replace(/{{\\s*deal_name\\s*}}/gi, row.deal_name || '')\n    .replace(/{{\\s*proposal_link\\s*}}/gi, link);\n}\n\nconst unsubUrl = base + '/unsubscribe/' + (row.unsubscribe_token || '');\nconst body = fill(row.proposal_reminder_email_body) + `\n\nDon't want these emails? Unsubscribe: ${unsubUrl}`;\n\nreturn [{\n  json: {\n    proposalId: row.proposal_id,\n    to: row.email,\n    subject: fill(row.proposal_reminder_email_subject),\n    body,\n  },\n}];\n"
       },
       "id": "ddfe0007-7777-4a5a-9b1a-docengine00007",
       "name": "Personalize Reminder",
@@ -148,7 +149,8 @@
         "emailType": "text",
         "message": "={{ (($('Personalize Reminder').item.json.body).replace(/The Team/g, $('Get Company Name: Reminder Email').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Reminder Email').item.json.company_name) }}",
         "options": {
-          "senderName": "={{ $('Get Company Name: Reminder Email').item.json.company_name }}"
+          "senderName": "={{ $('Get Company Name: Reminder Email').item.json.company_name }}",
+          "appendAttribution": false
         }
       },
       "id": "ddfe0008-8888-4a5a-9b1a-docengine00008",
@@ -195,7 +197,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT ct.id AS contract_id, ct.public_token, f.contract_reminder_email_subject, f.contract_reminder_email_body, c.id AS contact_id, c.email, c.first_name, c.last_name, c.phone, c.dnc_sms, o.name AS deal_name FROM deal_document_flows f JOIN contracts ct ON ct.flow_id = f.id AND ct.status = 'sent' AND ct.is_archived = false JOIN opportunities o ON o.id = ct.opportunity_id AND o.is_archived = false AND o.status = 'Open' JOIN contacts c ON c.id = o.contact_id AND c.is_archived = false AND c.email IS NOT NULL AND c.email <> '' WHERE f.is_active = true AND f.contract_reminder_delay_hours IS NOT NULL AND ct.sent_at <= now() - (f.contract_reminder_delay_hours || ' hours')::interval AND ct.reminder_sent_at IS NULL;",
+        "query": "SELECT ct.id AS contract_id, ct.public_token, f.contract_reminder_email_subject, f.contract_reminder_email_body, c.id AS contact_id, c.email, c.first_name, c.last_name, c.phone, c.dnc_sms, c.unsubscribe_token, o.name AS deal_name FROM deal_document_flows f JOIN contracts ct ON ct.flow_id = f.id AND ct.status = 'sent' AND ct.is_archived = false JOIN opportunities o ON o.id = ct.opportunity_id AND o.is_archived = false AND o.status = 'Open' JOIN contacts c ON c.id = o.contact_id AND c.is_archived = false AND c.email IS NOT NULL AND c.email <> '' WHERE f.is_active = true AND f.contract_reminder_delay_hours IS NOT NULL AND ct.sent_at <= now() - (f.contract_reminder_delay_hours || ' hours')::interval AND ct.reminder_sent_at IS NULL;",
         "options": {}
       },
       "id": "cr-select",
@@ -215,7 +217,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const row = $input.item.json;\nlet base = '';\ntry { base = $env.FRONTEND_BASE_URL || ''; } catch (e) { base = ''; }\nconst link = `${base}/documents/contract/${row.public_token}`;\nfunction fill(template) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, row.first_name || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, row.last_name || '')\n    .replace(/{{\\s*deal_name\\s*}}/gi, row.deal_name || '')\n    .replace(/{{\\s*contract_link\\s*}}/gi, link);\n}\nreturn [{ json: { contractId: row.contract_id, to: row.email, subject: fill(row.contract_reminder_email_subject), body: fill(row.contract_reminder_email_body) } }];"
+        "jsCode": "const row = $input.item.json;\nlet base = '';\ntry { base = $env.FRONTEND_BASE_URL || ''; } catch (e) { base = ''; }\nconst link = `${base}/documents/contract/${row.public_token}`;\nfunction fill(template) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, row.first_name || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, row.last_name || '')\n    .replace(/{{\\s*deal_name\\s*}}/gi, row.deal_name || '')\n    .replace(/{{\\s*contract_link\\s*}}/gi, link);\n}\nconst unsubUrl = base + '/unsubscribe/' + (row.unsubscribe_token || '');\nconst body = fill(row.contract_reminder_email_body) + `<br><br><span style=\"font-size:11px;color:#94a3b8\">Don't want these emails? <a href=\"${unsubUrl}\">Unsubscribe</a></span>`;\nreturn [{ json: { contractId: row.contract_id, to: row.email, subject: fill(row.contract_reminder_email_subject), body } }];"
       },
       "id": "cr-personalize",
       "name": "Personalize Contract Reminder",
@@ -232,7 +234,8 @@
         "subject": "={{ ($('Personalize Contract Reminder').item.json.subject).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Contract Reminder Email').item.json.company_name) }}",
         "message": "={{ (($('Personalize Contract Reminder').item.json.body.replace(/\\n/g, \"<br>\")).replace(/The Team/g, $('Get Company Name: Contract Reminder Email').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Contract Reminder Email').item.json.company_name) }}",
         "options": {
-          "senderName": "={{ $('Get Company Name: Contract Reminder Email').item.json.company_name }}"
+          "senderName": "={{ $('Get Company Name: Contract Reminder Email').item.json.company_name }}",
+          "appendAttribution": false
         }
       },
       "id": "cr-send",
@@ -278,7 +281,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT i.id AS invoice_id, ct.public_token AS contract_token, c.id AS contact_id, c.email, c.first_name, c.last_name, c.phone, c.dnc_sms, o.name AS deal_name FROM invoices i JOIN contracts ct ON ct.opportunity_id = i.opportunity_id JOIN opportunities o ON o.id = i.opportunity_id AND o.is_archived = false AND o.status = 'Open' JOIN contacts c ON c.id = i.contact_id AND c.email IS NOT NULL AND c.email <> '' WHERE i.invoice_type = 'down_payment' AND i.reminder_sent_at IS NULL AND i.created_at <= now() - interval '48 hours' AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.invoice_id = i.id AND p.status = 'succeeded');",
+        "query": "SELECT i.id AS invoice_id, ct.public_token AS contract_token, c.id AS contact_id, c.email, c.first_name, c.last_name, c.phone, c.dnc_sms, c.unsubscribe_token, o.name AS deal_name FROM invoices i JOIN contracts ct ON ct.opportunity_id = i.opportunity_id JOIN opportunities o ON o.id = i.opportunity_id AND o.is_archived = false AND o.status = 'Open' JOIN contacts c ON c.id = i.contact_id AND c.email IS NOT NULL AND c.email <> '' WHERE i.invoice_type = 'down_payment' AND i.reminder_sent_at IS NULL AND i.created_at <= now() - interval '48 hours' AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.invoice_id = i.id AND p.status = 'succeeded');",
         "options": {}
       },
       "id": "dp-select",
@@ -319,7 +322,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const row = $('Select Unpaid Down Payments Due').item.json;\nlet base = '';\ntry { base = $env.FRONTEND_BASE_URL || ''; } catch (e) { base = ''; }\nconst link = `${base}/documents/contract/${row.contract_token}`;\nfunction fill(t) {\n  return (t || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, row.first_name || 'there')\n    .replace(/{{\\s*deal_name\\s*}}/gi, row.deal_name || '')\n    .replace(/{{\\s*contract_link\\s*}}/gi, link);\n}\nconst tmpl = $input.item.json;\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject), htmlBody: fill(tmpl.body).replace(/\\n/g, '<br>') } }];"
+        "jsCode": "const row = $('Select Unpaid Down Payments Due').item.json;\nlet base = '';\ntry { base = $env.FRONTEND_BASE_URL || ''; } catch (e) { base = ''; }\nconst link = `${base}/documents/contract/${row.contract_token}`;\nfunction fill(t) {\n  return (t || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, row.first_name || 'there')\n    .replace(/{{\\s*deal_name\\s*}}/gi, row.deal_name || '')\n    .replace(/{{\\s*contract_link\\s*}}/gi, link);\n}\nconst tmpl = $input.item.json;\nconst unsubUrl = base + '/unsubscribe/' + (row.unsubscribe_token || '');\nconst htmlBody = fill(tmpl.body).replace(/\\n/g, '<br>') + `<br><br><span style=\"font-size:11px;color:#94a3b8\">Don't want these emails? <a href=\"${unsubUrl}\">Unsubscribe</a></span>`;\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject), htmlBody } }];"
       },
       "id": "dp-fill",
       "name": "Fill Email: DP Reminder",
@@ -336,7 +339,8 @@
         "subject": "={{ ($('Fill Email: DP Reminder').item.json.subject).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Email: DP Reminder').item.json.company_name) }}",
         "message": "={{ (($('Fill Email: DP Reminder').item.json.htmlBody).replace(/The Team/g, $('Get Company Name: Email: DP Reminder').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Email: DP Reminder').item.json.company_name) }}",
         "options": {
-          "senderName": "={{ $('Get Company Name: Email: DP Reminder').item.json.company_name }}"
+          "senderName": "={{ $('Get Company Name: Email: DP Reminder').item.json.company_name }}",
+          "appendAttribution": false
         }
       },
       "id": "dp-send",

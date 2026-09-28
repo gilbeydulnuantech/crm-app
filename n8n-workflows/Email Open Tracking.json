@@ -22,7 +22,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Public, unauthenticated by design \u2014 this is hit directly by an email\n// client loading an <img> tag, which can't send auth headers. id/contact_id\n// are internal correlation values (not real secrets); worst case of someone\n// guessing one is a fake 'opened' event on a purely informational metric.\nconst q = $json.query || {};\nconst id = (q.id || '').toString().trim();\nconst contactId = parseInt(q.contact_id, 10);\nreturn [{ json: { id, contactId: Number.isInteger(contactId) ? contactId : null, valid: Boolean(id) && Number.isInteger(contactId) } }];"
+        "jsCode": "// Public, unauthenticated by design \u2014 this is hit directly by an email\n// client loading an <img> tag, which can't send auth headers. id/contact_id\n// are internal correlation values (not real secrets); worst case of someone\n// guessing one is a fake 'opened' event on a purely informational metric.\nconst q = $('Webhook - Track Email Open').first().json.query || {};\nconst id = (q.id || '').toString().trim();\nconst contactId = parseInt(q.contact_id, 10);\nreturn [{ json: { id, contactId: Number.isInteger(contactId) ? contactId : null, valid: Boolean(id) && Number.isInteger(contactId) } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -94,6 +94,37 @@
       ],
       "id": "email-open-respond",
       "name": "Respond - Pixel"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Email Open Tracking\" }}",
+            "workflow_id": "={{ \"SzC8wzByC4IOkfpb\" }}",
+            "entity_type": "={{ \"contacts\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-track-email-open-0",
+      "name": "Log Workflow Run: Webhook - Track Email Open",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        15,
+        -15
+      ],
+      "onError": "continueRegularOutput"
     }
   ],
   "pinData": {},
@@ -102,7 +133,7 @@
       "main": [
         [
           {
-            "node": "Parse Params",
+            "node": "Log Workflow Run: Webhook - Track Email Open",
             "type": "main",
             "index": 0
           }
@@ -136,6 +167,17 @@
         [
           {
             "node": "Respond - Pixel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook - Track Email Open": {
+      "main": [
+        [
+          {
+            "node": "Parse Params",
             "type": "main",
             "index": 0
           }

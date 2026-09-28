@@ -87,7 +87,7 @@ export default function CompanyHierarchyModal({ company, onClose, onSelectCompan
   const isSingleNode = tree.children.length === 0 && !company.parent_company_id;
 
   return (
-    <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[105] flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-slate-900/78 z-[105] flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200 shrink-0">
           <div className="min-w-0">

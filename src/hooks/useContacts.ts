@@ -14,16 +14,45 @@ export function useContacts() {
 // (get-contacts is `SELECT c.*`), so no dedicated endpoint is needed. Shares
 // the ['contacts'] cache key with useContacts(), just adds polling so a
 // reply landing in another tab/session shows up without visiting Contacts.
+// get-contacts sorts by c.id (a stable, tie-free key), so polling this often
+// doesn't risk the reordering "blink" a less-stable ORDER BY would cause on
+// the Contacts list, which shares this same cache entry.
 function useContactsForNotifications() {
   return useQuery({
     queryKey: ['contacts'],
     queryFn: api.fetchContacts,
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
   }).data ?? [];
 }
 
 export function useUnreadEmailContacts() {
   return getContactsWithUnreadEmail(useContactsForNotifications());
+}
+
+// Own cache key (['contacts', id]) — deliberately does NOT share
+// ['contacts'] with useContacts(), so it never inherits the notification
+// bell's poll on that key. refetchInterval explicitly off, overriding the
+// app-wide 15s default (main.tsx) — a stale contact card in a read-mostly
+// detail view isn't worth the background refetch (and the re-render it
+// forces) every 15s while the view is just sitting open.
+export function useContact(id: number | null | undefined) {
+  return useQuery({
+    queryKey: ['contacts', id],
+    queryFn: () => api.fetchContact(id as number),
+    enabled: id != null,
+    refetchInterval: false,
+  });
+}
+
+// Own cache key (['contacts', 'byCompany', accountId]) — same no-poll
+// reasoning as useContact above, for CompanyDetailModal's contacts list.
+export function useContactsByCompany(accountId: number | null | undefined) {
+  return useQuery({
+    queryKey: ['contacts', 'byCompany', accountId],
+    queryFn: () => api.fetchContactsByCompany(accountId as number),
+    enabled: accountId != null,
+    refetchInterval: false,
+  });
 }
 
 export function useArchivedContacts(enabled: boolean) {

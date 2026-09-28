@@ -11,44 +11,12 @@ import { useContacts, useSendContactEmail } from '../hooks/useContacts';
 import { useAuth } from '../context/AuthContext';
 import ScopeOfWorkEditor from '../components/ScopeOfWorkEditor';
 import ProposalPreviewOverlay from '../components/proposals/ProposalPreviewOverlay';
-import { insertAtCursor, DynamicField } from '../components/DynamicFieldDropdown';
+import DynamicFieldDropdown, { AUTOMATION_DYNAMIC_FIELDS, insertAtCursor } from '../components/DynamicFieldDropdown';
 import { RichTextEditorHandle } from '../components/RichTextEditor';
 import { buildDraftPdf } from '../utils/contractPdf';
 
 const inputClass =
   'w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]';
-
-// Standalone template — no deal/pipeline/stage. These fields resolve once
-// this template is cloned into a real, deal-bound proposal (via an
-// Automation or the deal-triggered Document Flow). All fields below are
-// fully wired (utils/mergeFields.ts + the Proposals workflow's Look Up
-// Proposal Public/Approved/Select Proposals queries) — inspection_date
-// comes from `activities` (type='meeting', subject ILIKE '%inspection%',
-// due_at), there's no separate "calendar" table; deal_value/deal_name/
-// deal_created_at/deal_due_at come straight off `opportunities`;
-// down_payment_*/balance_* come from each deal's most recent down_payment/
-// final invoice and its latest 'paid' payment.
-const PROPOSAL_DYNAMIC_FIELDS: DynamicField[] = [
-  { token: '{{client_name}}', label: 'Client Name', group: 'Client' },
-  { token: '{{client_company_name}}', label: 'Client Company', group: 'Client' },
-  { token: '{{client_address}}', label: 'Client Address', group: 'Client' },
-  { token: '{{client_email}}', label: 'Client Email', group: 'Client' },
-  { token: '{{client_phone}}', label: 'Client Phone', group: 'Client' },
-  { token: '{{owner_name}}', label: 'Owner Name', group: 'User' },
-  { token: '{{owner_email}}', label: 'Owner Email', group: 'User' },
-  { token: '{{owner_phone}}', label: 'Owner Phone', group: 'User' },
-  { token: '{{company_name}}', label: 'Company Name', group: 'User' },
-  { token: '{{proposal_link}}', label: 'Proposal Link', group: 'Proposal' },
-  { token: '{{deal_name}}', label: 'Deal Name', group: 'Deal' },
-  { token: '{{deal_value}}', label: 'Deal Value', group: 'Deal' },
-  { token: '{{deal_created_at}}', label: 'Created At', group: 'Deal' },
-  { token: '{{deal_due_at}}', label: 'Due At', group: 'Deal' },
-  { token: '{{inspection_date}}', label: 'Inspection Date', group: 'Deal' },
-  { token: '{{down_payment_amount}}', label: 'Down Payment Amount', group: 'Payment' },
-  { token: '{{down_payment_paid_at}}', label: 'Down Payment Paid At', group: 'Payment' },
-  { token: '{{balance_amount}}', label: 'Balance Amount', group: 'Payment' },
-  { token: '{{balance_paid_at}}', label: 'Balance Paid At', group: 'Payment' },
-];
 
 interface ProposalForm {
   id?: number;
@@ -263,42 +231,61 @@ export default function ProposalEditorPage() {
   // resolved client-side first so Send always matches what's on screen.
   function resolveTokens(text: string): string {
     const contact = selectedDeal?.contactId != null ? contactsById.get(selectedDeal.contactId) : undefined;
+    const inspectionDate = savedProposal?.inspection_date
+      ? new Date(savedProposal.inspection_date).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+      : '';
+    const dealValue = savedProposal?.deal_value != null
+      ? `$${Number(savedProposal.deal_value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      : '';
+    const dealName = savedProposal?.deal_name || selectedDeal?.dealName || '';
+    const dealCreatedAt = savedProposal?.deal_created_at
+      ? new Date(savedProposal.deal_created_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+      : '';
+    const dealDueAt = savedProposal?.deal_due_at
+      ? new Date(savedProposal.deal_due_at).toLocaleDateString(undefined, { dateStyle: 'medium' })
+      : '';
+    const downPaymentAmount = savedProposal?.down_payment_amount != null
+      ? `$${Number(savedProposal.down_payment_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      : '';
+    const downPaymentPaidAt = savedProposal?.down_payment_paid_at
+      ? new Date(savedProposal.down_payment_paid_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+      : '';
+    const balanceAmount = savedProposal?.balance_amount != null
+      ? `$${Number(savedProposal.balance_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      : '';
+    const balancePaidAt = savedProposal?.balance_paid_at
+      ? new Date(savedProposal.balance_paid_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+      : '';
+    const clientAddress = [contact?.city, contact?.state].filter(Boolean).join(', ');
+
     const map: Record<string, string> = {
-      '{{first_name}}': contact?.first_name || '',
-      '{{client_name}}': selectedDeal?.contactName || '',
-      '{{client_company_name}}': contact?.company_name || '',
-      '{{client_address}}': [contact?.city, contact?.state].filter(Boolean).join(', '),
-      '{{client_email}}': selectedDeal?.contactEmail || '',
-      '{{client_phone}}': contact?.phone || '',
-      '{{owner_name}}': user?.name || '',
-      '{{owner_email}}': user?.email || '',
-      '{{company_name}}': companyProfile?.company_name || '',
+      // Namespaced {{contact.x}}-style tokens only — legacy flat/client_-
+      // prefixed tokens were removed; existing content gets re-typed with
+      // the new tokens rather than kept dual-resolving indefinitely.
+      '{{contact.first_name}}': contact?.first_name || '',
+      '{{contact.last_name}}': contact?.last_name || '',
+      '{{contact.full_name}}': selectedDeal?.contactName || '',
+      '{{contact.email}}': selectedDeal?.contactEmail || '',
+      '{{contact.phone}}': contact?.phone || '',
+      '{{contact.city}}': contact?.city || '',
+      '{{contact.state}}': contact?.state || '',
+      '{{contact.address}}': clientAddress,
+      '{{contact.country}}': contact?.country || '',
+      '{{company.name}}': contact?.company_name || '',
+      '{{user.full_name}}': user?.name || '',
+      '{{user.email}}': user?.email || '',
+      '{{user.company_name}}': companyProfile?.company_name || '',
+      '{{opportunity.name}}': dealName,
+      '{{opportunity.value}}': dealValue,
+      '{{opportunity.created_at}}': dealCreatedAt,
+      '{{opportunity.due_at}}': dealDueAt,
+      '{{appointment.start_time}}': inspectionDate,
+      '{{payment.down_payment_amount}}': downPaymentAmount,
+      '{{payment.down_payment_paid_at}}': downPaymentPaidAt,
+      '{{payment.balance_amount}}': balanceAmount,
+      '{{payment.balance_paid_at}}': balancePaidAt,
+
       '{{proposal_link}}': proposalLink,
-      '{{inspection_date}}': savedProposal?.inspection_date
-        ? new Date(savedProposal.inspection_date).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-        : '',
-      '{{deal_value}}': savedProposal?.deal_value != null
-        ? `$${Number(savedProposal.deal_value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-        : '',
-      '{{deal_name}}': savedProposal?.deal_name || selectedDeal?.dealName || '',
-      '{{deal_created_at}}': savedProposal?.deal_created_at
-        ? new Date(savedProposal.deal_created_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-        : '',
-      '{{deal_due_at}}': savedProposal?.deal_due_at
-        ? new Date(savedProposal.deal_due_at).toLocaleDateString(undefined, { dateStyle: 'medium' })
-        : '',
-      '{{down_payment_amount}}': savedProposal?.down_payment_amount != null
-        ? `$${Number(savedProposal.down_payment_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-        : '',
-      '{{down_payment_paid_at}}': savedProposal?.down_payment_paid_at
-        ? new Date(savedProposal.down_payment_paid_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-        : '',
-      '{{balance_amount}}': savedProposal?.balance_amount != null
-        ? `$${Number(savedProposal.balance_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-        : '',
-      '{{balance_paid_at}}': savedProposal?.balance_paid_at
-        ? new Date(savedProposal.balance_paid_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-        : '',
     };
     return Object.entries(map).reduce((out, [token, val]) => out.split(token).join(val), text);
   }
@@ -569,30 +556,7 @@ export default function ProposalEditorPage() {
 
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1.5">Insert dynamic field</label>
-            <div className="flex flex-col gap-2.5">
-              {Object.entries(
-                PROPOSAL_DYNAMIC_FIELDS.reduce<Record<string, typeof PROPOSAL_DYNAMIC_FIELDS>>((acc, f) => {
-                  (acc[f.group!] ||= []).push(f);
-                  return acc;
-                }, {})
-              ).map(([group, groupFields]) => (
-                <div key={group}>
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">{group}</p>
-                  <div className="flex flex-col gap-1.5">
-                    {groupFields.map((f) => (
-                      <button
-                        key={f.token}
-                        type="button"
-                        onClick={() => editorRef.current?.insertText(f.token)}
-                        className="w-full text-left text-[11px] font-medium border border-slate-200 rounded-md px-2 py-1 text-slate-600 bg-white hover:border-[var(--theme-accent)] hover:text-[var(--theme-accent)]"
-                      >
-                        {f.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <DynamicFieldDropdown fields={AUTOMATION_DYNAMIC_FIELDS} onInsert={(t) => editorRef.current?.insertText(t)} />
             <p className="text-[10px] text-slate-400 italic mt-2">
               Fields resolve once this template is used to generate a proposal for a specific deal.
             </p>
@@ -631,8 +595,8 @@ export default function ProposalEditorPage() {
       {/* Send / customize email panel */}
       {sendPanelOpen && (
         <div className="fixed inset-0 bg-slate-900/40 z-[130] flex items-center justify-center p-4" onClick={() => setSendPanelOpen(false)}>
-          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="flex-1 p-5">
+          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex overflow-hidden max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
+            <div className="flex-1 p-5 overflow-y-auto">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-bold text-slate-800">
                   {selectedDeal ? 'Send proposal' : 'Customize the send email'}
@@ -712,36 +676,11 @@ export default function ProposalEditorPage() {
               </div>
             </div>
 
-            {/* Persistent dynamic-field panel — click a field to insert it
-                into whichever of Subject/Body was last focused. */}
             <div className="w-56 shrink-0 border-l border-slate-200 bg-slate-50 p-4 overflow-y-auto">
               <p className="text-[11px] font-semibold text-slate-500 mb-2">
                 Insert into {focusedComposeField === 'subject' ? 'Subject' : 'Body'}
               </p>
-              <div className="flex flex-col gap-2.5">
-                {Object.entries(
-                  PROPOSAL_DYNAMIC_FIELDS.reduce<Record<string, typeof PROPOSAL_DYNAMIC_FIELDS>>((acc, f) => {
-                    (acc[f.group!] ||= []).push(f);
-                    return acc;
-                  }, {})
-                ).map(([group, groupFields]) => (
-                  <div key={group}>
-                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">{group}</p>
-                    <div className="flex flex-col gap-1.5">
-                      {groupFields.map((f) => (
-                        <button
-                          key={f.token}
-                          type="button"
-                          onClick={() => insertIntoComposeField(f.token)}
-                          className="w-full text-left text-[11px] font-medium border border-slate-200 rounded-md px-2 py-1 text-slate-600 bg-white hover:border-[var(--theme-accent)] hover:text-[var(--theme-accent)]"
-                        >
-                          {f.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <DynamicFieldDropdown fields={AUTOMATION_DYNAMIC_FIELDS} onInsert={insertIntoComposeField} />
             </div>
           </div>
         </div>

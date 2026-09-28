@@ -1,6 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as api from '../api/emailTemplates';
 import { EmailTemplate } from '../api/emailTemplates';
+import { useSendEmailTemplate } from './useSendEmailTemplate';
+
+export { useSendEmailTemplate };
 
 export function useEmailTemplates() {
   return useQuery({

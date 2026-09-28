@@ -48,7 +48,7 @@ export default function LogCallModal({ open, entityType, entityId, entityLabel, 
 
   return (
     <div
-      className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[120] flex items-center justify-center p-4"
+      className="fixed inset-0 bg-slate-900/78 z-[120] flex items-center justify-center p-4"
       onClick={onClose}
     >
       <div

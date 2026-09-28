@@ -35,6 +35,7 @@ import ArchiveReasonModal from '../components/contacts/ArchiveReasonModal';
 import SearchToolbar from '../components/SearchToolbar';
 import SavedViewsBar from '../components/SavedViewsBar';
 import SaveViewButton from '../components/SaveViewButton';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const EMPTY_FILTERS = { tag: '', owner: '', company: '', status: '' };
 const EMPTY_ADVANCED_FILTERS: AdvancedFilterValue = { company: '', stage: '', task: '' };
@@ -93,6 +94,8 @@ export default function Contacts() {
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [activeContactId, setActiveContactId] = useState<number | null>(null);
   const [archiveTargetIds, setArchiveTargetIds] = useState<number[] | null>(null);
+  const [deleteConfirmContact, setDeleteConfirmContact] = useState<Contact | null>(null);
+  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [enrichError, setEnrichError] = useState<string | null>(null);
   const [enrichQueued, setEnrichQueued] = useState<number | null>(null);
@@ -204,15 +207,19 @@ export default function Contacts() {
 
   function handleDeleteOne(contact: Contact) {
     if (isAdmin) {
-      const fullName = `${contact.first_name} ${contact.last_name}`.trim();
-      if (!confirm(`PERMANENT DELETE: Remove ${fullName || 'this contact'} forever?`)) return;
-      setDeleteError(null);
-      deleteContacts.mutate([contact.id], {
-        onError: (err) => setDeleteError(err instanceof Error ? err.message : 'Failed to delete contact.'),
-      });
+      setDeleteConfirmContact(contact);
     } else {
       setArchiveTargetIds([contact.id]);
     }
+  }
+
+  function confirmDeleteOne() {
+    if (!deleteConfirmContact) return;
+    setDeleteError(null);
+    deleteContacts.mutate([deleteConfirmContact.id], {
+      onSuccess: () => setDeleteConfirmContact(null),
+      onError: (err) => setDeleteError(err instanceof Error ? err.message : 'Failed to delete contact.'),
+    });
   }
 
   // Company options come from the real companies table, not from contacts'
@@ -335,10 +342,16 @@ export default function Contacts() {
 
   function handleDeletePermanently() {
     if (selectedIds.size === 0) return;
-    if (!confirm(`PERMANENT DELETE: Remove ${selectedIds.size} contact(s) forever?`)) return;
+    setBulkDeleteConfirmOpen(true);
+  }
+
+  function confirmDeletePermanently() {
     setDeleteError(null);
     deleteContacts.mutate(Array.from(selectedIds), {
-      onSuccess: () => setSelectedIds(new Set()),
+      onSuccess: () => {
+        setSelectedIds(new Set());
+        setBulkDeleteConfirmOpen(false);
+      },
       onError: (err) => setDeleteError(err instanceof Error ? err.message : 'Failed to delete contact(s).'),
     });
   }
@@ -544,6 +557,36 @@ export default function Contacts() {
         isSubmitting={archiveContacts.isPending}
         onConfirm={handleConfirmArchive}
         onCancel={() => setArchiveTargetIds(null)}
+      />
+      <ConfirmDialog
+        open={deleteConfirmContact !== null}
+        title="Permanently delete this contact?"
+        body={
+          deleteConfirmContact
+            ? `Remove ${`${deleteConfirmContact.first_name} ${deleteConfirmContact.last_name}`.trim() || 'this contact'} forever. This cannot be undone.`
+            : undefined
+        }
+        confirmLabel="Delete"
+        isSubmitting={deleteContacts.isPending}
+        error={deleteError}
+        onConfirm={confirmDeleteOne}
+        onCancel={() => {
+          setDeleteConfirmContact(null);
+          setDeleteError(null);
+        }}
+      />
+      <ConfirmDialog
+        open={bulkDeleteConfirmOpen}
+        title="Permanently delete contacts?"
+        body={`Remove ${selectedIds.size} contact(s) forever. This cannot be undone.`}
+        confirmLabel="Delete"
+        isSubmitting={deleteContacts.isPending}
+        error={deleteError}
+        onConfirm={confirmDeletePermanently}
+        onCancel={() => {
+          setBulkDeleteConfirmOpen(false);
+          setDeleteError(null);
+        }}
       />
     </div>
   );

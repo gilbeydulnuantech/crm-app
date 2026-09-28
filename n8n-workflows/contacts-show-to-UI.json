@@ -6,7 +6,7 @@
         "path": "get-contacts",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "3cc29a6d-fcc6-4dbb-9979-9ca4451e78fc",
@@ -21,45 +21,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst userId = parseInt(match[1], 10);\nreturn [{ json: { userId } }];"
-      },
-      "id": "c87805aa-3fcd-45b3-805d-ee3fbeebcb09",
-      "name": "Parse Token",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        912,
-        -160
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.userId ] }}"
-        }
-      },
-      "id": "21a52bf4-3e95-4e49-bfbf-552792303fa6",
-      "name": "Look Up Requester",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        1136,
-        -160
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const user = $input.first().json;\n\nif (!user.id || !user.active) {\n  throw new Error('Invalid session.');\n}\n\n// Reuses this same get-contacts webhook for both the active list and the\n// Archived tab:\n//   GET /webhook/get-contacts?archived=false   (All Contacts / My Contacts)\n//   GET /webhook/get-contacts?archived=true    (Archived tab)\nconst webhookQuery = $('Webhook').first().json.query || {};\nconst showArchived = String(webhookQuery.archived || '').toLowerCase() === 'true';\n\n// archived_by_name is only meaningful (and only joined) for the archived\n// view \u2014 harmless left join either way, just always null when not archived.\n// tags is embedded via json_agg so the Contacts table can render them\n// without an extra get-entity-tags round trip per row (taggables/tags\n// schema matches contacts-Tags System.json).\nconst sqlQuery = `\n  SELECT c.*, co.name AS company_name, u.name AS owner_name,\n         ab.name AS archived_by_name,\n         (SELECT COALESCE(json_agg(json_build_object('id', t.id, 'name', t.name)), '[]'::json)\n          FROM taggables tg JOIN tags t ON t.id = tg.tag_id\n          WHERE tg.entity_type = 'contact' AND tg.entity_id = c.id) AS tags,\n         GREATEST(c.updated_at, (SELECT MAX(created_at) FROM entity_activity_log WHERE entity_type = 'contact' AND entity_id = c.id)) AS last_activity_at\n  FROM contacts c\n  LEFT JOIN companies co ON co.id = c.account_id\n  LEFT JOIN users u ON u.id = c.owner_id\n  LEFT JOIN users ab ON ab.id = c.archived_by\n  WHERE c.is_archived = $1\n  ORDER BY c.id;\n`;\n\nreturn [{ json: { sqlQuery, queryParams: [showArchived] } }];\n"
+        "jsCode": "const user = $input.first().json;\n\nif (!user.id || !user.active) {\n  throw new Error('Invalid session.');\n}\n\n// Reuses this same get-contacts webhook for both the active list and the\n// Archived tab:\n//   GET /webhook/get-contacts?archived=false   (All Contacts / My Contacts)\n//   GET /webhook/get-contacts?archived=true    (Archived tab)\nconst webhookQuery = $('Webhook').first().json.query || {};\nconst showArchived = String(webhookQuery.archived || '').toLowerCase() === 'true';\n// ?id=123 narrows to a single contact \u2014 used by DealDetailModal (and\n// anywhere else that only needs one row) instead of pulling + polling the\n// entire contacts list just to find one by id.\nconst singleId = webhookQuery.id ? parseInt(webhookQuery.id, 10) : null;\n// ?account_id=456 narrows to one company's contacts \u2014 used by\n// CompanyDetailModal instead of pulling + polling the entire contacts\n// list just to filter it client-side down to one company's rows.\nconst accountId = webhookQuery.account_id ? parseInt(webhookQuery.account_id, 10) : null;\n\n// archived_by_name is only meaningful (and only joined) for the archived\n// view \u2014 harmless left join either way, just always null when not archived.\n// tags is embedded via json_agg so the Contacts table can render them\n// without an extra get-entity-tags round trip per row (taggables/tags\n// schema matches contacts-Tags System.json).\nconst sqlQuery = `\n  SELECT c.*, co.name AS company_name, u.name AS owner_name,\n         ab.name AS archived_by_name,\n         (SELECT COALESCE(json_agg(json_build_object('id', t.id, 'name', t.name)), '[]'::json)\n          FROM taggables tg JOIN tags t ON t.id = tg.tag_id\n          WHERE tg.entity_type = 'contact' AND tg.entity_id = c.id) AS tags,\n         GREATEST(c.updated_at, (SELECT MAX(created_at) FROM entity_activity_log WHERE entity_type = 'contact' AND entity_id = c.id)) AS last_activity_at\n  FROM contacts c\n  LEFT JOIN companies co ON co.id = c.account_id\n  LEFT JOIN users u ON u.id = c.owner_id\n  LEFT JOIN users ab ON ab.id = c.archived_by\n  WHERE c.is_archived = $1\n    AND ($2::int IS NULL OR c.id = $2)\n    AND ($3::int IS NULL OR c.account_id = $3)\n  ORDER BY c.id;\n`;\n\nreturn [{ json: { sqlQuery, queryParams: [showArchived, singleId, accountId] } }];\n"
       },
       "id": "e3cb2a82-3624-4966-9604-4a8995388eec",
       "name": "Build Query",
@@ -98,7 +60,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// alwaysOutputData on Execute Query emits one placeholder {} item when the\n// query matched zero rows (e.g. every contact archived) — without this,\n// zero rows meant zero items reached Respond, which sent a 0-byte body\n// the frontend's res.json() couldn't parse, silently leaving the UI on\n// stale cached data instead of showing an empty list.\nconst rows = $input.all().map((i) => i.json).filter((r) => r && Object.keys(r).length > 0);\nreturn [{ json: { rows } }];"
+        "jsCode": "// alwaysOutputData on Execute Query emits one placeholder {} item when the\n// query matched zero rows (e.g. every contact archived) \u2014 without this,\n// zero rows meant zero items reached Respond, which sent a 0-byte body\n// the frontend's res.json() couldn't parse, silently leaving the UI on\n// stale cached data instead of showing an empty list.\nconst rows = $input.all().map((i) => i.json).filter((r) => r && Object.keys(r).length > 0);\nreturn [{ json: { rows } }];"
       },
       "id": "ensure-array-response",
       "name": "Ensure Array Response",
@@ -127,7 +89,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "responseBody": "={{ { success: false, error: (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Request failed.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -140,6 +102,63 @@
         1136,
         32
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        912,
+        -160
+      ],
+      "id": "extract-bearer-parse-token",
+      "name": "Extract Bearer Token",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token",
+      "name": "Execute Workflow: Verify Session",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        942,
+        -145
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1136,
+        -160
+      ],
+      "id": "validate-session-parse-token",
+      "name": "Validate Session",
+      "onError": "continueErrorOutput"
     }
   ],
   "pinData": {},
@@ -148,43 +167,7 @@
       "main": [
         [
           {
-            "node": "Parse Token",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester": {
-      "main": [
-        [
-          {
-            "node": "Build Query",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
+            "node": "Extract Bearer Token",
             "type": "main",
             "index": 0
           }
@@ -232,6 +215,60 @@
         [
           {
             "node": "Respond - Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session": {
+      "main": [
+        [
+          {
+            "node": "Validate Session",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session": {
+      "main": [
+        [
+          {
+            "node": "Build Query",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
             "type": "main",
             "index": 0
           }

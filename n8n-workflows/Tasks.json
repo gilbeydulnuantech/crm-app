@@ -46,7 +46,7 @@
             "entries": [
               {
                 "name": "Access-Control-Allow-Origin",
-                "value": "*"
+                "value": "http://localhost:5173"
               },
               {
                 "name": "Access-Control-Allow-Methods",
@@ -141,7 +141,7 @@
             "entries": [
               {
                 "name": "Access-Control-Allow-Origin",
-                "value": "*"
+                "value": "http://localhost:5173"
               },
               {
                 "name": "Access-Control-Allow-Methods",
@@ -186,7 +186,7 @@
         "operation": "executeQuery",
         "query": "UPDATE activities SET subject = COALESCE($1, subject), body = COALESCE($2, body), contact_id = COALESCE($3, contact_id), account_id = COALESCE($4, account_id), opportunity_id = COALESCE($5, opportunity_id), user_id = COALESCE($6, user_id), due_at = COALESCE($7, due_at), is_completed = COALESCE($8, is_completed), completed_at = $9, priority = COALESCE($10, priority), task_type = COALESCE($11, task_type), status = COALESCE($12, status), sla_tier = COALESCE($13, sla_tier), is_private = COALESCE($14, is_private), reminder_minutes_before = COALESCE($15, reminder_minutes_before), edit_reason = COALESCE($16, edit_reason), estimated_minutes = COALESCE($17, estimated_minutes) WHERE id = $18 AND type = 'task' AND ($19 = 'admin' OR user_id = $20) RETURNING id, subject;",
         "options": {
-          "queryReplacement": "={{ [ $('Webhook: update-task').first().json.body.subject || null, $('Webhook: update-task').first().json.body.body || null, $('Webhook: update-task').first().json.body.contact_id || null, $('Webhook: update-task').first().json.body.account_id || null, $('Webhook: update-task').first().json.body.opportunity_id || null, $('Webhook: update-task').first().json.body.user_id || null, $('Webhook: update-task').first().json.body.due_at || null, $('Webhook: update-task').first().json.body.is_completed !== undefined ? $('Webhook: update-task').first().json.body.is_completed : null, $('Webhook: update-task').first().json.body.completed_at !== undefined ? $('Webhook: update-task').first().json.body.completed_at : null, $('Webhook: update-task').first().json.body.priority || null, $('Webhook: update-task').first().json.body.task_type || null, $('Webhook: update-task').first().json.body.status || null, $('Webhook: update-task').first().json.body.sla_tier || null, $('Webhook: update-task').first().json.body.is_private !== undefined ? $('Webhook: update-task').first().json.body.is_private : null, $('Webhook: update-task').first().json.body.reminder_minutes_before !== undefined ? $('Webhook: update-task').first().json.body.reminder_minutes_before : null, $('Webhook: update-task').first().json.body.edit_reason || null, $('Webhook: update-task').first().json.body.estimated_minutes || null, $('Webhook: update-task').first().json.body.id, $('Look Up Requester: update-task').first().json.role, $('Look Up Requester: update-task').first().json.id ] }}"
+          "queryReplacement": "={{ [ $('Webhook: update-task').first().json.body.subject || null, $('Webhook: update-task').first().json.body.body || null, $('Webhook: update-task').first().json.body.contact_id || null, $('Webhook: update-task').first().json.body.account_id || null, $('Webhook: update-task').first().json.body.opportunity_id || null, $('Webhook: update-task').first().json.body.user_id || null, $('Webhook: update-task').first().json.body.due_at || null, $('Webhook: update-task').first().json.body.is_completed !== undefined ? $('Webhook: update-task').first().json.body.is_completed : null, $('Webhook: update-task').first().json.body.completed_at !== undefined ? $('Webhook: update-task').first().json.body.completed_at : null, $('Webhook: update-task').first().json.body.priority || null, $('Webhook: update-task').first().json.body.task_type || null, $('Webhook: update-task').first().json.body.status || null, $('Webhook: update-task').first().json.body.sla_tier || null, $('Webhook: update-task').first().json.body.is_private !== undefined ? $('Webhook: update-task').first().json.body.is_private : null, $('Webhook: update-task').first().json.body.reminder_minutes_before !== undefined ? $('Webhook: update-task').first().json.body.reminder_minutes_before : null, $('Webhook: update-task').first().json.body.edit_reason || null, $('Webhook: update-task').first().json.body.estimated_minutes || null, $('Webhook: update-task').first().json.body.id, $('Validate Session update-task').first().json.role, $('Validate Session update-task').first().json.id ] }}"
         }
       },
       "id": "757a985d-9a39-490b-8761-e64f841e7336",
@@ -213,7 +213,7 @@
             "entries": [
               {
                 "name": "Access-Control-Allow-Origin",
-                "value": "*"
+                "value": "http://localhost:5173"
               },
               {
                 "name": "Access-Control-Allow-Methods",
@@ -258,7 +258,7 @@
         "operation": "executeQuery",
         "query": "DELETE FROM activities WHERE id = ANY($1::int[]) AND type = 'task' AND ($2 = 'admin' OR user_id = $3) RETURNING id;",
         "options": {
-          "queryReplacement": "={{ [ $('Webhook: delete-tasks').first().json.body.ids, $('Look Up Requester: delete-tasks').first().json.role, $('Look Up Requester: delete-tasks').first().json.id ] }}"
+          "queryReplacement": "={{ [ $('Webhook: delete-tasks').first().json.body.ids, $('Validate Session delete-tasks').first().json.role, $('Validate Session delete-tasks').first().json.id ] }}"
         }
       },
       "id": "704154da-8880-4ff5-8716-0b26e70cdd93",
@@ -285,7 +285,7 @@
             "entries": [
               {
                 "name": "Access-Control-Allow-Origin",
-                "value": "*"
+                "value": "http://localhost:5173"
               },
               {
                 "name": "Access-Control-Allow-Methods",
@@ -335,7 +335,7 @@
             "entries": [
               {
                 "name": "Access-Control-Allow-Origin",
-                "value": "*"
+                "value": "http://localhost:5173"
               },
               {
                 "name": "Access-Control-Allow-Methods",
@@ -402,42 +402,6 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "c1870ddb-a120-4e87-9143-f77697466c3e",
-      "name": "Parse Token: update-task",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        708,
-        636
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "f5582608-e4a7-4b95-bf3c-3ecb914dfb81",
-      "name": "Look Up Requester: update-task",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        908,
-        636
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    },
-    {
-      "parameters": {
         "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) {\n  throw new Error(\"Task not found or you do not have permission to edit it.\");\n}\nreturn [{ json: { success: true, id: result.json.id, subject: result.json.subject } }];"
       },
       "id": "89b42a27-fdfe-4a90-8131-ec239ed06d28",
@@ -455,7 +419,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO activity_log (actor_id, verb, entity_type, entity_id, entity_name)\nSELECT $1, 'completed', 'task', $2, $3\nWHERE $4 = true;",
         "options": {
-          "queryReplacement": "={{ [ $('Look Up Requester: update-task').first().json.id, $('Check Result: update-task').first().json.id, $('Check Result: update-task').first().json.subject, $('Webhook: update-task').first().json.body.is_completed === true ] }}"
+          "queryReplacement": "={{ [ $('Validate Session update-task').first().json.id, $('Check Result: update-task').first().json.id, $('Check Result: update-task').first().json.subject, $('Webhook: update-task').first().json.body.is_completed === true ] }}"
         }
       },
       "id": "f5a6b7c8-d9e0-4f1a-2b3c-4d5e6f7a8b9c",
@@ -478,7 +442,7 @@
         "operation": "executeQuery",
         "query": "WITH resolved AS (\n  SELECT COALESCE(a.contact_id, o.contact_id) AS contact_id,\n         COALESCE(a.account_id, c.account_id, o.account_id) AS account_id\n  FROM activities a\n  LEFT JOIN opportunities o ON o.id = a.opportunity_id\n  LEFT JOIN contacts c ON c.id = COALESCE(a.contact_id, o.contact_id)\n  WHERE a.id = $2\n)\nINSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'contact', r.contact_id, 'system_audit', 'completed', COALESCE((SELECT name FROM users WHERE id = $1), 'Someone') || ' completed task \"' || $3 || '\"', jsonb_build_object('link_type', 'task', 'link_id', $2), $1, (SELECT name FROM users WHERE id = $1)\nFROM resolved r WHERE r.contact_id IS NOT NULL AND $4 = true\nUNION ALL\nSELECT 'company', r.account_id, 'system_audit', 'completed', COALESCE((SELECT name FROM users WHERE id = $1), 'Someone') || ' completed task \"' || $3 || '\"', jsonb_build_object('link_type', 'task', 'link_id', $2), $1, (SELECT name FROM users WHERE id = $1)\nFROM resolved r WHERE r.account_id IS NOT NULL AND $4 = true;",
         "options": {
-          "queryReplacement": "={{ [ $('Look Up Requester: update-task').first().json.id, $('Check Result: update-task').first().json.id, $('Check Result: update-task').first().json.subject, $('Webhook: update-task').first().json.body.is_completed === true ] }}"
+          "queryReplacement": "={{ [ $('Validate Session update-task').first().json.id, $('Check Result: update-task').first().json.id, $('Check Result: update-task').first().json.subject, $('Webhook: update-task').first().json.body.is_completed === true ] }}"
         }
       },
       "id": "d0e1f2a3-b4c5-46d6-e7f8-a9b0c1d2e3f4",
@@ -499,7 +463,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Update failed.\" } }}",
+        "responseBody": "={{ { \"success\": false, \"error\": (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Update failed.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -515,46 +479,8 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "6b76d1ef-7009-495f-854c-ebd63feacb73",
-      "name": "Parse Token: delete-tasks",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        708,
-        844
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "f7d41926-0e32-488f-b943-e1b82ed4a835",
-      "name": "Look Up Requester: delete-tasks",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        908,
-        844
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Delete failed.\" } }}",
+        "responseBody": "={{ { \"success\": false, \"error\": (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Delete failed.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -659,48 +585,10 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "3551229d-96b1-4837-8b4b-82a13a7877c1",
-      "name": "Parse Token: archive-tasks",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        240,
-        1800
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "723fd605-7e1c-4e6b-afb7-fe026831899d",
-      "name": "Look Up Requester: archive-tasks",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        480,
-        1800
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
         "operation": "executeQuery",
         "query": "UPDATE activities SET is_archived = true, archived_at = now() WHERE id = ANY($1::int[]) AND type = 'task' AND ($2 = 'admin' OR user_id = $3) RETURNING id, subject;",
         "options": {
-          "queryReplacement": "={{ [ $('Webhook: archive-tasks').first().json.body.ids, $('Look Up Requester: archive-tasks').first().json.role, $('Look Up Requester: archive-tasks').first().json.id ] }}"
+          "queryReplacement": "={{ [ $('Webhook: archive-tasks').first().json.body.ids, $('Validate Session archive-tasks').first().json.role, $('Validate Session archive-tasks').first().json.id ] }}"
         }
       },
       "id": "e89731b8-13dd-4850-adf1-9459aac1da6e",
@@ -723,7 +611,7 @@
         "operation": "executeQuery",
         "query": "WITH resolved AS (\n  SELECT COALESCE(a.contact_id, o.contact_id) AS contact_id,\n         COALESCE(a.account_id, c.account_id, o.account_id) AS account_id\n  FROM activities a\n  LEFT JOIN opportunities o ON o.id = a.opportunity_id\n  LEFT JOIN contacts c ON c.id = COALESCE(a.contact_id, o.contact_id)\n  WHERE a.id = $2\n)\nINSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'contact', r.contact_id, 'system_audit', 'archived', COALESCE((SELECT name FROM users WHERE id = $1), 'Someone') || ' archived the linked task \"' || $3 || '\"', jsonb_build_object('link_type', 'task', 'link_id', $2), $1, (SELECT name FROM users WHERE id = $1)\nFROM resolved r WHERE r.contact_id IS NOT NULL\nUNION ALL\nSELECT 'company', r.account_id, 'system_audit', 'archived', COALESCE((SELECT name FROM users WHERE id = $1), 'Someone') || ' archived the linked task \"' || $3 || '\"', jsonb_build_object('link_type', 'task', 'link_id', $2), $1, (SELECT name FROM users WHERE id = $1)\nFROM resolved r WHERE r.account_id IS NOT NULL;",
         "options": {
-          "queryReplacement": "={{ [ $('Look Up Requester: archive-tasks').first().json.id, $json.id, $json.subject ] }}"
+          "queryReplacement": "={{ [ $('Validate Session archive-tasks').first().json.id, $json.id, $json.subject ] }}"
         }
       },
       "id": "e1f2a3b4-c5d6-47e7-f8a9-b0c1d2e3f4a5",
@@ -746,7 +634,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO activity_log (actor_id, verb, entity_type, entity_id, entity_name) VALUES ($1, 'archived', 'task', $2, $3);",
         "options": {
-          "queryReplacement": "={{ [ $('Look Up Requester: archive-tasks').first().json.id, $json.id, $json.subject ] }}"
+          "queryReplacement": "={{ [ $('Validate Session archive-tasks').first().json.id, $json.id, $json.subject ] }}"
         }
       },
       "id": "f3a1c9e2-7b4d-4a6f-9e1c-2d5b8a7c6f30",
@@ -782,7 +670,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "responseBody": "={{ { success: false, error: (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Request failed.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -815,48 +703,10 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "8af4905c-056d-4d95-8003-41f30d0d402e",
-      "name": "Parse Token: restore-tasks",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        240,
-        2100
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "97344c27-1191-467b-b1a0-fed0b277504f",
-      "name": "Look Up Requester: restore-tasks",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        480,
-        2100
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
         "operation": "executeQuery",
         "query": "UPDATE activities SET is_archived = false, archived_at = NULL WHERE id = ANY($1::int[]) AND type = 'task' AND ($2 = 'admin' OR user_id = $3) RETURNING id, subject;",
         "options": {
-          "queryReplacement": "={{ [ $('Webhook: restore-tasks').first().json.body.ids, $('Look Up Requester: restore-tasks').first().json.role, $('Look Up Requester: restore-tasks').first().json.id ] }}"
+          "queryReplacement": "={{ [ $('Webhook: restore-tasks').first().json.body.ids, $('Validate Session restore-tasks').first().json.role, $('Validate Session restore-tasks').first().json.id ] }}"
         }
       },
       "id": "d98472d2-8211-4569-8323-ba8b980b6a3a",
@@ -879,7 +729,7 @@
         "operation": "executeQuery",
         "query": "WITH resolved AS (\n  SELECT COALESCE(a.contact_id, o.contact_id) AS contact_id,\n         COALESCE(a.account_id, c.account_id, o.account_id) AS account_id\n  FROM activities a\n  LEFT JOIN opportunities o ON o.id = a.opportunity_id\n  LEFT JOIN contacts c ON c.id = COALESCE(a.contact_id, o.contact_id)\n  WHERE a.id = $2\n)\nINSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'contact', r.contact_id, 'system_audit', 'restored', COALESCE((SELECT name FROM users WHERE id = $1), 'Someone') || ' restored the linked task \"' || $3 || '\"', jsonb_build_object('link_type', 'task', 'link_id', $2), $1, (SELECT name FROM users WHERE id = $1)\nFROM resolved r WHERE r.contact_id IS NOT NULL\nUNION ALL\nSELECT 'company', r.account_id, 'system_audit', 'restored', COALESCE((SELECT name FROM users WHERE id = $1), 'Someone') || ' restored the linked task \"' || $3 || '\"', jsonb_build_object('link_type', 'task', 'link_id', $2), $1, (SELECT name FROM users WHERE id = $1)\nFROM resolved r WHERE r.account_id IS NOT NULL;",
         "options": {
-          "queryReplacement": "={{ [ $('Look Up Requester: restore-tasks').first().json.id, $json.id, $json.subject ] }}"
+          "queryReplacement": "={{ [ $('Validate Session restore-tasks').first().json.id, $json.id, $json.subject ] }}"
         }
       },
       "id": "f2a3b4c5-d6e7-48f8-a9b0-c1d2e3f4a5b6",
@@ -902,7 +752,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO activity_log (actor_id, verb, entity_type, entity_id, entity_name) VALUES ($1, 'restored', 'task', $2, $3);",
         "options": {
-          "queryReplacement": "={{ [ $('Look Up Requester: restore-tasks').first().json.id, $json.id, $json.subject ] }}"
+          "queryReplacement": "={{ [ $('Validate Session restore-tasks').first().json.id, $json.id, $json.subject ] }}"
         }
       },
       "id": "a4b2d8f6-3c9e-4b7a-8f1d-6e0c9a2b5d47",
@@ -938,7 +788,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "responseBody": "={{ { success: false, error: (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Request failed.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -1216,7 +1066,7 @@
         "path": "get-task-statuses",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "4ada58fb-c453-48cf-a5e9-dbf028ab6a79",
@@ -1291,7 +1141,7 @@
         "path": "create-task-status",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "dc9c2528-63d7-4b4b-b9b4-ca4aa0982e0c",
@@ -1303,44 +1153,6 @@
         3200
       ],
       "webhookId": "bcac6273-300a-4fce-a0d8-f8c9095044b4"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "d0afb8f5-01b6-42f8-97ca-4f8cb55233f0",
-      "name": "Parse Token: create-task-status",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        240,
-        3200
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "4d1ca830-6630-49e2-839f-68915956700e",
-      "name": "Look Up Requester: create-task-status",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        480,
-        3200
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -1418,7 +1230,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Failed to create column.\" } }}",
+        "responseBody": "={{ { success: false, error: (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Failed to create column.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -1438,7 +1250,7 @@
         "path": "update-task-status",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "f7c386af-65aa-4bfd-99df-b5bf9db591f1",
@@ -1450,44 +1262,6 @@
         3500
       ],
       "webhookId": "92e01fb0-4b7b-47a0-8ba1-cf601f11b1bb"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "4989ee8d-f380-4c1b-b2ef-6171a04d5bcf",
-      "name": "Parse Token: update-task-status",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        240,
-        3500
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "19b948d0-ff29-4781-a606-4d754acf8dfa",
-      "name": "Look Up Requester: update-task-status",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        480,
-        3500
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -1611,7 +1385,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Failed to rename column.\" } }}",
+        "responseBody": "={{ { success: false, error: (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Failed to rename column.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -1631,7 +1405,7 @@
         "path": "delete-task-status",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "5783442b-9a78-4747-a736-1080c25d830b",
@@ -1643,44 +1417,6 @@
         3800
       ],
       "webhookId": "d47c0d3d-48c4-4303-9ac3-1913ddf3fe5f"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "b61b9dde-cfbe-4e21-ab47-af6e48f63c0b",
-      "name": "Parse Token: delete-task-status",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        240,
-        3800
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "c36fd014-1e56-4c3f-bf0d-6bcf5d3137d0",
-      "name": "Look Up Requester: delete-task-status",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        480,
-        3800
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -1795,7 +1531,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Failed to delete column.\" } }}",
+        "responseBody": "={{ { success: false, error: (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Failed to delete column.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -1808,6 +1544,650 @@
         720,
         3950
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: update-task').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        708,
+        636
+      ],
+      "id": "extract-bearer-parse-token-update-task",
+      "name": "Extract Bearer Token update-task"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-update-task",
+      "name": "Execute Workflow: Verify Session update-task",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        738,
+        651
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        908,
+        636
+      ],
+      "id": "validate-session-parse-token-update-task",
+      "name": "Validate Session update-task"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: delete-tasks').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        708,
+        844
+      ],
+      "id": "extract-bearer-parse-token-delete-tasks",
+      "name": "Extract Bearer Token delete-tasks",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-delete-tasks",
+      "name": "Execute Workflow: Verify Session delete-tasks",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        738,
+        859
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        908,
+        844
+      ],
+      "id": "validate-session-parse-token-delete-tasks",
+      "name": "Validate Session delete-tasks",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: archive-tasks').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        1800
+      ],
+      "id": "extract-bearer-parse-token-archive-tasks",
+      "name": "Extract Bearer Token archive-tasks",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-archive-tasks",
+      "name": "Execute Workflow: Verify Session archive-tasks",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        270,
+        1815
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        1800
+      ],
+      "id": "validate-session-parse-token-archive-tasks",
+      "name": "Validate Session archive-tasks",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: restore-tasks').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        2100
+      ],
+      "id": "extract-bearer-parse-token-restore-tasks",
+      "name": "Extract Bearer Token restore-tasks",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-restore-tasks",
+      "name": "Execute Workflow: Verify Session restore-tasks",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        270,
+        2115
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        2100
+      ],
+      "id": "validate-session-parse-token-restore-tasks",
+      "name": "Validate Session restore-tasks",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: create-task-status').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        3200
+      ],
+      "id": "extract-bearer-parse-token-create-task-status",
+      "name": "Extract Bearer Token create-task-status",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-create-task-status",
+      "name": "Execute Workflow: Verify Session create-task-status",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        270,
+        3215
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        3200
+      ],
+      "id": "validate-session-parse-token-create-task-status",
+      "name": "Validate Session create-task-status",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: update-task-status').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        3500
+      ],
+      "id": "extract-bearer-parse-token-update-task-status",
+      "name": "Extract Bearer Token update-task-status",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-update-task-status",
+      "name": "Execute Workflow: Verify Session update-task-status",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        270,
+        3515
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        3500
+      ],
+      "id": "validate-session-parse-token-update-task-status",
+      "name": "Validate Session update-task-status",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: delete-task-status').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        3800
+      ],
+      "id": "extract-bearer-parse-token-delete-task-status",
+      "name": "Extract Bearer Token delete-task-status",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-delete-task-status",
+      "name": "Execute Workflow: Verify Session delete-task-status",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        270,
+        3815
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        3800
+      ],
+      "id": "validate-session-parse-token-delete-task-status",
+      "name": "Validate Session delete-task-status",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Tasks\" }}",
+            "workflow_id": "={{ \"GJxDUooGXNmyhfec\" }}",
+            "entity_type": "={{ \"activities\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-add-task-0",
+      "name": "Log Workflow Run: Webhook: add-task",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        623,
+        529
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Tasks\" }}",
+            "workflow_id": "={{ \"GJxDUooGXNmyhfec\" }}",
+            "entity_type": "={{ \"activities\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-update-task-1",
+      "name": "Log Workflow Run: Webhook: update-task",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        623,
+        721
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Tasks\" }}",
+            "workflow_id": "={{ \"GJxDUooGXNmyhfec\" }}",
+            "entity_type": "={{ \"activities\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-delete-tasks-2",
+      "name": "Log Workflow Run: Webhook: delete-tasks",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        623,
+        929
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Tasks\" }}",
+            "workflow_id": "={{ \"GJxDUooGXNmyhfec\" }}",
+            "entity_type": "={{ \"activities\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-archive-tasks-3",
+      "name": "Log Workflow Run: Webhook: archive-tasks",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        15,
+        1785
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Tasks\" }}",
+            "workflow_id": "={{ \"GJxDUooGXNmyhfec\" }}",
+            "entity_type": "={{ \"activities\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-restore-tasks-4",
+      "name": "Log Workflow Run: Webhook: restore-tasks",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        15,
+        2085
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Tasks\" }}",
+            "workflow_id": "={{ \"GJxDUooGXNmyhfec\" }}",
+            "entity_type": "={{ \"activities\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-create-task-status-5",
+      "name": "Log Workflow Run: Webhook: create-task-status",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        15,
+        3185
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Tasks\" }}",
+            "workflow_id": "={{ \"GJxDUooGXNmyhfec\" }}",
+            "entity_type": "={{ \"activities\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-update-task-status-6",
+      "name": "Log Workflow Run: Webhook: update-task-status",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        15,
+        3485
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Tasks\" }}",
+            "workflow_id": "={{ \"GJxDUooGXNmyhfec\" }}",
+            "entity_type": "={{ \"activities\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-delete-task-status-7",
+      "name": "Log Workflow Run: Webhook: delete-task-status",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        15,
+        3785
+      ],
+      "onError": "continueRegularOutput"
     }
   ],
   "pinData": {},
@@ -1838,7 +2218,7 @@
       "main": [
         [
           {
-            "node": "Postgres: Ensure Task Columns (add)",
+            "node": "Log Workflow Run: Webhook: add-task",
             "type": "main",
             "index": 0
           }
@@ -1865,7 +2245,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: update-task",
+            "node": "Log Workflow Run: Webhook: update-task",
             "type": "main",
             "index": 0
           }
@@ -1887,7 +2267,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: delete-tasks",
+            "node": "Log Workflow Run: Webhook: delete-tasks",
             "type": "main",
             "index": 0
           }
@@ -1938,28 +2318,6 @@
         ]
       ]
     },
-    "Parse Token: update-task": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: update-task",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: update-task": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Ensure Task Columns (update)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Check Result: update-task": {
       "main": [
         [
@@ -1988,42 +2346,6 @@
         [
           {
             "node": "Respond: update-task",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: delete-tasks": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: delete-tasks",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: delete-tasks",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: delete-tasks": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Delete Tasks",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: delete-tasks",
             "type": "main",
             "index": 0
           }
@@ -2067,43 +2389,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: archive-tasks",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: archive-tasks": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: archive-tasks",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: archive-tasks",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: archive-tasks": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Archive Tasks",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: archive-tasks",
+            "node": "Log Workflow Run: Webhook: archive-tasks",
             "type": "main",
             "index": 0
           }
@@ -2141,43 +2427,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: restore-tasks",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: restore-tasks": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: restore-tasks",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: restore-tasks",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: restore-tasks": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Restore Tasks",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: restore-tasks",
+            "node": "Log Workflow Run: Webhook: restore-tasks",
             "type": "main",
             "index": 0
           }
@@ -2352,43 +2602,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: create-task-status",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: create-task-status": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: create-task-status",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: create-task-status",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: create-task-status": {
-      "main": [
-        [
-          {
-            "node": "Admin Check: create-task-status",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: create-task-status",
+            "node": "Log Workflow Run: Webhook: create-task-status",
             "type": "main",
             "index": 0
           }
@@ -2439,43 +2653,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: update-task-status",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: update-task-status": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: update-task-status",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: update-task-status",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: update-task-status": {
-      "main": [
-        [
-          {
-            "node": "Admin Check: update-task-status",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: update-task-status",
+            "node": "Log Workflow Run: Webhook: update-task-status",
             "type": "main",
             "index": 0
           }
@@ -2548,43 +2726,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: delete-task-status",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: delete-task-status": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: delete-task-status",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: delete-task-status",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: delete-task-status": {
-      "main": [
-        [
-          {
-            "node": "Admin Check: delete-task-status",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: delete-task-status",
+            "node": "Log Workflow Run: Webhook: delete-task-status",
             "type": "main",
             "index": 0
           }
@@ -2654,6 +2796,451 @@
         [
           {
             "node": "Respond: delete-task-status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token update-task": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session update-task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session update-task": {
+      "main": [
+        [
+          {
+            "node": "Validate Session update-task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session update-task": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure Task Columns (update)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token delete-tasks": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session delete-tasks",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: delete-tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session delete-tasks": {
+      "main": [
+        [
+          {
+            "node": "Validate Session delete-tasks",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: delete-tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session delete-tasks": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Delete Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: delete-tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token archive-tasks": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session archive-tasks",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: archive-tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session archive-tasks": {
+      "main": [
+        [
+          {
+            "node": "Validate Session archive-tasks",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: archive-tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session archive-tasks": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Archive Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: archive-tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token restore-tasks": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session restore-tasks",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: restore-tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session restore-tasks": {
+      "main": [
+        [
+          {
+            "node": "Validate Session restore-tasks",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: restore-tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session restore-tasks": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Restore Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: restore-tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token create-task-status": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session create-task-status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: create-task-status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session create-task-status": {
+      "main": [
+        [
+          {
+            "node": "Validate Session create-task-status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: create-task-status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session create-task-status": {
+      "main": [
+        [
+          {
+            "node": "Admin Check: create-task-status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: create-task-status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token update-task-status": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session update-task-status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: update-task-status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session update-task-status": {
+      "main": [
+        [
+          {
+            "node": "Validate Session update-task-status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: update-task-status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session update-task-status": {
+      "main": [
+        [
+          {
+            "node": "Admin Check: update-task-status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: update-task-status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token delete-task-status": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session delete-task-status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: delete-task-status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session delete-task-status": {
+      "main": [
+        [
+          {
+            "node": "Validate Session delete-task-status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: delete-task-status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session delete-task-status": {
+      "main": [
+        [
+          {
+            "node": "Admin Check: delete-task-status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: delete-task-status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: add-task": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure Task Columns (add)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: update-task": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token update-task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: delete-tasks": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token delete-tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: archive-tasks": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token archive-tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: restore-tasks": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token restore-tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: create-task-status": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token create-task-status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: update-task-status": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token update-task-status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: delete-task-status": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token delete-task-status",
             "type": "main",
             "index": 0
           }

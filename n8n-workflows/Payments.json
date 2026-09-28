@@ -20,42 +20,6 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
-      },
-      "id": "be220b31-5b03-42bf-9a75-7ee7556e03f2",
-      "name": "Parse Token: get-payments",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        430,
-        160
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.userId ] }}"
-        }
-      },
-      "id": "747573dc-d376-429e-8fef-12bcd3ad9366",
-      "name": "Look Up Requester: get-payments",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        620,
-        160
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    },
-    {
-      "parameters": {
         "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nreturn [{ json: {} }];"
       },
       "id": "ee05341f-466e-432b-887c-5e932ac10e0e",
@@ -121,42 +85,6 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
-      },
-      "id": "2cb8fce2-9eb4-4083-96f2-8022f06a1d5d",
-      "name": "Parse Token: get-invoices",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        430,
-        380
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.userId ] }}"
-        }
-      },
-      "id": "1416b4eb-b64b-48f7-85ef-5b55ffba822d",
-      "name": "Look Up Requester: get-invoices",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        620,
-        380
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    },
-    {
-      "parameters": {
         "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nreturn [{ json: {} }];"
       },
       "id": "d4c32c5d-f6f4-4e43-9751-63d973a60586",
@@ -219,42 +147,6 @@
         600
       ],
       "webhookId": "ac36323b-3611-4f8a-a8de-436d9e8a4eb6"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
-      },
-      "id": "e3bf8440-de8a-4eb2-b9aa-fd5d3fe48a24",
-      "name": "Parse Token: get-payment",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        430,
-        600
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.userId ] }}"
-        }
-      },
-      "id": "dda085fb-7e9e-46fe-8efe-c6a13fccddde",
-      "name": "Look Up Requester: get-payment",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        620,
-        600
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
     },
     {
       "parameters": {
@@ -399,42 +291,6 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
-      },
-      "id": "58f92162-e728-4bbb-a341-c5407c1e6463",
-      "name": "Parse Token: create-invoice",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        430,
-        820
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.userId ] }}"
-        }
-      },
-      "id": "7ef94887-1a2b-4674-a995-e1b3a8738573",
-      "name": "Look Up Requester: create-invoice",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        620,
-        820
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    },
-    {
-      "parameters": {
         "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: create-invoice').first().json.body || {};\nconst rawItems = Array.isArray(body.line_items) ? body.line_items : [];\nif (rawItems.length === 0) throw new Error('At least one line item is required.');\n\nconst lineItems = rawItems.map((it, i) => {\n  const qty = Number(it.qty) || 0;\n  const unitPrice = Number(it.unit_price) || 0;\n  const discount = Number(it.discount) || 0;\n  const tax = Number(it.tax) || 0;\n  const product = (it.product || '').toString().trim();\n  if (!product) throw new Error(`Line item ${i + 1}: \"product\" is required.`);\n  return { product, qty, unit_price: unitPrice, discount, tax, total: qty * unitPrice - discount + tax };\n});\n\nconst amount = lineItems.reduce((sum, it) => sum + it.qty * it.unit_price, 0);\nconst discount = lineItems.reduce((sum, it) => sum + it.discount, 0);\nconst tax = lineItems.reduce((sum, it) => sum + it.tax, 0);\nconst total = amount - discount + tax;\n\nreturn [{\n  json: {\n    opportunityId: body.opportunity_id ? parseInt(body.opportunity_id, 10) : null,\n    contactId: body.contact_id ? parseInt(body.contact_id, 10) : null,\n    accountId: body.account_id ? parseInt(body.account_id, 10) : null,\n    lineItems: JSON.stringify(lineItems),\n    amount, tax, discount, total,\n    issueDate: body.issue_date || new Date().toISOString().slice(0, 10),\n    dueDate: body.due_date || null,\n    internalNotes: (body.internal_notes || '').toString() || null,\n    customerNotes: (body.customer_notes || '').toString() || null,\n    requesterId: requester.id,\n    requesterName: requester.name,\n  },\n}];"
       },
       "id": "93554cff-b071-46a0-823f-8ddaec4c248b",
@@ -535,42 +391,6 @@
         1040
       ],
       "webhookId": "86042eb9-0079-4d55-9a7b-9230a26ad83c"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
-      },
-      "id": "b388561f-93d8-4e20-a5a3-69237c335d3f",
-      "name": "Parse Token: create-payment",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        430,
-        1040
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.userId ] }}"
-        }
-      },
-      "id": "cafd4826-565b-42dc-8535-ca99ecf5fb11",
-      "name": "Look Up Requester: create-payment",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        620,
-        1040
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
     },
     {
       "parameters": {
@@ -697,42 +517,6 @@
         1260
       ],
       "webhookId": "4550296e-fb89-49af-ba00-6bc4bff40ef2"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
-      },
-      "id": "0a8629e5-fab4-436c-a1c5-a0e80a10babd",
-      "name": "Parse Token: update-payment",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        430,
-        1260
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.userId ] }}"
-        }
-      },
-      "id": "cd69c7af-db46-4ca3-92b1-85f9f1835821",
-      "name": "Look Up Requester: update-payment",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        620,
-        1260
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
     },
     {
       "parameters": {
@@ -907,42 +691,6 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
-      },
-      "id": "feb01cbc-6e5e-4a42-97ce-45a34077d100",
-      "name": "Parse Token: add-payment-note",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        430,
-        1480
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.userId ] }}"
-        }
-      },
-      "id": "855268a0-f91b-403f-b7ec-2389726000a9",
-      "name": "Look Up Requester: add-payment-note",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        620,
-        1480
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    },
-    {
-      "parameters": {
         "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: add-payment-note').first().json.body || {};\nconst paymentId = parseInt(body.payment_id, 10);\nconst text = (body.note || '').toString().trim();\nif (!Number.isInteger(paymentId)) throw new Error('\"payment_id\" is required.');\nif (!text) throw new Error('Note cannot be empty.');\n\nreturn [{ json: { paymentId, text, requesterId: requester.id, requesterName: requester.name } }];"
       },
       "id": "87f2ee05-ed4c-4203-9959-358acdc8bb46",
@@ -1023,42 +771,6 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
-      },
-      "id": "c8213db5-b538-426c-86e1-1379633c917c",
-      "name": "Parse Token: send-receipt",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        430,
-        1700
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.userId ] }}"
-        }
-      },
-      "id": "87732c90-9898-4c2b-bf79-a631e041bd64",
-      "name": "Look Up Requester: send-receipt",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        620,
-        1700
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    },
-    {
-      "parameters": {
         "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: send-receipt').first().json.body || {};\nconst paymentId = parseInt(body.payment_id, 10);\nif (!Number.isInteger(paymentId)) throw new Error('\"payment_id\" is required.');\nreturn [{ json: { paymentId, requesterId: requester.id, requesterName: requester.name } }];"
       },
       "id": "d6146998-295a-4474-809b-31e565af3e5f",
@@ -1073,7 +785,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT p.id, p.payment_number, p.invoice_id, p.opportunity_id, p.contact_id, p.account_id,\n  p.amount, p.amount_received, p.refunded_amount, p.method, p.status, p.reference,\n  p.payment_date, p.due_date, p.notes, p.owner_id, p.created_at, p.updated_at,\n  (p.status IN ('pending', 'processing', 'partially_paid') AND p.due_date IS NOT NULL AND p.due_date < CURRENT_DATE) AS is_overdue,\n  i.invoice_number,\n  o.name AS deal_name,\n  ct.first_name AS contact_first_name, ct.last_name AS contact_last_name,\n  co.name AS account_name,\n  u.name AS owner_name, ct.email AS contact_email\nFROM payments p\nLEFT JOIN invoices i ON i.id = p.invoice_id\nLEFT JOIN opportunities o ON o.id = p.opportunity_id\nLEFT JOIN contacts ct ON ct.id = p.contact_id\nLEFT JOIN companies co ON co.id = p.account_id\nLEFT JOIN users u ON u.id = p.owner_id\nWHERE p.id = $1;",
+        "query": "SELECT p.id, p.payment_number, p.invoice_id, p.opportunity_id, p.contact_id, p.account_id,\n  p.amount, p.amount_received, p.refunded_amount, p.method, p.status, p.reference,\n  p.payment_date, p.due_date, p.notes, p.owner_id, p.created_at, p.updated_at,\n  (p.status IN ('pending', 'processing', 'partially_paid') AND p.due_date IS NOT NULL AND p.due_date < CURRENT_DATE) AS is_overdue,\n  i.invoice_number,\n  o.name AS deal_name, o.deal_value, o.created_at AS deal_created_at, o.expected_close AS deal_due_at,\n  ct.first_name AS contact_first_name, ct.last_name AS contact_last_name, ct.phone AS contact_phone, ct.city AS contact_city, ct.state AS contact_state,\n  co.name AS account_name,\n  u.name AS owner_name, u.email AS owner_email, u.phone AS owner_phone, ct.email AS contact_email, ct.unsubscribe_token,\n  (SELECT company_name FROM company_profile LIMIT 1) AS our_company_name,\n  (SELECT inv.total FROM invoices inv WHERE inv.opportunity_id = p.opportunity_id AND inv.invoice_type = 'down_payment' ORDER BY inv.created_at DESC LIMIT 1) AS down_payment_amount,\n  (SELECT pay2.created_at FROM payments pay2 JOIN invoices inv ON inv.id = pay2.invoice_id WHERE inv.opportunity_id = p.opportunity_id AND inv.invoice_type = 'down_payment' AND pay2.status = 'paid' ORDER BY pay2.created_at DESC LIMIT 1) AS down_payment_paid_at,\n  (SELECT inv.total FROM invoices inv WHERE inv.opportunity_id = p.opportunity_id AND inv.invoice_type = 'final' ORDER BY inv.created_at DESC LIMIT 1) AS balance_amount,\n  (SELECT pay2.created_at FROM payments pay2 JOIN invoices inv ON inv.id = pay2.invoice_id WHERE inv.opportunity_id = p.opportunity_id AND inv.invoice_type = 'final' AND pay2.status = 'paid' ORDER BY pay2.created_at DESC LIMIT 1) AS balance_paid_at\nFROM payments p\nLEFT JOIN invoices i ON i.id = p.invoice_id\nLEFT JOIN opportunities o ON o.id = p.opportunity_id\nLEFT JOIN contacts ct ON ct.id = p.contact_id\nLEFT JOIN companies co ON co.id = p.account_id\nLEFT JOIN users u ON u.id = p.owner_id\nWHERE p.id = $1;",
         "options": {
           "queryReplacement": "={{ [ $json.paymentId ] }}"
         }
@@ -1131,7 +843,9 @@
         "subject": "={{ $json.receiptSubject }}",
         "emailType": "text",
         "message": "={{ $json.receiptBody }}",
-        "options": {}
+        "options": {
+          "appendAttribution": false
+        }
       },
       "id": "26990d97-8081-488c-b2a8-5cdd6b7e4a51",
       "name": "Send Receipt Email",
@@ -1228,42 +942,6 @@
         1920
       ],
       "webhookId": "604abda4-2e23-4933-ae1b-f158ccb6ec94"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
-      },
-      "id": "3baf3a27-f32b-4dc8-bfe9-d5fdd6ccecc1",
-      "name": "Parse Token: archive-payment",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        430,
-        1920
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.userId ] }}"
-        }
-      },
-      "id": "b0955259-11c7-4299-bc8e-742c984d893b",
-      "name": "Look Up Requester: archive-payment",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        620,
-        1920
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
     },
     {
       "parameters": {
@@ -1370,42 +1048,6 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
-      },
-      "id": "7c768a4e-1ede-4bbc-8be0-562b39ca6b79",
-      "name": "Parse Token: update-invoice",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        0,
-        0
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.userId ] }}"
-        }
-      },
-      "id": "1881a64b-eacd-4ed8-8b74-7580c8aa0e25",
-      "name": "Look Up Requester: update-invoice",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        0,
-        0
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    },
-    {
-      "parameters": {
         "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required to edit an invoice.');\n\nconst body = $('Webhook: update-invoice').first().json.body || {};\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" is required.');\n\nlet lineItems = null, amount = null, tax = null, discount = null, total = null;\nif (Array.isArray(body.line_items)) {\n  lineItems = body.line_items.map((it, i) => {\n    const qty = Number(it.qty) || 0;\n    const unitPrice = Number(it.unit_price) || 0;\n    const d = Number(it.discount) || 0;\n    const t = Number(it.tax) || 0;\n    const product = (it.product || '').toString().trim();\n    if (!product) throw new Error(`Line item ${i + 1}: \"product\" is required.`);\n    return { product, qty, unit_price: unitPrice, discount: d, tax: t, total: qty * unitPrice - d + t };\n  });\n  amount = lineItems.reduce((sum, it) => sum + it.qty * it.unit_price, 0);\n  discount = lineItems.reduce((sum, it) => sum + it.discount, 0);\n  tax = lineItems.reduce((sum, it) => sum + it.tax, 0);\n  total = amount - discount + tax;\n  lineItems = JSON.stringify(lineItems);\n}\n\nreturn [{\n  json: {\n    id, lineItems, amount, tax, discount, total,\n    dueDate: body.due_date !== undefined ? body.due_date : null,\n    internalNotes: body.internal_notes !== undefined ? body.internal_notes : null,\n    customerNotes: body.customer_notes !== undefined ? body.customer_notes : null,\n    requesterId: requester.id,\n    requesterName: requester.name,\n  },\n}];"
       },
       "id": "1ea99e07-4aec-4968-a945-d14d18cf74d7",
@@ -1509,42 +1151,6 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
-      },
-      "id": "019e311c-7921-4f6d-80b9-7d16f3afa9a1",
-      "name": "Parse Token: void-invoice",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        0,
-        0
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.userId ] }}"
-        }
-      },
-      "id": "392c7542-4318-40b3-abb8-8f1386bf02e5",
-      "name": "Look Up Requester: void-invoice",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        0,
-        0
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    },
-    {
-      "parameters": {
         "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required to void an invoice.');\n\nconst body = $('Webhook: void-invoice').first().json.body || {};\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" is required.');\nreturn [{ json: { id, requesterId: requester.id, requesterName: requester.name } }];"
       },
       "id": "b8091453-1a88-4ca6-90f2-1a4f14c94ce7",
@@ -1645,42 +1251,6 @@
         0
       ],
       "webhookId": "39f6e976-f345-4098-8631-673b5700c845"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
-      },
-      "id": "d1eb15f4-dc60-49db-bd0b-2633bfa36cfe",
-      "name": "Parse Token: get-invoice",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        0,
-        0
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.userId ] }}"
-        }
-      },
-      "id": "edb7184f-a4b9-4c6e-9edb-8f3b88610f57",
-      "name": "Look Up Requester: get-invoice",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        0,
-        0
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
     },
     {
       "parameters": {
@@ -1850,42 +1420,6 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
-      },
-      "id": "3c40bf74-baaf-49bf-9ed9-13189a376643",
-      "name": "Parse Token: send-invoice",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        0,
-        0
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.userId ] }}"
-        }
-      },
-      "id": "dc6ab113-f559-401e-b800-9000139ca62f",
-      "name": "Look Up Requester: send-invoice",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        0,
-        0
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    },
-    {
-      "parameters": {
         "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: send-invoice').first().json.body || {};\nconst invoiceId = parseInt(body.invoice_id, 10);\nif (!Number.isInteger(invoiceId)) throw new Error('\"invoice_id\" is required.');\nreturn [{ json: { invoiceId, requesterId: requester.id, requesterName: requester.name } }];"
       },
       "id": "28774805-3c6a-4110-8590-1be21170c7b1",
@@ -1900,7 +1434,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT inv.id, inv.invoice_number, inv.opportunity_id, inv.contact_id, inv.account_id,\n  inv.amount, inv.tax, inv.discount, inv.total, inv.line_items, inv.issue_date, inv.due_date,\n  inv.internal_notes, inv.customer_notes, inv.is_voided, inv.created_at, inv.updated_at,\n  o.name AS deal_name,\n  ct.first_name AS contact_first_name, ct.last_name AS contact_last_name, ct.email AS contact_email, ct.phone AS contact_phone,\n  co.name AS account_name, co.street_address, co.city, co.state, co.zip_code, co.country,\n  ow.name AS owner_name\nFROM invoices inv\nLEFT JOIN opportunities o ON o.id = inv.opportunity_id\nLEFT JOIN contacts ct ON ct.id = inv.contact_id\nLEFT JOIN companies co ON co.id = inv.account_id\nLEFT JOIN users ow ON ow.id = COALESCE(ct.owner_id, co.owner_id)\nWHERE inv.id = $1;",
+        "query": "SELECT inv.id, inv.invoice_number, inv.opportunity_id, inv.contact_id, inv.account_id,\n  inv.amount, inv.tax, inv.discount, inv.total, inv.line_items, inv.issue_date, inv.due_date,\n  inv.internal_notes, inv.customer_notes, inv.is_voided, inv.created_at, inv.updated_at,\n  o.name AS deal_name,\n  ct.first_name AS contact_first_name, ct.last_name AS contact_last_name, ct.email AS contact_email, ct.phone AS contact_phone, ct.unsubscribe_token,\n  co.name AS account_name, co.street_address, co.city, co.state, co.zip_code, co.country,\n  ow.name AS owner_name\nFROM invoices inv\nLEFT JOIN opportunities o ON o.id = inv.opportunity_id\nLEFT JOIN contacts ct ON ct.id = inv.contact_id\nLEFT JOIN companies co ON co.id = inv.account_id\nLEFT JOIN users ow ON ow.id = COALESCE(ct.owner_id, co.owner_id)\nWHERE inv.id = $1;",
         "options": {
           "queryReplacement": "={{ [ $json.invoiceId ] }}"
         }
@@ -1957,8 +1491,10 @@
         "sendTo": "={{ $json.contact_email }}",
         "subject": "={{ 'Invoice ' + $json.invoice_number }}",
         "emailType": "text",
-        "message": "={{ 'Hi ' + ($json.contact_first_name || '') + ',\\n\\nPlease find your invoice below.\\n\\nInvoice: ' + $json.invoice_number + '\\nTotal: $' + $json.total + '\\nDue: ' + ($json.due_date || 'on receipt') + (\\n  $json.deal_name ? ('\\nFor: ' + $json.deal_name) : ''\\n) + '\\n\\nThank you!' }}",
-        "options": {}
+        "message": "={{ 'Hi ' + ($json.contact_first_name || '') + ',\\n\\nPlease find your invoice below.\\n\\nInvoice: ' + $json.invoice_number + '\\nTotal: $' + $json.total + '\\nDue: ' + ($json.due_date || 'on receipt') + ($json.deal_name ? ('\\nFor: ' + $json.deal_name) : '') + '\\n\\nThank you!' + '\\n\\n' + \"Don't want these emails? Unsubscribe: \" + ($env.FRONTEND_BASE_URL || '') + '/unsubscribe/' + ($json.unsubscribe_token || '') }}",
+        "options": {
+          "appendAttribution": false
+        }
       },
       "id": "5d2cb210-1402-4485-b5d4-8b9f0bd2b246",
       "name": "Send Invoice Email",
@@ -2058,42 +1594,6 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
-      },
-      "id": "e1448311-a8c2-4198-836d-e9506f9dbe82",
-      "name": "Parse Token: get-invoice-templates",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        0,
-        0
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.userId ] }}"
-        }
-      },
-      "id": "abde4ce4-a9a6-44fd-b370-20b0951cc96f",
-      "name": "Look Up Requester: get-invoice-templates",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        0,
-        0
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    },
-    {
-      "parameters": {
         "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nreturn [{ json: {} }];"
       },
       "id": "e90f9e7a-c994-40cc-b33b-9d1d387dce5b",
@@ -2156,42 +1656,6 @@
         0
       ],
       "webhookId": "387cf976-95e3-411d-809c-2e38e8bca518"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
-      },
-      "id": "88803e4f-22c8-4197-8723-92979a57bf8f",
-      "name": "Parse Token: save-invoice-template",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        0,
-        0
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.userId ] }}"
-        }
-      },
-      "id": "028ba85d-12bc-40ff-9b43-02e6b65eb379",
-      "name": "Look Up Requester: save-invoice-template",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        0,
-        0
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
     },
     {
       "parameters": {
@@ -2275,42 +1739,6 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
-      },
-      "id": "ac9c5d9f-c4aa-4c11-83a5-7b0909767e5e",
-      "name": "Parse Token: update-invoice-template-active",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        0,
-        0
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.userId ] }}"
-        }
-      },
-      "id": "ee711fc1-80dd-4938-addc-43d976dc8ddc",
-      "name": "Look Up Requester: update-invoice-template-active",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        0,
-        0
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    },
-    {
-      "parameters": {
         "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: update-invoice-template-active').first().json.body || {};\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" is required.');\nreturn [{ json: { id, isActive: !!body.is_active } }];"
       },
       "id": "4d4b4159-b651-462c-bd1c-74b2dc4836c8",
@@ -2388,42 +1816,6 @@
         0
       ],
       "webhookId": "01c06838-124e-45d0-b50e-9f1d2b8f7550"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
-      },
-      "id": "b9e54e88-41d0-4497-972a-d7593f628cb5",
-      "name": "Parse Token: delete-invoice-template",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        0,
-        0
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.userId ] }}"
-        }
-      },
-      "id": "729d4da7-6456-4a81-ad71-651ae1815a98",
-      "name": "Look Up Requester: delete-invoice-template",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        0,
-        0
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
     },
     {
       "parameters": {
@@ -2507,42 +1899,6 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
-      },
-      "id": "8a973c3a-9e35-4d5c-9429-4fc464668ff7",
-      "name": "Parse Token: get-receipt-templates",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        0,
-        0
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.userId ] }}"
-        }
-      },
-      "id": "c8f5fe7d-38ff-47ca-b4c0-4b6c1716ddb8",
-      "name": "Look Up Requester: get-receipt-templates",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        0,
-        0
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    },
-    {
-      "parameters": {
         "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nreturn [{ json: {} }];"
       },
       "id": "e859217c-168a-443f-9160-6a1562c688fd",
@@ -2605,42 +1961,6 @@
         0
       ],
       "webhookId": "acdf53da-ffb4-435f-8b26-813c27bf76e4"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
-      },
-      "id": "a1383303-148b-49d5-863f-6d49c5f5a152",
-      "name": "Parse Token: save-receipt-template",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        0,
-        0
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.userId ] }}"
-        }
-      },
-      "id": "acbe466f-8d7a-4b66-ae24-b4df640c7165",
-      "name": "Look Up Requester: save-receipt-template",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        0,
-        0
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
     },
     {
       "parameters": {
@@ -2724,42 +2044,6 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
-      },
-      "id": "617e98ed-6504-46ca-b5f4-b25964e35fdf",
-      "name": "Parse Token: update-receipt-template-active",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        0,
-        0
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.userId ] }}"
-        }
-      },
-      "id": "1a0ac153-5edb-41c9-a12a-b5f4b5f15c0a",
-      "name": "Look Up Requester: update-receipt-template-active",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        0,
-        0
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    },
-    {
-      "parameters": {
         "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: update-receipt-template-active').first().json.body || {};\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" is required.');\nreturn [{ json: { id, isActive: !!body.is_active } }];"
       },
       "id": "795b127b-210c-43d6-82b6-c7382f4c0ca1",
@@ -2837,42 +2121,6 @@
         0
       ],
       "webhookId": "c0e78038-9f20-47d6-b5db-db78e3cd54fb"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { userId: parseInt(match[1], 10) } }];"
-      },
-      "id": "927fbfa6-c7b9-4439-9413-dbeac3ce83ab",
-      "name": "Parse Token: delete-receipt-template",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        0,
-        0
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.userId ] }}"
-        }
-      },
-      "id": "755e9459-e98b-443e-8721-0dffeff547bd",
-      "name": "Look Up Requester: delete-receipt-template",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        0,
-        0
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
     },
     {
       "parameters": {
@@ -2961,7 +2209,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// $input here is the (possibly empty-placeholder) receipt_templates row;\n// the actual payment fields live on 'Postgres: Select Payment For Receipt'\n// since this Postgres node's own output replaced $json.\nconst payment = $('Postgres: Select Payment For Receipt').item.json;\nconst template = $input.first().json;\nconst hasTemplate = template && template.id != null;\n\nfunction fill(text) {\n  return (text || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, payment.contact_first_name || '')\n    .replace(/{{\\s*payment_number\\s*}}/gi, payment.payment_number || '')\n    .replace(/{{\\s*amount\\s*}}/gi, '$' + payment.amount_received)\n    .replace(/{{\\s*payment_date\\s*}}/gi, payment.payment_date || '')\n    .replace(/{{\\s*deal_name\\s*}}/gi, payment.deal_name || '');\n}\n\nconst defaultSubject = `Receipt for payment ${payment.payment_number}`;\nconst defaultBody = `Hi ${payment.contact_first_name || ''},\\n\\nThis confirms your payment.\\n\\nPayment: ${payment.payment_number}\\nAmount: $${payment.amount_received}\\nDate: ${payment.payment_date || ''}${payment.deal_name ? '\\nFor: ' + payment.deal_name : ''}\\n\\nThank you!`;\n\nreturn [{\n  json: {\n    ...payment,\n    receiptSubject: hasTemplate ? fill(template.subject) : defaultSubject,\n    receiptBody: hasTemplate ? fill(template.body) : defaultBody,\n  },\n}];"
+        "jsCode": "// $input here is the (possibly empty-placeholder) receipt_templates row;\n// the actual payment fields live on 'Postgres: Select Payment For Receipt'\n// since this Postgres node's own output replaced $json.\nconst payment = $('Postgres: Select Payment For Receipt').item.json;\nconst template = $input.first().json;\nconst hasTemplate = template && template.id != null;\n\nfunction money(n) {\n  return n != null && n !== '' ? '$' + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';\n}\nfunction dateStr(d) {\n  return d ? new Date(d).toLocaleDateString() : '';\n}\n\nfunction fill(text) {\n  return (text || '')\n    .replace(/{{\\s*user\\.company_name\\s*}}/gi, payment.our_company_name || '')\n    .replace(/{{\\s*contact\\.first_name\\s*}}/gi, payment.contact_first_name || '')\n    .replace(/{{\\s*contact\\.last_name\\s*}}/gi, payment.contact_last_name || '')\n    .replace(/{{\\s*contact\\.email\\s*}}/gi, payment.contact_email || '')\n    .replace(/{{\\s*contact\\.phone\\s*}}/gi, payment.contact_phone || '')\n    .replace(/{{\\s*contact\\.address\\s*}}/gi, [payment.contact_city, payment.contact_state].filter(Boolean).join(', '))\n    .replace(/{{\\s*company\\.name\\s*}}/gi, payment.account_name || '')\n    .replace(/{{\\s*user\\.full_name\\s*}}/gi, payment.owner_name || '')\n    .replace(/{{\\s*user\\.email\\s*}}/gi, payment.owner_email || '')\n    .replace(/{{\\s*user\\.phone\\s*}}/gi, payment.owner_phone || '')\n    .replace(/{{\\s*opportunity\\.name\\s*}}/gi, payment.deal_name || '')\n    .replace(/{{\\s*opportunity\\.value\\s*}}/gi, money(payment.deal_value))\n    .replace(/{{\\s*opportunity\\.created_at\\s*}}/gi, dateStr(payment.deal_created_at))\n    .replace(/{{\\s*opportunity\\.due_at\\s*}}/gi, dateStr(payment.deal_due_at))\n    .replace(/{{\\s*payment\\.number\\s*}}/gi, payment.payment_number || '')\n    .replace(/{{\\s*payment\\.amount\\s*}}/gi, money(payment.amount_received))\n    .replace(/{{\\s*payment\\.date\\s*}}/gi, dateStr(payment.payment_date))\n    .replace(/{{\\s*payment\\.down_payment_amount\\s*}}/gi, money(payment.down_payment_amount))\n    .replace(/{{\\s*payment\\.down_payment_paid_at\\s*}}/gi, dateStr(payment.down_payment_paid_at))\n    .replace(/{{\\s*payment\\.balance_amount\\s*}}/gi, money(payment.balance_amount))\n    .replace(/{{\\s*payment\\.balance_paid_at\\s*}}/gi, dateStr(payment.balance_paid_at));\n}\n\nconst defaultSubject = `Receipt for payment ${payment.payment_number}`;\nconst defaultBody = `Hi ${payment.contact_first_name || ''},\\n\\nThis confirms your payment.\\n\\nPayment: ${payment.payment_number}\\nAmount: $${payment.amount_received}\\nDate: ${payment.payment_date || ''}${payment.deal_name ? '\\nFor: ' + payment.deal_name : ''}\\n\\nThank you!`;\n\nfunction safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\nconst unsubUrl = safeEnv('FRONTEND_BASE_URL') + '/unsubscribe/' + (payment.unsubscribe_token || '');\nconst footer = \"\\n\\nDon't want these emails? Unsubscribe: \" + unsubUrl;\n\nreturn [{\n  json: {\n    ...payment,\n    receiptSubject: hasTemplate ? fill(template.subject) : defaultSubject,\n    receiptBody: (hasTemplate ? fill(template.body) : defaultBody) + footer,\n  },\n}];"
       },
       "id": "e0dab67f-c324-412d-9318-f88217c53f06",
       "name": "Prepare Receipt Content",
@@ -2971,6 +2219,1188 @@
         0,
         0
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        430,
+        160
+      ],
+      "id": "extract-bearer-get-payments",
+      "name": "Extract Bearer Token: get-payments"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-get-payments",
+      "name": "Execute Workflow: Verify Session: get-payments",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        460,
+        175
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        620,
+        160
+      ],
+      "id": "validate-session-get-payments",
+      "name": "Validate Session: get-payments"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        430,
+        380
+      ],
+      "id": "extract-bearer-get-invoices",
+      "name": "Extract Bearer Token: get-invoices"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-get-invoices",
+      "name": "Execute Workflow: Verify Session: get-invoices",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        460,
+        395
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        620,
+        380
+      ],
+      "id": "validate-session-get-invoices",
+      "name": "Validate Session: get-invoices"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        430,
+        600
+      ],
+      "id": "extract-bearer-get-payment",
+      "name": "Extract Bearer Token: get-payment"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-get-payment",
+      "name": "Execute Workflow: Verify Session: get-payment",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        460,
+        615
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        620,
+        600
+      ],
+      "id": "validate-session-get-payment",
+      "name": "Validate Session: get-payment"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        430,
+        820
+      ],
+      "id": "extract-bearer-create-invoice",
+      "name": "Extract Bearer Token: create-invoice"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-create-invoice",
+      "name": "Execute Workflow: Verify Session: create-invoice",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        460,
+        835
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        620,
+        820
+      ],
+      "id": "validate-session-create-invoice",
+      "name": "Validate Session: create-invoice"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        430,
+        1040
+      ],
+      "id": "extract-bearer-create-payment",
+      "name": "Extract Bearer Token: create-payment"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-create-payment",
+      "name": "Execute Workflow: Verify Session: create-payment",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        460,
+        1055
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        620,
+        1040
+      ],
+      "id": "validate-session-create-payment",
+      "name": "Validate Session: create-payment"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        430,
+        1260
+      ],
+      "id": "extract-bearer-update-payment",
+      "name": "Extract Bearer Token: update-payment"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-update-payment",
+      "name": "Execute Workflow: Verify Session: update-payment",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        460,
+        1275
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        620,
+        1260
+      ],
+      "id": "validate-session-update-payment",
+      "name": "Validate Session: update-payment"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        430,
+        1480
+      ],
+      "id": "extract-bearer-add-payment-note",
+      "name": "Extract Bearer Token: add-payment-note"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-add-payment-note",
+      "name": "Execute Workflow: Verify Session: add-payment-note",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        460,
+        1495
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        620,
+        1480
+      ],
+      "id": "validate-session-add-payment-note",
+      "name": "Validate Session: add-payment-note"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        430,
+        1700
+      ],
+      "id": "extract-bearer-send-receipt",
+      "name": "Extract Bearer Token: send-receipt"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-send-receipt",
+      "name": "Execute Workflow: Verify Session: send-receipt",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        460,
+        1715
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        620,
+        1700
+      ],
+      "id": "validate-session-send-receipt",
+      "name": "Validate Session: send-receipt"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        430,
+        1920
+      ],
+      "id": "extract-bearer-archive-payment",
+      "name": "Extract Bearer Token: archive-payment"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-archive-payment",
+      "name": "Execute Workflow: Verify Session: archive-payment",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        460,
+        1935
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        620,
+        1920
+      ],
+      "id": "validate-session-archive-payment",
+      "name": "Validate Session: archive-payment"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "extract-bearer-update-invoice",
+      "name": "Extract Bearer Token: update-invoice"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-update-invoice",
+      "name": "Execute Workflow: Verify Session: update-invoice",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        30,
+        15
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "validate-session-update-invoice",
+      "name": "Validate Session: update-invoice"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "extract-bearer-void-invoice",
+      "name": "Extract Bearer Token: void-invoice"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-void-invoice",
+      "name": "Execute Workflow: Verify Session: void-invoice",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        30,
+        15
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "validate-session-void-invoice",
+      "name": "Validate Session: void-invoice"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "extract-bearer-get-invoice",
+      "name": "Extract Bearer Token: get-invoice"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-get-invoice",
+      "name": "Execute Workflow: Verify Session: get-invoice",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        30,
+        15
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "validate-session-get-invoice",
+      "name": "Validate Session: get-invoice"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "extract-bearer-send-invoice",
+      "name": "Extract Bearer Token: send-invoice"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-send-invoice",
+      "name": "Execute Workflow: Verify Session: send-invoice",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        30,
+        15
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "validate-session-send-invoice",
+      "name": "Validate Session: send-invoice"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "extract-bearer-get-invoice-templates",
+      "name": "Extract Bearer Token: get-invoice-templates"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-get-invoice-templates",
+      "name": "Execute Workflow: Verify Session: get-invoice-templates",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        30,
+        15
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "validate-session-get-invoice-templates",
+      "name": "Validate Session: get-invoice-templates"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "extract-bearer-save-invoice-template",
+      "name": "Extract Bearer Token: save-invoice-template"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-save-invoice-template",
+      "name": "Execute Workflow: Verify Session: save-invoice-template",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        30,
+        15
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "validate-session-save-invoice-template",
+      "name": "Validate Session: save-invoice-template"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "extract-bearer-update-invoice-template-active",
+      "name": "Extract Bearer Token: update-invoice-template-active"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-update-invoice-template-active",
+      "name": "Execute Workflow: Verify Session: update-invoice-template-active",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        30,
+        15
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "validate-session-update-invoice-template-active",
+      "name": "Validate Session: update-invoice-template-active"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "extract-bearer-delete-invoice-template",
+      "name": "Extract Bearer Token: delete-invoice-template"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-delete-invoice-template",
+      "name": "Execute Workflow: Verify Session: delete-invoice-template",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        30,
+        15
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "validate-session-delete-invoice-template",
+      "name": "Validate Session: delete-invoice-template"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "extract-bearer-get-receipt-templates",
+      "name": "Extract Bearer Token: get-receipt-templates"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-get-receipt-templates",
+      "name": "Execute Workflow: Verify Session: get-receipt-templates",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        30,
+        15
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "validate-session-get-receipt-templates",
+      "name": "Validate Session: get-receipt-templates"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "extract-bearer-save-receipt-template",
+      "name": "Extract Bearer Token: save-receipt-template"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-save-receipt-template",
+      "name": "Execute Workflow: Verify Session: save-receipt-template",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        30,
+        15
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "validate-session-save-receipt-template",
+      "name": "Validate Session: save-receipt-template"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "extract-bearer-update-receipt-template-active",
+      "name": "Extract Bearer Token: update-receipt-template-active"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-update-receipt-template-active",
+      "name": "Execute Workflow: Verify Session: update-receipt-template-active",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        30,
+        15
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "validate-session-update-receipt-template-active",
+      "name": "Validate Session: update-receipt-template-active"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "extract-bearer-delete-receipt-template",
+      "name": "Extract Bearer Token: delete-receipt-template"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-delete-receipt-template",
+      "name": "Execute Workflow: Verify Session: delete-receipt-template",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        30,
+        15
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "validate-session-delete-receipt-template",
+      "name": "Validate Session: delete-receipt-template"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts SET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object('id', gen_random_uuid()::text, 'type', 'sent', 'subject', $1::text, 'message', $2::text, 'sent_at', NOW(), 'is_read', true) WHERE id = $3;",
+        "options": {
+          "queryReplacement": "={{ [ $('Prepare Receipt Content').item.json.receiptSubject, $('Prepare Receipt Content').item.json.receiptBody, $('Prepare Receipt Content').item.json.contact_id ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1400,
+        1760
+      ],
+      "id": "log-receipt-email",
+      "name": "Log Sent Email: Receipt",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts SET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object('id', gen_random_uuid()::text, 'type', 'sent', 'subject', $1::text, 'message', $2::text, 'sent_at', NOW(), 'is_read', true) WHERE id = $3;",
+        "options": {
+          "queryReplacement": "={{ [ 'Invoice ' + $('Has Invoice Email?').item.json.invoice_number, 'Hi ' + ($('Has Invoice Email?').item.json.contact_first_name || '') + ',\\n\\nPlease find your invoice below.\\n\\nInvoice: ' + $('Has Invoice Email?').item.json.invoice_number + '\\nTotal: $' + $('Has Invoice Email?').item.json.total + '\\nDue: ' + ($('Has Invoice Email?').item.json.due_date || 'on receipt') + ($('Has Invoice Email?').item.json.deal_name ? ('\\nFor: ' + $('Has Invoice Email?').item.json.deal_name) : '') + '\\n\\nThank you!', $('Has Invoice Email?').item.json.contact_id ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        20,
+        60
+      ],
+      "id": "log-invoice-email",
+      "name": "Log Sent Email: Invoice",
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
@@ -2978,29 +3408,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: get-payments",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: get-payments": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: get-payments",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: get-payments": {
-      "main": [
-        [
-          {
-            "node": "Check Requester: get-payments",
+            "node": "Extract Bearer Token: get-payments",
             "type": "main",
             "index": 0
           }
@@ -3033,29 +3441,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: get-invoices",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: get-invoices": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: get-invoices",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: get-invoices": {
-      "main": [
-        [
-          {
-            "node": "Check Requester: get-invoices",
+            "node": "Extract Bearer Token: get-invoices",
             "type": "main",
             "index": 0
           }
@@ -3088,29 +3474,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: get-payment",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: get-payment": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: get-payment",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: get-payment": {
-      "main": [
-        [
-          {
-            "node": "Check Requester: get-payment",
+            "node": "Extract Bearer Token: get-payment",
             "type": "main",
             "index": 0
           }
@@ -3187,29 +3551,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: create-invoice",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: create-invoice": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: create-invoice",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: create-invoice": {
-      "main": [
-        [
-          {
-            "node": "Check Payload: create-invoice",
+            "node": "Extract Bearer Token: create-invoice",
             "type": "main",
             "index": 0
           }
@@ -3264,29 +3606,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: create-payment",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: create-payment": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: create-payment",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: create-payment": {
-      "main": [
-        [
-          {
-            "node": "Check Payload: create-payment",
+            "node": "Extract Bearer Token: create-payment",
             "type": "main",
             "index": 0
           }
@@ -3352,29 +3672,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: update-payment",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: update-payment": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: update-payment",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: update-payment": {
-      "main": [
-        [
-          {
-            "node": "Check Payload: update-payment",
+            "node": "Extract Bearer Token: update-payment",
             "type": "main",
             "index": 0
           }
@@ -3469,29 +3767,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: add-payment-note",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: add-payment-note": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: add-payment-note",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: add-payment-note": {
-      "main": [
-        [
-          {
-            "node": "Check Payload: add-payment-note",
+            "node": "Extract Bearer Token: add-payment-note",
             "type": "main",
             "index": 0
           }
@@ -3535,29 +3811,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: send-receipt",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: send-receipt": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: send-receipt",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: send-receipt": {
-      "main": [
-        [
-          {
-            "node": "Check Payload: send-receipt",
+            "node": "Extract Bearer Token: send-receipt",
             "type": "main",
             "index": 0
           }
@@ -3611,6 +3865,11 @@
             "node": "Postgres: Log Receipt Sent",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Log Sent Email: Receipt",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -3652,29 +3911,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: archive-payment",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: archive-payment": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: archive-payment",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: archive-payment": {
-      "main": [
-        [
-          {
-            "node": "Check Payload: archive-payment",
+            "node": "Extract Bearer Token: archive-payment",
             "type": "main",
             "index": 0
           }
@@ -3729,29 +3966,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: update-invoice",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: update-invoice": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: update-invoice",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: update-invoice": {
-      "main": [
-        [
-          {
-            "node": "Check Payload: update-invoice",
+            "node": "Extract Bearer Token: update-invoice",
             "type": "main",
             "index": 0
           }
@@ -3806,29 +4021,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: void-invoice",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: void-invoice": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: void-invoice",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: void-invoice": {
-      "main": [
-        [
-          {
-            "node": "Check Payload: void-invoice",
+            "node": "Extract Bearer Token: void-invoice",
             "type": "main",
             "index": 0
           }
@@ -3883,29 +4076,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: get-invoice",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: get-invoice": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: get-invoice",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: get-invoice": {
-      "main": [
-        [
-          {
-            "node": "Check Requester: get-invoice",
+            "node": "Extract Bearer Token: get-invoice",
             "type": "main",
             "index": 0
           }
@@ -3993,29 +4164,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: send-invoice",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: send-invoice": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: send-invoice",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: send-invoice": {
-      "main": [
-        [
-          {
-            "node": "Check Payload: send-invoice",
+            "node": "Extract Bearer Token: send-invoice",
             "type": "main",
             "index": 0
           }
@@ -4069,6 +4218,11 @@
             "node": "Postgres: Log Invoice Sent",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Log Sent Email: Invoice",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -4110,29 +4264,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: get-invoice-templates",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: get-invoice-templates": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: get-invoice-templates",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: get-invoice-templates": {
-      "main": [
-        [
-          {
-            "node": "Check Requester: get-invoice-templates",
+            "node": "Extract Bearer Token: get-invoice-templates",
             "type": "main",
             "index": 0
           }
@@ -4165,29 +4297,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: save-invoice-template",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: save-invoice-template": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: save-invoice-template",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: save-invoice-template": {
-      "main": [
-        [
-          {
-            "node": "Check Payload: save-invoice-template",
+            "node": "Extract Bearer Token: save-invoice-template",
             "type": "main",
             "index": 0
           }
@@ -4231,29 +4341,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: update-invoice-template-active",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: update-invoice-template-active": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: update-invoice-template-active",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: update-invoice-template-active": {
-      "main": [
-        [
-          {
-            "node": "Check Payload: update-invoice-template-active",
+            "node": "Extract Bearer Token: update-invoice-template-active",
             "type": "main",
             "index": 0
           }
@@ -4297,29 +4385,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: delete-invoice-template",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: delete-invoice-template": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: delete-invoice-template",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: delete-invoice-template": {
-      "main": [
-        [
-          {
-            "node": "Check Payload: delete-invoice-template",
+            "node": "Extract Bearer Token: delete-invoice-template",
             "type": "main",
             "index": 0
           }
@@ -4363,29 +4429,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: get-receipt-templates",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: get-receipt-templates": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: get-receipt-templates",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: get-receipt-templates": {
-      "main": [
-        [
-          {
-            "node": "Check Requester: get-receipt-templates",
+            "node": "Extract Bearer Token: get-receipt-templates",
             "type": "main",
             "index": 0
           }
@@ -4418,29 +4462,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: save-receipt-template",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: save-receipt-template": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: save-receipt-template",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: save-receipt-template": {
-      "main": [
-        [
-          {
-            "node": "Check Payload: save-receipt-template",
+            "node": "Extract Bearer Token: save-receipt-template",
             "type": "main",
             "index": 0
           }
@@ -4484,29 +4506,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: update-receipt-template-active",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: update-receipt-template-active": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: update-receipt-template-active",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: update-receipt-template-active": {
-      "main": [
-        [
-          {
-            "node": "Check Payload: update-receipt-template-active",
+            "node": "Extract Bearer Token: update-receipt-template-active",
             "type": "main",
             "index": 0
           }
@@ -4550,29 +4550,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: delete-receipt-template",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: delete-receipt-template": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: delete-receipt-template",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: delete-receipt-template": {
-      "main": [
-        [
-          {
-            "node": "Check Payload: delete-receipt-template",
+            "node": "Extract Bearer Token: delete-receipt-template",
             "type": "main",
             "index": 0
           }
@@ -4628,6 +4606,699 @@
         [
           {
             "node": "Send Receipt Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: get-payments": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: get-payments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: get-payments": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: get-payments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: get-payments": {
+      "main": [
+        [
+          {
+            "node": "Check Requester: get-payments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: get-invoices": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: get-invoices",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: get-invoices": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: get-invoices",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: get-invoices": {
+      "main": [
+        [
+          {
+            "node": "Check Requester: get-invoices",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: get-payment": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: get-payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: get-payment": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: get-payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: get-payment": {
+      "main": [
+        [
+          {
+            "node": "Check Requester: get-payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: create-invoice": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: create-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: create-invoice": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: create-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: create-invoice": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: create-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: create-payment": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: create-payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: create-payment": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: create-payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: create-payment": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: create-payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: update-payment": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: update-payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: update-payment": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: update-payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: update-payment": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: update-payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: add-payment-note": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: add-payment-note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: add-payment-note": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: add-payment-note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: add-payment-note": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: add-payment-note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: send-receipt": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: send-receipt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: send-receipt": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: send-receipt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: send-receipt": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: send-receipt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: archive-payment": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: archive-payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: archive-payment": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: archive-payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: archive-payment": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: archive-payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: update-invoice": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: update-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: update-invoice": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: update-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: update-invoice": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: update-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: void-invoice": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: void-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: void-invoice": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: void-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: void-invoice": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: void-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: get-invoice": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: get-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: get-invoice": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: get-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: get-invoice": {
+      "main": [
+        [
+          {
+            "node": "Check Requester: get-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: send-invoice": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: send-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: send-invoice": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: send-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: send-invoice": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: send-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: get-invoice-templates": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: get-invoice-templates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: get-invoice-templates": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: get-invoice-templates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: get-invoice-templates": {
+      "main": [
+        [
+          {
+            "node": "Check Requester: get-invoice-templates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: save-invoice-template": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: save-invoice-template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: save-invoice-template": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: save-invoice-template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: save-invoice-template": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: save-invoice-template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: update-invoice-template-active": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: update-invoice-template-active",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: update-invoice-template-active": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: update-invoice-template-active",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: update-invoice-template-active": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: update-invoice-template-active",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: delete-invoice-template": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: delete-invoice-template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: delete-invoice-template": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: delete-invoice-template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: delete-invoice-template": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: delete-invoice-template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: get-receipt-templates": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: get-receipt-templates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: get-receipt-templates": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: get-receipt-templates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: get-receipt-templates": {
+      "main": [
+        [
+          {
+            "node": "Check Requester: get-receipt-templates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: save-receipt-template": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: save-receipt-template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: save-receipt-template": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: save-receipt-template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: save-receipt-template": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: save-receipt-template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: update-receipt-template-active": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: update-receipt-template-active",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: update-receipt-template-active": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: update-receipt-template-active",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: update-receipt-template-active": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: update-receipt-template-active",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: delete-receipt-template": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: delete-receipt-template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: delete-receipt-template": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: delete-receipt-template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: delete-receipt-template": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: delete-receipt-template",
             "type": "main",
             "index": 0
           }

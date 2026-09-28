@@ -6,7 +6,7 @@
         "path": "get-notes",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "9c38d054-3ca1-4d54-94f9-509d73b5647f",
@@ -103,7 +103,7 @@
             "entries": [
               {
                 "name": "Access-Control-Allow-Origin",
-                "value": "*"
+                "value": "http://localhost:5173"
               },
               {
                 "name": "Access-Control-Allow-Methods",
@@ -132,7 +132,7 @@
         "path": "add-note",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "b178efe2-cf27-49c6-a1da-ba5b365a4c64",
@@ -256,7 +256,7 @@
         "path": "update-note",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "dc52aa1f-b515-42e7-9130-a4bd79bf1365",
@@ -334,7 +334,7 @@
         "path": "delete-note",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "f57525f1-c1a0-406f-b7c2-d26a4a88f2c7",

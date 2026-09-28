@@ -1,7 +1,10 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { Contact } from '../../types/contact';
 import { useSendContactEmail } from '../../hooks/useContacts';
+import { useEmailTemplates } from '../../hooks/useEmailTemplates';
+import { useCompanyProfile } from '../../hooks/useCompanyProfile';
 import { useAuth } from '../../context/AuthContext';
+import { fillContactEmailTokens } from '../../utils/emailTemplateTokens';
 
 interface Props {
   contact: Contact;
@@ -37,8 +40,11 @@ export default function ComposeEmailPopover({ contact, open, onClose }: Props) {
   const [message, setMessage] = useState('');
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [templateId, setTemplateId] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sendEmail = useSendContactEmail();
+  const { data: templates = [] } = useEmailTemplates();
+  const { data: companyProfile } = useCompanyProfile(open);
 
   useEffect(() => {
     if (open) {
@@ -46,8 +52,18 @@ export default function ComposeEmailPopover({ contact, open, onClose }: Props) {
       setMessage('');
       setAttachments([]);
       setError(null);
+      setTemplateId('');
     }
   }, [open]);
+
+  function handleTemplateSelect(id: string) {
+    setTemplateId(id);
+    if (!id) return;
+    const t = templates.find((x) => String(x.id) === id);
+    if (!t) return;
+    setSubject(fillContactEmailTokens(t.subject, contact, companyProfile?.company_name || ''));
+    setMessage(fillContactEmailTokens(t.body, contact, companyProfile?.company_name || ''));
+  }
 
   if (!open) return null;
 
@@ -125,6 +141,23 @@ export default function ComposeEmailPopover({ contact, open, onClose }: Props) {
                 className="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-500"
               />
             </div>
+            {templates.length > 0 && (
+              <div>
+                <label className="block text-[11px] font-medium text-slate-500 mb-1">Template</label>
+                <select
+                  value={templateId}
+                  onChange={(e) => handleTemplateSelect(e.target.value)}
+                  className="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
+                >
+                  <option value="">Write from scratch...</option>
+                  {templates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <label className="block text-[11px] font-medium text-slate-500 mb-1">Subject</label>
               <input

@@ -8,9 +8,12 @@ import TopBar from './TopBar';
 // Documents/Automations list pages, which keep the main nav like the rest
 // of the app. Proposal/Contract/Email/Invoice/Receipt template editors keep
 // the collapsible sidebar (same as every other page) — only the Pages
-// editor and the automation/ticket/payment builders still go full-bleed.
+// editor and the ticket/payment builders still go full-bleed. The
+// automation builder deliberately keeps the sidebar too (unlike the old,
+// deleted canvas-based editor this pattern originally covered) — it's a
+// right-panel form now, not a full-bleed canvas.
 const NO_SIDEBAR_PATTERN =
-  /^\/documents\/pages\/(new|\d+\/edit)$|^\/automations\/(new|\d+\/edit)$|^\/tickets\/\d+$|^\/payments\/\d+$|^\/payments\/invoices\/(new|\d+)$/;
+  /^\/documents\/pages\/(new|\d+\/edit)$|^\/tickets\/\d+$|^\/payments\/\d+$/;
 
 export default function AppLayout() {
   const [navOpen, setNavOpen] = useState(true);

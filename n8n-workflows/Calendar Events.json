@@ -48,7 +48,7 @@
             "entries": [
               {
                 "name": "Access-Control-Allow-Origin",
-                "value": "*"
+                "value": "http://localhost:5173"
               },
               {
                 "name": "Access-Control-Allow-Methods",
@@ -166,7 +166,7 @@
             "entries": [
               {
                 "name": "Access-Control-Allow-Origin",
-                "value": "*"
+                "value": "http://localhost:5173"
               },
               {
                 "name": "Access-Control-Allow-Methods",
@@ -211,7 +211,7 @@
         "operation": "executeQuery",
         "query": "UPDATE activities SET subject = COALESCE($1, subject), body = COALESCE($2, body), type = COALESCE($3, type), contact_id = COALESCE($4, contact_id), opportunity_id = COALESCE($5, opportunity_id), user_id = COALESCE($6, user_id), due_at = COALESCE($7, due_at), is_completed = COALESCE($8, is_completed), completed_at = CASE WHEN $9::text IS NOT NULL THEN $9::timestamptz ELSE completed_at END, end_at = COALESCE($10, end_at), location = COALESCE($11, location), is_all_day = COALESCE($12, is_all_day), account_id = COALESCE($13, account_id) WHERE id = $14 AND ($15 = 'admin' OR user_id = $16) RETURNING id, google_event_id, user_id, contact_id, subject, due_at, end_at, body;",
         "options": {
-          "queryReplacement": "={{ [$('Webhook: update-event').first().json.body.subject || null, $('Webhook: update-event').first().json.body.body || null, $('Webhook: update-event').first().json.body.type || null, $('Webhook: update-event').first().json.body.contact_id || null, $('Webhook: update-event').first().json.body.opportunity_id || null, $('Webhook: update-event').first().json.body.user_id || null, $('Webhook: update-event').first().json.body.due_at || null, $('Webhook: update-event').first().json.body.is_completed !== undefined ? $('Webhook: update-event').first().json.body.is_completed : null, $('Webhook: update-event').first().json.body.completed_at || null, $('Webhook: update-event').first().json.body.end_at || null, $('Webhook: update-event').first().json.body.location || null, $('Webhook: update-event').first().json.body.is_all_day !== undefined ? ($('Webhook: update-event').first().json.body.is_all_day === true || $('Webhook: update-event').first().json.body.is_all_day === 'true') : null, $('Webhook: update-event').first().json.body.account_id || null, $('Webhook: update-event').first().json.body.id, $('Look Up Requester: update-event').first().json.role, $('Look Up Requester: update-event').first().json.id ] }}"
+          "queryReplacement": "={{ [$('Webhook: update-event').first().json.body.subject || null, $('Webhook: update-event').first().json.body.body || null, $('Webhook: update-event').first().json.body.type || null, $('Webhook: update-event').first().json.body.contact_id || null, $('Webhook: update-event').first().json.body.opportunity_id || null, $('Webhook: update-event').first().json.body.user_id || null, $('Webhook: update-event').first().json.body.due_at || null, $('Webhook: update-event').first().json.body.is_completed !== undefined ? $('Webhook: update-event').first().json.body.is_completed : null, $('Webhook: update-event').first().json.body.completed_at || null, $('Webhook: update-event').first().json.body.end_at || null, $('Webhook: update-event').first().json.body.location || null, $('Webhook: update-event').first().json.body.is_all_day !== undefined ? ($('Webhook: update-event').first().json.body.is_all_day === true || $('Webhook: update-event').first().json.body.is_all_day === 'true') : null, $('Webhook: update-event').first().json.body.account_id || null, $('Webhook: update-event').first().json.body.id, $('Validate Session update-event').first().json.role, $('Validate Session update-event').first().json.id ] }}"
         }
       },
       "id": "898a6266-6993-4969-b70d-65ae210ca328",
@@ -239,7 +239,7 @@
             "entries": [
               {
                 "name": "Access-Control-Allow-Origin",
-                "value": "*"
+                "value": "http://localhost:5173"
               },
               {
                 "name": "Access-Control-Allow-Methods",
@@ -284,7 +284,7 @@
         "operation": "executeQuery",
         "query": "DELETE FROM activities WHERE id = ANY($1::int[]) AND ($2 = 'admin' OR user_id = $3) RETURNING id, google_event_id, user_id;",
         "options": {
-          "queryReplacement": "={{ [ $('Webhook: delete-event').first().json.body.ids, $('Look Up Requester: delete-event').first().json.role, $('Look Up Requester: delete-event').first().json.id ] }}"
+          "queryReplacement": "={{ [ $('Webhook: delete-event').first().json.body.ids, $('Validate Session delete-event').first().json.role, $('Validate Session delete-event').first().json.id ] }}"
         }
       },
       "id": "700b7690-887b-4f65-9830-07912dc74e6c",
@@ -311,7 +311,7 @@
             "entries": [
               {
                 "name": "Access-Control-Allow-Origin",
-                "value": "*"
+                "value": "http://localhost:5173"
               },
               {
                 "name": "Access-Control-Allow-Methods",
@@ -360,7 +360,7 @@
             "entries": [
               {
                 "name": "Access-Control-Allow-Origin",
-                "value": "*"
+                "value": "http://localhost:5173"
               },
               {
                 "name": "Access-Control-Allow-Methods",
@@ -409,7 +409,7 @@
             "entries": [
               {
                 "name": "Access-Control-Allow-Origin",
-                "value": "*"
+                "value": "http://localhost:5173"
               },
               {
                 "name": "Access-Control-Allow-Methods",
@@ -458,7 +458,7 @@
             "entries": [
               {
                 "name": "Access-Control-Allow-Origin",
-                "value": "*"
+                "value": "http://localhost:5173"
               },
               {
                 "name": "Access-Control-Allow-Methods",
@@ -507,7 +507,7 @@
             "entries": [
               {
                 "name": "Access-Control-Allow-Origin",
-                "value": "*"
+                "value": "http://localhost:5173"
               },
               {
                 "name": "Access-Control-Allow-Methods",
@@ -689,44 +689,6 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "7cb8d1ae-fec6-43ea-baaa-6b204ddf3118",
-      "name": "Parse Token: update-event",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        100,
-        298
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "8ee421d8-5401-41c3-a6c8-e08bc1c970d7",
-      "name": "Look Up Requester: update-event",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        250,
-        298
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
         "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) {\n  throw new Error(\"Event not found or you do not have permission to edit it.\");\n}\nreturn [{ json: { success: true, ...result.json } }];"
       },
       "id": "149652a7-8d5b-44fd-bfbd-b62dfb4140ff",
@@ -742,14 +704,14 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Update failed.\" } }}",
+        "responseBody": "={{ { \"success\": false, \"error\": (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Update failed.\" } }}",
         "options": {
           "responseCode": 400,
           "responseHeaders": {
             "entries": [
               {
                 "name": "Access-Control-Allow-Origin",
-                "value": "*"
+                "value": "http://localhost:5173"
               },
               {
                 "name": "Access-Control-Allow-Methods",
@@ -774,53 +736,15 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "cfc31abc-e366-4575-9188-e1e5555ea34e",
-      "name": "Parse Token: delete-event",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        100,
-        522
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "5fb471e0-1091-428a-ad3b-87fbfefd7c0a",
-      "name": "Look Up Requester: delete-event",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        250,
-        522
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Delete failed.\" } }}",
+        "responseBody": "={{ { \"success\": false, \"error\": (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Delete failed.\" } }}",
         "options": {
           "responseCode": 400,
           "responseHeaders": {
             "entries": [
               {
                 "name": "Access-Control-Allow-Origin",
-                "value": "*"
+                "value": "http://localhost:5173"
               },
               {
                 "name": "Access-Control-Allow-Methods",
@@ -884,7 +808,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "responseBody": "={{ { success: false, error: (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Request failed.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -1330,6 +1254,302 @@
       },
       "onError": "continueErrorOutput",
       "notes": "Best-effort \u2014 already-deleted-on-Google's-side (404) or any other failure is fine to ignore here since the CRM-side delete already succeeded."
+    },
+    {
+      "id": "ce-time-changing-gate",
+      "name": "Time/Assignment Changing? (Update)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        14616,
+        9136
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $('Webhook: update-event').first().json.body.due_at !== undefined || $('Webhook: update-event').first().json.body.end_at !== undefined || $('Webhook: update-event').first().json.body.user_id !== undefined || $('Webhook: update-event').first().json.body.contact_id !== undefined }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "ce-meeting-completed-gate",
+      "name": "Meeting Just Completed? (Update)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        15308,
+        9276
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.type === 'meeting' && $json.is_completed === true && $('Webhook: update-event').first().json.body.is_completed === true && !!$json.opportunity_id }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "ce-trigger-completion-check",
+      "name": "Trigger Stage Completion Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        15568,
+        9276
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/manual-test-jv5aC14FwPzUkQKG",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {} }}",
+        "options": {
+          "timeout": 8000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: update-event').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        100,
+        298
+      ],
+      "id": "extract-bearer-parse-token-update-event",
+      "name": "Extract Bearer Token update-event",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-update-event",
+      "name": "Execute Workflow: Verify Session update-event",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        130,
+        313
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        250,
+        298
+      ],
+      "id": "validate-session-parse-token-update-event",
+      "name": "Validate Session update-event",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: delete-event').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        100,
+        522
+      ],
+      "id": "extract-bearer-parse-token-delete-event",
+      "name": "Extract Bearer Token delete-event",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-delete-event",
+      "name": "Execute Workflow: Verify Session delete-event",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        130,
+        537
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        250,
+        522
+      ],
+      "id": "validate-session-parse-token-delete-event",
+      "name": "Validate Session delete-event",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Calendar Events\" }}",
+            "workflow_id": "={{ \"lLyzbXUKfmGury2K\" }}",
+            "entity_type": "={{ \"activities\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-add-event-0",
+      "name": "Log Workflow Run: Webhook: add-event",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        15,
+        209
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Calendar Events\" }}",
+            "workflow_id": "={{ \"lLyzbXUKfmGury2K\" }}",
+            "entity_type": "={{ \"activities\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-update-event-1",
+      "name": "Log Workflow Run: Webhook: update-event",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        15,
+        433
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Calendar Events\" }}",
+            "workflow_id": "={{ \"lLyzbXUKfmGury2K\" }}",
+            "entity_type": "={{ \"activities\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-delete-event-2",
+      "name": "Log Workflow Run: Webhook: delete-event",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        15,
+        657
+      ],
+      "onError": "continueRegularOutput"
     }
   ],
   "pinData": {},
@@ -1360,7 +1580,7 @@
       "main": [
         [
           {
-            "node": "Postgres: Ensure Event Columns (s002)",
+            "node": "Log Workflow Run: Webhook: add-event",
             "type": "main",
             "index": 0
           }
@@ -1397,7 +1617,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: update-event",
+            "node": "Log Workflow Run: Webhook: update-event",
             "type": "main",
             "index": 0
           }
@@ -1416,6 +1636,11 @@
             "node": "Look Up Push Target (Update)",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Meeting Just Completed? (Update)",
+            "type": "main",
+            "index": 0
           }
         ],
         [
@@ -1431,7 +1656,7 @@
       "main": [
         [
           {
-            "node": "Parse Token: delete-event",
+            "node": "Log Workflow Run: Webhook: delete-event",
             "type": "main",
             "index": 0
           }
@@ -1557,7 +1782,7 @@
       "main": [
         [
           {
-            "node": "Postgres: Check Event Conflict (Update)",
+            "node": "Time/Assignment Changing? (Update)",
             "type": "main",
             "index": 0
           }
@@ -1597,42 +1822,6 @@
         ]
       ]
     },
-    "Parse Token: update-event": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: update-event",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: update-event",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: update-event": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Ensure Event Columns (s003)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: update-event",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Check Result: update-event": {
       "main": [
         [
@@ -1645,42 +1834,6 @@
         [
           {
             "node": "Respond - Error: update-event",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token: delete-event": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester: delete-event",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: delete-event",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester: delete-event": {
-      "main": [
-        [
-          {
-            "node": "Postgres: Delete Event",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error: delete-event",
             "type": "main",
             "index": 0
           }
@@ -1888,6 +2041,177 @@
       "main": [
         [],
         []
+      ]
+    },
+    "Time/Assignment Changing? (Update)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Check Event Conflict (Update)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Postgres: Update Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Meeting Just Completed? (Update)": {
+      "main": [
+        [
+          {
+            "node": "Trigger Stage Completion Check",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Extract Bearer Token update-event": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session update-event",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: update-event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session update-event": {
+      "main": [
+        [
+          {
+            "node": "Validate Session update-event",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: update-event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session update-event": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure Event Columns (s003)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: update-event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token delete-event": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session delete-event",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: delete-event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session delete-event": {
+      "main": [
+        [
+          {
+            "node": "Validate Session delete-event",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: delete-event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session delete-event": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Delete Event",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error: delete-event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: add-event": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Ensure Event Columns (s002)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: update-event": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token update-event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: delete-event": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token delete-event",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },

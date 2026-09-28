@@ -21,45 +21,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10) } }];"
-      },
-      "id": "srtt0002-2222-4a5a-9b1a-strtest0000002",
-      "name": "Parse Token (Test)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1184,
-        400
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "srtt0003-3333-4a5a-9b1a-strtest0000003",
-      "name": "Look Up Requester Role (Test)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1408,
-        400
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Test Stage Reminder Step').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst testEmail = (body.test_email || '').toString().trim();\nconst subject = (body.email_subject || '').toString().trim();\nconst emailBody = (body.email_body || '').toString();\n\nif (!testEmail) throw new Error('\"test_email\" is required.');\nif (!subject) throw new Error('\"email_subject\" is required.');\nif (!emailBody.trim()) throw new Error('\"email_body\" is required.');\n\nconst sampleDate = new Date(Date.now() + 24 * 3600000).toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' });\n\nfunction fill(template) {\n  return template\n    .replace(/{{\\s*first_name\\s*}}/gi, 'Test')\n    .replace(/{{\\s*last_name\\s*}}/gi, 'Contact')\n    .replace(/{{\\s*deal_name\\s*}}/gi, 'Sample Deal')\n    .replace(/{{\\s*appointment_date\\s*}}/gi, sampleDate);\n}\n\nreturn [{ json: { testEmail, subject: '[TEST] ' + fill(subject), body: fill(emailBody) } }];"
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Test Stage Reminder Step').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst testEmail = (body.test_email || '').toString().trim();\nconst subject = (body.email_subject || '').toString().trim();\nconst emailBody = (body.email_body || '').toString();\n\nif (!testEmail) throw new Error('\"test_email\" is required.');\nif (!subject) throw new Error('\"email_subject\" is required.');\nif (!emailBody.trim()) throw new Error('\"email_body\" is required.');\n\nconst sampleDate = new Date(Date.now() + 24 * 3600000).toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' });\n\nfunction fill(template) {\n  return template\n    .replace(/{{\\s*contact\\.first_name\\s*}}/gi, 'Test')\n    .replace(/{{\\s*contact\\.last_name\\s*}}/gi, 'Contact')\n    .replace(/{{\\s*opportunity\\.name\\s*}}/gi, 'Sample Deal')\n    .replace(/{{\\s*appointment\\.start_time\\s*}}/gi, sampleDate);\n}\n\nreturn [{ json: { testEmail, subject: '[TEST] ' + fill(subject), body: fill(emailBody) } }];"
       },
       "id": "srtt0004-4444-4a5a-9b1a-strtest0000004",
       "name": "Validate Admin & Payload (Test)",
@@ -77,7 +39,9 @@
         "subject": "={{ $json.subject }}",
         "emailType": "text",
         "message": "={{ $json.body }}",
-        "options": {}
+        "options": {
+          "appendAttribution": false
+        }
       },
       "id": "srtt0005-5555-4a5a-9b1a-strtest0000005",
       "name": "Send Test Email",
@@ -130,45 +94,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst body = $input.first().json.body || {};\nconst ruleId = parseInt(body.rule_id, 10);\nif (!Number.isInteger(ruleId)) throw new Error('\"rule_id\" must be an integer.');\n\nreturn [{ json: { requesterId: parseInt(match[1], 10), ruleId } }];"
-      },
-      "id": "srtt0008-8888-4a5a-9b1a-strtest0000008",
-      "name": "Parse Token & Payload (Force)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1184,
-        704
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "srtt0009-9999-4a5a-9b1a-strtest0000009",
-      "name": "Look Up Requester Role (Force)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1408,
-        704
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\nreturn [{ json: { ruleId: $('Parse Token & Payload (Force)').item.json.ruleId } }];"
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\nreturn [{ json: { ruleId: $('Validate Session Payload (Force)').item.json.ruleId } }];"
       },
       "id": "srtt0010-1010-4a5a-9b1a-strtest0000010",
       "name": "Validate Admin (Force)",
@@ -268,7 +194,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const row = $input.item.json;\n\nfunction fill(template) {\n  const apptDate = new Date(row.due_at).toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' });\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, row.first_name || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, row.last_name || '')\n    .replace(/{{\\s*appointment_date\\s*}}/gi, apptDate)\n    .replace(/{{\\s*deal_name\\s*}}/gi, row.opportunity_name || '');\n}\n\nreturn [{\n  json: {\n    stepId: row.step_id,\n    opportunityId: row.opportunity_id,\n    activityId: row.activity_id,\n    to: row.email,\n    subject: fill(row.email_subject),\n    body: fill(row.email_body),\n  },\n}];"
+        "jsCode": "const row = $input.item.json;\n\nfunction fill(template) {\n  const apptDate = new Date(row.due_at).toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' });\n  return (template || '')\n    .replace(/{{\\s*contact\\.first_name\\s*}}/gi, row.first_name || 'there')\n    .replace(/{{\\s*contact\\.last_name\\s*}}/gi, row.last_name || '')\n    .replace(/{{\\s*appointment\\.start_time\\s*}}/gi, apptDate)\n    .replace(/{{\\s*opportunity\\.name\\s*}}/gi, row.opportunity_name || '');\n}\n\nreturn [{\n  json: {\n    stepId: row.step_id,\n    opportunityId: row.opportunity_id,\n    activityId: row.activity_id,\n    to: row.email,\n    subject: fill(row.email_subject),\n    body: fill(row.email_body),\n  },\n}];"
       },
       "id": "srtt0015-1515-4a5a-9b1a-strtest0000015",
       "name": "Personalize (Force)",
@@ -285,7 +211,9 @@
         "subject": "={{ $json.subject }}",
         "emailType": "text",
         "message": "={{ $json.body }}",
-        "options": {}
+        "options": {
+          "appendAttribution": false
+        }
       },
       "id": "srtt0016-1616-4a5a-9b1a-strtest0000016",
       "name": "Send Reminder Email (Force)",
@@ -352,7 +280,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const row = $input.item.json;\n\nfunction fill(template) {\n  return (template || '')\n    .replace(/{{\\s*first_name\\s*}}/gi, row.first_name || 'there')\n    .replace(/{{\\s*last_name\\s*}}/gi, row.last_name || '')\n    .replace(/{{\\s*deal_name\\s*}}/gi, row.opportunity_name || '');\n}\n\nreturn [{\n  json: {\n    hasEmail: !!(row.on_complete_email_subject && row.on_complete_email_subject.trim()),\n    to: row.email,\n    subject: fill(row.on_complete_email_subject),\n    body: fill(row.on_complete_email_body),\n    onCompleteAdvanceStageId: row.on_complete_advance_stage_id,\n    opportunityId: row.opportunity_id,\n    ruleId: row.rule_id,\n    activityId: row.activity_id,\n    contactId: row.contact_id,\n  },\n}];"
+        "jsCode": "const row = $input.item.json;\n\nfunction fill(template) {\n  return (template || '')\n    .replace(/{{\\s*contact\\.first_name\\s*}}/gi, row.first_name || 'there')\n    .replace(/{{\\s*contact\\.last_name\\s*}}/gi, row.last_name || '')\n    .replace(/{{\\s*opportunity\\.name\\s*}}/gi, row.opportunity_name || '');\n}\n\nreturn [{\n  json: {\n    hasEmail: !!(row.on_complete_email_subject && row.on_complete_email_subject.trim()),\n    to: row.email,\n    subject: fill(row.on_complete_email_subject),\n    body: fill(row.on_complete_email_body),\n    onCompleteAdvanceStageId: row.on_complete_advance_stage_id,\n    opportunityId: row.opportunity_id,\n    ruleId: row.rule_id,\n    activityId: row.activity_id,\n    contactId: row.contact_id,\n  },\n}];"
       },
       "id": "srtt0019-1919-4a5a-9b1a-strtest0000019",
       "name": "Prepare Completion Actions (Force)",
@@ -402,7 +330,9 @@
         "subject": "={{ $json.subject }}",
         "emailType": "text",
         "message": "={{ $json.body }}",
-        "options": {}
+        "options": {
+          "appendAttribution": false
+        }
       },
       "id": "srtt0021-2121-4a5a-9b1a-strtest0000021",
       "name": "Send Completion Email (Force)",
@@ -446,7 +376,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: false, error: $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "responseBody": "={{ { success: false, error: (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Request failed.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -459,6 +389,151 @@
         1408,
         1152
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        400
+      ],
+      "id": "extract-bearer-parse-token-test",
+      "name": "Extract Bearer Token (Test)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-test",
+      "name": "Execute Workflow: Verify Session (Test)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1214,
+        415
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        400
+      ],
+      "id": "validate-session-parse-token-test",
+      "name": "Validate Session (Test)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $('Webhook - Force Run Stage Reminder').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        704
+      ],
+      "id": "extract-bearer-parse-token-payload-force",
+      "name": "Extract Bearer Token Payload (Force)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-payload-force",
+      "name": "Execute Workflow: Verify Session Payload (Force)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1214,
+        719
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nconst body = $('Webhook - Force Run Stage Reminder').first().json.body || {};\nconst ruleId = parseInt(body.rule_id, 10);\nif (!Number.isInteger(ruleId)) throw new Error('\"rule_id\" must be an integer.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active, ruleId } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        704
+      ],
+      "id": "validate-session-parse-token-payload-force",
+      "name": "Validate Session Payload (Force)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Stage Reminder Test Tools\" }}",
+            "workflow_id": "={{ \"mUVjn5Pby4zJOG6A\" }}",
+            "entity_type": "={{ \"opportunities\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-run-webhook-force-run-stage-reminder-0",
+      "name": "Log Workflow Run: Webhook - Force Run Stage Reminder",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        975,
+        689
+      ],
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
@@ -466,43 +541,7 @@
       "main": [
         [
           {
-            "node": "Parse Token (Test)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token (Test)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester Role (Test)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester Role (Test)": {
-      "main": [
-        [
-          {
-            "node": "Validate Admin & Payload (Test)",
+            "node": "Extract Bearer Token (Test)",
             "type": "main",
             "index": 0
           }
@@ -556,43 +595,7 @@
       "main": [
         [
           {
-            "node": "Parse Token & Payload (Force)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token & Payload (Force)": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester Role (Force)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester Role (Force)": {
-      "main": [
-        [
-          {
-            "node": "Validate Admin (Force)",
+            "node": "Log Workflow Run: Webhook - Force Run Stage Reminder",
             "type": "main",
             "index": 0
           }
@@ -740,6 +743,125 @@
           }
         ],
         []
+      ]
+    },
+    "Extract Bearer Token (Test)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Test)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Test)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (Test)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (Test)": {
+      "main": [
+        [
+          {
+            "node": "Validate Admin & Payload (Test)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token Payload (Force)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session Payload (Force)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session Payload (Force)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session Payload (Force)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session Payload (Force)": {
+      "main": [
+        [
+          {
+            "node": "Validate Admin (Force)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook - Force Run Stage Reminder": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token Payload (Force)",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },

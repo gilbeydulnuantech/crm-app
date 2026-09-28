@@ -6,7 +6,7 @@
         "path": "get-tags",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "0a2783ef-eafa-4a9a-8480-3b0ae827a433",
@@ -64,7 +64,7 @@
         "path": "create-tag",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "346bf96e-62d5-4719-aeac-ee8ddac46eaa",
@@ -138,7 +138,7 @@
         "path": "tag-entity",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "10052f3e-dc57-47e7-aa26-4fc29ad33ac1",
@@ -212,7 +212,7 @@
         "path": "untag-entity",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "2f85a765-5709-4df2-9172-d44ebf717558",
@@ -285,7 +285,7 @@
         "path": "get-entity-tags",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "7dd79ebe-2139-4a44-8a95-4621a08d1965",
@@ -358,7 +358,7 @@
         "path": "filter-contacts-by-tag",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "http://localhost:5173"
         }
       },
       "id": "6a0324c3-18cd-4ba8-a35f-7c9ced95456b",
@@ -373,45 +373,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\n\nconst requesterId = parseInt(match[1], 10);\n\nconst query = $input.first().json.query ?? {};\nconst tagName = (query.tag_name || '').trim();\nif (!tagName) throw new Error('\"tag_name\" query param is required.');\n\nreturn [{ json: { requesterId, tagName } }];"
-      },
-      "id": "6343f21f-cbf8-4a2a-bc69-c4bb843ab3ad",
-      "name": "Parse Token & Tag Name",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1440,
-        2912
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "b748f6a4-8007-4b6c-ac79-ffa9dad9bd41",
-      "name": "Look Up Requester",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1664,
-        2912
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const requester = $input.first().json;\nconst { tagName } = $('Parse Token & Tag Name').first().json;\n\n// If requester is empty object (from alwaysOutputData) or inactive\nif (!requester.id || !requester.active) throw new Error('Invalid session or user not found.');\n\nconst sqlQuery = `\n  SELECT c.*\n  FROM contacts c\n  JOIN taggables tg ON tg.entity_type = 'contact' AND tg.entity_id = c.id\n  JOIN tags t ON t.id = tg.tag_id\n  WHERE t.name = $1\n    AND ($2 = 'admin' OR c.owner_id = $3)\n    AND c.is_archived = false\n  ORDER BY c.id;\n`;\nconst queryParams = [tagName, requester.role, requester.id];\n\nreturn [{ json: { sqlQuery, queryParams } }];"
+        "jsCode": "const requester = $input.first().json;\nconst { tagName } = $('Validate Session Tag Name').first().json;\n\n// If requester is empty object (from alwaysOutputData) or inactive\nif (!requester.id || !requester.active) throw new Error('Invalid session or user not found.');\n\nconst sqlQuery = `\n  SELECT c.*\n  FROM contacts c\n  JOIN taggables tg ON tg.entity_type = 'contact' AND tg.entity_id = c.id\n  JOIN tags t ON t.id = tg.tag_id\n  WHERE t.name = $1\n    AND ($2 = 'admin' OR c.owner_id = $3)\n    AND c.is_archived = false\n  ORDER BY c.id;\n`;\nconst queryParams = [tagName, requester.role, requester.id];\n\nreturn [{ json: { sqlQuery, queryParams } }];"
       },
       "id": "b3047689-c054-4b75-a684-57facec77084",
       "name": "Build Query",
@@ -469,7 +431,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Request failed.\" } }}",
+        "responseBody": "={{ { \"success\": false, \"error\": (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Request failed.\" } }}",
         "options": {
           "responseCode": 400
         }
@@ -482,6 +444,63 @@
         1440,
         3088
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        2912
+      ],
+      "id": "extract-bearer-parse-token-tag-name",
+      "name": "Extract Bearer Token Tag Name",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "execwf-vs-parse-token-tag-name",
+      "name": "Execute Workflow: Verify Session Tag Name",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1470,
+        2927
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\n\nconst query = $('Webhook - Filter Contacts By Tag').first().json.query ?? {};\nconst tagName = (query.tag_name || '').trim();\nif (!tagName) throw new Error('\"tag_name\" query param is required.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active, tagName } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1664,
+        2912
+      ],
+      "id": "validate-session-parse-token-tag-name",
+      "name": "Validate Session Tag Name",
+      "onError": "continueErrorOutput"
     }
   ],
   "pinData": {},
@@ -707,43 +726,7 @@
       "main": [
         [
           {
-            "node": "Parse Token & Tag Name",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Token & Tag Name": {
-      "main": [
-        [
-          {
-            "node": "Look Up Requester",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester": {
-      "main": [
-        [
-          {
-            "node": "Build Query",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
+            "node": "Extract Bearer Token Tag Name",
             "type": "main",
             "index": 0
           }
@@ -773,6 +756,60 @@
         [
           {
             "node": "Respond - Filter Contacts By Tag",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token Tag Name": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session Tag Name",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session Tag Name": {
+      "main": [
+        [
+          {
+            "node": "Validate Session Tag Name",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session Tag Name": {
+      "main": [
+        [
+          {
+            "node": "Build Query",
             "type": "main",
             "index": 0
           }

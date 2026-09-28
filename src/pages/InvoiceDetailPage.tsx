@@ -9,6 +9,7 @@ import { InvoiceLineItemInput } from '../api/payments';
 import InvoiceLineItemsEditor from '../components/payments/InvoiceLineItemsEditor';
 import InvoiceDocumentPreview from '../components/payments/InvoiceDocumentPreview';
 import NewPaymentModal from '../components/payments/NewPaymentModal';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { toTitleCase } from '../utils/text';
 
 function money(n: number) {
@@ -48,6 +49,7 @@ export default function InvoiceDetailPage() {
   const [sendMsg, setSendMsg] = useState<string | null>(null);
   const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [voidConfirmOpen, setVoidConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (!invoice) return;
@@ -91,8 +93,15 @@ export default function InvoiceDetailPage() {
 
   function handleVoid() {
     if (!invoiceId) return;
-    if (!window.confirm('Void this invoice? This cannot be undone.')) return;
-    voidInvoice.mutate(invoiceId, { onError: (err) => setError(err instanceof Error ? err.message : 'Failed to void.') });
+    setVoidConfirmOpen(true);
+  }
+
+  function confirmVoid() {
+    if (!invoiceId) return;
+    voidInvoice.mutate(invoiceId, {
+      onSuccess: () => setVoidConfirmOpen(false),
+      onError: (err) => setError(err instanceof Error ? err.message : 'Failed to void.'),
+    });
   }
 
   function handleSend() {
@@ -438,6 +447,16 @@ export default function InvoiceDetailPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={voidConfirmOpen}
+        title="Void this invoice?"
+        body="This cannot be undone."
+        confirmLabel="Void"
+        isSubmitting={voidInvoice.isPending}
+        onConfirm={confirmVoid}
+        onCancel={() => setVoidConfirmOpen(false)}
+      />
     </div>
   );
 }

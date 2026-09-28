@@ -29,6 +29,7 @@ import { syncContactStatus } from '../../api/contacts';
 import TagsDropdown from './TagsDropdown';
 import LeadScoreBadge from './LeadScoreBadge';
 import EnrichContactButton from './EnrichContactButton';
+import BookingReminderStatusPanel from './BookingReminderStatusPanel';
 import OwnerDropdown from './OwnerDropdown';
 import AddContactModal from './AddContactModal';
 import ComposeEmailPopover from './ComposeEmailPopover';
@@ -391,12 +392,12 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
     () => [
       ...contactProposals.map((p) => ({
         key: `proposal-${p.id}`,
-        label: `Proposal - ${p.title}`,
+        label: `Proposal - ${toTitleCase(p.title)}`,
         onClick: () => setViewProposalId(p.id),
       })),
       ...contactContracts.map((c) => ({
         key: `contract-${c.id}`,
-        label: c.title,
+        label: toTitleCase(c.title),
         onClick: () => setViewContractId(c.id),
       })),
       ...contactInvoices.map((inv) => ({
@@ -876,6 +877,8 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
               </div>
             </div>
 
+            <BookingReminderStatusPanel contactId={contact.id} />
+
             <div>
               <div className="flex items-center gap-1 border-b border-slate-200 mb-2 overflow-x-auto">
                 {(
@@ -931,7 +934,7 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                             return (
                               <div key={d.id} className="px-3 py-2.5 space-y-1">
                                 <div className="flex items-center justify-between gap-2">
-                                  <p className="text-sm font-medium text-slate-800 truncate">{d.name}</p>
+                                  <p className="text-sm font-medium text-slate-800 truncate">{toTitleCase(d.name)}</p>
                                   <span className="text-sm font-semibold text-emerald-600 shrink-0">
                                     {d.deal_value != null
                                       ? `$${d.deal_value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
@@ -1084,7 +1087,7 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                         className="w-full text-left px-3 py-2.5 hover:bg-slate-50"
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <p className="text-sm font-medium text-slate-800 truncate">{t.subject}</p>
+                          <p className="text-sm font-medium text-slate-800 truncate">{toTitleCase(t.subject)}</p>
                           <span
                             className={`px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 ${TICKET_STATUS_BADGE[t.status]}`}
                           >

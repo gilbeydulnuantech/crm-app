@@ -43,7 +43,7 @@ export default function FindLeadsModal({ open, onClose }: Props) {
   const result = importLeads.data;
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={handleClose}>
+    <div className="fixed inset-0 bg-slate-900/70 z-[100] flex items-center justify-center p-4" onClick={handleClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 pt-6">
           <h3 className="text-lg font-bold text-slate-800">Find Leads on Google Maps</h3>

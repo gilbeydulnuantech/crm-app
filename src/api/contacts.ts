@@ -29,6 +29,21 @@ export function fetchContacts() {
   return apiFetch<Contact[]>('/webhook/get-contacts?archived=false');
 }
 
+// Single-contact fetch — same get-contacts webhook, narrowed with ?id=,
+// so a caller that only needs one contact (e.g. DealDetailModal's sidebar)
+// isn't stuck sharing the full list's ['contacts'] cache entry and its
+// notification-bell-driven 15s poll (see useContactsForNotifications).
+export function fetchContact(id: number) {
+  return apiFetch<Contact[]>(`/webhook/get-contacts?archived=false&id=${id}`).then((rows) => rows[0]);
+}
+
+// One company's contacts — same get-contacts webhook, narrowed with
+// ?account_id=, so CompanyDetailModal isn't pulling + polling the entire
+// contacts list just to filter it down to one company client-side.
+export function fetchContactsByCompany(accountId: number) {
+  return apiFetch<Contact[]>(`/webhook/get-contacts?archived=false&account_id=${accountId}`);
+}
+
 // Same get-contacts webhook, just asking for the archived set instead of a
 // separate endpoint — see n8n-workflows/README.md for the Build Query node
 // change this requires (reading a new `archived` query param).

@@ -1,0 +1,62 @@
+{
+  "name": "Log Workflow Run",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            { "name": "workflow_name" },
+            { "name": "workflow_id" },
+            { "name": "entity_type" }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 0],
+      "id": "lwr-trigger",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE IF NOT EXISTS workflow_run_log (\n  id SERIAL PRIMARY KEY,\n  workflow_name TEXT NOT NULL,\n  workflow_id TEXT NOT NULL,\n  entity_type TEXT,\n  run_at TIMESTAMPTZ NOT NULL DEFAULT now()\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [220, 0],
+      "id": "lwr-ensure-table",
+      "name": "Ensure Log Table",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO workflow_run_log (workflow_name, workflow_id, entity_type) VALUES ($1, $2, $3);",
+        "options": {
+          "queryReplacement": "={{ [ $('When Executed by Another Workflow').first().json.workflow_name, $('When Executed by Another Workflow').first().json.workflow_id, $('When Executed by Another Workflow').first().json.entity_type || null ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [440, 0],
+      "id": "lwr-insert",
+      "name": "Insert Run Log",
+      "onError": "continueRegularOutput",
+      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": { "main": [[{ "node": "Ensure Log Table", "type": "main", "index": 0 }]] },
+    "Ensure Log Table": { "main": [[{ "node": "Insert Run Log", "type": "main", "index": 0 }]] }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
+  }
+}
