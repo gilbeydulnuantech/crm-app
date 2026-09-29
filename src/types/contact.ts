@@ -89,6 +89,7 @@ export interface ImportContactRow {
   city?: string;
   country?: string;
   lead_status?: string;
+  company_name?: string;
 }
 
 export const IMPORT_CONTACTS_MAX_ROWS = 500;

@@ -7,7 +7,7 @@ interface Props {
   onClose: () => void;
 }
 
-const TEMPLATE_HEADERS = ['first_name', 'last_name', 'email', 'phone', 'city', 'country', 'lead_status'];
+const TEMPLATE_HEADERS = ['first_name', 'last_name', 'email', 'phone', 'company_name', 'city', 'country', 'lead_status'];
 
 // Minimal RFC4180-ish CSV parser — handles quoted fields (including embedded
 // commas/newlines and "" escaped quotes), which a plain split(',') would
@@ -63,15 +63,19 @@ function rowsToContacts(rows: string[][]): ImportContactRow[] {
   const headers = rows[0].map((h) => h.trim().toLowerCase());
 
   return rows.slice(1).map((cells) => {
-    const get = (key: string) => {
-      const idx = headers.indexOf(key);
-      return idx === -1 ? '' : (cells[idx] ?? '').trim();
+    const get = (...keys: string[]) => {
+      for (const key of keys) {
+        const idx = headers.indexOf(key);
+        if (idx !== -1) return (cells[idx] ?? '').trim();
+      }
+      return '';
     };
     return {
       first_name: get('first_name'),
       last_name: get('last_name'),
       email: get('email'),
       phone: get('phone'),
+      company_name: get('company_name', 'company'),
       city: get('city'),
       country: get('country'),
       lead_status: get('lead_status') || LEAD_STATUS_OPTIONS[0],
@@ -80,7 +84,7 @@ function rowsToContacts(rows: string[][]): ImportContactRow[] {
 }
 
 function downloadTemplate() {
-  const csv = [TEMPLATE_HEADERS.join(','), 'Jane,Doe,jane@example.com,555-0100,Austin,USA,New'].join('\n');
+  const csv = [TEMPLATE_HEADERS.join(','), 'Jane,Doe,jane@example.com,555-0100,Acme Roofing,Austin,USA,New'].join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

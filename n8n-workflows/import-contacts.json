@@ -22,7 +22,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const requester = $input.first().json;\nconst { contacts } = $('Validate Session ken & Rows').first().json;\n\nif (!requester.id || !requester.active) {\n  throw new Error('Invalid session.');\n}\n\nconst valuesSql = [];\nconst queryParams = [];\nlet paramIndex = 1;\n\nfor (const c of contacts) {\n  valuesSql.push(`($${paramIndex}, $${paramIndex+1}, $${paramIndex+2}, $${paramIndex+3}, $${paramIndex+4}, $${paramIndex+5}, $${paramIndex+6}, $${paramIndex+7}, NOW(), NOW())`);\n  queryParams.push(\n    c.first_name, c.last_name, c.email,\n    c.phone, c.city, c.country, c.lead_status, requester.id\n  );\n  paramIndex += 8;\n}\n\nconst sqlQuery = `\n  INSERT INTO contacts (first_name, last_name, email, phone, city, country, lead_status, owner_id, created_at, updated_at)\n  VALUES ${valuesSql.join(', ')}\n  RETURNING id;\n`;\n\nreturn [{ json: { sqlQuery, queryParams } }];"
+        "jsCode": "const requester = $input.first().json;\nconst { contacts } = $('Validate Session ken & Rows').first().json;\n\nif (!requester.id || !requester.active) {\n  throw new Error('Invalid session.');\n}\n\nconst queryParams = [];\nlet paramIndex = 1;\n\n// companies.name is UNIQUE — upsert distinct company names first, then\n// link each contact to its company via account_id (contacts has no\n// company_name column; company is a separate normalized table).\nconst companyNames = [...new Set(\n  contacts.map((c) => (c.company_name || '').trim()).filter((n) => n)\n)];\n\nconst companyValuesSql = companyNames.map((name) => {\n  const sql = `($${paramIndex}::varchar, $${paramIndex + 1}::integer, NOW(), NOW())`;\n  queryParams.push(name, requester.id);\n  paramIndex += 2;\n  return sql;\n});\n\nconst contactValuesSql = contacts.map((c) => {\n  const companyName = (c.company_name || '').trim() || null;\n  const sql = `($${paramIndex}::varchar, $${paramIndex+1}::varchar, $${paramIndex+2}::varchar, $${paramIndex+3}::varchar, $${paramIndex+4}::varchar, $${paramIndex+5}::varchar, $${paramIndex+6}::varchar, $${paramIndex+7}::varchar, $${paramIndex+8}::integer)`;\n  queryParams.push(\n    c.first_name, c.last_name, c.email, c.phone,\n    c.city, c.country, c.lead_status, companyName, requester.id\n  );\n  paramIndex += 9;\n  return sql;\n});\n\nconst contactsCte = `new_contacts (first_name, last_name, email, phone, city, country, lead_status, company_name, owner_id) AS (\n  VALUES ${contactValuesSql.join(', ')}\n)`;\n\nconst sqlQuery = companyNames.length\n  ? `\n    WITH upserted_companies AS (\n      INSERT INTO companies (name, owner_id, created_at, updated_at)\n      VALUES ${companyValuesSql.join(', ')}\n      ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name\n      RETURNING id, name\n    ),\n    ${contactsCte}\n    INSERT INTO contacts (first_name, last_name, email, phone, city, country, lead_status, account_id, owner_id, created_at, updated_at)\n    SELECT nc.first_name, nc.last_name, nc.email, nc.phone, nc.city, nc.country, nc.lead_status, uc.id, nc.owner_id, NOW(), NOW()\n    FROM new_contacts nc\n    LEFT JOIN upserted_companies uc ON uc.name = nc.company_name\n    RETURNING id;\n  `\n  : `\n    WITH ${contactsCte}\n    INSERT INTO contacts (first_name, last_name, email, phone, city, country, lead_status, account_id, owner_id, created_at, updated_at)\n    SELECT first_name, last_name, email, phone, city, country, lead_status, NULL::integer, owner_id, NOW(), NOW()\n    FROM new_contacts\n    RETURNING id;\n  `;\n\nreturn [{ json: { sqlQuery, queryParams } }];"
       },
       "id": "d8bf870e-209e-4ce1-a8f5-d2f7563f733e",
       "name": "Build Bulk Insert Query",
@@ -107,7 +107,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+        "jsCode": "const item = $input.first().json;\nconst headers = item.headers || {};\nconst body = item.body || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token, contacts: body.contacts || [] } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -150,7 +150,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active, contacts } }];"
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nconst { contacts } = $('Extract Bearer Token ken & Rows').first().json;\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active, contacts } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
