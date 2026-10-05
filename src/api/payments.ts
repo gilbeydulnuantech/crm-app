@@ -158,6 +158,39 @@ export function fetchDownPayment(token: string) {
   return apiFetch<PublicDownPayment>(`/webhook/get-down-payment-public?token=${encodeURIComponent(token)}`);
 }
 
+// Everything the print-only invoice page needs, resolved server-side from the
+// invoice's public token (no auth) — same idea as the public contract fetch.
+// Only used as a navigation target for the PDF server (Puppeteer).
+export interface PublicInvoicePrint {
+  success: boolean;
+  invoice_number: string;
+  issue_date: string | null;
+  due_date: string | null;
+  customer_notes: string | null;
+  line_items: InvoiceLineItemInput[];
+  amount_paid: number;
+  contact_first_name: string | null;
+  contact_last_name: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  account_name: string | null;
+  street_address: string | null;
+  city: string | null;
+  state: string | null;
+  zip_code: string | null;
+  country: string | null;
+  company_name: string | null;
+  company_email: string | null;
+  company_phone: string | null;
+  company_logo_url: string | null;
+  template_settings: Record<string, unknown> | null;
+  error?: string;
+}
+
+export function fetchPublicInvoicePrint(token: string) {
+  return apiFetch<PublicInvoicePrint>(`/webhook/get-invoice-print-public?token=${encodeURIComponent(token)}`);
+}
+
 export function createPaymentIntent(token: string) {
   return apiFetch<{ success: boolean; client_secret?: string; error?: string }>(
     '/webhook/create-payment-intent-public',

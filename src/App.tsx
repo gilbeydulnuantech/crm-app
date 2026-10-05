@@ -45,6 +45,7 @@ import PublicPayInvoicePage from './pages/PublicPayInvoicePage';
 import PublicUnsubscribePage from './pages/PublicUnsubscribePage';
 import PublicCancelBookingPage from './pages/PublicCancelBookingPage';
 import PrintContractPage from './pages/PrintContractPage';
+import PrintInvoicePage from './pages/PrintInvoicePage';
 import PublicTicketPage from './pages/PublicTicketPage';
 import PublicBookingPage from './pages/PublicBookingPage';
 import GenericBookingPage from './pages/GenericBookingPage';
@@ -68,6 +69,7 @@ export default function App() {
           <Route path="/unsubscribe/:token" element={<PublicUnsubscribePage />} />
           <Route path="/cancel-booking/:activityId" element={<PublicCancelBookingPage />} />
           <Route path="/print/contract/:token" element={<PrintContractPage />} />
+          <Route path="/print/invoice/:token" element={<PrintInvoicePage />} />
           <Route path="/support/new" element={<PublicTicketPage />} />
           <Route path="/book/:token" element={<PublicBookingPage />} />
           <Route path="/book" element={<GenericBookingPage />} />

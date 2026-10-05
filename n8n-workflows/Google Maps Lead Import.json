@@ -657,8 +657,8 @@
       "onError": "continueRegularOutput",
       "credentials": {
         "gmailOAuth2": {
-          "id": "VKDbMYV2U0WoSc16",
-          "name": "n8n072826"
+          "id": "YE9RFYruaRVVZ6H4",
+          "name": "CRMapp"
         }
       }
     },

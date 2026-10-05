@@ -516,8 +516,8 @@
       "webhookId": "97736797-9659-4deb-acb3-e8d5811a5403",
       "credentials": {
         "gmailOAuth2": {
-          "id": "VKDbMYV2U0WoSc16",
-          "name": "n8n072826"
+          "id": "YE9RFYruaRVVZ6H4",
+          "name": "CRMapp"
         }
       },
       "onError": "continueErrorOutput"
@@ -1007,8 +1007,8 @@
       "webhookId": "38d77f1d-5d58-4769-9602-04edd5eef50f",
       "credentials": {
         "gmailOAuth2": {
-          "id": "VKDbMYV2U0WoSc16",
-          "name": "n8n072826"
+          "id": "YE9RFYruaRVVZ6H4",
+          "name": "CRMapp"
         }
       },
       "onError": "continueErrorOutput"

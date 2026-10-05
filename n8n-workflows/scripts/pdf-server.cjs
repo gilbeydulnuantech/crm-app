@@ -17,7 +17,15 @@ const PORT = 5680;
 let browserPromise = null;
 function getBrowser() {
   if (!browserPromise) {
-    browserPromise = puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
+    // A failed launch (e.g. a timeout while the machine is under load) must not
+    // stay cached — otherwise every later request reuses the same rejected
+    // promise and the server can never recover without a restart.
+    browserPromise = puppeteer
+      .launch({ headless: 'new', args: ['--no-sandbox'], timeout: 90000 })
+      .catch((err) => {
+        browserPromise = null;
+        throw err;
+      });
   }
   return browserPromise;
 }
@@ -46,9 +54,16 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // type=invoice renders /print/invoice/:token; anything else (the default,
+  // so existing callers are unchanged) renders the signed-contract print page.
+  const docType = url.searchParams.get('type') === 'invoice' ? 'invoice' : 'contract';
   const proposalToken = url.searchParams.get('proposalToken');
-  const printUrl = new URL(`http://localhost:5173/print/contract/${token}`);
-  if (proposalToken) printUrl.searchParams.set('proposal', proposalToken);
+  const printUrl = new URL(`http://localhost:5173/print/${docType}/${encodeURIComponent(token)}`);
+  if (proposalToken && docType === 'contract') printUrl.searchParams.set('proposal', proposalToken);
+  // Optional attachment name so n8n's file response (and the emailed
+  // attachment) is "Invoice-INV-2047.pdf" instead of an anonymous "data".
+  const rawName = url.searchParams.get('filename') || '';
+  const safeName = rawName.replace(/[^A-Za-z0-9._ -]/g, '').slice(0, 100);
 
   let page;
   try {
@@ -76,7 +91,9 @@ const server = http.createServer(async (req, res) => {
       printBackground: true,
       margin: { top: '40px', bottom: '40px', left: '40px', right: '40px' },
     });
-    res.writeHead(200, { 'Content-Type': 'application/pdf' });
+    const headers = { 'Content-Type': 'application/pdf' };
+    if (safeName) headers['Content-Disposition'] = `attachment; filename="${safeName}"`;
+    res.writeHead(200, headers);
     res.end(Buffer.from(pdfBuffer));
   } catch (err) {
     console.error(err);

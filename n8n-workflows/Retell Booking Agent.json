@@ -1,0 +1,1430 @@
+{
+  "name": "Retell Booking Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "retell-check-and-book",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "check-and-book",
+      "name": "Check & Book",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        64
+      ],
+      "webhookId": "5b606c3e-dd05-4804-bd17-c280b8d4d180"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "action",
+              "value": "={{ $json.body.args?.action || 'book_appointment' }}",
+              "type": "string"
+            },
+            {
+              "id": "2",
+              "name": "date",
+              "value": "={{ $json.body.args?.date || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "3",
+              "name": "time",
+              "value": "={{ $json.body.args?.time || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "4",
+              "name": "calendarId",
+              "value": "gilbeydulnuan@gmail.com",
+              "type": "string"
+            },
+            {
+              "id": "5",
+              "name": "durationMinutes",
+              "value": "={{ 60 }}",
+              "type": "string"
+            },
+            {
+              "id": "6",
+              "name": "requestedStart",
+              "value": "={{ ($json.body.args?.date && $json.body.args?.time) ? DateTime.fromISO($json.body.args.date + 'T' + $json.body.args.time, { zone: 'Asia/Almaty' }).toISO() : '' }}",
+              "type": "string"
+            },
+            {
+              "id": "7",
+              "name": "requestedEnd",
+              "value": "={{ ($json.body.args?.date && $json.body.args?.time) ? DateTime.fromISO($json.body.args.date + 'T' + $json.body.args.time, { zone: 'Asia/Almaty' }).plus({minutes: 60}).toISO() : '' }}",
+              "type": "string"
+            },
+            {
+              "id": "8",
+              "name": "customerName",
+              "value": "={{ $json.body.args?.name || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "9",
+              "name": "customerPhone",
+              "value": "={{ $json.body.args?.phone || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "10",
+              "name": "customerDob",
+              "value": "={{ $json.body.args?.date_of_birth || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "11",
+              "name": "callId",
+              "value": "={{ $json.body.call?.call_id || '' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "workflow-configuration",
+      "name": "Workflow Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        224,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $('Workflow Configuration').first().json.calendarId }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "get-availability-in-a-calendar",
+      "name": "Get availability in a calendar",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        896,
+        -224
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "GHh5WnpZKV3DPZJd",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.conflictCount === 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "is-slot-available",
+      "name": "Is Slot Available?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1120,
+        -224
+      ]
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $('Workflow Configuration').first().json.calendarId }}",
+          "mode": "id"
+        },
+        "start": "={{ $('Workflow Configuration').first().json.requestedStart }}",
+        "end": "={{ $('Workflow Configuration').first().json.requestedEnd }}",
+        "additionalFields": {
+          "description": "={{ 'Booked via Retell voice agent. Phone: ' + $('Workflow Configuration').first().json.customerPhone + ' Email: ' + $('Workflow Configuration').first().json.customerEmail + ' Notes: ' + $('Workflow Configuration').first().json.notes }}",
+          "summary": "={{ 'Inspection - ' + $('Workflow Configuration').first().json.customerName }}"
+        }
+      },
+      "id": "book-appointment",
+      "name": "Book Appointment",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        1344,
+        -272
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "GHh5WnpZKV3DPZJd",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'booked', start: $('Workflow Configuration').first().json.requestedStart, end: $('Workflow Configuration').first().json.requestedEnd, calendar_id: $('Workflow Configuration').first().json.calendarId } }}",
+        "options": {}
+      },
+      "id": "respond-to-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1568,
+        -272
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $('Workflow Configuration').first().json.calendarId }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "get-events",
+      "name": "Get Events",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        1344,
+        -32
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "GHh5WnpZKV3DPZJd",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Walk business hours (9am-5pm, Mon-Fri) starting from the requested\n// time, skip any slot that overlaps a busy event, return the first 3\n// free slots of the requested duration.\nconst cfg = $('Workflow Configuration').first().json;\nconst _requestedStart = DateTime.fromISO(cfg.requestedStart);\nif (!_requestedStart.isValid) {\n  throw new Error(`Invalid requestedStart: \"${cfg.requestedStart}\" \u2014 check that start_time was sent in the request.`);\n}\nconst duration = Number(cfg.durationMinutes) || 60;\nconst busy = $input.all().map((i) => ({\n  start: DateTime.fromISO(i.json.start?.dateTime || i.json.start?.date),\n  end: DateTime.fromISO(i.json.end?.dateTime || i.json.end?.date),\n}));\n\nfunction overlaps(start, end) {\n  return busy.some((b) => start < b.end && end > b.start);\n}\n\nconst found = [];\nlet cursor = DateTime.fromISO(cfg.requestedStart).plus({ hours: 1 }).set({ minute: 0, second: 0 });\nlet guard = 0;\nwhile (found.length < 3 && guard < 500) {\n  guard++;\n  const hour = cursor.hour;\n  const isWeekday = cursor.weekday <= 5;\n  if (isWeekday && hour >= 9 && hour < 17) {\n    const slotEnd = cursor.plus({ minutes: duration });\n    if (!overlaps(cursor, slotEnd)) {\n      found.push({ start: cursor.toISO(), end: slotEnd.toISO() });\n      cursor = cursor.plus({ hours: 1 });\n      continue;\n    }\n  }\n  cursor = hour >= 17 || !isWeekday\n    ? cursor.plus({ days: 1 }).set({ hour: 9, minute: 0 })\n    : cursor.plus({ hours: 1 });\n}\n\nreturn [{ json: { alternatives: found } }];"
+      },
+      "id": "find-3-closest-available-times",
+      "name": "Find 3 Closest Available Times",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        -32
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "message",
+              "value": "={{ 'That time is not available. Here are 3 alternatives: ' + $json.alternatives.map(a => a.start).join(', ') }}",
+              "type": "string"
+            },
+            {
+              "id": "2",
+              "name": "alternatives",
+              "value": "={{ $json.alternatives }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "format-alternative-times-response",
+      "name": "Format Alternative Times Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1792,
+        -32
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'unavailable', message: $json.message, alternatives: $json.alternatives } }}",
+        "options": {}
+      },
+      "id": "return-response",
+      "name": "Return Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2016,
+        -32
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "retell-reschedule",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "reschedule",
+      "name": "Reschedule",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        768
+      ],
+      "webhookId": "b54b429a-2bf8-4330-a5cb-3a841b5d4ff1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "calendarId",
+              "value": "gilbeydulnuan@gmail.com",
+              "type": "string"
+            },
+            {
+              "id": "2",
+              "name": "durationMinutes",
+              "value": "={{ 60 }}",
+              "type": "string"
+            },
+            {
+              "id": "3",
+              "name": "requestedStart",
+              "value": "={{ ($json.body.args?.date && $json.body.args?.time) ? DateTime.fromISO($json.body.args.date + 'T' + $json.body.args.time, { zone: 'Asia/Almaty' }).toISO() : '' }}",
+              "type": "string"
+            },
+            {
+              "id": "4",
+              "name": "requestedEnd",
+              "value": "={{ ($json.body.args?.date && $json.body.args?.time) ? DateTime.fromISO($json.body.args.date + 'T' + $json.body.args.time, { zone: 'Asia/Almaty' }).plus({minutes: 60}).toISO() : '' }}",
+              "type": "string"
+            },
+            {
+              "id": "5",
+              "name": "customerPhone",
+              "value": "={{ $json.body.args?.phone || '' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "workflow-configuration1",
+      "name": "Workflow Configuration1",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        224,
+        768
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $('Workflow Configuration1').first().json.calendarId }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "check-availability1",
+      "name": "Check Availability1",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        448,
+        768
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "GHh5WnpZKV3DPZJd",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.conflictCount === 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "is-slot-available1",
+      "name": "Is Slot Available?1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        672,
+        768
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $('Workflow Configuration1').first().json.calendarId }}",
+          "mode": "id"
+        },
+        "options": {
+          "query": "={{ $('Workflow Configuration1').first().json.customerPhone }}"
+        }
+      },
+      "id": "find-existing-appointment",
+      "name": "Find Existing Appointment",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        896,
+        672
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "GHh5WnpZKV3DPZJd",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $input.all().length > 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "appointment-found",
+      "name": "Appointment Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1120,
+        672
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $('Workflow Configuration1').first().json.calendarId }}",
+          "mode": "id"
+        },
+        "eventId": "={{ $json.id }}",
+        "updateFields": {
+          "end": "={{ $('Workflow Configuration1').first().json.requestedEnd }}",
+          "start": "={{ $('Workflow Configuration1').first().json.requestedStart }}"
+        }
+      },
+      "id": "update-appointment",
+      "name": "Update Appointment",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        1344,
+        576
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "GHh5WnpZKV3DPZJd",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'rescheduled', start: $('Workflow Configuration1').first().json.requestedStart, end: $('Workflow Configuration1').first().json.requestedEnd } }}",
+        "options": {}
+      },
+      "id": "success-response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1568,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'not_found', message: 'No existing appointment found for that phone number.' } }}",
+        "options": {}
+      },
+      "id": "no-appointment-found-response",
+      "name": "No Appointment Found Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1344,
+        768
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $('Workflow Configuration1').first().json.calendarId }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "get-events-in-range",
+      "name": "Get Events in Range",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        896,
+        960
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "GHh5WnpZKV3DPZJd",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Same slot-finding logic as Find 3 Closest Available Times, reused\n// here for the reschedule flow's alternative-times branch.\nconst cfg = $('Workflow Configuration1').first().json;\nconst _requestedStart = DateTime.fromISO(cfg.requestedStart);\nif (!_requestedStart.isValid) {\n  throw new Error(`Invalid requestedStart: \"${cfg.requestedStart}\" \u2014 check that start_time was sent in the request.`);\n}\nconst duration = Number(cfg.durationMinutes) || 60;\nconst busy = $input.all().map((i) => ({\n  start: DateTime.fromISO(i.json.start?.dateTime || i.json.start?.date),\n  end: DateTime.fromISO(i.json.end?.dateTime || i.json.end?.date),\n}));\n\nfunction overlaps(start, end) {\n  return busy.some((b) => start < b.end && end > b.start);\n}\n\nconst found = [];\nlet cursor = DateTime.fromISO(cfg.requestedStart).plus({ hours: 1 }).set({ minute: 0, second: 0 });\nlet guard = 0;\nwhile (found.length < 3 && guard < 500) {\n  guard++;\n  const hour = cursor.hour;\n  const isWeekday = cursor.weekday <= 5;\n  if (isWeekday && hour >= 9 && hour < 17) {\n    const slotEnd = cursor.plus({ minutes: duration });\n    if (!overlaps(cursor, slotEnd)) {\n      found.push({ start: cursor.toISO(), end: slotEnd.toISO() });\n      cursor = cursor.plus({ hours: 1 });\n      continue;\n    }\n  }\n  cursor = hour >= 17 || !isWeekday\n    ? cursor.plus({ days: 1 }).set({ hour: 9, minute: 0 })\n    : cursor.plus({ hours: 1 });\n}\n\nreturn [{ json: { alternatives: found } }];"
+      },
+      "id": "calculate-available-slots",
+      "name": "Calculate Available Slots",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        960
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'unavailable', alternatives: $json.alternatives } }}",
+        "options": {}
+      },
+      "id": "alternative-slots-response",
+      "name": "Alternative Slots Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1344,
+        960
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "retell-cancel",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "cancel",
+      "name": "Cancel",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        1280
+      ],
+      "webhookId": "17103dd3-5c45-497f-925a-c901e6f04d98"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "gilbeydulnuan@gmail.com",
+          "mode": "id"
+        },
+        "options": {
+          "query": "={{ $json.body.args?.phone || '' }}"
+        }
+      },
+      "id": "google-calendar---search-by-phone",
+      "name": "Google Calendar - Search by Phone",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        224,
+        1280
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "GHh5WnpZKV3DPZJd",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $input.all().length > 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if---event-found",
+      "name": "IF - Event Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        448,
+        1280
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "calendar": {
+          "__rl": true,
+          "value": "gilbeydulnuan@gmail.com",
+          "mode": "id"
+        },
+        "eventId": "={{ $json.id }}",
+        "options": {}
+      },
+      "id": "google-calendar---cancel-event",
+      "name": "Google Calendar - Cancel Event",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        672,
+        1184
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "GHh5WnpZKV3DPZJd",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'cancelled' } }}",
+        "options": {}
+      },
+      "id": "respond---cancelled-ok",
+      "name": "Respond - Cancelled OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        896,
+        1184
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'not_found', message: 'No upcoming appointment found for that phone number.' } }}",
+        "options": {}
+      },
+      "id": "respond---not-found",
+      "name": "Respond - Not Found",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        672,
+        1376
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "retell-log",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "log",
+      "name": "Log",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        1600
+      ],
+      "webhookId": "f2b07d7f-3a65-4c49-a205-614a59de749b"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1XL7gd9kAd1kqL7pmdanTHqhnLQyeOhdkHV1ujB6vECo",
+          "mode": "list",
+          "cachedResultName": "Retell Booking Log Sheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1XL7gd9kAd1kqL7pmdanTHqhnLQyeOhdkHV1ujB6vECo/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "append-row-in-sheet",
+      "name": "Append row in sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        224,
+        1600
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GSpoIYvGWcupaJN9",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.action === 'book_appointment' }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "action-book-appointment",
+      "name": "Action: Book Appointment?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        448,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ !!$json.requestedStart }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "has-specific-time",
+      "name": "Has Specific Time?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        672,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $('Workflow Configuration').first().json.calendarId }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "check-specific-slot",
+      "name": "Check Specific Slot",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        896,
+        160
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "GHh5WnpZKV3DPZJd",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.conflictCount === 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "slot-free-check-only",
+      "name": "Slot Free? (check only)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1120,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { available: true, start: $('Workflow Configuration').first().json.requestedStart, end: $('Workflow Configuration').first().json.requestedEnd } }}",
+        "options": {}
+      },
+      "id": "respond---slot-available",
+      "name": "Respond - Slot Available",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1344,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $('Workflow Configuration').first().json.calendarId }}",
+          "mode": "id"
+        },
+        "options": {
+          "timeMin": "={{ DateTime.fromISO($('Workflow Configuration').first().json.date, { zone: 'Asia/Almaty' }).startOf('day').toISO() }}",
+          "timeMax": "={{ DateTime.fromISO($('Workflow Configuration').first().json.date, { zone: 'Asia/Almaty' }).endOf('day').toISO() }}"
+        }
+      },
+      "id": "get-day-availability",
+      "name": "Get Day Availability",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        896,
+        352
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "GHh5WnpZKV3DPZJd",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Returns every open business-hour slot for the requested date,\n// split into morning (<12:00) and afternoon (>=12:00) \u2014 this is what\n// the voice-agent prompt's check_availability(date) step actually\n// needs: a same-day list it can reason about before asking the\n// caller 'morning or afternoon', not just a single-slot check.\nconst cfg = $('Workflow Configuration').first().json;\nconst duration = Number(cfg.durationMinutes) || 60;\n\n// Safety net: the agent should resolve relative dates itself (see the\n// prompt), but voice LLMs sometimes pass the literal word through \u2014\n// handle the common cases server-side rather than erroring on a caller\n// who just said \"tomorrow\".\nconst rawDate = (cfg.date || '').trim().toLowerCase();\nlet day;\nif (rawDate === 'today') {\n  day = DateTime.now().setZone('Asia/Almaty');\n} else if (rawDate === 'tomorrow') {\n  day = DateTime.now().setZone('Asia/Almaty').plus({ days: 1 });\n} else {\n  day = DateTime.fromISO(cfg.date, { zone: 'Asia/Almaty' });\n}\nif (!day.isValid) {\n  throw new Error(`Invalid date: \"${cfg.date}\" \u2014 expected YYYY-MM-DD, \"today\", or \"tomorrow\".`);\n}\n\nconst busy = $input.all().map((i) => ({\n  start: DateTime.fromISO(i.json.start?.dateTime || i.json.start?.date),\n  end: DateTime.fromISO(i.json.end?.dateTime || i.json.end?.date),\n}));\n\nfunction overlaps(start, end) {\n  return busy.some((b) => start < b.end && end > b.start);\n}\n\nconst slots = [];\nlet cursor = day.set({ hour: 9, minute: 0, second: 0 });\nconst dayEnd = day.set({ hour: 17, minute: 0, second: 0 });\nconst isWeekday = day.weekday <= 5;\n\nif (isWeekday) {\n  while (cursor.plus({ minutes: duration }) <= dayEnd) {\n    const slotEnd = cursor.plus({ minutes: duration });\n    if (!overlaps(cursor, slotEnd)) {\n      slots.push({ start: cursor.toISO(), end: slotEnd.toISO(), period: cursor.hour < 12 ? 'morning' : 'afternoon' });\n    }\n    cursor = cursor.plus({ hours: 1 });\n  }\n}\n\nconst morning = slots.filter((s) => s.period === 'morning');\nconst afternoon = slots.filter((s) => s.period === 'afternoon');\n\nreturn [{ json: {\n  date: cfg.date,\n  is_weekday: isWeekday,\n  has_morning: morning.length > 0,\n  has_afternoon: afternoon.length > 0,\n  morning_slots: morning.slice(0, 3),\n  afternoon_slots: afternoon.slice(0, 3),\n} }];"
+      },
+      "id": "list-open-slots-for-day",
+      "name": "List Open Slots For Day",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { date: $json.date, has_morning: $json.has_morning, has_afternoon: $json.has_afternoon, morning_slots: $json.morning_slots, afternoon_slots: $json.afternoon_slots } }}",
+        "options": {}
+      },
+      "id": "day-availability-response",
+      "name": "Day Availability Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1344,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Google Calendar's timeMin/timeMax on getAll is not a reliable\n// server-side filter in practice \u2014 it can return events outside\n// the requested window (confirmed: a query for Oct 2 1-2pm\n// returned an Oct 1 event and a 2:30pm event, neither of which\n// overlaps). Compute real overlap here instead of trusting\n// $input.all().length.\nconst cfg = $('Workflow Configuration').first().json;\nconst start = DateTime.fromISO(cfg.requestedStart);\nconst end = DateTime.fromISO(cfg.requestedEnd);\nconst conflicts = $input.all().filter((i) => {\n  const bStart = DateTime.fromISO(i.json.start?.dateTime || i.json.start?.date);\n  const bEnd = DateTime.fromISO(i.json.end?.dateTime || i.json.end?.date);\n  return start < bEnd && end > bStart;\n});\nreturn [{ json: { conflictCount: conflicts.length } }];"
+      },
+      "id": "compute-overlap-book",
+      "name": "Compute Overlap (Book)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Google Calendar's timeMin/timeMax on getAll is not a reliable\n// server-side filter in practice \u2014 it can return events outside\n// the requested window (confirmed: a query for Oct 2 1-2pm\n// returned an Oct 1 event and a 2:30pm event, neither of which\n// overlaps). Compute real overlap here instead of trusting\n// $input.all().length.\nconst cfg = $('Workflow Configuration').first().json;\nconst start = DateTime.fromISO(cfg.requestedStart);\nconst end = DateTime.fromISO(cfg.requestedEnd);\nconst conflicts = $input.all().filter((i) => {\n  const bStart = DateTime.fromISO(i.json.start?.dateTime || i.json.start?.date);\n  const bEnd = DateTime.fromISO(i.json.end?.dateTime || i.json.end?.date);\n  return start < bEnd && end > bStart;\n});\nreturn [{ json: { conflictCount: conflicts.length } }];"
+      },
+      "id": "compute-overlap-check-only",
+      "name": "Compute Overlap (Check Only)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Google Calendar's timeMin/timeMax on getAll is not a reliable\n// server-side filter in practice \u2014 it can return events outside\n// the requested window (confirmed: a query for Oct 2 1-2pm\n// returned an Oct 1 event and a 2:30pm event, neither of which\n// overlaps). Compute real overlap here instead of trusting\n// $input.all().length.\nconst cfg = $('Workflow Configuration1').first().json;\nconst start = DateTime.fromISO(cfg.requestedStart);\nconst end = DateTime.fromISO(cfg.requestedEnd);\nconst conflicts = $input.all().filter((i) => {\n  const bStart = DateTime.fromISO(i.json.start?.dateTime || i.json.start?.date);\n  const bEnd = DateTime.fromISO(i.json.end?.dateTime || i.json.end?.date);\n  return start < bEnd && end > bStart;\n});\nreturn [{ json: { conflictCount: conflicts.length } }];"
+      },
+      "id": "compute-overlap-reschedule",
+      "name": "Compute Overlap (Reschedule)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Check & Book": {
+      "main": [
+        [
+          {
+            "node": "Workflow Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get availability in a calendar": {
+      "main": [
+        [
+          {
+            "node": "Compute Overlap (Book)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Slot Available?": {
+      "main": [
+        [
+          {
+            "node": "Book Appointment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Book Appointment": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Events": {
+      "main": [
+        [
+          {
+            "node": "Find 3 Closest Available Times",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find 3 Closest Available Times": {
+      "main": [
+        [
+          {
+            "node": "Format Alternative Times Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Alternative Times Response": {
+      "main": [
+        [
+          {
+            "node": "Return Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reschedule": {
+      "main": [
+        [
+          {
+            "node": "Workflow Configuration1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Configuration1": {
+      "main": [
+        [
+          {
+            "node": "Check Availability1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Availability1": {
+      "main": [
+        [
+          {
+            "node": "Compute Overlap (Reschedule)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Slot Available?1": {
+      "main": [
+        [
+          {
+            "node": "Find Existing Appointment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Events in Range",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Existing Appointment": {
+      "main": [
+        [
+          {
+            "node": "Appointment Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Appointment Found?": {
+      "main": [
+        [
+          {
+            "node": "Update Appointment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Appointment Found Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Appointment": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Events in Range": {
+      "main": [
+        [
+          {
+            "node": "Calculate Available Slots",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Available Slots": {
+      "main": [
+        [
+          {
+            "node": "Alternative Slots Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cancel": {
+      "main": [
+        [
+          {
+            "node": "Google Calendar - Search by Phone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Calendar - Search by Phone": {
+      "main": [
+        [
+          {
+            "node": "IF - Event Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Event Found?": {
+      "main": [
+        [
+          {
+            "node": "Google Calendar - Cancel Event",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Not Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Calendar - Cancel Event": {
+      "main": [
+        [
+          {
+            "node": "Respond - Cancelled OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Configuration": {
+      "main": [
+        [
+          {
+            "node": "Action: Book Appointment?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Action: Book Appointment?": {
+      "main": [
+        [
+          {
+            "node": "Get availability in a calendar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Has Specific Time?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Specific Time?": {
+      "main": [
+        [
+          {
+            "node": "Check Specific Slot",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Day Availability",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Specific Slot": {
+      "main": [
+        [
+          {
+            "node": "Compute Overlap (Check Only)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slot Free? (check only)": {
+      "main": [
+        [
+          {
+            "node": "Respond - Slot Available",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Day Availability": {
+      "main": [
+        [
+          {
+            "node": "List Open Slots For Day",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Open Slots For Day": {
+      "main": [
+        [
+          {
+            "node": "Day Availability Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Overlap (Book)": {
+      "main": [
+        [
+          {
+            "node": "Is Slot Available?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Overlap (Check Only)": {
+      "main": [
+        [
+          {
+            "node": "Slot Free? (check only)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Overlap (Reschedule)": {
+      "main": [
+        [
+          {
+            "node": "Is Slot Available?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "U7jX0H3oE5a25GrV"
+  }
+}

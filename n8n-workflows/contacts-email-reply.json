@@ -85,8 +85,8 @@
       "name": "Gmail Trigger",
       "credentials": {
         "gmailOAuth2": {
-          "id": "VKDbMYV2U0WoSc16",
-          "name": "n8n072826"
+          "id": "YE9RFYruaRVVZ6H4",
+          "name": "CRMapp"
         }
       }
     },
@@ -581,8 +581,8 @@
       "webhookId": "8e079814-2ad5-4103-aebf-56b0e3840665",
       "credentials": {
         "gmailOAuth2": {
-          "id": "VKDbMYV2U0WoSc16",
-          "name": "n8n072826"
+          "id": "YE9RFYruaRVVZ6H4",
+          "name": "CRMapp"
         }
       },
       "onError": "continueRegularOutput"

@@ -45,8 +45,8 @@
       "webhookId": "c8cc0589-78a6-4dc1-8cba-f8bcfa0c62ca",
       "credentials": {
         "gmailOAuth2": {
-          "id": "VKDbMYV2U0WoSc16",
-          "name": "n8n072826"
+          "id": "YE9RFYruaRVVZ6H4",
+          "name": "CRMapp"
         }
       }
     },
@@ -136,7 +136,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Fetch the uploaded file metadata directly from 'Upload file' \u2014 the\n// 'Share file' node's output is a permission resource, not file metadata,\n// so we read name/webViewLink from the upload step instead (same item count,\n// Share runs first to guarantee the link is open before we log/send it).\nconst items = $('Upload file').all();\nconst attachmentList = [];\n\nitems.forEach(item => {\n    // Access item JSON data aggregated from the Google Drive node\n    const data = item.json;\n\n    // Handle whether Aggregate outputted an array or individual item objects\n    const fileArray = Array.isArray(data) ? data : (data.data || [data]);\n\n    fileArray.forEach(file => {\n        // Skip execution metadata or items without a webViewLink\n        if (!file || !file.webViewLink) return;\n\n        const fileName = file.name || file.fileName || 'Attachment';\n        const fileUrl = file.webViewLink;\n\n        attachmentList.push({\n            name: fileName,\n            url: fileUrl\n        });\n    });\n});\n\n// Return as a formatted JSON string for Postgres $3 parameter\nreturn [{\n    json: {\n        attachments_json: JSON.stringify(attachmentList)\n    }\n}];"
+        "jsCode": "// Fetch the uploaded file metadata directly from 'Upload file' — the\n// 'Share file' node's output is a permission resource, not file metadata,\n// so we read name/webViewLink from the upload step instead (same item count,\n// Share runs first to guarantee the link is open before we log/send it).\nconst items = $('Upload file').all();\nconst attachmentList = [];\n\nitems.forEach(item => {\n    // Access item JSON data aggregated from the Google Drive node\n    const data = item.json;\n\n    // Handle whether Aggregate outputted an array or individual item objects\n    const fileArray = Array.isArray(data) ? data : (data.data || [data]);\n\n    fileArray.forEach(file => {\n        // Skip execution metadata or items without a webViewLink\n        if (!file || !file.webViewLink) return;\n\n        const fileName = file.name || file.fileName || 'Attachment';\n        const fileUrl = file.webViewLink;\n\n        attachmentList.push({\n            name: fileName,\n            url: fileUrl\n        });\n    });\n});\n\n// Return as a formatted JSON string for Postgres $3 parameter\nreturn [{\n    json: {\n        attachments_json: JSON.stringify(attachmentList)\n    }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -195,8 +195,8 @@
       "webhookId": "c8cc0589-78a6-4dc1-8cba-f8bcfa0c62ca",
       "credentials": {
         "gmailOAuth2": {
-          "id": "VKDbMYV2U0WoSc16",
-          "name": "n8n072826"
+          "id": "YE9RFYruaRVVZ6H4",
+          "name": "CRMapp"
         }
       }
     },
@@ -297,7 +297,7 @@
     },
     {
       "parameters": {
-        "jsCode": "function safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\nfunction escapeHtml(s) {\n  return (s || '').toString()\n    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')\n    .replace(/\"/g, '&quot;').replace(/'/g, '&#39;');\n}\nfunction genId() {\n  return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);\n}\nfunction toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction money(n) { return n != null && n !== '' ? '$' + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''; }\nfunction dateStr(d) { return d ? new Date(d).toLocaleDateString() : ''; }\n\n// A tracking pixel only works in an HTML email \u2014 the two Gmail nodes\n// downstream switched from emailType 'text' to 'html' alongside this.\n// contact_id always comes straight from the webhook body here (this is\n// the manual \"Email Contact\" send, always initiated FROM a contact).\n// Source data comes from 'format base64' rather than $json/$input because\n// intervening Postgres lookups (like every other Postgres lookup in this\n// workflow) don't pass through the original item's fields or binary data\n// \u2014 only a named-node reference does.\nconst source = $('format base64').item.json;\nconst contactId = Number(source.contact_id);\nconst pixelId = genId();\nconst pixelUrl = `${safeEnv('N8N_WEBHOOK_BASE_URL')}/webhook/track-email-open?id=${pixelId}&contact_id=${contactId}`;\nconst pixelTag = `<img src=\"${pixelUrl}\" width=\"1\" height=\"1\" style=\"display:none\" alt=\"\" />`;\nconst unsubToken = $('Get Unsubscribe Token').item.json.unsubscribe_token || '';\nconst unsubUrl = safeEnv('FRONTEND_BASE_URL') + '/unsubscribe/' + unsubToken;\nconst footer = `<br><br><span style=\"font-size:11px;color:#94a3b8\">Don't want these emails? <a href=\"${unsubUrl}\">Unsubscribe</a></span>`;\n\n// Dynamic-field substitution \u2014 resolves tokens a manual send previously\n// couldn't (e.g. {{appointment.start_time}}), using the Dynamic Fields:*\n// lookup nodes upstream (each alwaysOutputData:true so a contact with no\n// deal/activity still yields an item, just with null columns, instead of\n// crashing this node on a missing item). {{company_name}} (the SENDER's\n// own company) is deliberately left untouched here \u2014 the two Gmail nodes\n// still substitute that themselves via Get Company Name: message/message1,\n// same as before this change; only {{company.name}} (the CONTACT's own\n// company) is resolved here.\nconst contactFields = $('Dynamic Fields: Contact').item.json;\nconst pipelineFields = $('Dynamic Fields: Pipeline').item.json;\nconst stageFields = $('Dynamic Fields: Pipeline Stage').item.json;\nconst activityFields = $('Dynamic Fields: Activities').item.json;\nconst contactTz = contactFields?.timezone || 'America/New_York';\nconst appointmentTime = activityFields?.due_at\n  ? DateTime.fromISO(activityFields.due_at, { zone: 'utc' }).setZone(contactTz).toFormat(\"EEEE, MMMM d 'at' h:mm a\")\n  : '';\n\nfunction fillDynamicFields(t) {\n  return (t || '')\n    .replace(/{{\\s*appointment\\.start_time\\s*}}/gi, appointmentTime)\n    .replace(/{{\\s*appointment\\.title\\s*}}/gi, activityFields?.subject || '')\n    .replace(/{{\\s*appointment\\.location\\s*}}/gi, activityFields?.location || '')\n    .replace(/{{\\s*company\\.name\\s*}}/gi, toTitleCase(contactFields?.company_name))\n    .replace(/{{\\s*opportunity\\.name\\s*}}/gi, pipelineFields?.name || '')\n    .replace(/{{\\s*opportunity\\.value\\s*}}/gi, money(pipelineFields?.deal_value))\n    .replace(/{{\\s*opportunity\\.stage\\s*}}/gi, stageFields?.name || '')\n    .replace(/{{\\s*opportunity\\.pipeline\\s*}}/gi, pipelineFields?.pipeline_name || '')\n    .replace(/{{\\s*opportunity\\.due_at\\s*}}/gi, dateStr(pipelineFields?.expected_close));\n}\n\nconst filledSubject = fillDynamicFields(source.subject || '');\nconst filledMessage = fillDynamicFields(source.message || '');\nconst htmlMessage = escapeHtml(filledMessage).replace(/\\n/g, '<br>') + pixelTag + footer;\nreturn [{ json: { ...source, subject: filledSubject, htmlMessage, pixelId }, binary: $('format base64').item.binary }];"
+        "jsCode": "function safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\nfunction escapeHtml(s) {\n  return (s || '').toString()\n    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')\n    .replace(/\"/g, '&quot;').replace(/'/g, '&#39;');\n}\nfunction genId() {\n  return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);\n}\nfunction toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction money(n) { return n != null && n !== '' ? '$' + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''; }\nfunction dateStr(d) { return d ? new Date(d).toLocaleDateString() : ''; }\n\n// A tracking pixel only works in an HTML email — the two Gmail nodes\n// downstream switched from emailType 'text' to 'html' alongside this.\n// contact_id always comes straight from the webhook body here (this is\n// the manual \"Email Contact\" send, always initiated FROM a contact).\n// Source data comes from 'format base64' rather than $json/$input because\n// intervening Postgres lookups (like every other Postgres lookup in this\n// workflow) don't pass through the original item's fields or binary data\n// — only a named-node reference does.\nconst source = $('format base64').item.json;\nconst contactId = Number(source.contact_id);\nconst pixelId = genId();\nconst pixelUrl = `${safeEnv('N8N_WEBHOOK_BASE_URL')}/webhook/track-email-open?id=${pixelId}&contact_id=${contactId}`;\nconst pixelTag = `<img src=\"${pixelUrl}\" width=\"1\" height=\"1\" style=\"display:none\" alt=\"\" />`;\nconst unsubToken = $('Get Unsubscribe Token').item.json.unsubscribe_token || '';\nconst unsubUrl = safeEnv('FRONTEND_BASE_URL') + '/unsubscribe/' + unsubToken;\nconst footer = `<br><br><span style=\"font-size:11px;color:#94a3b8\">Don't want these emails? <a href=\"${unsubUrl}\">Unsubscribe</a></span>`;\n\n// Dynamic-field substitution — resolves tokens a manual send previously\n// couldn't (e.g. {{appointment.start_time}}), using the Dynamic Fields:*\n// lookup nodes upstream (each alwaysOutputData:true so a contact with no\n// deal/activity still yields an item, just with null columns, instead of\n// crashing this node on a missing item). {{company_name}} (the SENDER's\n// own company) is deliberately left untouched here — the two Gmail nodes\n// still substitute that themselves via Get Company Name: message/message1,\n// same as before this change; only {{company.name}} (the CONTACT's own\n// company) is resolved here.\nconst contactFields = $('Dynamic Fields: Contact').item.json;\nconst pipelineFields = $('Dynamic Fields: Pipeline').item.json;\nconst stageFields = $('Dynamic Fields: Pipeline Stage').item.json;\nconst activityFields = $('Dynamic Fields: Activities').item.json;\nconst contactTz = contactFields?.timezone || 'America/New_York';\nconst appointmentTime = activityFields?.due_at\n  ? DateTime.fromISO(activityFields.due_at, { zone: 'utc' }).setZone(contactTz).toFormat(\"EEEE, MMMM d 'at' h:mm a\")\n  : '';\n\nfunction fillDynamicFields(t) {\n  return (t || '')\n    .replace(/{{\\s*appointment\\.start_time\\s*}}/gi, appointmentTime)\n    .replace(/{{\\s*appointment\\.title\\s*}}/gi, activityFields?.subject || '')\n    .replace(/{{\\s*appointment\\.location\\s*}}/gi, activityFields?.location || '')\n    .replace(/{{\\s*company\\.name\\s*}}/gi, toTitleCase(contactFields?.company_name))\n    .replace(/{{\\s*opportunity\\.name\\s*}}/gi, pipelineFields?.name || '')\n    .replace(/{{\\s*opportunity\\.value\\s*}}/gi, money(pipelineFields?.deal_value))\n    .replace(/{{\\s*opportunity\\.stage\\s*}}/gi, stageFields?.name || '')\n    .replace(/{{\\s*opportunity\\.pipeline\\s*}}/gi, pipelineFields?.pipeline_name || '')\n    .replace(/{{\\s*opportunity\\.due_at\\s*}}/gi, dateStr(pipelineFields?.expected_close));\n}\n\nconst filledSubject = fillDynamicFields(source.subject || '');\nconst filledMessage = fillDynamicFields(source.message || '');\nconst htmlMessage = escapeHtml(filledMessage).replace(/\\n/g, '<br>') + pixelTag + footer;\nreturn [{ json: { ...source, subject: filledSubject, htmlMessage, pixelId }, binary: $('format base64').item.binary }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -403,7 +403,7 @@
       "id": "dyn-contact-fields",
       "name": "Dynamic Fields: Contact",
       "notesInFlow": true,
-      "notes": "Read-only lookup, not wired into any send/substitution logic yet \u2014 stages the contact/company/owner data for a future dynamic-field pass without touching the existing code nodes.",
+      "notes": "Read-only lookup, not wired into any send/substitution logic yet — stages the contact/company/owner data for a future dynamic-field pass without touching the existing code nodes.",
       "credentials": {
         "postgres": {
           "id": "OJlr1rmibAS2w3rj",
@@ -429,7 +429,7 @@
       "id": "dyn-pipeline-fields",
       "name": "Dynamic Fields: Pipeline",
       "notesInFlow": true,
-      "notes": "Most relevant deal for this contact \u2014 prefers an Open one, falls back to the most recently updated. Read-only, not consumed anywhere yet.",
+      "notes": "Most relevant deal for this contact — prefers an Open one, falls back to the most recently updated. Read-only, not consumed anywhere yet.",
       "credentials": {
         "postgres": {
           "id": "OJlr1rmibAS2w3rj",
@@ -481,7 +481,7 @@
       "id": "dyn-activities-fields",
       "name": "Dynamic Fields: Activities",
       "notesInFlow": true,
-      "notes": "Most relevant activity for this contact \u2014 prefers the next upcoming one, falls back to the most recent past one. Read-only, not consumed anywhere yet.",
+      "notes": "Most relevant activity for this contact — prefers the next upcoming one, falls back to the most recent past one. Read-only, not consumed anywhere yet.",
       "credentials": {
         "postgres": {
           "id": "OJlr1rmibAS2w3rj",
@@ -520,6 +520,60 @@
         1425
       ],
       "onError": "continueRegularOutput"
+    },
+    {
+      "id": "6f9ddc23-59ba-4c7c-b2fb-1eb18aeab625",
+      "name": "Extract Bearer Token: send-email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        1120
+      ],
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      }
+    },
+    {
+      "id": "2c2fc9c3-6139-43f4-88cd-37a3642c32ed",
+      "name": "Execute Workflow: Verify Session: send-email",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        2200,
+        1120
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a5a43e5c-9fb8-46bb-b0b0-08a75c972416",
+      "name": "Validate Session: send-email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2320,
+        1120
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\nif (!r.active) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      }
     }
   ],
   "pinData": {},
@@ -539,7 +593,7 @@
       "main": [
         [
           {
-            "node": "Log Workflow Run: Webhook",
+            "node": "Extract Bearer Token: send-email",
             "type": "main",
             "index": 0
           }
@@ -756,6 +810,39 @@
         [
           {
             "node": "format base64",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: send-email": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: send-email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: send-email": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: send-email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: send-email": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: Webhook",
             "type": "main",
             "index": 0
           }

@@ -13,11 +13,9 @@ const PORT = 5681;
 const DB_PATH = path.join(os.homedir(), '.n8n', 'database.sqlite');
 
 // n8n stores execution error/result data as a `flatted`-encoded graph (to
-// survive circular references). n8n ships its own copy of the `flatted`
-// package — reuse it instead of adding a new dependency.
-const { parse: flattedParse } = require(
-  path.join(os.homedir(), '.nvm/versions/node/v20.20.2/lib/node_modules/n8n/node_modules/flatted')
-);
+// survive circular references). Installed as a normal project dependency so
+// this doesn't depend on where (or under which Node version) n8n is installed.
+const { parse: flattedParse } = require('flatted');
 
 const SERVICE_NODE_PREFIXES = {
   gmail: ['n8n-nodes-base.gmail'],

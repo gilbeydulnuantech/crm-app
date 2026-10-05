@@ -520,7 +520,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: update-payment').first().json.body || {};\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" is required.');\n\n// Refunding or cancelling money movement is admin-only \u2014 status\n// changes like marking paid/failed stay open to any rep.\nconst RESTRICTED_STATUSES = ['refunded', 'partially_refunded', 'cancelled'];\nif (RESTRICTED_STATUSES.includes(body.status) && requester.role !== 'admin') {\n  throw new Error('Admin access required to refund or cancel a payment.');\n}\n\nconst VALID_STATUSES = ['pending', 'processing', 'paid', 'partially_paid', 'failed', 'refunded', 'partially_refunded', 'cancelled'];\nif (body.status !== undefined && !VALID_STATUSES.includes(body.status)) throw new Error('Invalid status.');\n\nreturn [{\n  json: {\n    id,\n    status: body.status !== undefined ? body.status : null,\n    amountReceived: body.amount_received !== undefined ? Number(body.amount_received) : null,\n    refundedAmount: body.refunded_amount !== undefined ? Number(body.refunded_amount) : null,\n    method: body.method !== undefined ? body.method : null,\n    reference: body.reference !== undefined ? body.reference : null,\n    paymentDate: body.payment_date !== undefined ? body.payment_date : null,\n    dueDate: body.due_date !== undefined ? body.due_date : null,\n    notes: body.notes !== undefined ? body.notes : null,\n    ownerId: body.owner_id !== undefined ? (body.owner_id || null) : null,\n    requesterId: requester.id,\n    requesterName: requester.name,\n  },\n}];"
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: update-payment').first().json.body || {};\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" is required.');\n\n// Refunding or cancelling money movement is admin-only — status\n// changes like marking paid/failed stay open to any rep.\nconst RESTRICTED_STATUSES = ['refunded', 'partially_refunded', 'cancelled'];\nif (RESTRICTED_STATUSES.includes(body.status) && requester.role !== 'admin') {\n  throw new Error('Admin access required to refund or cancel a payment.');\n}\n\nconst VALID_STATUSES = ['pending', 'processing', 'paid', 'partially_paid', 'failed', 'refunded', 'partially_refunded', 'cancelled'];\nif (body.status !== undefined && !VALID_STATUSES.includes(body.status)) throw new Error('Invalid status.');\n\nreturn [{\n  json: {\n    id,\n    status: body.status !== undefined ? body.status : null,\n    amountReceived: body.amount_received !== undefined ? Number(body.amount_received) : null,\n    refundedAmount: body.refunded_amount !== undefined ? Number(body.refunded_amount) : null,\n    method: body.method !== undefined ? body.method : null,\n    reference: body.reference !== undefined ? body.reference : null,\n    paymentDate: body.payment_date !== undefined ? body.payment_date : null,\n    dueDate: body.due_date !== undefined ? body.due_date : null,\n    notes: body.notes !== undefined ? body.notes : null,\n    ownerId: body.owner_id !== undefined ? (body.owner_id || null) : null,\n    requesterId: requester.id,\n    requesterName: requester.name,\n  },\n}];"
       },
       "id": "661eccb0-2e1f-4b5e-ab9e-0e4bd23258e0",
       "name": "Check Payload: update-payment",
@@ -857,8 +857,8 @@
       ],
       "credentials": {
         "gmailOAuth2": {
-          "id": "VKDbMYV2U0WoSc16",
-          "name": "n8n072826"
+          "id": "YE9RFYruaRVVZ6H4",
+          "name": "CRMapp"
         }
       },
       "onError": "continueErrorOutput"
@@ -1434,7 +1434,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT inv.id, inv.invoice_number, inv.opportunity_id, inv.contact_id, inv.account_id,\n  inv.amount, inv.tax, inv.discount, inv.total, inv.line_items, inv.issue_date, inv.due_date,\n  inv.internal_notes, inv.customer_notes, inv.is_voided, inv.created_at, inv.updated_at,\n  o.name AS deal_name,\n  ct.first_name AS contact_first_name, ct.last_name AS contact_last_name, ct.email AS contact_email, ct.phone AS contact_phone, ct.unsubscribe_token,\n  co.name AS account_name, co.street_address, co.city, co.state, co.zip_code, co.country,\n  ow.name AS owner_name\nFROM invoices inv\nLEFT JOIN opportunities o ON o.id = inv.opportunity_id\nLEFT JOIN contacts ct ON ct.id = inv.contact_id\nLEFT JOIN companies co ON co.id = inv.account_id\nLEFT JOIN users ow ON ow.id = COALESCE(ct.owner_id, co.owner_id)\nWHERE inv.id = $1;",
+        "query": "SELECT inv.id, inv.invoice_number, inv.opportunity_id, inv.contact_id, inv.account_id,\n  inv.amount, inv.tax, inv.discount, inv.total, inv.line_items, inv.issue_date, inv.due_date,\n  inv.internal_notes, inv.customer_notes, inv.is_voided, inv.public_token, inv.created_at, inv.updated_at,\n  o.name AS deal_name,\n  ct.first_name AS contact_first_name, ct.last_name AS contact_last_name, ct.email AS contact_email, ct.phone AS contact_phone, ct.unsubscribe_token,\n  co.name AS account_name, co.street_address, co.city, co.state, co.zip_code, co.country,\n  ow.name AS owner_name\nFROM invoices inv\nLEFT JOIN opportunities o ON o.id = inv.opportunity_id\nLEFT JOIN contacts ct ON ct.id = inv.contact_id\nLEFT JOIN companies co ON co.id = inv.account_id\nLEFT JOIN users ow ON ow.id = COALESCE(ct.owner_id, co.owner_id)\nWHERE inv.id = $1;",
         "options": {
           "queryReplacement": "={{ [ $json.invoiceId ] }}"
         }
@@ -1488,12 +1488,19 @@
     },
     {
       "parameters": {
-        "sendTo": "={{ $json.contact_email }}",
-        "subject": "={{ 'Invoice ' + $json.invoice_number }}",
+        "sendTo": "={{ $('Has Invoice Email?').item.json.contact_email }}",
+        "subject": "={{ 'Invoice ' + $('Has Invoice Email?').item.json.invoice_number }}",
         "emailType": "text",
-        "message": "={{ 'Hi ' + ($json.contact_first_name || '') + ',\\n\\nPlease find your invoice below.\\n\\nInvoice: ' + $json.invoice_number + '\\nTotal: $' + $json.total + '\\nDue: ' + ($json.due_date || 'on receipt') + ($json.deal_name ? ('\\nFor: ' + $json.deal_name) : '') + '\\n\\nThank you!' + '\\n\\n' + \"Don't want these emails? Unsubscribe: \" + ($env.FRONTEND_BASE_URL || '') + '/unsubscribe/' + ($json.unsubscribe_token || '') }}",
+        "message": "={{ 'Hi ' + ($('Has Invoice Email?').item.json.contact_first_name || '') + ',\\n\\nPlease find your invoice attached.\\n\\nInvoice: ' + $('Has Invoice Email?').item.json.invoice_number + '\\nTotal: $' + $('Has Invoice Email?').item.json.total + '\\nDue: ' + ($('Has Invoice Email?').item.json.due_date || 'on receipt') + ($('Has Invoice Email?').item.json.deal_name ? ('\\nFor: ' + $('Has Invoice Email?').item.json.deal_name) : '') + '\\n\\nThank you!' + '\\n\\n' + \"Don't want these emails? Unsubscribe: \" + ($env.FRONTEND_BASE_URL || '') + '/unsubscribe/' + ($('Has Invoice Email?').item.json.unsubscribe_token || '') }}",
         "options": {
-          "appendAttribution": false
+          "appendAttribution": false,
+          "attachmentsUi": {
+            "attachmentsBinary": [
+              {
+                "property": "={{ Object.keys($binary).join(',') }}"
+              }
+            ]
+          }
         }
       },
       "id": "5d2cb210-1402-4485-b5d4-8b9f0bd2b246",
@@ -1506,8 +1513,8 @@
       ],
       "credentials": {
         "gmailOAuth2": {
-          "id": "VKDbMYV2U0WoSc16",
-          "name": "n8n072826"
+          "id": "YE9RFYruaRVVZ6H4",
+          "name": "CRMapp"
         }
       },
       "onError": "continueErrorOutput"
@@ -3383,7 +3390,7 @@
         "operation": "executeQuery",
         "query": "UPDATE contacts SET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object('id', gen_random_uuid()::text, 'type', 'sent', 'subject', $1::text, 'message', $2::text, 'sent_at', NOW(), 'is_read', true) WHERE id = $3;",
         "options": {
-          "queryReplacement": "={{ [ 'Invoice ' + $('Has Invoice Email?').item.json.invoice_number, 'Hi ' + ($('Has Invoice Email?').item.json.contact_first_name || '') + ',\\n\\nPlease find your invoice below.\\n\\nInvoice: ' + $('Has Invoice Email?').item.json.invoice_number + '\\nTotal: $' + $('Has Invoice Email?').item.json.total + '\\nDue: ' + ($('Has Invoice Email?').item.json.due_date || 'on receipt') + ($('Has Invoice Email?').item.json.deal_name ? ('\\nFor: ' + $('Has Invoice Email?').item.json.deal_name) : '') + '\\n\\nThank you!', $('Has Invoice Email?').item.json.contact_id ] }}"
+          "queryReplacement": "={{ [ 'Invoice ' + $('Has Invoice Email?').item.json.invoice_number, 'Hi ' + ($('Has Invoice Email?').item.json.contact_first_name || '') + ',\\n\\nPlease find your invoice attached.\\n\\nInvoice: ' + $('Has Invoice Email?').item.json.invoice_number + '\\nTotal: $' + $('Has Invoice Email?').item.json.total + '\\nDue: ' + ($('Has Invoice Email?').item.json.due_date || 'on receipt') + ($('Has Invoice Email?').item.json.deal_name ? ('\\nFor: ' + $('Has Invoice Email?').item.json.deal_name) : '') + '\\n\\nThank you!', $('Has Invoice Email?').item.json.contact_id ] }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -3401,6 +3408,111 @@
         }
       },
       "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-invoice-print-public",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "8ef4547d-921b-440c-979e-5dfc7361516e",
+      "name": "Webhook: get-invoice-print-public",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "3b81a63e-94b0-4fbb-b734-721d4f141350"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT inv.invoice_number, inv.line_items, inv.issue_date, inv.due_date, inv.customer_notes,\n  COALESCE((SELECT SUM(p.amount_received - p.refunded_amount) FROM payments p WHERE p.invoice_id = inv.id AND p.is_archived = false), 0) AS amount_paid,\n  ct.first_name AS contact_first_name, ct.last_name AS contact_last_name, ct.email AS contact_email, ct.phone AS contact_phone,\n  co.name AS account_name, co.street_address, co.city, co.state, co.zip_code, co.country,\n  cp.company_name, cp.email AS company_email, cp.phone AS company_phone, cp.logo_url AS company_logo_url,\n  (SELECT t.settings FROM invoice_templates t WHERE t.is_active ORDER BY t.created_at DESC LIMIT 1) AS template_settings\nFROM invoices inv\nLEFT JOIN contacts ct ON ct.id = inv.contact_id\nLEFT JOIN companies co ON co.id = inv.account_id\nLEFT JOIN company_profile cp ON cp.id = 1\nWHERE inv.public_token::text = $1 AND inv.is_archived = false;",
+        "options": {
+          "queryReplacement": "={{ [ $json.query.token || '' ] }}"
+        }
+      },
+      "id": "5b410414-eb8d-43dc-b2ca-69155d4a1332",
+      "name": "Postgres: Select Invoice Print Public",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r || !r.invoice_number) return [{ json: { success: false, error: 'Invoice not found.' } }];\nreturn [{ json: { success: true, ...r, amount_paid: Number(r.amount_paid || 0) } }];"
+      },
+      "id": "21412427-7177-4e36-bd47-cb2c6ee51824",
+      "name": "Shape: get-invoice-print-public",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "56d9852b-9e79-4a41-8384-ea99d84b81ca",
+      "name": "Respond: get-invoice-print-public",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ 'http://localhost:5680/generate-pdf?type=invoice&token=' + $json.public_token + '&filename=' + encodeURIComponent('Invoice-' + $json.invoice_number + '.pdf') }}",
+        "options": {
+          "timeout": 120000,
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "70086804-8624-4b97-beb9-4b92a6c07f19",
+      "name": "Fetch Invoice PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        0,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const err = $input.first().json.error;\nconst msg = (err && (err.message || err.description)) || 'unknown error';\nreturn [{ json: { success: false, error: 'Could not generate the invoice PDF, so nothing was sent: ' + msg } }];"
+      },
+      "id": "4692a9be-a290-4f5e-a485-9c14e6232206",
+      "name": "Bridge: send-invoice (pdf error)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
     }
   ],
   "connections": {
@@ -4197,7 +4309,7 @@
       "main": [
         [
           {
-            "node": "Send Invoice Email",
+            "node": "Fetch Invoice PDF",
             "type": "main",
             "index": 0
           }
@@ -5299,6 +5411,68 @@
         [
           {
             "node": "Check Payload: delete-receipt-template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: get-invoice-print-public": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Select Invoice Print Public",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Select Invoice Print Public": {
+      "main": [
+        [
+          {
+            "node": "Shape: get-invoice-print-public",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shape: get-invoice-print-public": {
+      "main": [
+        [
+          {
+            "node": "Respond: get-invoice-print-public",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Invoice PDF": {
+      "main": [
+        [
+          {
+            "node": "Send Invoice Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Bridge: send-invoice (pdf error)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bridge: send-invoice (pdf error)": {
+      "main": [
+        [
+          {
+            "node": "Respond: send-invoice",
             "type": "main",
             "index": 0
           }

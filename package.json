@@ -34,6 +34,7 @@
     "@tiptap/react": "^2.9.1",
     "@tiptap/starter-kit": "^2.9.1",
     "@xyflow/react": "^12.11.3",
+    "flatted": "^3.2.7",
     "jspdf": "^2.5.2",
     "puppeteer": "^25.10.0",
     "react": "^18.3.1",

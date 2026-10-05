@@ -1,0 +1,2314 @@
+{
+  "name": "Document Triage (PO, Invoice, Receipt)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "document-intake",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "document-intake",
+      "name": "Document Intake",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        176
+      ],
+      "webhookId": "0a8d7cea-601a-4f94-854b-d464b1485b14"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c1",
+                    "leftValue": "={{ $binary.file.mimeType }}",
+                    "rightValue": "application/pdf",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c2",
+                    "leftValue": "={{ $binary.file.mimeType }}",
+                    "rightValue": "image/",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "detect-file-type",
+      "name": "Detect File Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        448,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $binary.file.mimeType === 'application/pdf' || $binary.file.mimeType.startsWith('image/') }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "is-supported-file-type?",
+      "name": "Is Supported File Type?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        224,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "file",
+        "options": {}
+      },
+      "id": "extract-from-file",
+      "name": "Extract from File",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        672,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a strict document data-extraction engine for an accounting firm. You must respond with ONLY a valid JSON object. No explanations, no preamble, no markdown code fences. Your entire response must start with { and end with }.\n\nClassify and extract data from this document text: {{ $json.text }}\n\nFirst decide Document_Type: one of \"PO\", \"Invoice\", \"Receipt\", or \"Other\" (use \"Other\" if it doesn't clearly match any of the first three).\n\nThen extract:\n- Vendor: the company ISSUING the document and being paid. It is usually the name/logo/contact block at the top-left or top of the page (the biller). Also look near \"Vendor\", \"Supplier\", \"From\", \"Seller\", \"Pay to\", or \"Remit to\".\n- Client_Name: the customer who is BEING BILLED and will pay. Take it ONLY from a labelled field such as \"Bill To\", \"Billed To\", \"Invoice To\", \"Customer\", \"Client\", \"Sold To\", \"Paid By\", \"To\", or \"Ship To\", using the name written next to or under that label. NEVER use the name from the top-left/header block (that is the Vendor) as Client_Name. If the labelled field is missing, empty, or says \"Unknown\", \"N/A\", \"-\" or similar, return \"\" for Client_Name; do not guess and do not copy the Vendor.\n- Document_Number: PO number, invoice number, or receipt number, whichever applies\n- Date: the document date\n- Due_Date: if present (common on invoices)\n- Email: any email address found in the vendor/supplier block\n- Sub_Total, Tax, Shipping_Fee, Discount, Grand_Total\n- Line_Items: array of {Description, Qty, Price, Total}\n\nReturn ONLY this exact JSON structure:\n{\n  \"Document_Type\": \"\",\n  \"Vendor\": \"\",\n  \"Client_Name\": \"\",\n  \"Document_Number\": \"\",\n  \"Date\": \"\",\n  \"Due_Date\": \"\",\n  \"Email\": \"\",\n  \"Sub_Total\": \"\",\n  \"Tax\": \"\",\n  \"Shipping_Fee\": \"\",\n  \"Discount\": \"\",\n  \"Grand_Total\": \"\",\n  \"Line_Items\": [ { \"Description\": \"\", \"Qty\": 0, \"Price\": \"\", \"Total\": \"\" } ]\n}"
+      },
+      "id": "basic-llm-chain",
+      "name": "Basic LLM Chain",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        896,
+        -224
+      ]
+    },
+    {
+      "parameters": {
+        "model": "hermes3:3b",
+        "options": {}
+      },
+      "id": "ollama-model",
+      "name": "Ollama Model",
+      "type": "@n8n/n8n-nodes-langchain.lmOllama",
+      "typeVersion": 1,
+      "position": [
+        968,
+        0
+      ],
+      "credentials": {
+        "ollamaApi": {
+          "id": "waHf2pQ4EmFM5haf",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Basic LLM Chain (Ollama) returns { text: \"<preamble>```json\\n{...}\\n```\" }\n// Strip markdown fences/preamble, parse the JSON.\nconst raw = $input.first().json;\nlet rawText = raw.text ?? '';\nconst fenceMatch = rawText.match(/```(?:json)?\\s*([\\s\\S]*?)```/i);\nif (fenceMatch) {\n  rawText = fenceMatch[1];\n} else {\n  const start = rawText.indexOf('{');\n  const end = rawText.lastIndexOf('}');\n  if (start !== -1 && end !== -1) rawText = rawText.slice(start, end + 1);\n}\nlet parsed;\ntry {\n  parsed = JSON.parse(rawText.trim());\n} catch (e) {\n  throw new Error('Could not parse JSON from Ollama output: ' + rawText);\n}\nreturn { json: parsed };"
+      },
+      "id": "format-ollama-output",
+      "name": "Format Ollama Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "binaryToPropery",
+        "binaryPropertyName": "file",
+        "options": {}
+      },
+      "id": "image-convert-to-base64",
+      "name": "Image: Convert to Base64",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        672,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { model: 'llava', stream: false, prompt: 'You are a strict document data-extraction engine for an accounting firm. Look at this document image. Respond with ONLY a valid JSON object, no explanations, no markdown fences.\\n\\nDocument_Type: one of \"PO\", \"Invoice\", \"Receipt\", or \"Other\".\\nVendor: the company ISSUING the document and being paid, usually the name/logo block at the top-left (the biller).\\nClient_Name: the customer being billed, taken ONLY from a labelled field such as \"Bill To\", \"Billed To\", \"Invoice To\", \"Customer\", \"Client\", \"Sold To\", \"Paid By\" or \"To\". NEVER use the top-left/header company name. If that field is missing, empty or says \"Unknown\", return \"\".\\nAlso extract Document_Number, Date, Due_Date, Email (from the vendor block), Sub_Total, Tax, Shipping_Fee, Discount, Grand_Total, and Line_Items.\\n\\nReturn exactly: {\"Document_Type\":\"\",\"Vendor\":\"\",\"Client_Name\":\"\",\"Document_Number\":\"\",\"Date\":\"\",\"Due_Date\":\"\",\"Email\":\"\",\"Sub_Total\":\"\",\"Tax\":\"\",\"Shipping_Fee\":\"\",\"Discount\":\"\",\"Grand_Total\":\"\",\"Line_Items\":[{\"Description\":\"\",\"Qty\":0,\"Price\":\"\",\"Total\":\"\"}]}', images: [$json.data] } }}",
+        "options": {}
+      },
+      "id": "ollama-vision-requires-llava-model",
+      "name": "Ollama Vision (REQUIRES llava model)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        176
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Basic LLM Chain (Ollama) returns { text: \"<preamble>```json\\n{...}\\n```\" }\n// Strip markdown fences/preamble, parse the JSON.\nconst raw = $input.first().json;\nlet rawText = raw.response ?? '';\nconst fenceMatch = rawText.match(/```(?:json)?\\s*([\\s\\S]*?)```/i);\nif (fenceMatch) {\n  rawText = fenceMatch[1];\n} else {\n  const start = rawText.indexOf('{');\n  const end = rawText.lastIndexOf('}');\n  if (start !== -1 && end !== -1) rawText = rawText.slice(start, end + 1);\n}\nlet parsed;\ntry {\n  parsed = JSON.parse(rawText.trim());\n} catch (e) {\n  throw new Error('Could not parse JSON from Ollama output: ' + rawText);\n}\nreturn { json: parsed };"
+      },
+      "id": "format-vision-output",
+      "name": "Format Vision Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'unsupported', message: 'Only PDF and image files are supported.' } }}",
+        "options": {}
+      },
+      "id": "respond---unsupported-file-type",
+      "name": "Respond - Unsupported File Type",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        448,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Clean numbers, validate math, and flatten for downstream routing.\nconst raw = $input.first().json;\n\nconst toNum = (val) => {\n  if (val === null || val === undefined || val === '') return 0;\n  const cleaned = parseFloat(String(val).replace(/[^-0-9.]/g, ''));\n  return isNaN(cleaned) ? 0 : cleaned;\n};\n\nconst sub_total = toNum(raw.Sub_Total);\nconst tax = toNum(raw.Tax);\nconst shipping_fee = toNum(raw.Shipping_Fee);\nconst discount = toNum(raw.Discount);\nconst grand_total = toNum(raw.Grand_Total);\n\nconst calculated = (sub_total + tax + shipping_fee) - discount;\nconst math_valid = Math.abs(calculated - grand_total) < 0.05;\n\nconst line_items = (raw.Line_Items || []).map((i) => ({\n  description: i.Description, qty: toNum(i.Qty), price: toNum(i.Price), total: toNum(i.Total),\n}));\n\n// Deterministic party extraction from the PDF text (small local models swap Vendor/Client).\n// Vendor = top-left name block (the biller). Client = value under a \"Bill To\"-style label.\nconst norm = (s) => String(s || '').trim().toLowerCase();\nconst PLACEHOLDERS = ['unknown', 'n/a', 'na', 'none', 'null', '-', '--', ''];\nconst isBlank = (s) => PLACEHOLDERS.includes(norm(s));\nlet docText = '';\ntry { docText = String($('Extract from File').first().json.text || ''); } catch (e) { docText = ''; }\nconst lines = docText.split('\\n').map((l) => l.trim()).filter(Boolean);\nconst LABEL = /^(bill(?:ed)?\\s*to|invoice\\s*to|sold\\s*to|customer(?:\\s*name)?|client(?:\\s*name)?|paid\\s*by|to)\\b\\s*:?\\s*(.*)$/i;\nconst HEADERS = /^(invoice|purchase order|receipt|tax invoice|bill|po|page\\s*\\d+)$/i;\n\nlet labelFound = false;\nlet labelClient = '';\nfor (let i = 0; i < lines.length; i++) {\n  const m = lines[i].match(LABEL);\n  if (!m) continue;\n  labelFound = true;\n  labelClient = m[2] ? m[2].trim() : (lines[i + 1] || '').trim();\n  break;\n}\n\n// Vendor: top-left block, the first line that is not a document-type heading, email, or phone.\nconst topLine = lines.find((l) => !HEADERS.test(l) && !/@/.test(l) && !/^[+\\d(][\\d\\s().+-]{6,}$/.test(l)) || '';\nlet vendor = String(raw.Vendor || '').trim();\nif (isBlank(vendor) && topLine) vendor = topLine;\n\nlet clientName;\nif (labelFound) {\n  clientName = isBlank(labelClient) ? '' : labelClient;\n} else {\n  clientName = String(raw.Client_Name || '').trim();\n  if (isBlank(clientName) || /@/.test(clientName)) clientName = '';\n}\n// A client can never be the biller.\nif (clientName && (norm(clientName) === norm(vendor) || (topLine && norm(clientName) === norm(topLine)))) clientName = '';\n\nconst docType = ['PO', 'Invoice', 'Receipt'].includes(raw.Document_Type) ? raw.Document_Type : 'Other';\n\nreturn { json: {\n  document_type: docType,\n  vendor,\n  client_name: clientName,\n  document_number: raw.Document_Number || '',\n  date: raw.Date || '',\n  due_date: raw.Due_Date || '',\n  email: raw.Email || '',\n  sub_total, tax, shipping_fee, discount, grand_total,\n  line_items,\n  math_valid,\n  math_error_details: math_valid ? 'None' : `AI said ${grand_total}, math says ${calculated.toFixed(2)}`,\n} };"
+      },
+      "id": "parse-and-validate",
+      "name": "Parse & Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1472,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c1",
+                    "leftValue": "={{ $json.document_type }}",
+                    "rightValue": "PO",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c1",
+                    "leftValue": "={{ $json.document_type }}",
+                    "rightValue": "Invoice",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c1",
+                    "leftValue": "={{ $json.document_type }}",
+                    "rightValue": "Receipt",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c1",
+                    "leftValue": "={{ $json.document_type }}",
+                    "rightValue": "Other",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "document-type-router",
+      "name": "Document Type Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1696,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1dg9AWWdPCKXXtano0TLb3vryPfl3q2QqqKBUiEXgtWk",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $json.date }}",
+            "Document Number": "={{ $json.document_number }}",
+            "Vendor": "={{ $json.vendor }}",
+            "Client Name": "={{ $json.client_name }}",
+            "Item Description": "={{ $json.item_description }}",
+            "Qty": "={{ $json.qty }}",
+            "Unit Price": "={{ $json.unit_price }}",
+            "Line Total": "={{ $json.line_total }}",
+            "Grand Total": "={{ $json.grand_total }}",
+            "Status": "={{ $json.status }}",
+            "Reason": "={{ $json.reason }}",
+            "Record_Type": "={{ $json.record_type }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Document Number",
+              "displayName": "Document Number",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Vendor",
+              "displayName": "Vendor",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Client Name",
+              "displayName": "Client Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Item Description",
+              "displayName": "Item Description",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Qty",
+              "displayName": "Qty",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Unit Price",
+              "displayName": "Unit Price",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Line Total",
+              "displayName": "Line Total",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Grand Total",
+              "displayName": "Grand Total",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Reason",
+              "displayName": "Reason",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Record_Type",
+              "displayName": "Record_Type",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-open-po",
+      "name": "Log Open PO",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1920,
+        -240
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GSpoIYvGWcupaJN9",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0ANHTFK939",
+          "mode": "id"
+        },
+        "text": "=New PO logged: {{ $json.document_number }} \u2014 {{ $json.vendor }} \u2014 ${{ $json.grand_total }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "id": "notify-new-po-logged",
+      "name": "Notify: New PO Logged",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        2144,
+        -240
+      ],
+      "webhookId": "24da6d4b-2061-4651-adab-f9144806b903",
+      "credentials": {
+        "slackApi": {
+          "id": "JEnNAd5h6SUEwVdd",
+          "name": "hitl"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'logged', document_type: 'PO' } }}",
+        "options": {}
+      },
+      "id": "respond---po-logged",
+      "name": "Respond - PO Logged",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2368,
+        -240
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1dg9AWWdPCKXXtano0TLb3vryPfl3q2QqqKBUiEXgtWk",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1dg9AWWdPCKXXtano0TLb3vryPfl3q2QqqKBUiEXgtWk/edit#gid=0"
+        },
+        "options": {}
+      },
+      "id": "lookup-open-pos-by-vendor",
+      "name": "Lookup Open POs by Vendor",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1920,
+        -16
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GSpoIYvGWcupaJN9",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Fuzzy-match this invoice against open POs from the same vendor.\n// Exact (amount within $1) -> auto-reconcile. Close (within 10%) ->\n// AI-explainable flag for quick human confirmation. No match -> full review.\nconst invoice = $('Parse & Validate').first().json;\nconst openPOs = $input.all();\n\nif (!invoice.math_valid) {\n  return [{ json: { ...invoice, match_result: 'needs_review', match_reason: 'Math does not reconcile: ' + invoice.math_error_details } }];\n}\n\nlet best = null;\nlet bestDiff = Infinity;\nfor (const po of openPOs) {\n  const poTotal = parseFloat(po.json['Grand Total']) || 0;\n  const diff = Math.abs(poTotal - invoice.grand_total);\n  if (diff < bestDiff) { bestDiff = diff; best = po.json; }\n}\n\nif (!best) {\n  return [{ json: { ...invoice, match_result: 'no_match', match_reason: 'No open PO found for this vendor.' } }];\n}\nif (bestDiff < 1) {\n  return [{ json: { ...invoice, match_result: 'matched', match_reason: 'Exact amount match against PO ' + best['PO Number'], matched_po_number: best['PO Number'] } }];\n}\nconst pctDiff = (bestDiff / (best['Grand Total'] || 1)) * 100;\nif (pctDiff < 10) {\n  return [{ json: { ...invoice, match_result: 'needs_confirmation', match_reason: `Invoice differs from PO ${best['PO Number']} by $${bestDiff.toFixed(2)} (${pctDiff.toFixed(1)}%) \u2014 likely shipping/rounding, needs quick confirmation.`, matched_po_number: best['PO Number'] } }];\n}\nreturn [{ json: { ...invoice, match_result: 'needs_review', match_reason: `Closest PO (${best['PO Number']}) differs by $${bestDiff.toFixed(2)} \u2014 too large to auto-reconcile.` } }];"
+      },
+      "id": "match-against-open-pos",
+      "name": "Match Against Open POs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2144,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c1",
+                    "leftValue": "={{ $json.match_result }}",
+                    "rightValue": "matched",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c1",
+                    "leftValue": "={{ $json.match_result }}",
+                    "rightValue": "needs_confirmation",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c1",
+                    "leftValue": "={{ $json.match_result }}",
+                    "rightValue": "needs_review",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c1",
+                    "leftValue": "={{ $json.match_result }}",
+                    "rightValue": "no_match",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "match-result-router",
+      "name": "Match Result Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        2368,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1dg9AWWdPCKXXtano0TLb3vryPfl3q2QqqKBUiEXgtWk",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $json.date }}",
+            "Document Number": "={{ $json.document_number }}",
+            "Vendor": "={{ $json.vendor }}",
+            "Client Name": "={{ $json.client_name }}",
+            "Item Description": "={{ $json.item_description }}",
+            "Qty": "={{ $json.qty }}",
+            "Unit Price": "={{ $json.unit_price }}",
+            "Line Total": "={{ $json.line_total }}",
+            "Grand Total": "={{ $json.grand_total }}",
+            "Status": "={{ $json.status }}",
+            "Reason": "={{ $json.reason }}",
+            "Record_Type": "={{ $json.record_type }}"
+          },
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Document Number",
+              "displayName": "Document Number",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Vendor",
+              "displayName": "Vendor",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Client Name",
+              "displayName": "Client Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Item Description",
+              "displayName": "Item Description",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Qty",
+              "displayName": "Qty",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Unit Price",
+              "displayName": "Unit Price",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Line Total",
+              "displayName": "Line Total",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Grand Total",
+              "displayName": "Grand Total",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Reason",
+              "displayName": "Reason",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Record_Type",
+              "displayName": "Record_Type",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "matchingColumns": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-matched-invoice",
+      "name": "Log Matched Invoice",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2592,
+        -208
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GSpoIYvGWcupaJN9",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'reconciled', match_reason: $json.match_reason } }}",
+        "options": {}
+      },
+      "id": "respond---invoice-matched",
+      "name": "Respond - Invoice Matched",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2816,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1dg9AWWdPCKXXtano0TLb3vryPfl3q2QqqKBUiEXgtWk",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $json.date }}",
+            "Document Number": "={{ $json.document_number }}",
+            "Vendor": "={{ $json.vendor }}",
+            "Client Name": "={{ $json.client_name }}",
+            "Item Description": "={{ $json.item_description }}",
+            "Qty": "={{ $json.qty }}",
+            "Unit Price": "={{ $json.unit_price }}",
+            "Line Total": "={{ $json.line_total }}",
+            "Grand Total": "={{ $json.grand_total }}",
+            "Status": "={{ $json.status }}",
+            "Reason": "={{ $json.reason }}",
+            "Record_Type": "={{ $json.record_type }}"
+          },
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Document Number",
+              "displayName": "Document Number",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Vendor",
+              "displayName": "Vendor",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Client Name",
+              "displayName": "Client Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Item Description",
+              "displayName": "Item Description",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Qty",
+              "displayName": "Qty",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Unit Price",
+              "displayName": "Unit Price",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Line Total",
+              "displayName": "Line Total",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Grand Total",
+              "displayName": "Grand Total",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Reason",
+              "displayName": "Reason",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Record_Type",
+              "displayName": "Record_Type",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "matchingColumns": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-needs-confirmation",
+      "name": "Log Needs Confirmation",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2592,
+        -16
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GSpoIYvGWcupaJN9",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0ANHTFK939",
+          "mode": "id"
+        },
+        "text": "=Invoice needs quick confirmation: {{ $json.document_number }} \u2014 {{ $json.match_reason }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "id": "notify-needs-confirmation",
+      "name": "Notify: Needs Confirmation",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        2816,
+        -16
+      ],
+      "webhookId": "5a2977d5-10ef-4a44-9f83-a9a2c311551f",
+      "credentials": {
+        "slackApi": {
+          "id": "JEnNAd5h6SUEwVdd",
+          "name": "hitl"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'needs_confirmation', match_reason: $('Match Against Open POs').item.json.match_reason } }}",
+        "options": {}
+      },
+      "id": "respond---needs-confirmation",
+      "name": "Respond - Needs Confirmation",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        3040,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1dg9AWWdPCKXXtano0TLb3vryPfl3q2QqqKBUiEXgtWk",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $json.date }}",
+            "Document Number": "={{ $json.document_number }}",
+            "Vendor": "={{ $json.vendor }}",
+            "Client Name": "={{ $json.client_name }}",
+            "Item Description": "={{ $json.item_description }}",
+            "Qty": "={{ $json.qty }}",
+            "Unit Price": "={{ $json.unit_price }}",
+            "Line Total": "={{ $json.line_total }}",
+            "Grand Total": "={{ $json.grand_total }}",
+            "Status": "={{ $json.status }}",
+            "Reason": "={{ $json.reason }}",
+            "Record_Type": "={{ $json.record_type }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Document Number",
+              "displayName": "Document Number",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Vendor",
+              "displayName": "Vendor",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Client Name",
+              "displayName": "Client Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Item Description",
+              "displayName": "Item Description",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Qty",
+              "displayName": "Qty",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Unit Price",
+              "displayName": "Unit Price",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Line Total",
+              "displayName": "Line Total",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Grand Total",
+              "displayName": "Grand Total",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Reason",
+              "displayName": "Reason",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Record_Type",
+              "displayName": "Record_Type",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-needs-review",
+      "name": "Log Needs Review",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2592,
+        176
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GSpoIYvGWcupaJN9",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0ANHTFK939",
+          "mode": "id"
+        },
+        "text": "=:warning: Invoice needs full review: {{ $json.document_number }} \u2014 {{ $json.match_reason }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "id": "notify-needs-full-review",
+      "name": "Notify: Needs Full Review",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        2816,
+        176
+      ],
+      "webhookId": "5340220d-d15b-4bc3-8cdc-5bfc03340f88",
+      "credentials": {
+        "slackApi": {
+          "id": "JEnNAd5h6SUEwVdd",
+          "name": "hitl"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'needs_review', match_reason: $('Match Against Open POs').item.json.match_reason } }}",
+        "options": {}
+      },
+      "id": "respond---needs-review",
+      "name": "Respond - Needs Review",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        3040,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1dg9AWWdPCKXXtano0TLb3vryPfl3q2QqqKBUiEXgtWk",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $json.date }}",
+            "Document Number": "={{ $json.document_number }}",
+            "Vendor": "={{ $json.vendor }}",
+            "Client Name": "={{ $json.client_name }}",
+            "Item Description": "={{ $json.item_description }}",
+            "Qty": "={{ $json.qty }}",
+            "Unit Price": "={{ $json.unit_price }}",
+            "Line Total": "={{ $json.line_total }}",
+            "Grand Total": "={{ $json.grand_total }}",
+            "Status": "={{ $json.status }}",
+            "Reason": "={{ $json.reason }}",
+            "Record_Type": "={{ $json.record_type }}"
+          },
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Document Number",
+              "displayName": "Document Number",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Vendor",
+              "displayName": "Vendor",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Client Name",
+              "displayName": "Client Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Item Description",
+              "displayName": "Item Description",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Qty",
+              "displayName": "Qty",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Unit Price",
+              "displayName": "Unit Price",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Line Total",
+              "displayName": "Line Total",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Grand Total",
+              "displayName": "Grand Total",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Reason",
+              "displayName": "Reason",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Record_Type",
+              "displayName": "Record_Type",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "matchingColumns": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-receipt",
+      "name": "Log Receipt",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1920,
+        176
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GSpoIYvGWcupaJN9",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'logged', document_type: 'Receipt' } }}",
+        "options": {}
+      },
+      "id": "respond---receipt-logged",
+      "name": "Respond - Receipt Logged",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2144,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1dg9AWWdPCKXXtano0TLb3vryPfl3q2QqqKBUiEXgtWk",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $json.date }}",
+            "Document Number": "={{ $json.document_number }}",
+            "Vendor": "={{ $json.vendor }}",
+            "Client Name": "={{ $json.client_name }}",
+            "Item Description": "={{ $json.item_description }}",
+            "Qty": "={{ $json.qty }}",
+            "Unit Price": "={{ $json.unit_price }}",
+            "Line Total": "={{ $json.line_total }}",
+            "Grand Total": "={{ $json.grand_total }}",
+            "Status": "={{ $json.status }}",
+            "Reason": "={{ $json.reason }}",
+            "Record_Type": "={{ $json.record_type }}"
+          },
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Document Number",
+              "displayName": "Document Number",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Vendor",
+              "displayName": "Vendor",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Client Name",
+              "displayName": "Client Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Item Description",
+              "displayName": "Item Description",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Qty",
+              "displayName": "Qty",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Unit Price",
+              "displayName": "Unit Price",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Line Total",
+              "displayName": "Line Total",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Grand Total",
+              "displayName": "Grand Total",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Reason",
+              "displayName": "Reason",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Record_Type",
+              "displayName": "Record_Type",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "matchingColumns": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-unclassified",
+      "name": "Log Unclassified",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1920,
+        368
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GSpoIYvGWcupaJN9",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0ANHTFK939",
+          "mode": "id"
+        },
+        "text": "=:question: Document could not be classified as PO/Invoice/Receipt: {{ $json.document_number }} \u2014 please review manually.",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "id": "notify-unclassified-document",
+      "name": "Notify: Unclassified Document",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        2144,
+        368
+      ],
+      "webhookId": "3dbd91d3-fda7-4592-81e7-ecae48b6f49e",
+      "credentials": {
+        "slackApi": {
+          "id": "JEnNAd5h6SUEwVdd",
+          "name": "hitl"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'unclassified', message: 'Document logged for manual review.' } }}",
+        "options": {}
+      },
+      "id": "respond---unclassified",
+      "name": "Respond - Unclassified",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2368,
+        368
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const doc = $input.first().json;\nconst items = (doc.line_items && doc.line_items.length)\n  ? doc.line_items\n  : [{ description: '(no line items extracted)', qty: '', price: '', total: '' }];\nreturn items.map((item) => ({\n  json: {\n    date: doc.date,\n    document_number: doc.document_number,\n    vendor: doc.vendor,\n    client_name: doc.client_name,\n    item_description: item.description,\n    qty: item.qty,\n    unit_price: item.price,\n    line_total: item.total,\n    grand_total: doc.grand_total,\n    status: 'Open',\n    reason: '',\n    record_type: 'PO',\n  }\n}));"
+      },
+      "id": "expand-po",
+      "name": "Expand: PO",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1800,
+        -240
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const doc = $input.first().json;\nconst items = (doc.line_items && doc.line_items.length)\n  ? doc.line_items\n  : [{ description: '(no line items extracted)', qty: '', price: '', total: '' }];\nreturn items.map((item) => ({\n  json: {\n    date: doc.date,\n    document_number: doc.document_number,\n    vendor: doc.vendor,\n    client_name: doc.client_name,\n    item_description: item.description,\n    qty: item.qty,\n    unit_price: item.price,\n    line_total: item.total,\n    grand_total: doc.grand_total,\n    status: 'Auto-Reconciled',\n    reason: doc.match_reason || '',\n    record_type: 'Matched Invoice',\n  }\n}));"
+      },
+      "id": "expand-matched-invoice",
+      "name": "Expand: Matched Invoice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2472,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const doc = $input.first().json;\nconst items = (doc.line_items && doc.line_items.length)\n  ? doc.line_items\n  : [{ description: '(no line items extracted)', qty: '', price: '', total: '' }];\nreturn items.map((item) => ({\n  json: {\n    date: doc.date,\n    document_number: doc.document_number,\n    vendor: doc.vendor,\n    client_name: doc.client_name,\n    item_description: item.description,\n    qty: item.qty,\n    unit_price: item.price,\n    line_total: item.total,\n    grand_total: doc.grand_total,\n    status: 'Needs Confirmation',\n    reason: doc.match_reason || '',\n    record_type: 'Needs Confirmation',\n  }\n}));"
+      },
+      "id": "expand-needs-confirmation",
+      "name": "Expand: Needs Confirmation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2472,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const doc = $input.first().json;\nconst items = (doc.line_items && doc.line_items.length)\n  ? doc.line_items\n  : [{ description: '(no line items extracted)', qty: '', price: '', total: '' }];\nreturn items.map((item) => ({\n  json: {\n    date: doc.date,\n    document_number: doc.document_number,\n    vendor: doc.vendor,\n    client_name: doc.client_name,\n    item_description: item.description,\n    qty: item.qty,\n    unit_price: item.price,\n    line_total: item.total,\n    grand_total: doc.grand_total,\n    status: 'Needs Full Review',\n    reason: doc.match_reason || '',\n    record_type: 'Needs Review',\n  }\n}));"
+      },
+      "id": "expand-needs-review",
+      "name": "Expand: Needs Review",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2472,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const doc = $input.first().json;\nconst items = (doc.line_items && doc.line_items.length)\n  ? doc.line_items\n  : [{ description: '(no line items extracted)', qty: '', price: '', total: '' }];\nreturn items.map((item) => ({\n  json: {\n    date: doc.date,\n    document_number: doc.document_number,\n    vendor: doc.vendor,\n    client_name: doc.client_name,\n    item_description: item.description,\n    qty: item.qty,\n    unit_price: item.price,\n    line_total: item.total,\n    grand_total: doc.grand_total,\n    status: 'Logged',\n    reason: '',\n    record_type: 'Receipt',\n  }\n}));"
+      },
+      "id": "expand-receipt",
+      "name": "Expand: Receipt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1800,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const doc = $input.first().json;\nconst items = (doc.line_items && doc.line_items.length)\n  ? doc.line_items\n  : [{ description: '(no line items extracted)', qty: '', price: '', total: '' }];\nreturn items.map((item) => ({\n  json: {\n    date: doc.date,\n    document_number: doc.document_number,\n    vendor: doc.vendor,\n    client_name: doc.client_name,\n    item_description: item.description,\n    qty: item.qty,\n    unit_price: item.price,\n    line_total: item.total,\n    grand_total: doc.grand_total,\n    status: 'Needs Manual Review',\n    reason: '',\n    record_type: 'Unclassified',\n  }\n}));"
+      },
+      "id": "expand-unclassified",
+      "name": "Expand: Unclassified",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1800,
+        368
+      ]
+    }
+  ],
+  "connections": {
+    "Document Intake": {
+      "main": [
+        [
+          {
+            "node": "Is Supported File Type?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Supported File Type?": {
+      "main": [
+        [
+          {
+            "node": "Detect File Type",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Unsupported File Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect File Type": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Image: Convert to Base64",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Format Ollama Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Image: Convert to Base64": {
+      "main": [
+        [
+          {
+            "node": "Ollama Vision (REQUIRES llava model)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Vision (REQUIRES llava model)": {
+      "main": [
+        [
+          {
+            "node": "Format Vision Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Ollama Output": {
+      "main": [
+        [
+          {
+            "node": "Parse & Validate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Vision Output": {
+      "main": [
+        [
+          {
+            "node": "Parse & Validate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Validate": {
+      "main": [
+        [
+          {
+            "node": "Document Type Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Document Type Router": {
+      "main": [
+        [
+          {
+            "node": "Expand: PO",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Lookup Open POs by Vendor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Expand: Receipt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Expand: Unclassified",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Open PO": {
+      "main": [
+        [
+          {
+            "node": "Notify: New PO Logged",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify: New PO Logged": {
+      "main": [
+        [
+          {
+            "node": "Respond - PO Logged",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Open POs by Vendor": {
+      "main": [
+        [
+          {
+            "node": "Match Against Open POs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match Against Open POs": {
+      "main": [
+        [
+          {
+            "node": "Match Result Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match Result Router": {
+      "main": [
+        [
+          {
+            "node": "Expand: Matched Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Expand: Needs Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Expand: Needs Review",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Expand: Needs Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Matched Invoice": {
+      "main": [
+        [
+          {
+            "node": "Respond - Invoice Matched",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Needs Confirmation": {
+      "main": [
+        [
+          {
+            "node": "Notify: Needs Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify: Needs Confirmation": {
+      "main": [
+        [
+          {
+            "node": "Respond - Needs Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Needs Review": {
+      "main": [
+        [
+          {
+            "node": "Notify: Needs Full Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify: Needs Full Review": {
+      "main": [
+        [
+          {
+            "node": "Respond - Needs Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Receipt": {
+      "main": [
+        [
+          {
+            "node": "Respond - Receipt Logged",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Unclassified": {
+      "main": [
+        [
+          {
+            "node": "Notify: Unclassified Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify: Unclassified Document": {
+      "main": [
+        [
+          {
+            "node": "Respond - Unclassified",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Expand: PO": {
+      "main": [
+        [
+          {
+            "node": "Log Open PO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Expand: Matched Invoice": {
+      "main": [
+        [
+          {
+            "node": "Log Matched Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Expand: Needs Confirmation": {
+      "main": [
+        [
+          {
+            "node": "Log Needs Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Expand: Needs Review": {
+      "main": [
+        [
+          {
+            "node": "Log Needs Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Expand: Receipt": {
+      "main": [
+        [
+          {
+            "node": "Log Receipt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Expand: Unclassified": {
+      "main": [
+        [
+          {
+            "node": "Log Unclassified",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -172,8 +172,8 @@
       "webhookId": "53b2824b-ace1-4578-84d4-380867db1221",
       "credentials": {
         "gmailOAuth2": {
-          "id": "VKDbMYV2U0WoSc16",
-          "name": "n8n072826"
+          "id": "YE9RFYruaRVVZ6H4",
+          "name": "CRMapp"
         }
       },
       "onError": "continueRegularOutput"
@@ -633,8 +633,8 @@
         "webhookId": "53b2824b-ace1-4578-84d4-380867db1221",
         "credentials": {
           "gmailOAuth2": {
-            "id": "VKDbMYV2U0WoSc16",
-            "name": "n8n072826"
+            "id": "YE9RFYruaRVVZ6H4",
+            "name": "CRMapp"
           }
         },
         "onError": "continueRegularOutput"

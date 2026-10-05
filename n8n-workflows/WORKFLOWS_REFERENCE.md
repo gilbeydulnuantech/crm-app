@@ -20,7 +20,7 @@ new automation-engine rules against them).
 | **contacts-search** (`contacts-search.json`) | `POST /global-search` | Global search bar (contacts + likely other entities). |
 | **filters: contacts-by-stage** (`filters_ contacts-by-stage.json`) | `GET /get-contacts-by-stage` | Contacts filtered by pipeline stage (used in stage-based views). |
 | **import-contacts** (`import-contacts.json`) | `POST /import-contacts` | Bulk CSV/list contact import. |
-| **Merge Contacts** (`Merge Contacts.json`) | `POST /merge-contacts` | Merges duplicate contact records. **Currently inactive.** |
+| **Merge Contacts** (`Merge Contacts.json`) | `POST /merge-contacts` | Merges duplicate contact records. Confirmed active in n8n on 2026-10-04. |
 | **Contact Related Records** (`Contact Related Records.json`) | `GET /get-contact-related` | Fetches a contact's related deals/tasks/etc. for the detail modal. |
 | **Contact status system** (`Contact status system.json`) | `POST /contact-status-system` | Manages a contact's status field/lifecycle transitions. |
 | **contacts-Tags System** (`contacts-Tags System.json`) | `GET /get-tags`, `POST /create-tag`, `POST /tag-entity`, `POST /untag-entity`, `GET /get-entity-tags`, `GET /filter-contacts-by-tag` | Generic, reusable tagging system for any entity (contact/deal/company) — the shared tag-apply endpoint other workflows call into. |
@@ -126,6 +126,6 @@ new automation-engine rules against them).
 
 ## Notes on this list
 
-- **82 workflow files total.** `active=False` only on **Merge Contacts** and **Task Reminders** — everything else is currently live.
+- **82 workflow files total.** `active=False` only on **Task Reminders** (Merge Contacts confirmed active in n8n on 2026-10-04) — everything else is currently live.
 - Descriptions above come from a mix of: reading each file's trigger nodes/webhook paths directly out of the live JSON (accurate), and knowledge from working inside ~30 of these files this session plus reasonable inference from naming for the rest — **treat unfamiliar/rarely-touched ones (Deal Intelligence Engine, Lead Scoring Engine, Deal Document Flow, Post-Sale Maintenance Engine, Book confirmed reminders, TeamChat, Retell/Vapi tools) as best-effort summaries worth a closer look before relying on them for the automation-engine redesign**, since these files have not been read in depth this session.
 - Only ~8 of 274 total trigger nodes across all files have a human-written `notes` field documenting their payload — most of this list is derived from path/name conventions, not authored documentation. Worth adding notes to the important ones as you go, same pattern already used on `Deal Stage Tag Sync Engine.json`'s webhook.
