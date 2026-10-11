@@ -3,13 +3,14 @@
 // — this is a per-record timeline (Calls, Meetings, System Audit tabs on
 // ContactDetailModal/CompanyDetailModal). Email isn't stored here; it lives
 // in Contact.email_logs and the timeline merges it in client-side.
-export type ActivityCategory = 'call' | 'meeting' | 'system_audit';
+export type ActivityCategory = 'call' | 'meeting' | 'system_audit' | 'telegram';
 
 export type ActivitySubtype =
   | 'manual' // call: logged by a rep from the Call button
   | 'calendar_sync' | 'video_call' | 'physical' | 'transcript' // meeting
   | 'field_change' | 'automation' | 'ownership_change' | 'integration_sync' | 'permission' // system_audit
-  | 'archived' | 'restored' | 'merge' | 'created' | 'completed' | 'noted' | 'subtask'; // system_audit
+  | 'archived' | 'restored' | 'merge' | 'created' | 'completed' | 'noted' | 'subtask' // system_audit
+  | 'inbound' | 'outbound' | 'linked' | 'opted_out'; // telegram
 
 export interface ActivityLogEntry {
   id: number;
@@ -24,5 +25,5 @@ export interface ActivityLogEntry {
   created_at: string;
 }
 
-export const ACTIVITY_TABS = ['All', 'Emails', 'Calls', 'Meetings', 'System Audit'] as const;
+export const ACTIVITY_TABS = ['All', 'Emails', 'Calls', 'Meetings', 'Telegram', 'System Audit'] as const;
 export type ActivityTab = (typeof ACTIVITY_TABS)[number];

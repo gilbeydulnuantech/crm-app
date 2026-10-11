@@ -520,7 +520,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: update-payment').first().json.body || {};\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" is required.');\n\n// Refunding or cancelling money movement is admin-only — status\n// changes like marking paid/failed stay open to any rep.\nconst RESTRICTED_STATUSES = ['refunded', 'partially_refunded', 'cancelled'];\nif (RESTRICTED_STATUSES.includes(body.status) && requester.role !== 'admin') {\n  throw new Error('Admin access required to refund or cancel a payment.');\n}\n\nconst VALID_STATUSES = ['pending', 'processing', 'paid', 'partially_paid', 'failed', 'refunded', 'partially_refunded', 'cancelled'];\nif (body.status !== undefined && !VALID_STATUSES.includes(body.status)) throw new Error('Invalid status.');\n\nreturn [{\n  json: {\n    id,\n    status: body.status !== undefined ? body.status : null,\n    amountReceived: body.amount_received !== undefined ? Number(body.amount_received) : null,\n    refundedAmount: body.refunded_amount !== undefined ? Number(body.refunded_amount) : null,\n    method: body.method !== undefined ? body.method : null,\n    reference: body.reference !== undefined ? body.reference : null,\n    paymentDate: body.payment_date !== undefined ? body.payment_date : null,\n    dueDate: body.due_date !== undefined ? body.due_date : null,\n    notes: body.notes !== undefined ? body.notes : null,\n    ownerId: body.owner_id !== undefined ? (body.owner_id || null) : null,\n    requesterId: requester.id,\n    requesterName: requester.name,\n  },\n}];"
+        "jsCode": "const requester = $json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: update-payment').first().json.body || {};\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" is required.');\n\n// Refunding or cancelling money movement is admin-only \u2014 status\n// changes like marking paid/failed stay open to any rep.\nconst RESTRICTED_STATUSES = ['refunded', 'partially_refunded', 'cancelled'];\nif (RESTRICTED_STATUSES.includes(body.status) && requester.role !== 'admin') {\n  throw new Error('Admin access required to refund or cancel a payment.');\n}\n\nconst VALID_STATUSES = ['pending', 'processing', 'paid', 'partially_paid', 'failed', 'refunded', 'partially_refunded', 'cancelled'];\nif (body.status !== undefined && !VALID_STATUSES.includes(body.status)) throw new Error('Invalid status.');\n\nreturn [{\n  json: {\n    id,\n    status: body.status !== undefined ? body.status : null,\n    amountReceived: body.amount_received !== undefined ? Number(body.amount_received) : null,\n    refundedAmount: body.refunded_amount !== undefined ? Number(body.refunded_amount) : null,\n    method: body.method !== undefined ? body.method : null,\n    reference: body.reference !== undefined ? body.reference : null,\n    paymentDate: body.payment_date !== undefined ? body.payment_date : null,\n    dueDate: body.due_date !== undefined ? body.due_date : null,\n    notes: body.notes !== undefined ? body.notes : null,\n    ownerId: body.owner_id !== undefined ? (body.owner_id || null) : null,\n    requesterId: requester.id,\n    requesterName: requester.name,\n  },\n}];"
       },
       "id": "661eccb0-2e1f-4b5e-ab9e-0e4bd23258e0",
       "name": "Check Payload: update-payment",
@@ -838,30 +838,32 @@
       ]
     },
     {
-      "parameters": {
-        "sendTo": "={{ $json.contact_email }}",
-        "subject": "={{ $json.receiptSubject }}",
-        "emailType": "text",
-        "message": "={{ $json.receiptBody }}",
-        "options": {
-          "appendAttribution": false
-        }
-      },
       "id": "26990d97-8081-488c-b2a8-5cdd6b7e4a51",
       "name": "Send Receipt Email",
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
       "position": [
         1380,
         1700
       ],
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "YE9RFYruaRVVZ6H4",
-          "name": "CRMapp"
-        }
+      "onError": "continueErrorOutput",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "parameters": {
+        "fromEmail": "gilbeydulnuan@gmail.com",
+        "toEmail": "={{ $json.contact_email }}",
+        "subject": "={{ $json.receiptSubject }}",
+        "emailFormat": "both",
+        "text": "={{ $json.receiptBody }}",
+        "options": {
+          "appendAttribution": false
+        },
+        "html": "={{ (() => { const t = String($json.receiptBody); const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); const h = esc(t).replace(/\\n/g, '<br>').replace(/(https?:\\/\\/[^\\s<]+)/g, '<a href=\"$1\">$1</a>'); return ($json.__brandHeader || '') + h + ($json.__brandFooter || ''); })() }}"
       },
-      "onError": "continueErrorOutput"
+      "credentials": {
+        "smtp": {
+          "id": "A3AoUIlP8cbZ5VlF",
+          "name": "Gmail SMTP (gilbeydulnuan)"
+        }
+      }
     },
     {
       "parameters": {
@@ -1487,37 +1489,33 @@
       ]
     },
     {
-      "parameters": {
-        "sendTo": "={{ $('Has Invoice Email?').item.json.contact_email }}",
-        "subject": "={{ 'Invoice ' + $('Has Invoice Email?').item.json.invoice_number }}",
-        "emailType": "text",
-        "message": "={{ 'Hi ' + ($('Has Invoice Email?').item.json.contact_first_name || '') + ',\\n\\nPlease find your invoice attached.\\n\\nInvoice: ' + $('Has Invoice Email?').item.json.invoice_number + '\\nTotal: $' + $('Has Invoice Email?').item.json.total + '\\nDue: ' + ($('Has Invoice Email?').item.json.due_date || 'on receipt') + ($('Has Invoice Email?').item.json.deal_name ? ('\\nFor: ' + $('Has Invoice Email?').item.json.deal_name) : '') + '\\n\\nThank you!' + '\\n\\n' + \"Don't want these emails? Unsubscribe: \" + ($env.FRONTEND_BASE_URL || '') + '/unsubscribe/' + ($('Has Invoice Email?').item.json.unsubscribe_token || '') }}",
-        "options": {
-          "appendAttribution": false,
-          "attachmentsUi": {
-            "attachmentsBinary": [
-              {
-                "property": "={{ Object.keys($binary).join(',') }}"
-              }
-            ]
-          }
-        }
-      },
       "id": "5d2cb210-1402-4485-b5d4-8b9f0bd2b246",
       "name": "Send Invoice Email",
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
       "position": [
         0,
         0
       ],
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "YE9RFYruaRVVZ6H4",
-          "name": "CRMapp"
-        }
+      "onError": "continueErrorOutput",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "parameters": {
+        "fromEmail": "gilbeydulnuan@gmail.com",
+        "toEmail": "={{ $('Has Invoice Email?').item.json.contact_email }}",
+        "subject": "={{ 'Invoice ' + $('Has Invoice Email?').item.json.invoice_number }}",
+        "emailFormat": "both",
+        "text": "={{ 'Hi ' + ($('Has Invoice Email?').item.json.contact_first_name || '') + ',\\n\\nPlease find your invoice attached.\\n\\nInvoice: ' + $('Has Invoice Email?').item.json.invoice_number + '\\nTotal: $' + $('Has Invoice Email?').item.json.total + '\\nDue: ' + ($('Has Invoice Email?').item.json.due_date || 'on receipt') + ($('Has Invoice Email?').item.json.deal_name ? ('\\nFor: ' + $('Has Invoice Email?').item.json.deal_name) : '') + '\\n\\nThank you!' + '\\n\\n' + \"Don't want these emails? Unsubscribe: \" + ($env.FRONTEND_BASE_URL || '') + '/unsubscribe/' + ($('Has Invoice Email?').item.json.unsubscribe_token || '') }}",
+        "options": {
+          "appendAttribution": false,
+          "attachments": "={{ Object.keys($binary).join(',') }}"
+        },
+        "html": "={{ (() => { const t = String('Hi ' + ($('Has Invoice Email?').item.json.contact_first_name || '') + ',\\n\\nPlease find your invoice attached.\\n\\nInvoice: ' + $('Has Invoice Email?').item.json.invoice_number + '\\nTotal: $' + $('Has Invoice Email?').item.json.total + '\\nDue: ' + ($('Has Invoice Email?').item.json.due_date || 'on receipt') + ($('Has Invoice Email?').item.json.deal_name ? ('\\nFor: ' + $('Has Invoice Email?').item.json.deal_name) : '') + '\\n\\nThank you!' + '\\n\\n' + \"Don't want these emails? Unsubscribe: \" + ($env.FRONTEND_BASE_URL || '') + '/unsubscribe/' + ($('Has Invoice Email?').item.json.unsubscribe_token || '')); const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); const h = esc(t).replace(/\\n/g, '<br>').replace(/(https?:\\/\\/[^\\s<]+)/g, '<a href=\"$1\">$1</a>'); return ($json.__brandHeader || '') + h + ($json.__brandFooter || ''); })() }}"
       },
-      "onError": "continueErrorOutput"
+      "credentials": {
+        "smtp": {
+          "id": "A3AoUIlP8cbZ5VlF",
+          "name": "Gmail SMTP (gilbeydulnuan)"
+        }
+      }
     },
     {
       "parameters": {
@@ -3513,6 +3511,36 @@
         0,
         0
       ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Company branding + rep signature for outgoing HTML emails. Everything is off until an admin switches on\n// \"Add company branding and signatures to emails\" in Settings > Company Profile (company_profile.email_branding_enabled).\nfunction buildBrandParts(branding, signatureText, companyName) {\n  const b = branding || {};\n  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\n  const on = b.email_branding_enabled === true;\n  if (!on) return { on: false, header: '', footer: '', sig: '', sigText: '' };\n  const color = /^#[0-9a-fA-F]{6}$/.test(b.brand_color || '') ? b.brand_color : '#2563EB';\n  const logo = /^https?:\\/\\//i.test(b.logo_url || '')\n    ? '<img src=\"' + esc(b.logo_url) + '\" alt=\"' + esc(companyName) + '\" style=\"max-height:56px;max-width:200px;display:block;margin-bottom:6px\">' : '';\n  const name = companyName ? '<div style=\"font-size:18px;font-weight:bold;color:' + color + '\">' + esc(companyName) + '</div>' : '';\n  const header = (logo || name) ? '<div style=\"padding-bottom:12px;margin-bottom:16px;border-bottom:3px solid ' + color + '\">' + logo + name + '</div>' : '';\n  const lines = [b.address, b.phone, b.website, b.email].filter(Boolean).map(esc);\n  const note = b.email_footer_note ? '<div style=\"margin-top:6px\">' + esc(b.email_footer_note).replace(/\\n/g, '<br>') + '</div>' : '';\n  const footer = (lines.length || note)\n    ? '<div style=\"margin-top:24px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b\">' + (lines.length ? '<div>' + lines.join(' &middot; ') + '</div>' : '') + note + '</div>' : '';\n  const sigText = signatureText && String(signatureText).trim() ? String(signatureText).trim() : '';\n  const sig = sigText ? '<div style=\"margin-top:16px\">' + esc(sigText).replace(/\\n/g, '<br>') + '</div>' : '';\n  return { on: true, header, footer, sig, sigText };\n}\n\n// Apply Branding \u2014 works out this email's company header and footer and adds them to the item as __brandHeader and\n// __brandFooter; the Send node then wraps its own HTML with them. Strictly additive and fail-safe: if branding is\n// switched off or anything at all goes wrong, the item passes through untouched and the email goes out exactly as before.\nconst item = $input.item;\ntry {\n  const sd = $getWorkflowStaticData('global');\n  const now = Date.now();\n  let b = sd.__brandCache && now - sd.__brandCache.t < 60000 ? sd.__brandCache.data : null;\n  if (!b) {\n    let base = 'http://localhost:5678';\n    try { if ($env.N8N_INTERNAL_URL) base = $env.N8N_INTERNAL_URL; } catch (e) { /* env access blocked */ }\n    const r = await this.helpers.httpRequest({ url: base.replace(/\\/$/, '') + '/webhook/get-email-branding', method: 'GET', json: true, timeout: 5000 });\n    b = r && typeof r === 'object' ? r : {};\n    sd.__brandCache = { t: now, data: b };\n  }\n  if (b.email_branding_enabled === true) {\n    const parts = buildBrandParts(b, '', b.company_name || '');\n    return { json: { ...item.json, __brandHeader: parts.header, __brandFooter: parts.footer }, binary: item.binary };\n  }\n} catch (e) { /* branding is optional */ }\nreturn item;\n"
+      },
+      "id": "20960521-9f7b-4ba7-81d2-3c554b99d85a",
+      "name": "Apply Branding: Send Receipt Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        1700
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Company branding + rep signature for outgoing HTML emails. Everything is off until an admin switches on\n// \"Add company branding and signatures to emails\" in Settings > Company Profile (company_profile.email_branding_enabled).\nfunction buildBrandParts(branding, signatureText, companyName) {\n  const b = branding || {};\n  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\n  const on = b.email_branding_enabled === true;\n  if (!on) return { on: false, header: '', footer: '', sig: '', sigText: '' };\n  const color = /^#[0-9a-fA-F]{6}$/.test(b.brand_color || '') ? b.brand_color : '#2563EB';\n  const logo = /^https?:\\/\\//i.test(b.logo_url || '')\n    ? '<img src=\"' + esc(b.logo_url) + '\" alt=\"' + esc(companyName) + '\" style=\"max-height:56px;max-width:200px;display:block;margin-bottom:6px\">' : '';\n  const name = companyName ? '<div style=\"font-size:18px;font-weight:bold;color:' + color + '\">' + esc(companyName) + '</div>' : '';\n  const header = (logo || name) ? '<div style=\"padding-bottom:12px;margin-bottom:16px;border-bottom:3px solid ' + color + '\">' + logo + name + '</div>' : '';\n  const lines = [b.address, b.phone, b.website, b.email].filter(Boolean).map(esc);\n  const note = b.email_footer_note ? '<div style=\"margin-top:6px\">' + esc(b.email_footer_note).replace(/\\n/g, '<br>') + '</div>' : '';\n  const footer = (lines.length || note)\n    ? '<div style=\"margin-top:24px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b\">' + (lines.length ? '<div>' + lines.join(' &middot; ') + '</div>' : '') + note + '</div>' : '';\n  const sigText = signatureText && String(signatureText).trim() ? String(signatureText).trim() : '';\n  const sig = sigText ? '<div style=\"margin-top:16px\">' + esc(sigText).replace(/\\n/g, '<br>') + '</div>' : '';\n  return { on: true, header, footer, sig, sigText };\n}\n\n// Apply Branding \u2014 works out this email's company header and footer and adds them to the item as __brandHeader and\n// __brandFooter; the Send node then wraps its own HTML with them. Strictly additive and fail-safe: if branding is\n// switched off or anything at all goes wrong, the item passes through untouched and the email goes out exactly as before.\nconst item = $input.item;\ntry {\n  const sd = $getWorkflowStaticData('global');\n  const now = Date.now();\n  let b = sd.__brandCache && now - sd.__brandCache.t < 60000 ? sd.__brandCache.data : null;\n  if (!b) {\n    let base = 'http://localhost:5678';\n    try { if ($env.N8N_INTERNAL_URL) base = $env.N8N_INTERNAL_URL; } catch (e) { /* env access blocked */ }\n    const r = await this.helpers.httpRequest({ url: base.replace(/\\/$/, '') + '/webhook/get-email-branding', method: 'GET', json: true, timeout: 5000 });\n    b = r && typeof r === 'object' ? r : {};\n    sd.__brandCache = { t: now, data: b };\n  }\n  if (b.email_branding_enabled === true) {\n    const parts = buildBrandParts(b, '', b.company_name || '');\n    return { json: { ...item.json, __brandHeader: parts.header, __brandFooter: parts.footer }, binary: item.binary };\n  }\n} catch (e) { /* branding is optional */ }\nreturn item;\n"
+      },
+      "id": "b979c6e3-bda0-43a8-a8e0-4bd0bfea75d3",
+      "name": "Apply Branding: Send Invoice Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -180,
+        0
+      ],
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
@@ -4717,7 +4745,7 @@
       "main": [
         [
           {
-            "node": "Send Receipt Email",
+            "node": "Apply Branding: Send Receipt Email",
             "type": "main",
             "index": 0
           }
@@ -5454,7 +5482,7 @@
       "main": [
         [
           {
-            "node": "Send Invoice Email",
+            "node": "Apply Branding: Send Invoice Email",
             "type": "main",
             "index": 0
           }
@@ -5478,6 +5506,28 @@
           }
         ]
       ]
+    },
+    "Apply Branding: Send Receipt Email": {
+      "main": [
+        [
+          {
+            "node": "Send Receipt Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply Branding: Send Invoice Email": {
+      "main": [
+        [
+          {
+            "node": "Send Invoice Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "pinData": {},
@@ -5487,6 +5537,7 @@
     "binaryMode": "separate",
     "availableInMCP": false,
     "timeSavedMode": "fixed",
-    "callerPolicy": "workflowsFromSameOwner"
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "Asia/Almaty"
   }
 }

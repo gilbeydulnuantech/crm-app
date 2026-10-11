@@ -5,15 +5,24 @@
       "parameters": {
         "workflowInputs": {
           "values": [
-            { "name": "workflow_name" },
-            { "name": "workflow_id" },
-            { "name": "entity_type" }
+            {
+              "name": "workflow_name"
+            },
+            {
+              "name": "workflow_id"
+            },
+            {
+              "name": "entity_type"
+            }
           ]
         }
       },
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
-      "position": [0, 0],
+      "position": [
+        0,
+        0
+      ],
       "id": "lwr-trigger",
       "name": "When Executed by Another Workflow"
     },
@@ -25,12 +34,20 @@
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [220, 0],
+      "position": [
+        220,
+        0
+      ],
       "id": "lwr-ensure-table",
       "name": "Ensure Log Table",
       "alwaysOutputData": true,
       "onError": "continueRegularOutput",
-      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
     },
     {
       "parameters": {
@@ -42,21 +59,50 @@
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [440, 0],
+      "position": [
+        440,
+        0
+      ],
       "id": "lwr-insert",
       "name": "Insert Run Log",
       "onError": "continueRegularOutput",
-      "credentials": { "postgres": { "id": "OJlr1rmibAS2w3rj", "name": "myRag" } }
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
     }
   ],
-  "pinData": {},
   "connections": {
-    "When Executed by Another Workflow": { "main": [[{ "node": "Ensure Log Table", "type": "main", "index": 0 }]] },
-    "Ensure Log Table": { "main": [[{ "node": "Insert Run Log", "type": "main", "index": 0 }]] }
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Ensure Log Table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ensure Log Table": {
+      "main": [
+        [
+          {
+            "node": "Insert Run Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "active": true,
   "settings": {
     "executionOrder": "v1",
-    "callerPolicy": "workflowsFromSameOwner"
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "timezone": "Asia/Almaty",
+    "saveDataSuccessExecution": "none"
   }
 }

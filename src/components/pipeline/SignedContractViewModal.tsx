@@ -6,6 +6,7 @@ import FillableFieldsRenderer, { FieldValue } from '../richtext/FillableFieldsRe
 import SignatureField, { SignatureFieldHandle } from '../SignatureField';
 import { fillMergeFields } from '../../utils/mergeFields';
 import { toTitleCase } from '../../utils/text';
+import { DocBrandHeader, DocBrandFooter } from '../DocumentBranding';
 
 function downloadBase64Pdf(base64: string, filename: string) {
   const byteChars = atob(base64);
@@ -180,6 +181,7 @@ export default function SignedContractViewModal({ contractId, onClose }: Props) 
           </p>
         ) : (
           <>
+            <DocBrandHeader />
             <div
               ref={contentRef}
               className="rte-content mt-5 bg-slate-50 border border-slate-100 rounded-lg p-4"
@@ -193,6 +195,7 @@ export default function SignedContractViewModal({ contractId, onClose }: Props) 
               readOnly
               editableSignerRole={!isCosigned && canCosign ? 'owner' : undefined}
             />
+            <DocBrandFooter />
             <p className="text-right text-lg font-bold text-slate-800 mt-3">Total: {money(data.total_amount)}</p>
 
             {/* Audit trail only — the actual signature images already render

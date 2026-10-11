@@ -1,0 +1,855 @@
+{
+  "name": "AI Email Intake",
+  "nodes": [
+    {
+      "id": "446c4654-960a-4826-82f0-6f83cb73eecc",
+      "name": "Email Trigger (IMAP)",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "mailbox": "INBOX",
+        "postProcessAction": "nothing",
+        "format": "resolved",
+        "options": {
+          "customEmailConfig": "[\"UNSEEN\",[\"SINCE\",\"09-Oct-2026\"],[\"NOT\",[\"SUBJECT\",\"Re:\"]]]"
+        }
+      },
+      "credentials": {
+        "imap": {
+          "id": "alxsXaqeIPa3q6lK",
+          "name": "Gmail IMAP (gilbeydulnuan)"
+        }
+      }
+    },
+    {
+      "id": "83020afb-6bfd-45ae-af9b-2e5f8e8c37ad",
+      "name": "Webhook: ai-email-intake",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        200
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-email-intake",
+        "authentication": "headerAuth",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FyU94LC5SCJuMrV2",
+          "name": "AI Intake Secret"
+        }
+      },
+      "webhookId": "085dc4d1-aab8-4600-bb31-2af67c6402db"
+    },
+    {
+      "id": "5b32fbca-dc86-4a21-8d90-ba4c67350866",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        400
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
+    },
+    {
+      "id": "2f47532b-a3c2-4d89-8926-5ee7f2a0f532",
+      "name": "Normalize Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        200
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Accepts three shapes: IMAP email (resolved), webhook {from_email, from_name, subject, body, message_id}, or an\n// Execute Workflow call with the same fields. Output is one clean message plus a skip flag for anything automated.\nconst j = $input.item.json || {};\nconst wb = (j.body && typeof j.body === 'object') ? j.body : null;\nconst direct = wb && (wb.from_email || wb.body) ? wb : (j.from_email ? j : null);\nlet source, fromEmail, fromName, subject, text, html, messageId, headers = {};\nif (direct) {\n  source = wb ? 'webhook' : 'workflow';\n  fromEmail = direct.from_email; fromName = direct.from_name; subject = direct.subject; text = direct.body || direct.text || ''; html = direct.html || '';\n  messageId = direct.message_id || '';\n} else {\n  source = 'imap';\n  const f = (j.from && j.from.value && j.from.value[0]) || {};\n  fromEmail = f.address || (typeof j.from === 'string' ? j.from : ''); fromName = f.name || '';\n  subject = j.subject || ''; text = j.text || j.textPlain || ''; html = j.html || j.textHtml || ''; messageId = j.messageId || (j.headers && j.headers['message-id']) || '';\n  headers = j.headers || {};\n}\nfromEmail = String(fromEmail || '').trim().toLowerCase();\nconst m = fromEmail.match(/<([^>]+)>/); if (m) fromEmail = m[1].trim();\nsubject = String(subject || '').replace(/\\s+/g, ' ').trim().slice(0, 250);\nif (!text && html) text = String(html).replace(/<style[\\s\\S]*?<\\/style>|<script[\\s\\S]*?<\\/script>/gi, ' ').replace(/<br\\s*\\/?>|<\\/(p|div|li|tr|h\\d)>/gi, '\\n').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#39;/g, \"'\").replace(/&quot;/g, '\"');\n// Drop quoted history and signatures-after-quote so the model only reads what the sender just wrote.\nconst lines = String(text || '').replace(/\\r/g, '').split('\\n'); const kept = [];\nfor (const ln of lines) {\n  if (/^\\s*>/.test(ln) || /^On .{5,120} wrote:\\s*$/i.test(ln) || /^-{2,}\\s*(Original Message|Forwarded message)/i.test(ln) || /^From:\\s.+@/i.test(ln)) break;\n  kept.push(ln);\n}\nconst body = kept.join('\\n').replace(/[ \\t]+/g, ' ').replace(/\\n{3,}/g, '\\n\\n').trim().slice(0, 3500);\nconst hv = (k) => String(headers[k] || '').toLowerCase();\nconst OWN = ['gilbeydulnuan@gmail.com', 'gilbeydulnuan@gmail.com'];\nlet skipReason = '';\nif (!/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(fromEmail)) skipReason = 'no valid sender address';\nelse if (OWN.includes(fromEmail)) skipReason = 'sent from our own address';\nelse if (body.length < 5) skipReason = 'empty message';\nelse if (source === 'imap') {\n  if (/(^|[._-])(no-?reply|donotreply|do-not-reply|mailer-daemon|postmaster|bounce|bounces|notifications?|newsletter|news|marketing|alerts?)([._-]|@)/.test(fromEmail)) skipReason = 'automated sender';\n  else if (headers['list-unsubscribe'] || /bulk|list|junk/.test(hv('precedence')) || (hv('auto-submitted') && hv('auto-submitted') !== 'no') || headers['x-autoreply'] || headers['x-autorespond']) skipReason = 'bulk or automatic email';\n}\nfunction hash(s) { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36); }\nif (!messageId) messageId = 'gen-' + hash(fromEmail + '|' + subject + '|' + body);\nreturn { json: { skip: !!skipReason, skipReason, source, fromEmail, fromName: String(fromName || '').trim().slice(0, 120), subject, body, messageId: String(messageId).slice(0, 300), contactId: direct && direct.contact_id ? Number(direct.contact_id) : null } };"
+      }
+    },
+    {
+      "id": "5e27851e-f9f0-414f-800d-37a45c7cff7b",
+      "name": "Skip Message?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        520,
+        200
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cda0494c-c149-49b6-870a-c8892bb6d6f7",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "23610359-09e2-47d7-91f5-a0e5c3c54470",
+      "name": "Ignored (automated or empty)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        780,
+        60
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "73abf1ef-7b14-40fa-94d7-7da5f2a608e7",
+      "name": "Claim Message",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        780,
+        260
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH ins AS (INSERT INTO ai_intake_log (message_id, from_email, subject, source) VALUES ($1, $2, $3, $4) ON CONFLICT (message_id) DO NOTHING RETURNING id)\nSELECT (SELECT count(*) FROM ins) = 1 AS claimed, (SELECT id FROM ins) AS log_id;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [ $json.messageId, $json.fromEmail, $json.subject, $json.source ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "6ec7f768-4f04-4b2f-9c74-84d87ccf2a18",
+      "name": "New Message?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1040,
+        260
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1f1091f-8380-4975-b20e-acd3322ee378",
+              "leftValue": "={{ $json.claimed }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "3b3826c1-3452-4428-96e5-becf91750b4e",
+      "name": "Already Processed",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        120
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "70c0e2b9-8bfc-4ef5-9bc0-77e6369eca53",
+      "name": "Build Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const m = $('Normalize Input').item.json;\nlet model = 'qwen2.5:3b';\ntry { model = $env.INTAKE_OLLAMA_MODEL || model; } catch (e) {}\nconst system = [\n  'You triage inbound emails for a roofing / home-service company. Read the email and answer with ONE JSON object only, no other text.',\n  'Fields:',\n  '\"intent\": one of \"lead\" (wants a quote, inspection, repair or new work), \"support\" (existing customer problem, warranty, billing, scheduling), \"spam\" (sales pitch, marketing, phishing, automated), \"other\".',\n  '\"intent_score\": integer 0-100, how likely this person wants to hire us or needs our help now.',\n  '\"service_type\": one of \"roof_repair\",\"roof_replacement\",\"inspection\",\"storm_damage\",\"gutters\",\"other\",\"none\".',\n  '\"urgency\": one of \"emergency\" (active leak, storm damage, safety, needs help today), \"high\" (within days), \"normal\", \"low\".',\n  '\"name\": the sender\\'s full name or null. \"phone\": phone number or null. \"zip_code\": 5-digit US ZIP or null. \"budget\": number in dollars or null.',\n  '\"sentiment\": \"angry\",\"neutral\" or \"positive\". \"summary\": one sentence, max 25 words, what they need.',\n  'Use null for anything not stated. Never invent values.'\n].join('\\n');\nconst user = 'From: ' + (m.fromName ? m.fromName + ' <' + m.fromEmail + '>' : m.fromEmail) + '\\nSubject: ' + m.subject + '\\n\\n' + m.body;\nreturn { json: { ollamaBody: { model, stream: false, format: 'json', keep_alive: '10m', options: { temperature: 0, num_ctx: 4096, num_predict: 300 }, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] } } };"
+      }
+    },
+    {
+      "id": "8b7c5637-00f4-493e-983f-7b109a6e2a29",
+      "name": "Ollama Extract",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1560,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:11434/api/chat",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.ollamaBody) }}",
+        "options": {
+          "timeout": 240000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "ae36f962-b254-48a8-91cd-ac98097696d3",
+      "name": "Validate & Normalize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1820,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate + normalize the model's answer. If Ollama is down or answers badly, a rule-based fallback fills every field,\n// so an inbound lead is never dropped just because the AI failed.\nconst m = $('Normalize Input').item.json;\nconst resp = $input.item.json || {};\nlet ai = null, aiUsed = false, aiError = '';\ntry {\n  const content = resp.message && resp.message.content;\n  if (content) { ai = JSON.parse(String(content).replace(/^```(?:json)?|```$/g, '').trim()); aiUsed = !!ai && typeof ai === 'object'; }\n  else aiError = String((resp.error && (resp.error.message || resp.error)) || 'no response from Ollama').slice(0, 200);\n} catch (e) { aiError = 'unreadable AI answer'; ai = null; }\nai = ai || {};\nconst text = (m.subject + '\\n' + m.body);\nconst low = text.toLowerCase();\nconst pick = (v, allowed, dflt) => { const s = String(v == null ? '' : v).toLowerCase().trim().replace(/[\\s-]+/g, '_'); return allowed.includes(s) ? s : dflt; };\n\n// --- fallback / cross-check signals (regex over the raw text) ---\nconst EMERG = /\\b(leak(?:ing|s)?|water (?:coming|pouring|dripping)|storm damage|hail|tree (?:fell|on)|fallen tree|collapse[d]?|emergency|asap|right away|immediately|urgent(?:ly)?|today|tonight|tarp|flood(?:ed|ing)?)\\b/g;\nconst ROOFY = /\\b(roof|roofing|shingle|gutter|leak|inspection|estimate|quote|storm|hail|siding|repair|replace(?:ment)?|insurance claim)\\b/;\nconst emergHits = (low.match(EMERG) || []).length;\nconst zipMatch = text.match(/\\b(\\d{5})(?:-\\d{4})?\\b/);\nconst phoneMatch = text.match(/(?:\\+?1[\\s.\\-]?)?\\(?(\\d{3})\\)?[\\s.\\-]?(\\d{3})[\\s.\\-]?(\\d{4})\\b/);\nlet budgetFound = null;\nconst bm = text.match(/\\$\\s?(\\d[\\d,]*(?:\\.\\d+)?)\\s?(k|K|grand)?/) || text.match(/\\b(\\d[\\d,]*)\\s?(k|K)\\b\\s*(?:budget|\\$)?/);\nif (bm) { let n = parseFloat(bm[1].replace(/,/g, '')); if (bm[2]) n *= 1000; if (isFinite(n) && n > 0 && n < 10000000) budgetFound = Math.round(n); }\n\n// --- normalize each field ---\nlet intent = pick(ai.intent, ['lead', 'support', 'spam', 'other'], '');\nif (!intent) intent = ROOFY.test(low) ? 'lead' : 'other';\nlet intentScore = Math.round(Number(ai.intent_score));\nif (!isFinite(intentScore)) intentScore = intent === 'lead' ? (emergHits ? 80 : 55) : intent === 'support' ? 50 : 10;\nintentScore = Math.max(0, Math.min(100, intentScore));\nconst service = pick(ai.service_type, ['roof_repair', 'roof_replacement', 'inspection', 'storm_damage', 'gutters', 'other', 'none'],\n  /storm|hail/.test(low) ? 'storm_damage' : /leak|repair/.test(low) ? 'roof_repair' : /replace|new roof/.test(low) ? 'roof_replacement' : /inspect|estimate|quote/.test(low) ? 'inspection' : /gutter/.test(low) ? 'gutters' : (ROOFY.test(low) ? 'other' : 'none'));\nlet urgency = pick(ai.urgency, ['emergency', 'high', 'normal', 'low'], '');\nif (!urgency) urgency = emergHits >= 2 ? 'emergency' : emergHits === 1 ? 'high' : 'normal';\n// Never let the model downplay an obvious emergency.\nif (urgency !== 'emergency' && /\\b(leak(?:ing)?|storm damage|fallen tree|tree (?:fell|on)|collapse[d]?)\\b/.test(low) && /\\b(today|tonight|now|asap|immediately|right away)\\b/.test(low)) urgency = 'emergency';\nlet zip = String(ai.zip_code == null ? '' : ai.zip_code).match(/\\d{5}/); zip = zip ? zip[0] : (zipMatch ? zipMatch[1] : '');\nlet phoneRaw = String(ai.phone || '') || (phoneMatch ? phoneMatch[0] : '');\nconst pd = phoneRaw.replace(/\\D/g, ''); const p10 = pd.length === 11 && pd[0] === '1' ? pd.slice(1) : pd;\nconst phone = p10.length === 10 ? '(' + p10.slice(0, 3) + ') ' + p10.slice(3, 6) + '-' + p10.slice(6) : '';\nlet budget = ai.budget != null && ai.budget !== '' ? Number(String(ai.budget).replace(/[^0-9.]/g, '')) : null;\nif (!isFinite(budget) || budget <= 0) budget = budgetFound;\nconst sentiment = pick(ai.sentiment, ['angry', 'neutral', 'positive'], 'neutral');\nconst tc = (s) => String(s || '').toLowerCase().split(/\\s+/).filter(Boolean).map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');\nlet name = String(ai.name || '').replace(/[^\\p{L}\\p{M}'\\-. ]/gu, '').trim() || String(m.fromName || '').replace(/[^\\p{L}\\p{M}'\\-. ]/gu, '').trim();\nif (!name) name = tc(m.fromEmail.split('@')[0].replace(/[._\\-0-9]+/g, ' ').trim());\nname = tc(name).slice(0, 100) || 'Unknown';\nconst parts = name.split(' '); const firstName = parts[0] || 'Unknown'; const lastName = parts.slice(1).join(' ');\nlet summary = String(ai.summary || '').replace(/\\s+/g, ' ').trim().slice(0, 300);\nif (!summary) summary = (m.subject || m.body).replace(/\\s+/g, ' ').slice(0, 160);\n\n// --- priority score 0-100 (deterministic, so the same email always scores the same) ---\nconst base = { emergency: 60, high: 40, normal: 20, low: 5 }[urgency];\nlet score = base + Math.round(intentScore * 0.25) + Math.min(15, emergHits * 5) + (zip && phone ? 5 : 0) + (budget && budget >= 5000 ? 5 : 0) + (sentiment === 'angry' ? 5 : 0);\nif (intent === 'spam') score = Math.min(score, 10);\nscore = Math.max(0, Math.min(100, score));\nconst createTicket = (intent === 'lead' || intent === 'support') && intentScore >= 20;\nreturn { json: { aiUsed, aiError, intent, intentScore, service, urgency, zip, phone, budget: budget || null, sentiment, name, firstName, lastName, summary, priorityScore: score, createTicket, emergHits } };"
+      }
+    },
+    {
+      "id": "f9aa0116-e5d9-44f4-867a-ded790b7e06a",
+      "name": "Create Ticket?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2080,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "147d67f3-83e7-48d9-b994-fb27f8c5b5e7",
+              "leftValue": "={{ $json.createTicket }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "22471730-c063-4c6a-803f-d8995f87f093",
+      "name": "Mark Ignored",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2340,
+        160
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE ai_intake_log SET status = 'ignored', result = $2::jsonb WHERE message_id = $1;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [ $('Normalize Input').item.json.messageId, JSON.stringify({ intent: $json.intent, intent_score: $json.intentScore, summary: $json.summary, ai_used: $json.aiUsed, ai_error: $json.aiError }) ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "9e86ab76-2dba-48a0-9a4b-c646f88553e0",
+      "name": "Service Area Check",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2340,
+        360
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT (SELECT count(*) FROM service_zip_codes) AS configured, EXISTS (SELECT 1 FROM service_zip_codes WHERE zip = $1) AS in_area;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [ $json.zip || '' ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "279bde9c-0440-481c-9568-d944b9d1df73",
+      "name": "Finalize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2600,
+        360
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Combine the AI result with the service-area check into the final priority, then build every value the DB steps need.\nconst m = $('Normalize Input').item.json;\nconst r = $('Validate & Normalize').item.json;\nconst area = $input.item.json || {};\nconst configured = Number(area.configured || 0) > 0;\nconst inArea = !!area.in_area;\nconst areaStatus = !r.zip ? 'unknown' : !configured ? 'not configured' : inArea ? 'eligible' : 'outside service area';\nlet priority = r.priorityScore >= 70 ? 'urgent' : r.priorityScore >= 50 ? 'high' : r.priorityScore >= 28 ? 'normal' : 'low';\n// A confirmed out-of-area request is still logged, but it must not page the team as urgent.\nif (areaStatus === 'outside service area' && (priority === 'urgent' || priority === 'high')) priority = 'normal';\nconst SLA = { urgent: 4, high: 8, normal: 24, low: 72 };\nconst LBL = { roof_repair: 'Roof repair', roof_replacement: 'Roof replacement', inspection: 'Inspection', storm_damage: 'Storm damage', gutters: 'Gutters', other: 'Other', none: 'General inquiry' };\nconst service = LBL[r.service];\nconst urgencyLbl = r.urgency[0].toUpperCase() + r.urgency.slice(1);\nconst prLbl = priority[0].toUpperCase() + priority.slice(1);\nconst category = r.intent === 'support' ? 'Support' : 'Lead Inquiry';\nconst subject = ((priority === 'urgent' ? '[URGENT] ' : '') + service + ' - ' + r.name + (r.zip ? ' - ' + r.zip : '')).slice(0, 240);\nconst money = r.budget ? '$' + Number(r.budget).toLocaleString('en-US') : 'Unknown';\nconst description = [\n  'AI summary: ' + r.summary + (r.aiUsed ? '' : '  (AI unavailable - rule-based triage)'),\n  '',\n  'Service: ' + service + '  |  Urgency: ' + urgencyLbl + '  |  Priority: ' + prLbl + ' (score ' + r.priorityScore + ')',\n  'Intent: ' + r.intent + ' (' + r.intentScore + '/100)  |  Sentiment: ' + r.sentiment,\n  'ZIP: ' + (r.zip || 'not given') + ' (service area: ' + areaStatus + ')  |  Budget: ' + money,\n  'Contact: ' + r.name + ' - ' + m.fromEmail + (r.phone ? ' - ' + r.phone : ''),\n  'Source: email \"' + m.subject + '\"',\n  '',\n  '--- Original message ---',\n  m.body\n].join('\\n');\nconst tags = ['ai-intake'];\nif (priority === 'urgent') tags.push('urgent lead');\nif (areaStatus === 'outside service area') tags.push('out of area');\nconst result = { intent: r.intent, intent_score: r.intentScore, service: r.service, urgency: r.urgency, zip: r.zip, phone: r.phone, budget: r.budget, area: areaStatus, priority, priority_score: r.priorityScore, ai_used: r.aiUsed, ai_error: r.aiError, summary: r.summary };\nreturn { json: { ...r, priority, areaStatus, slaHours: SLA[priority], category, subject, description, tags, result, fromEmail: m.fromEmail, messageId: m.messageId, emailSubject: m.subject, emailBody: m.body, service: service, serviceKey: r.service } };"
+      }
+    },
+    {
+      "id": "7bcba4ec-0d6b-40be-9ca6-545586e23bf3",
+      "name": "Upsert Contact",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2860,
+        360
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH existing AS (\n  SELECT id, owner_id FROM contacts WHERE lower(email) = lower($1) AND is_archived = false ORDER BY id LIMIT 1\n), owner AS (\n  SELECT COALESCE(\n    (SELECT u.id FROM users u LEFT JOIN contacts c2 ON c2.owner_id = u.id AND c2.is_archived = false WHERE u.role = 'user' AND u.active = true GROUP BY u.id ORDER BY COUNT(c2.id) ASC, u.id ASC LIMIT 1),\n    (SELECT id FROM users WHERE role = 'admin' AND active = true ORDER BY id LIMIT 1)\n  ) AS id\n), ins AS (\n  INSERT INTO contacts (first_name, last_name, email, phone, zip_code, lead_status, lead_source, lead_score, owner_id, created_at, updated_at)\n  SELECT $2, NULLIF($3, ''), $1, NULLIF($4, ''), NULLIF($5, ''), 'New', 'Email (AI Intake)', $6::int, (SELECT id FROM owner), now(), now()\n  WHERE NOT EXISTS (SELECT 1 FROM existing)\n  RETURNING id, owner_id\n), upd AS (\n  UPDATE contacts SET owner_id = COALESCE(owner_id, (SELECT id FROM owner)), phone = COALESCE(NULLIF(phone, ''), NULLIF($4, '')), updated_at = now()\n  WHERE id = (SELECT id FROM existing) RETURNING id, owner_id\n)\nSELECT id, owner_id, true AS is_new FROM ins UNION ALL SELECT id, owner_id, false AS is_new FROM upd;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [ $json.fromEmail, $json.firstName, $json.lastName, $json.phone, $json.zip, $json.intentScore ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "ebb99b60-aa17-497a-967f-a48168a4e9e7",
+      "name": "Create Ticket",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        3120,
+        360
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH t AS (\n  INSERT INTO tickets (subject, description, priority, status, category, contact_id, assigned_user, sla_due_at, submitter_name, submitter_email, source)\n  VALUES ($1, $2, $3, 'open', $4, $5::int, $6::int, now() + ($7 || ' hours')::interval, $8, $9, 'ai_intake') RETURNING id\n), lg AS (\n  INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, actor_id, actor_name)\n  SELECT 'ticket', id, 'ticket', 'created', $10, NULL, 'AI Intake' FROM t\n), up AS (\n  UPDATE ai_intake_log SET status = 'ticket_created', contact_id = $5::int, ticket_id = (SELECT id FROM t), result = $11::jsonb WHERE message_id = $12\n), tg AS (\n  INSERT INTO tags (name) SELECT jsonb_array_elements_text($13::jsonb) ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id\n), tgl AS (\n  INSERT INTO taggables (tag_id, entity_type, entity_id) SELECT id, 'contact', $5::int FROM tg ON CONFLICT (tag_id, entity_type, entity_id) DO NOTHING\n), el AS (\n  UPDATE contacts SET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object('id', gen_random_uuid()::text, 'type', 'received', 'subject', $14::text, 'message', $15::text, 'attachments', '[]'::jsonb, 'sent_at', now(), 'is_read', false) WHERE id = $5::int\n)\nSELECT id FROM t;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [ $('Finalize').item.json.subject, $('Finalize').item.json.description, $('Finalize').item.json.priority, $('Finalize').item.json.category, $json.id, $json.owner_id, String($('Finalize').item.json.slaHours), $('Finalize').item.json.name, $('Finalize').item.json.fromEmail, 'AI Intake created ticket (' + $('Finalize').item.json.priority + ' priority) from email: ' + $('Finalize').item.json.emailSubject, JSON.stringify($('Finalize').item.json.result), $('Finalize').item.json.messageId, JSON.stringify($('Finalize').item.json.tags), $('Finalize').item.json.emailSubject, $('Finalize').item.json.emailBody ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "cf561f50-f6af-4271-8def-a981c26fc6ca",
+      "name": "Build DM",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3380,
+        360
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Direct message to the owner (user 1 sends, unless user 1 IS the owner: then the system sender, so it counts as unread).\nconst f = $('Finalize').item.json;\nconst c = $('Upsert Contact').item.json;\nconst t = $('Create Ticket').item.json;\nconst BOT = 9;\nconst ownerId = c.owner_id != null ? Number(c.owner_id) : 1;\nconst notifier = ownerId === 1 ? BOT : 1;\nlet base = ''; try { base = $env.FRONTEND_BASE_URL || ''; } catch (e) {}\nconst icon = f.priority === 'urgent' ? '\ud83d\udea8 URGENT' : f.priority === 'high' ? '\ud83d\udd25 High priority' : 'New';\nconst text = [\n  icon + ' ' + (c.is_new ? 'lead' : 'message') + ' - ' + f.name + (f.zip ? ' (ZIP ' + f.zip + ')' : ''),\n  f.service + ' - ' + f.urgency + ' - priority ' + f.priority + ' (' + f.priorityScore + '), intent ' + f.intentScore + '/100',\n  '\"' + f.summary + '\"',\n  [f.phone, f.fromEmail].filter(Boolean).join(' - ') + ' - service area: ' + f.areaStatus,\n  'Ticket #' + t.id + (base ? ': ' + base + '/tickets/' + t.id : '')\n].join('\\n');\nreturn { json: { ownerId, notifier, dmKey: [notifier, ownerId].sort((a, b) => a - b).join('-'), text, bypassPrefs: f.priority === 'urgent' } };"
+      }
+    },
+    {
+      "id": "06936dde-83d4-44f1-a913-bb8b0c5db333",
+      "name": "DM Fields",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3640,
+        360
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return { json: $input.item.json };"
+      }
+    },
+    {
+      "id": "433dff44-e3df-482f-a34f-9b0cebe5c04c",
+      "name": "Create DM If Missing",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        3900,
+        360
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO conversations (type, dm_key, created_by) VALUES ('dm', $1, $2) ON CONFLICT (dm_key) WHERE type = 'dm' DO NOTHING;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [ $('DM Fields').item.json.dmKey, $('DM Fields').item.json.notifier ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "272329d7-313d-4f0a-a416-2e9ee80cafd7",
+      "name": "Get DM Id",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        4160,
+        360
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id FROM conversations WHERE type = 'dm' AND dm_key = $1;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [ $('DM Fields').item.json.dmKey ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "a953cc97-d0a1-494b-bec8-f8cf5654b03b",
+      "name": "Ensure DM Members",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        4420,
+        360
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO conversation_members (conversation_id, user_id) VALUES ($1, $2), ($1, $3) ON CONFLICT DO NOTHING;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [ $json.id, $('DM Fields').item.json.notifier, $('DM Fields').item.json.ownerId ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "35cb5394-ffe5-45ba-9a11-f0c8aafb58a1",
+      "name": "Insert DM Message",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        4680,
+        360
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO messages (conversation_id, sender_id, body) SELECT $1, $2, $3 WHERE EXISTS (SELECT 1 FROM users WHERE id = $4 AND ($5::boolean OR COALESCE((notification_preferences->>'automation_dms')::boolean, true) = true));",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [ $('Get DM Id').item.json.id, $('DM Fields').item.json.notifier, $('DM Fields').item.json.text, $('DM Fields').item.json.ownerId, $('DM Fields').item.json.bypassPrefs ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "39ba6512-8477-4881-a549-38b879db22bf",
+      "name": "Schedule: every minute",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        700
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "030af435-3f41-4051-b845-1aa00b210227",
+      "name": "Escalate Unacknowledged Urgent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        260,
+        700
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH esc AS (\n  UPDATE tickets t SET escalated_at = now()\n  WHERE t.source = 'ai_intake' AND t.priority = 'urgent' AND t.status = 'open' AND t.first_response_at IS NULL AND t.escalated_at IS NULL\n    AND t.is_archived = false AND t.created_at < now() - interval '5 minutes' AND t.created_at > now() - interval '12 hours'\n  RETURNING t.id, t.subject, t.assigned_user\n)\nSELECT esc.id AS ticket_id, esc.subject, r.uid AS recipient_id\nFROM esc CROSS JOIN LATERAL (\n  SELECT esc.assigned_user AS uid WHERE esc.assigned_user IS NOT NULL\n  UNION SELECT id FROM users WHERE role = 'admin' AND active = true\n) r WHERE r.uid <> 9;",
+        "options": {
+          "queryBatching": "independently"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "7b057393-3fef-477e-a794-30319717d32c",
+      "name": "Build Escalation DM",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        700
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// One item per recipient (the ticket owner and every active admin) for tickets nobody acknowledged within 5 minutes.\nconst j = $input.item.json;\nconst BOT = 9; const rid = Number(j.recipient_id);\nlet base = ''; try { base = $env.FRONTEND_BASE_URL || ''; } catch (e) {}\nconst text = '\u23f0 ESCALATION - urgent ticket #' + j.ticket_id + ' has not been acknowledged in 5 minutes.\\n' + j.subject + (base ? '\\n' + base + '/tickets/' + j.ticket_id : '');\nreturn { json: { ownerId: rid, notifier: BOT, dmKey: [BOT, rid].sort((a, b) => a - b).join('-'), text, bypassPrefs: true } };"
+      }
+    }
+  ],
+  "connections": {
+    "Email Trigger (IMAP)": {
+      "main": [
+        [
+          {
+            "node": "Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: ai-email-intake": {
+      "main": [
+        [
+          {
+            "node": "Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Input": {
+      "main": [
+        [
+          {
+            "node": "Skip Message?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip Message?": {
+      "main": [
+        [
+          {
+            "node": "Ignored (automated or empty)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Claim Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claim Message": {
+      "main": [
+        [
+          {
+            "node": "New Message?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New Message?": {
+      "main": [
+        [
+          {
+            "node": "Build Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Already Processed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Prompt": {
+      "main": [
+        [
+          {
+            "node": "Ollama Extract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Extract": {
+      "main": [
+        [
+          {
+            "node": "Validate & Normalize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Normalize": {
+      "main": [
+        [
+          {
+            "node": "Create Ticket?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Ticket?": {
+      "main": [
+        [
+          {
+            "node": "Service Area Check",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Ignored",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Service Area Check": {
+      "main": [
+        [
+          {
+            "node": "Finalize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finalize": {
+      "main": [
+        [
+          {
+            "node": "Upsert Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Contact": {
+      "main": [
+        [
+          {
+            "node": "Create Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Ticket": {
+      "main": [
+        [
+          {
+            "node": "Build DM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build DM": {
+      "main": [
+        [
+          {
+            "node": "DM Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DM Fields": {
+      "main": [
+        [
+          {
+            "node": "Create DM If Missing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create DM If Missing": {
+      "main": [
+        [
+          {
+            "node": "Get DM Id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get DM Id": {
+      "main": [
+        [
+          {
+            "node": "Ensure DM Members",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ensure DM Members": {
+      "main": [
+        [
+          {
+            "node": "Insert DM Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule: every minute": {
+      "main": [
+        [
+          {
+            "node": "Escalate Unacknowledged Urgent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Escalate Unacknowledged Urgent": {
+      "main": [
+        [
+          {
+            "node": "Build Escalation DM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Escalation DM": {
+      "main": [
+        [
+          {
+            "node": "DM Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "timezone": "Asia/Almaty"
+  }
+}

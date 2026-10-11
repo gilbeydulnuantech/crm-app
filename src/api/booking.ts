@@ -57,3 +57,44 @@ export function cancelBooking(activityId: string, token: string) {
     `/webhook/cancel-booking-public?activity_id=${encodeURIComponent(activityId)}&token=${encodeURIComponent(token)}`
   );
 }
+
+// ---- Online booking with a chosen provider (Public Booking Providers workflow) ----
+export interface BookingOptions {
+  success: boolean;
+  enabled: boolean;
+  staff_label: string;
+  timezone: string;
+  company_name: string;
+  industry?: string | null;
+  services: { id: number; name: string; price: number; durations?: { minutes: number; price: number }[] }[];
+  providers: { id: number; name: string }[];
+}
+
+export function fetchBookingOptions() {
+  return apiFetch<BookingOptions>('/webhook/get-booking-options-public');
+}
+
+// staffId 'any' = the first free provider at each time
+export function fetchProviderAvailability(staffId: string, duration?: number | null) {
+  const len = duration ? `&duration=${duration}` : '';
+  return apiFetch<BookingAvailability>(`/webhook/get-availability-provider?staff_id=${encodeURIComponent(staffId)}${len}`);
+}
+
+export interface ProviderBookingPayload {
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  staff_id: string; // a staff id or 'any'
+  service_id: number | null;
+  duration?: number | null; // chosen length in minutes, for services that offer several
+  start_at: string;
+  website_hp?: string;
+}
+
+export function bookWithProvider(payload: ProviderBookingPayload) {
+  return apiFetch<{ success: boolean; provider?: string; error?: string }>('/webhook/book-provider-public', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}

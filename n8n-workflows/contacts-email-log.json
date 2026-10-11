@@ -239,7 +239,8 @@
     "availableInMCP": false,
     "timeSavedMode": "fixed",
     "errorWorkflow": "U7jX0H3oE5a25GrV",
-    "callerPolicy": "workflowsFromSameOwner"
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "Asia/Almaty"
   },
   "versionId": "a6762967-31b8-4d9b-add2-45cbf3437b03",
   "meta": {

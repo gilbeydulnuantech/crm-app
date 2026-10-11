@@ -1,8 +1,34 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import type { Plugin } from 'vite';
+
+// Content-Security-Policy for the production build only (the dev server needs inline scripts for hot reload).
+// Scripts may only come from this site, so script injected through contact data (an <img onerror>, an inline
+// <script>) cannot run or steal the login token. Inline styles stay allowed because the app and the rich-text
+// editor use style attributes; images may come from any https host (company logos, avatars).
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com",
+  "font-src 'self' data: https://cdnjs.cloudflare.com",
+  "img-src 'self' data: blob: https:",
+  "connect-src 'self'",
+  "frame-src 'self' blob: data:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+].join('; ');
+
+function cspPlugin(): Plugin {
+  return {
+    name: 'crm-csp',
+    apply: 'build',
+    transformIndexHtml: () => [{ tag: 'meta', attrs: { 'http-equiv': 'Content-Security-Policy', content: CSP }, injectTo: 'head-prepend' }],
+  };
+}
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), cspPlugin()],
   server: {
     port: 5173,
     allowedHosts: ['.ngrok-free.app', '.ngrok-free.dev', '.ngrok.io', '.ngrok.app'],

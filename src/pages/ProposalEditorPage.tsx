@@ -11,12 +11,23 @@ import { useContacts, useSendContactEmail } from '../hooks/useContacts';
 import { useAuth } from '../context/AuthContext';
 import ScopeOfWorkEditor from '../components/ScopeOfWorkEditor';
 import ProposalPreviewOverlay from '../components/proposals/ProposalPreviewOverlay';
-import DynamicFieldDropdown, { AUTOMATION_DYNAMIC_FIELDS, insertAtCursor } from '../components/DynamicFieldDropdown';
+import DynamicFieldDropdown, { AUTOMATION_DYNAMIC_FIELDS, DynamicField, insertAtCursor } from '../components/DynamicFieldDropdown';
 import { RichTextEditorHandle } from '../components/RichTextEditor';
 import { buildDraftPdf } from '../utils/contractPdf';
+import { renderLineItemsText, resolveProductTokens } from '../utils/mergeFields';
+import { useProducts } from '../hooks/useProducts';
+import { InvoiceLineItemInput } from '../api/payments';
+import { templatePlainBody } from '../utils/emailHtml';
 
 const inputClass =
   'w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]';
+
+// Every automation token, with the link to this saved proposal in its own
+// "Proposal" group. Itemised lines are inserted as {{product_<slug>}} tokens
+// (Products group), so there is no separate line-items token to pick.
+const PROPOSAL_DYNAMIC_FIELDS: DynamicField[] = AUTOMATION_DYNAMIC_FIELDS.map((f) =>
+  f.token === '{{proposal_link}}' ? { ...f, group: 'Proposal' } : f
+);
 
 interface ProposalForm {
   id?: number;
@@ -54,6 +65,7 @@ export default function ProposalEditorPage() {
   const { data: contractTemplates = [] } = useContractTemplates();
   const { data: pages = [] } = usePages();
   const { data: emailTemplates = [] } = useEmailTemplates();
+  const { data: products = [] } = useProducts();
   const { data: companyProfile } = useCompanyProfile(true);
   const { user } = useAuth();
   const saveProposalTemplate = useSaveProposalTemplate();
@@ -90,6 +102,29 @@ export default function ProposalEditorPage() {
   const receiverRef = useRef<HTMLDivElement>(null);
 
   const [form, setForm] = useState<ProposalForm>(EMPTY_FORM);
+  // The proposal's line items ARE the {{product_<slug>}} tokens in its content: each distinct product
+  // becomes one line (quantity = how many times its token appears) and the total is their sum.
+  const validLines = useMemo<InvoiceLineItemInput[]>(() => {
+    const counts = new Map<string, number>();
+    for (const m of form.content_html.matchAll(/\{\{\s*product_([a-z0-9_]+)\s*\}\}/gi)) {
+      const slug = m[1].toLowerCase();
+      counts.set(slug, (counts.get(slug) || 0) + 1);
+    }
+    const lines: InvoiceLineItemInput[] = [];
+    for (const [slug, qty] of counts) {
+      const prod = products.find((x) => x.slug === slug && x.is_active);
+      if (!prod) continue;
+      lines.push({
+        product: prod.name,
+        qty,
+        unit_price: prod.unit_price,
+        discount: 0,
+        tax: prod.tax_rate ? Math.round(qty * prod.unit_price * prod.tax_rate) / 100 : 0,
+      });
+    }
+    return lines;
+  }, [form.content_html, products]);
+  const linesTotal = Math.round(validLines.reduce((sum, it) => sum + it.qty * it.unit_price - (it.discount || 0) + (it.tax || 0), 0) * 100) / 100;
   const [error, setError] = useState<string | null>(null);
   const [saveConfirmation, setSaveConfirmation] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -163,7 +198,7 @@ export default function ProposalEditorPage() {
   function applyEmailTemplate(templateId: string) {
     const tmpl = emailTemplates.find((t) => String(t.id) === templateId);
     if (!tmpl) return;
-    setForm((f) => ({ ...f, email_subject: tmpl.subject, email_body: tmpl.body }));
+    setForm((f) => ({ ...f, email_subject: tmpl.subject, email_body: templatePlainBody(tmpl) }));
   }
 
   function handleSubmit(e: FormEvent) {
@@ -176,7 +211,7 @@ export default function ProposalEditorPage() {
     if (!form.linked_contract_template_id) return setError('Choose a linked contract template.');
 
     if (selectedDeal) {
-      const totalAmount = form.total_amount ? Number(form.total_amount) : 0;
+      const totalAmount = validLines.length > 0 ? linesTotal : form.total_amount ? Number(form.total_amount) : 0;
       if (!Number.isFinite(totalAmount) || totalAmount < 0) return setError('Total must be 0 or more.');
 
       saveProposal.mutate(
@@ -186,6 +221,7 @@ export default function ProposalEditorPage() {
           title: form.title.trim(),
           content_html: form.content_html,
           total_amount: totalAmount,
+          line_items: validLines.map(({ product, qty, unit_price, discount, tax }) => ({ product, qty, unit_price, discount, tax })),
           email_subject: form.email_subject.trim() || undefined,
           email_body: form.email_body.trim() || undefined,
           client_name: selectedDeal.contactName || undefined,
@@ -286,8 +322,9 @@ export default function ProposalEditorPage() {
       '{{payment.balance_paid_at}}': balancePaidAt,
 
       '{{proposal_link}}': proposalLink,
+      '{{line_items}}': renderLineItemsText(validLines),
     };
-    return Object.entries(map).reduce((out, [token, val]) => out.split(token).join(val), text);
+    return resolveProductTokens(Object.entries(map).reduce((out, [token, val]) => out.split(token).join(val), text), products, true);
   }
 
   function handleSend() {
@@ -506,6 +543,7 @@ export default function ProposalEditorPage() {
                 toolbarContainer={toolbarContainerRef}
               />
             </div>
+
           </div>
         </div>
 
@@ -522,9 +560,10 @@ export default function ProposalEditorPage() {
                 type="number"
                 min={0}
                 step="any"
-                value={form.total_amount}
+                value={validLines.length > 0 ? String(linesTotal) : form.total_amount}
                 onChange={(e) => setForm((f) => ({ ...f, total_amount: e.target.value }))}
-                className={inputClass}
+                disabled={validLines.length > 0}
+                className={`${inputClass} disabled:bg-slate-50 disabled:text-slate-500`}
               />
               <p className="text-[10px] text-slate-400 italic mt-1">
                 Sending to <span className="font-medium text-slate-600">{selectedDeal.contactName || 'this contact'}</span>
@@ -556,7 +595,7 @@ export default function ProposalEditorPage() {
 
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1.5">Insert dynamic field</label>
-            <DynamicFieldDropdown fields={AUTOMATION_DYNAMIC_FIELDS} onInsert={(t) => editorRef.current?.insertText(t)} />
+            <DynamicFieldDropdown fields={PROPOSAL_DYNAMIC_FIELDS} onInsert={(t) => editorRef.current?.insertText(t)} />
             <p className="text-[10px] text-slate-400 italic mt-2">
               Fields resolve once this template is used to generate a proposal for a specific deal.
             </p>
@@ -680,7 +719,7 @@ export default function ProposalEditorPage() {
               <p className="text-[11px] font-semibold text-slate-500 mb-2">
                 Insert into {focusedComposeField === 'subject' ? 'Subject' : 'Body'}
               </p>
-              <DynamicFieldDropdown fields={AUTOMATION_DYNAMIC_FIELDS} onInsert={insertIntoComposeField} />
+              <DynamicFieldDropdown fields={PROPOSAL_DYNAMIC_FIELDS} onInsert={insertIntoComposeField} />
             </div>
           </div>
         </div>
@@ -691,6 +730,7 @@ export default function ProposalEditorPage() {
         onClose={() => setPreviewOpen(false)}
         title={form.title}
         contentHtml={form.content_html}
+        lineItems={validLines}
         linkedContractTitle={linkedContract?.title}
         linkedContractContentHtml={linkedContract?.content_html}
         linkedThankYouPageContentHtml={linkedThankYouPage?.content_html}

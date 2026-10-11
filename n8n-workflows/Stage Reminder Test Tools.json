@@ -34,30 +34,31 @@
       "onError": "continueErrorOutput"
     },
     {
-      "parameters": {
-        "sendTo": "={{ $json.testEmail }}",
-        "subject": "={{ $json.subject }}",
-        "emailType": "text",
-        "message": "={{ $json.body }}",
-        "options": {
-          "appendAttribution": false
-        }
-      },
       "id": "srtt0005-5555-4a5a-9b1a-strtest0000005",
       "name": "Send Test Email",
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
       "position": [
         1856,
         400
       ],
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "YE9RFYruaRVVZ6H4",
-          "name": "CRMapp"
+      "onError": "continueErrorOutput",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "parameters": {
+        "fromEmail": "gilbeydulnuan@gmail.com",
+        "toEmail": "={{ $json.testEmail }}",
+        "subject": "={{ $json.subject }}",
+        "emailFormat": "text",
+        "text": "={{ $json.body }}",
+        "options": {
+          "appendAttribution": false
         }
       },
-      "onError": "continueErrorOutput"
+      "credentials": {
+        "smtp": {
+          "id": "A3AoUIlP8cbZ5VlF",
+          "name": "Gmail SMTP (gilbeydulnuan)"
+        }
+      }
     },
     {
       "parameters": {
@@ -206,30 +207,31 @@
       ]
     },
     {
-      "parameters": {
-        "sendTo": "={{ $json.to }}",
-        "subject": "={{ $json.subject }}",
-        "emailType": "text",
-        "message": "={{ $json.body }}",
-        "options": {
-          "appendAttribution": false
-        }
-      },
       "id": "srtt0016-1616-4a5a-9b1a-strtest0000016",
       "name": "Send Reminder Email (Force)",
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
       "position": [
         2528,
         720
       ],
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "YE9RFYruaRVVZ6H4",
-          "name": "CRMapp"
+      "onError": "continueErrorOutput",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "parameters": {
+        "fromEmail": "gilbeydulnuan@gmail.com",
+        "toEmail": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailFormat": "text",
+        "text": "={{ $json.body }}",
+        "options": {
+          "appendAttribution": false
         }
       },
-      "onError": "continueErrorOutput"
+      "credentials": {
+        "smtp": {
+          "id": "A3AoUIlP8cbZ5VlF",
+          "name": "Gmail SMTP (gilbeydulnuan)"
+        }
+      }
     },
     {
       "parameters": {
@@ -325,30 +327,31 @@
       ]
     },
     {
-      "parameters": {
-        "sendTo": "={{ $json.to }}",
-        "subject": "={{ $json.subject }}",
-        "emailType": "text",
-        "message": "={{ $json.body }}",
-        "options": {
-          "appendAttribution": false
-        }
-      },
       "id": "srtt0021-2121-4a5a-9b1a-strtest0000021",
       "name": "Send Completion Email (Force)",
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
       "position": [
         2752,
         816
       ],
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "YE9RFYruaRVVZ6H4",
-          "name": "CRMapp"
+      "onError": "continueErrorOutput",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "parameters": {
+        "fromEmail": "gilbeydulnuan@gmail.com",
+        "toEmail": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailFormat": "text",
+        "text": "={{ $json.body }}",
+        "options": {
+          "appendAttribution": false
         }
       },
-      "onError": "continueErrorOutput"
+      "credentials": {
+        "smtp": {
+          "id": "A3AoUIlP8cbZ5VlF",
+          "name": "Gmail SMTP (gilbeydulnuan)"
+        }
+      }
     },
     {
       "parameters": {
@@ -871,6 +874,7 @@
     "executionOrder": "v1",
     "availableInMCP": false,
     "timeSavedMode": "fixed",
-    "callerPolicy": "workflowsFromSameOwner"
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "Asia/Almaty"
   }
 }

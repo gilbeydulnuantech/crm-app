@@ -29,28 +29,28 @@
       "name": "Sticky Note5"
     },
     {
-      "parameters": {
-        "sendTo": "imageandmotionphotography@gmail.com",
-        "subject": "ALERT N8N ERROR",
-        "emailType": "text",
-        "message": "=Workflow:  {{ $json.workflow.name }}\n\nURL: {{ $json.execution.url }}\n\nMessage: {{ $json.execution.error.message }}\n\nNode with error: {{ $json.execution.lastNodeExecuted }}",
-        "options": {
-          "appendAttribution": false
-        }
-      },
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
       "position": [
-        368,
+        588,
         288
       ],
       "id": "d58659eb-1e5f-4598-b3ad-05b0c7334c0a",
       "name": "Send a message",
-      "webhookId": "a3ab1169-103d-4aa3-bdfb-6a5e1d5f9461",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "parameters": {
+        "fromEmail": "gilbeydulnuan@gmail.com",
+        "toEmail": "imageandmotionphotography@gmail.com",
+        "subject": "ALERT N8N ERROR",
+        "emailFormat": "text",
+        "text": "=Workflow:  {{ $json.workflow.name }}\n\nURL: {{ $json.execution.url }}\n\nMessage: {{ $json.execution.error.message }}\n\nNode with error: {{ $json.execution.lastNodeExecuted }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
       "credentials": {
-        "gmailOAuth2": {
-          "id": "YE9RFYruaRVVZ6H4",
-          "name": "CRMapp"
+        "smtp": {
+          "id": "A3AoUIlP8cbZ5VlF",
+          "name": "Gmail SMTP (gilbeydulnuan)"
         }
       }
     },
@@ -69,7 +69,7 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.4,
       "position": [
-        368,
+        588,
         80
       ],
       "id": "e77839c0-61a9-4468-8fe9-044d33e7fa11",
@@ -81,11 +81,35 @@
           "name": "hitl"
         }
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Keeps expected noise out of Slack/email; every other failure still alerts.\n// 1) \"Invalid session\": a browser tab with an old login hitting a protected endpoint (the CRM rejected it correctly).\n// 2) Brief internet drops on scheduled/polling triggers (Google Calendar, email reply, crypto signal...): the next poll recovers by itself.\nconst j = $input.first().json;\nconst msg = String((j.execution && j.execution.error && j.execution.error.message) || '').trim();\nconst mode = (j.execution && j.execution.mode) || '';\nconst net = /connection cannot be established|connection was aborted|server is offline|ECONNABORTED|ECONNREFUSED|ECONNRESET|ENOTFOUND|ETIMEDOUT|EAI_AGAIN|socket hang up|getaddrinfo|network/i.test(msg);\nconst invalidSession = /^Invalid session/i.test(msg);\nconst triggerBlip = mode === 'trigger' && (net || msg === '');\nif (invalidSession || triggerBlip) return [];\nreturn $input.all();\n"
+      },
+      "id": "filter-noise-1",
+      "name": "Filter Expected Noise",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        364,
+        80
+      ]
     }
   ],
   "pinData": {},
   "connections": {
     "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Filter Expected Noise",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Expected Noise": {
       "main": [
         [
           {
@@ -106,7 +130,8 @@
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate",
-    "availableInMCP": false
+    "availableInMCP": false,
+    "timezone": "Asia/Almaty"
   },
   "versionId": "d746445e-7a02-4f72-9f09-862ad3968eae",
   "meta": {

@@ -1,0 +1,507 @@
+{
+  "name": "Telegram Inbound",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "a7ee1753-d366-4809-8082-43e073f26818",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "98d24131-1dd8-4ba5-8191-52ce6b125303",
+      "credentials": {
+        "telegramApi": {
+          "id": "cXEKQVB4yxrQFTMR",
+          "name": "myCRM Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const u = $input.first().json;\nconst m = u.message || {};\nconst chat = m.chat || {};\nconst text = (m.text || '').toString().trim();\nconst chatId = chat.id != null ? String(chat.id) : null;\nconst fromName = [m.from && m.from.first_name, m.from && m.from.last_name].filter(Boolean).join(' ') || 'Unknown';\n\nlet action = 'ignore';\nlet token = null;\n// Bots can be added to groups; only handle one-to-one chats.\nif (chatId && chat.type === 'private') {\n  const start = /^\\/start(?:@\\w+)?(?:\\s+(\\S+))?$/i.exec(text);\n  if (start && start[1]) { action = 'link'; token = start[1]; }\n  else if (start) { action = 'help'; }\n  else if (/^\\/?(stop|unsubscribe)$/i.test(text)) { action = 'optout'; }\n  else if (text) { action = 'message'; }\n}\nreturn [{ json: { action, chatId, token, text, fromName } }];"
+      },
+      "id": "f4ce0e3b-f694-4fa8-a43a-af08cab411cc",
+      "name": "Parse Update",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c0587f2a-ff19-4a65-a53d-e8024160f3b5",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "link",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6ae76e46-01c6-4f04-9a39-ecc3e8174762",
+      "name": "Is Link?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts SET telegram_chat_id = $1::bigint, telegram_linked_at = now(), dnc_telegram = false, updated_at = now()\nWHERE telegram_link_token = $2 AND is_archived = false\nRETURNING id, first_name;",
+        "options": {
+          "queryReplacement": "={{ [ $json.chatId, $json.token ] }}"
+        }
+      },
+      "id": "dd5c7d1c-dfed-42ae-ba44-4a7edc17fb85",
+      "name": "Link Contact",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        660,
+        -160
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_name)\nSELECT 'contact', $1::int, 'telegram', 'linked', 'Contact linked their Telegram', jsonb_build_object('chat_id', $2::text), 'Telegram'\nWHERE $1::int IS NOT NULL\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id, $('Parse Update').first().json.chatId ] }}"
+        }
+      },
+      "id": "f00bbfd5-5b31-43c8-a43b-1974d81c4b69",
+      "name": "Log Linked",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        880,
+        -260
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $('Link Contact').first().json;\nconst chatId = $('Parse Update').first().json.chatId;\nconst ok = !!(r && r.id);\nreturn [{ json: { chatId, text: ok ? `Thanks${r.first_name ? ', ' + r.first_name : ''}! You're connected, and we'll send you updates here. Reply STOP at any time to unsubscribe.` : \"Sorry, that link isn't valid or has expired. Please ask us for a new one.\" } }];"
+      },
+      "id": "d3b50022-87ed-49c6-8d24-46935bc92020",
+      "name": "Link Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "ef7b96f3-17a0-4864-b3c4-89e6481fae2e",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "optout",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7991c220-25e9-4d17-8127-81e348ab0069",
+      "name": "Is Opt-out?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        660,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts SET dnc_telegram = true, updated_at = now() WHERE telegram_chat_id = $1::bigint RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.chatId ] }}"
+        }
+      },
+      "id": "422cabda-7a5e-4f66-95e4-5ba4f102a54b",
+      "name": "Opt Out",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        880,
+        40
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_name)\nSELECT 'contact', $1::int, 'telegram', 'opted_out', 'Contact unsubscribed from Telegram', jsonb_build_object('chat_id', $2::text), 'Telegram'\nWHERE $1::int IS NOT NULL\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id, $('Parse Update').first().json.chatId ] }}"
+        }
+      },
+      "id": "f01bf157-88a8-45de-ba5c-317b1634f350",
+      "name": "Log Opt-out",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1100,
+        -20
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { chatId: $('Parse Update').first().json.chatId, text: \"You've been unsubscribed and won't get any more messages here. To start again, open your personal link from us and press Start.\" } }];"
+      },
+      "id": "86ff78dd-a2b5-4c5f-bd11-f5749aa8aea5",
+      "name": "Opt-out Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "a6b1b7ed-33f1-4194-8076-42d0bf602b9e",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "message",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6f6247dd-9bb9-4b62-9af9-48ec25754076",
+      "name": "Is Message?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        660,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_name)\nSELECT 'contact', c.id, 'telegram', 'inbound', 'Telegram message received', jsonb_build_object('text', $2::text, 'is_read', false), $3::text\nFROM contacts c WHERE c.telegram_chat_id = $1::bigint\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.chatId, $json.text, $json.fromName ] }}"
+        }
+      },
+      "id": "cb22ec48-ab4b-44d1-b9ef-b881c2170f40",
+      "name": "Log Inbound Message",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        880,
+        240
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "9b146856-1663-4bdc-9714-985a145a8be8",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "help",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cd025bd8-4288-4f93-ab71-a4c457119d38",
+      "name": "Is Help?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        660,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { chatId: $('Parse Update').first().json.chatId, text: 'To get updates from us here, please open the personal link we sent you and press Start.' } }];"
+      },
+      "id": "1630e2cc-36c5-4bd6-8a83-66d70e9796bf",
+      "name": "Help Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "9b5e0471-7389-4dc6-be9b-ab7d992ec42e",
+      "name": "Send Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1320,
+        0
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "cXEKQVB4yxrQFTMR",
+          "name": "myCRM Telegram Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Update": {
+      "main": [
+        [
+          {
+            "node": "Is Link?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Link?": {
+      "main": [
+        [
+          {
+            "node": "Link Contact",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is Opt-out?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Link Contact": {
+      "main": [
+        [
+          {
+            "node": "Log Linked",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Link Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Link Reply": {
+      "main": [
+        [
+          {
+            "node": "Send Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Opt-out?": {
+      "main": [
+        [
+          {
+            "node": "Opt Out",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is Message?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Opt Out": {
+      "main": [
+        [
+          {
+            "node": "Log Opt-out",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Opt-out Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Opt-out Reply": {
+      "main": [
+        [
+          {
+            "node": "Send Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Message?": {
+      "main": [
+        [
+          {
+            "node": "Log Inbound Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is Help?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Help?": {
+      "main": [
+        [
+          {
+            "node": "Help Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Help Reply": {
+      "main": [
+        [
+          {
+            "node": "Send Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "timezone": "Asia/Almaty"
+  }
+}

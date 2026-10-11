@@ -49,6 +49,17 @@ export default function TeamChat() {
     setSearchParams(next, { replace: true });
   }, [searchParams, conversations, setSearchParams]);
 
+  // Opening Team Chat from the nav lands on your notifications: the newest conversation with unread messages (the list
+  // arrives newest first). Only once per visit, and never when a deep link (?conversation=) or the user already picked one.
+  const autoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (autoOpenedRef.current || conversations.length === 0) return;
+    if (searchParams.get('conversation')) { autoOpenedRef.current = true; return; }
+    autoOpenedRef.current = true;
+    const firstUnread = conversations.find((c) => c.unread_count > 0);
+    if (firstUnread) setActiveConversationId((current) => current ?? firstUnread.id);
+  }, [conversations, searchParams]);
+
   const markRead = useMarkConversationRead();
   const startDm = useStartDm();
   const { data: messages = [], isLoading: messagesLoading } = useMessages(activeConversationId);
@@ -72,7 +83,7 @@ export default function TeamChat() {
   // creates it on the fly (see selectDm).
   const dmEntries = useMemo<DmEntry[]>(() => {
     const dmByPeer = new Map(conversations.filter((c) => c.type === 'dm').map((c) => [c.peer_id, c]));
-    return users
+    const entries: DmEntry[] = users
       .filter((u) => u.id !== user?.id)
       .map((u) => ({
         userId: u.id,
@@ -80,6 +91,16 @@ export default function TeamChat() {
         color: u.color || DEFAULT_USER_COLOR,
         conversation: dmByPeer.get(u.id) ?? null,
       }));
+    // Threads with someone who isn't an active user — the system sender behind automation notifications ("CRM
+    // Notifications"), or a teammate who was later deactivated — still have to be listed, or their unread messages
+    // would show in the bell and the badge but be impossible to open.
+    const listed = new Set(entries.map((e) => e.userId));
+    for (const c of conversations) {
+      if (c.type !== 'dm' || c.peer_id == null || c.peer_id === user?.id || listed.has(c.peer_id)) continue;
+      listed.add(c.peer_id);
+      entries.push({ userId: c.peer_id, name: c.peer_name ?? 'System', color: DEFAULT_USER_COLOR, conversation: c });
+    }
+    return entries;
   }, [users, conversations, user?.id]);
 
   const q = search.trim().toLowerCase();

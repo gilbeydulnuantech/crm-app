@@ -1,0 +1,1270 @@
+{
+  "name": "Appointment Reminders",
+  "nodes": [
+    {
+      "id": "9de93e1b-0072-49a3-b70a-bfed177dbcb3",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1700,
+        1000
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ (() => { let m = (typeof $json.error === \"string\" ? $json.error : ($json.error?.message || $json.error?.description)) || $json.message || \"Request failed.\"; m = String(m).replace(/\\s*\\[line \\d+\\]\\s*$/, \"\"); if (/already exists|_name_lower|duplicate key/i.test(m)) m = \"There is already one with that name.\"; else if (/(violates|syntax error|relation \"|column \"|ECONNREFUSED|timeout)/i.test(m)) m = \"Could not save this. Please try again.\"; return { success: false, error: m }; })() }}",
+        "options": {
+          "responseCode": 400
+        }
+      }
+    },
+    {
+      "id": "06a4bd77-1596-4468-a481-e1d82c085b89",
+      "name": "Webhook: get-messaging-settings",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-messaging-settings",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "http://localhost:5173"
+        }
+      },
+      "webhookId": "ad28cfa4-2977-4e91-b305-bd024b42bc31"
+    },
+    {
+      "id": "bfa12010-e4c8-450e-bd22-13966fafe2a2",
+      "name": "Log Workflow Run: get-messaging-settings",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Messaging\" }}",
+            "workflow_id": "={{ \"QL0YGK6ehiZXkFSN\" }}",
+            "entity_type": "={{ \"appointment_reminders\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "e3b11bc0-c92e-42ec-a54a-2cb26f102fb1",
+      "name": "Extract Bearer Token (get)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: get-messaging-settings').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "3cc7fdfa-67e1-4f47-8ad7-69a8176d7958",
+      "name": "Execute Workflow: Verify Session (get)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "6bb3bf5f-25d6-476f-bb7f-cb4d85f74a74",
+      "name": "Validate Session (get)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "3f97008c-a4aa-4b6d-9fd2-ec2f090be3d3",
+      "name": "Check Payload (get)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Only an admin can change messaging settings.');\nreturn [{ json: { ok: true } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "4f0a98b8-4797-4818-8513-dd3bf12f9a73",
+      "name": "Query (get)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1440,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT enabled, channel_order, hours_before, default_country_code, wa_phone_number_id, (COALESCE(wa_token, '') <> '') AS has_wa_token, wa_template_name, wa_template_lang,\n  sms_provider, (COALESCE(sms_api_key, '') <> '') AS has_sms_key, sms_sender, sms_template FROM messaging_settings WHERE id = 1;",
+        "options": {
+          "queryBatching": "independently"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "alwaysOutputData": false
+    },
+    {
+      "id": "45235a4e-245c-4271-86b6-6ecf799f5ef1",
+      "name": "Respond (get)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1680,
+        -60
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, ...$input.first().json } }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "f57d8e8e-f92b-4431-bd33-96973d7a622a",
+      "name": "Webhook: save-messaging-settings",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        200
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "save-messaging-settings",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "http://localhost:5173"
+        }
+      },
+      "webhookId": "82acaf2a-da1a-4a9c-8dfa-387f621ffd15"
+    },
+    {
+      "id": "fdbdbc88-b1ac-4ed7-af24-b91180c0984c",
+      "name": "Log Workflow Run: save-messaging-settings",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        200
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Messaging\" }}",
+            "workflow_id": "={{ \"QL0YGK6ehiZXkFSN\" }}",
+            "entity_type": "={{ \"appointment_reminders\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "4c06a418-af7e-4f52-886f-f9874f4c30a9",
+      "name": "Extract Bearer Token (save)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        200
+      ],
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: save-messaging-settings').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "396de21b-f1dc-4318-a45a-6068864935da",
+      "name": "Execute Workflow: Verify Session (save)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        200
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "83b050b0-77bd-4ee5-9ffb-8ba180fd7398",
+      "name": "Validate Session (save)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        200
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "f9ec101e-8f18-40eb-832e-8abecf3c1ac5",
+      "name": "Check Payload (save)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        200
+      ],
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Only an admin can change messaging settings.');\nconst clean = (v, max) => (typeof v === 'string' ? v : '').replace(/[\\u0000-\\u001f\\u007f]/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, max);\nconst num = (v, name, min, max) => { const n = Number(v); if (!Number.isFinite(n) || n < min || n > max) throw new Error(name + ' must be between ' + min + ' and ' + max + '.'); return n; };\nconst bool = (v) => !(v === false || v === 'false');\nconst idOf = (v) => { if (v === null || v === undefined || v === '') return null; const n = parseInt(v, 10); if (!Number.isInteger(n) || n < 1) throw new Error('Invalid id.'); return n; };\nconst b = $('Webhook: save-messaging-settings').first().json.body || {};\nconst yes = (v) => v === true || v === 'true';\nconst hours = Array.isArray(b.hours_before) ? [...new Set(b.hours_before.map((h) => parseInt(h, 10)).filter((h) => h >= 1 && h <= 168))].sort((x, y) => y - x) : null;\nif (hours && hours.length > 4) throw new Error('Choose at most 4 reminder times.');\nconst order = ['whatsapp_sms', 'whatsapp', 'sms'].includes(b.channel_order) ? b.channel_order : null;\nconst cc = b.default_country_code === undefined ? null : clean(String(b.default_country_code), 4).replace(/\\D/g, '') || '7';\nconst secret = (v) => (typeof v === 'string' && v.trim() !== '' ? v.trim().slice(0, 600) : null);\nconst tpl = b.sms_template === undefined ? null : clean(b.sms_template, 500);\nif (tpl !== null && !tpl) throw new Error('The SMS text cannot be empty.');\nreturn [{ json: {\n  enabled: b.enabled === undefined ? null : yes(b.enabled), order, hours, cc,\n  waPhone: b.wa_phone_number_id === undefined ? null : clean(String(b.wa_phone_number_id), 40),\n  waToken: secret(b.wa_token), clearWaToken: yes(b.clear_wa_token),\n  waTemplate: b.wa_template_name === undefined ? null : clean(String(b.wa_template_name), 80),\n  waLang: b.wa_template_lang === undefined ? null : clean(String(b.wa_template_lang), 10) || 'en',\n  smsKey: secret(b.sms_api_key), clearSmsKey: yes(b.clear_sms_key),\n  smsSender: b.sms_sender === undefined ? null : clean(String(b.sms_sender), 20),\n  smsTemplate: tpl,\n} }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "09dd13b6-c0b5-4c2e-ba0e-a6eed318c382",
+      "name": "Query (save)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1440,
+        200
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE messaging_settings SET\n  enabled = COALESCE($1::boolean, enabled), channel_order = COALESCE($2, channel_order), hours_before = COALESCE($3::int[], hours_before),\n  default_country_code = COALESCE($4, default_country_code), wa_phone_number_id = COALESCE($5, wa_phone_number_id),\n  wa_token = CASE WHEN $6::boolean THEN NULL ELSE COALESCE($7, wa_token) END, wa_template_name = COALESCE($8, wa_template_name), wa_template_lang = COALESCE($9, wa_template_lang),\n  sms_api_key = CASE WHEN $10::boolean THEN NULL ELSE COALESCE($11, sms_api_key) END, sms_sender = COALESCE($12, sms_sender), sms_template = COALESCE($13, sms_template), updated_at = now()\nWHERE id = 1 RETURNING id;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [ $json.enabled, $json.order, $json.hours ? '{' + $json.hours.join(',') + '}' : null, $json.cc, $json.waPhone, $json.clearWaToken, $json.waToken, $json.waTemplate, $json.waLang, $json.clearSmsKey, $json.smsKey, $json.smsSender, $json.smsTemplate ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "alwaysOutputData": false
+    },
+    {
+      "id": "6f3024ef-e272-4916-82d4-bcc6ef945db5",
+      "name": "Respond (save)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1680,
+        140
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: $input.all().length > 0 && !!$input.first().json.id } }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "0e93dd81-5d65-4752-9aa8-0004ba48343b",
+      "name": "Webhook: get-reminder-log",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        400
+      ],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-reminder-log",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "http://localhost:5173"
+        }
+      },
+      "webhookId": "41bf842d-2d55-4e8b-a1e0-e759fbb01311"
+    },
+    {
+      "id": "7250bf99-0d5d-4118-ba31-7c08b8b15e04",
+      "name": "Log Workflow Run: get-reminder-log",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        400
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Messaging\" }}",
+            "workflow_id": "={{ \"QL0YGK6ehiZXkFSN\" }}",
+            "entity_type": "={{ \"appointment_reminders\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "b4cd09ef-186b-4ed1-b2e3-663df15a0c3e",
+      "name": "Extract Bearer Token (log)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: get-reminder-log').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "89ce5fac-bfe0-49de-aebd-d081a677fbcf",
+      "name": "Execute Workflow: Verify Session (log)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        400
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "b3527948-2d07-42d1-8355-e2b0f524feca",
+      "name": "Validate Session (log)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "3b3e36f9-b2e2-4fc0-9c17-6787f2d7fa2f",
+      "name": "Check Payload (log)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Only an admin can change messaging settings.');\nreturn [{ json: { ok: true } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "dca8369b-47f1-4f98-82bf-2539f90807fc",
+      "name": "Query (log)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1440,
+        400
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT r.id, r.activity_id, r.hours_before, r.channel, r.status, r.detail, r.created_at, a.subject, a.due_at, TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS client\nFROM appointment_reminders r JOIN activities a ON a.id = r.activity_id LEFT JOIN contacts c ON c.id = a.contact_id ORDER BY r.id DESC LIMIT 40;",
+        "options": {
+          "queryBatching": "independently"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "id": "b9963632-4b47-48f3-8971-4a27b14b73e1",
+      "name": "Respond (log)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1680,
+        340
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().map((i) => i.json).filter((r) => r.id) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "ba99823f-f384-4aa0-88ba-ded684ed38a2",
+      "name": "Webhook: send-test-message",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        600
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "send-test-message",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "http://localhost:5173"
+        }
+      },
+      "webhookId": "00cb6b30-c8d0-4ecc-bb0a-875d80af072c"
+    },
+    {
+      "id": "5f1db425-8b25-47d1-82d4-9002a4b87fe5",
+      "name": "Log Workflow Run: send-test-message",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        600
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Messaging\" }}",
+            "workflow_id": "={{ \"QL0YGK6ehiZXkFSN\" }}",
+            "entity_type": "={{ \"appointment_reminders\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "eb1ae3c4-3f1b-488d-ae85-83d0f5df79bb",
+      "name": "Extract Bearer Token (test)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        600
+      ],
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: send-test-message').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "a12316e0-494c-4e80-9bea-c199c78892ee",
+      "name": "Execute Workflow: Verify Session (test)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        600
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "56954bf0-6648-43ca-a15a-342fe03bbabb",
+      "name": "Validate Session (test)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        600
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "3249ba6a-37eb-49c1-b12b-6ac9e0f41830",
+      "name": "Check Payload (test)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        600
+      ],
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Only an admin can change messaging settings.');\nconst clean = (v, max) => (typeof v === 'string' ? v : '').replace(/[\\u0000-\\u001f\\u007f]/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, max);\nconst num = (v, name, min, max) => { const n = Number(v); if (!Number.isFinite(n) || n < min || n > max) throw new Error(name + ' must be between ' + min + ' and ' + max + '.'); return n; };\nconst bool = (v) => !(v === false || v === 'false');\nconst idOf = (v) => { if (v === null || v === undefined || v === '') return null; const n = parseInt(v, 10); if (!Number.isInteger(n) || n < 1) throw new Error('Invalid id.'); return n; };\nconst b = $('Webhook: send-test-message').first().json.body || {};\nconst channel = b.channel === 'sms' ? 'sms' : b.channel === 'whatsapp' ? 'whatsapp' : null;\nif (!channel) throw new Error('Choose WhatsApp or SMS.');\nconst to = clean(String(b.to || ''), 30);\nif (!to) throw new Error('Enter a phone number to send the test to.');\nreturn [{ json: { channel, to } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "9db4edbe-f191-48db-b3f6-01f6b8fe2ab6",
+      "name": "Query (test)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1440,
+        600
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT row_to_json(m) AS cfg, (SELECT company_name FROM company_profile WHERE id = 1) AS company_name, (SELECT COALESCE(timezone, 'UTC') FROM company_profile WHERE id = 1) AS tz, (SELECT time_format FROM company_profile WHERE id = 1) AS tf FROM messaging_settings m WHERE m.id = 1;",
+        "options": {
+          "queryBatching": "independently"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "alwaysOutputData": false
+    },
+    {
+      "id": "604f9933-725d-4d2a-8673-f3de5787489f",
+      "name": "Send Test Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        540
+      ],
+      "parameters": {
+        "jsCode": "\nfunction normPhone(raw, cc) {\n  let d = String(raw || '').replace(/\\D/g, '');\n  cc = String(cc || '7').replace(/\\D/g, '') || '7';\n  if (!d) return '';\n  if (d.startsWith('00')) d = d.slice(2);\n  else if (d.length === 11 && d.startsWith('8') && cc === '7') d = '7' + d.slice(1);\n  else if (d.length === 10) d = cc + d;\n  return d.length >= 10 && d.length <= 15 ? d : '';\n}\nfunction render(tpl, v) {\n  return String(tpl || '').replace(/\\{\\{\\s*([a-z_]+)\\s*\\}\\}/gi, (m, k) => (v[k.toLowerCase()] !== undefined ? v[k.toLowerCase()] : ''));\n}\nasync function sendWhatsApp(cfg, to, vars) {\n  if (!cfg.wa_phone_number_id || !cfg.wa_token || !cfg.wa_template_name) throw new Error('WhatsApp is not set up (phone number id, token and template name are needed).');\n  const params = [vars.client_name, vars.service, vars.date, vars.time, vars.staff || '-'].map((t) => ({ type: 'text', text: String(t || '-').slice(0, 200) }));\n  const res = await this.helpers.httpRequest({\n    method: 'POST',\n    url: 'https://graph.facebook.com/v21.0/' + encodeURIComponent(cfg.wa_phone_number_id) + '/messages',\n    headers: { Authorization: 'Bearer ' + cfg.wa_token, 'Content-Type': 'application/json' },\n    body: { messaging_product: 'whatsapp', to, type: 'template', template: { name: cfg.wa_template_name, language: { code: cfg.wa_template_lang || 'en' }, components: [{ type: 'body', parameters: params }] } },\n    json: true,\n    timeout: 20000,\n  });\n  const id = res && res.messages && res.messages[0] && res.messages[0].id;\n  if (!id) throw new Error('WhatsApp did not accept the message: ' + JSON.stringify(res).slice(0, 200));\n  return id;\n}\nasync function sendSms(cfg, to, vars) {\n  if (!cfg.sms_api_key) throw new Error('SMS is not set up (API key needed).');\n  const text = render(cfg.sms_template, vars);\n  const qs = { recipient: to, text, apiKey: cfg.sms_api_key, output: 'json' };\n  if (cfg.sms_sender) qs.from = cfg.sms_sender;\n  const res = await this.helpers.httpRequest({ method: 'POST', url: 'https://api.mobizon.kz/service/message/sendsmsmessage', qs, json: true, timeout: 20000 });\n  if (!res || Number(res.code) !== 0) throw new Error('SMS gateway refused the message: ' + JSON.stringify(res).slice(0, 200));\n  return (res.data && (res.data.messageId || res.data.campaignId)) || 'sent';\n}\n// Tries the channels in the configured order; returns { channel, status, detail }.\nasync function deliver(cfg, rawPhone, vars) {\n  const to = normPhone(rawPhone, cfg.default_country_code);\n  if (!to) return { channel: null, status: 'failed', detail: 'No usable phone number.' };\n  const order = cfg.channel_order === 'sms' ? ['sms'] : cfg.channel_order === 'whatsapp' ? ['whatsapp'] : ['whatsapp', 'sms'];\n  const errors = [];\n  for (const ch of order) {\n    try {\n      const id = ch === 'whatsapp' ? await sendWhatsApp.call(this, cfg, to, vars) : await sendSms.call(this, cfg, to, vars);\n      return { channel: ch, status: 'sent', detail: String(id).slice(0, 120) + (errors.length ? ' (after: ' + errors.join('; ').slice(0, 120) + ')' : '') };\n    } catch (e) {\n      errors.push(ch + ': ' + String((e && e.message) || e).slice(0, 160));\n    }\n  }\n  return { channel: order[order.length - 1], status: 'failed', detail: errors.join(' | ').slice(0, 400) };\n}\nfunction fmtVars(cfg, row, tz, is24) {\n  const dt = DateTime.fromISO(new Date(row.due_at).toISOString(), { zone: 'utc' }).setZone(tz);\n  const staff = row.staff_name ? String(row.staff_name) : '';\n  return {\n    client_name: [row.first_name].filter(Boolean).join(' ') || 'there',\n    service: row.subject || 'appointment',\n    date: dt.toFormat('ccc d LLL'),\n    time: dt.toFormat(is24 ? 'HH:mm' : 'h:mm a'),\n    staff,\n    staff_part: staff ? ' with ' + staff : '',\n    branch: row.branch || '',\n    company: row.company_name || '',\n  };\n}\n\nconst row = $input.first().json;\nconst cfg = row.cfg || {};\nconst req = $('Check Payload (test)').first().json;\nconst tz = row.tz || 'UTC';\nconst when = DateTime.now().setZone(tz).plus({ days: 1 }).set({ hour: 10, minute: 0 });\nconst vars = fmtVars(cfg, { first_name: 'Test', subject: 'Massage', due_at: when.toUTC().toISO(), staff_name: 'Anna', company_name: row.company_name || '' }, tz, row.tf === '24h');\nconst only = Object.assign({}, cfg, { channel_order: req.channel });\nconst r = await deliver.call(this, only, req.to, vars);\nreturn [{ json: r.status === 'sent' ? { success: true, channel: r.channel, detail: r.detail } : { success: false, error: r.detail } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "78cf5cae-7e5d-450a-b77b-6314b584f45b",
+      "name": "Respond (test)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1920,
+        540
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "cac414bf-58c3-4be0-8b2d-a57033e55111",
+      "name": "Schedule: every 5 minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        900
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "f5709f0d-a124-4745-b66b-984326702d75",
+      "name": "Claim Due Reminders",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        260,
+        900
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH cfg AS (SELECT * FROM messaging_settings WHERE id = 1 AND enabled = true),\ncand AS (\n  SELECT a.id AS activity_id, h AS hours_before, a.due_at, a.subject, c.first_name, c.last_name, c.phone, sm.name AS staff_name, u.location AS branch\n  FROM cfg\n  CROSS JOIN LATERAL unnest(cfg.hours_before) AS h\n  JOIN activities a ON a.due_at IS NOT NULL AND a.contact_id IS NOT NULL AND a.type <> 'task' AND a.is_completed = false AND a.outcome IS NULL\n    AND a.due_at > now() AND a.due_at <= now() + make_interval(hours => h)\n    AND a.created_at <= a.due_at - make_interval(hours => h)\n  JOIN contacts c ON c.id = a.contact_id AND c.is_archived = false AND COALESCE(c.phone, '') <> '' AND c.do_not_contact = false AND c.dnc_sms = false\n  LEFT JOIN staff_members sm ON sm.id = a.staff_id\n  LEFT JOIN users u ON u.id = a.user_id\n  WHERE NOT EXISTS (SELECT 1 FROM appointment_reminders r WHERE r.activity_id = a.id AND r.hours_before = h)\n  ORDER BY a.due_at LIMIT 40\n), ranked AS (\n  SELECT cand.*, row_number() OVER (PARTITION BY cand.activity_id ORDER BY cand.hours_before ASC) AS rn FROM cand\n), claimed AS (\n  -- If several reminder times are already due for the same booking (for example the system was just switched on), only the closest one is sent.\n  INSERT INTO appointment_reminders (activity_id, hours_before, status, detail)\n  SELECT activity_id, hours_before, CASE WHEN rn = 1 THEN 'sending' ELSE 'skipped' END, CASE WHEN rn = 1 THEN NULL ELSE 'A closer reminder was sent instead.' END FROM ranked\n  ON CONFLICT DO NOTHING RETURNING id, activity_id, hours_before, status\n)\nSELECT claimed.id AS reminder_id, cand.*, (SELECT row_to_json(cfg) FROM cfg) AS cfg,\n  (SELECT company_name FROM company_profile WHERE id = 1) AS company_name,\n  (SELECT COALESCE(timezone, 'UTC') FROM company_profile WHERE id = 1) AS tz,\n  (SELECT time_format FROM company_profile WHERE id = 1) AS tf\nFROM claimed JOIN cand ON cand.activity_id = claimed.activity_id AND cand.hours_before = claimed.hours_before WHERE claimed.status = 'sending';",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "25b11395-ad6e-481a-8c35-b69d3ff2daf1",
+      "name": "Send Reminders",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        900
+      ],
+      "parameters": {
+        "jsCode": "\nfunction normPhone(raw, cc) {\n  let d = String(raw || '').replace(/\\D/g, '');\n  cc = String(cc || '7').replace(/\\D/g, '') || '7';\n  if (!d) return '';\n  if (d.startsWith('00')) d = d.slice(2);\n  else if (d.length === 11 && d.startsWith('8') && cc === '7') d = '7' + d.slice(1);\n  else if (d.length === 10) d = cc + d;\n  return d.length >= 10 && d.length <= 15 ? d : '';\n}\nfunction render(tpl, v) {\n  return String(tpl || '').replace(/\\{\\{\\s*([a-z_]+)\\s*\\}\\}/gi, (m, k) => (v[k.toLowerCase()] !== undefined ? v[k.toLowerCase()] : ''));\n}\nasync function sendWhatsApp(cfg, to, vars) {\n  if (!cfg.wa_phone_number_id || !cfg.wa_token || !cfg.wa_template_name) throw new Error('WhatsApp is not set up (phone number id, token and template name are needed).');\n  const params = [vars.client_name, vars.service, vars.date, vars.time, vars.staff || '-'].map((t) => ({ type: 'text', text: String(t || '-').slice(0, 200) }));\n  const res = await this.helpers.httpRequest({\n    method: 'POST',\n    url: 'https://graph.facebook.com/v21.0/' + encodeURIComponent(cfg.wa_phone_number_id) + '/messages',\n    headers: { Authorization: 'Bearer ' + cfg.wa_token, 'Content-Type': 'application/json' },\n    body: { messaging_product: 'whatsapp', to, type: 'template', template: { name: cfg.wa_template_name, language: { code: cfg.wa_template_lang || 'en' }, components: [{ type: 'body', parameters: params }] } },\n    json: true,\n    timeout: 20000,\n  });\n  const id = res && res.messages && res.messages[0] && res.messages[0].id;\n  if (!id) throw new Error('WhatsApp did not accept the message: ' + JSON.stringify(res).slice(0, 200));\n  return id;\n}\nasync function sendSms(cfg, to, vars) {\n  if (!cfg.sms_api_key) throw new Error('SMS is not set up (API key needed).');\n  const text = render(cfg.sms_template, vars);\n  const qs = { recipient: to, text, apiKey: cfg.sms_api_key, output: 'json' };\n  if (cfg.sms_sender) qs.from = cfg.sms_sender;\n  const res = await this.helpers.httpRequest({ method: 'POST', url: 'https://api.mobizon.kz/service/message/sendsmsmessage', qs, json: true, timeout: 20000 });\n  if (!res || Number(res.code) !== 0) throw new Error('SMS gateway refused the message: ' + JSON.stringify(res).slice(0, 200));\n  return (res.data && (res.data.messageId || res.data.campaignId)) || 'sent';\n}\n// Tries the channels in the configured order; returns { channel, status, detail }.\nasync function deliver(cfg, rawPhone, vars) {\n  const to = normPhone(rawPhone, cfg.default_country_code);\n  if (!to) return { channel: null, status: 'failed', detail: 'No usable phone number.' };\n  const order = cfg.channel_order === 'sms' ? ['sms'] : cfg.channel_order === 'whatsapp' ? ['whatsapp'] : ['whatsapp', 'sms'];\n  const errors = [];\n  for (const ch of order) {\n    try {\n      const id = ch === 'whatsapp' ? await sendWhatsApp.call(this, cfg, to, vars) : await sendSms.call(this, cfg, to, vars);\n      return { channel: ch, status: 'sent', detail: String(id).slice(0, 120) + (errors.length ? ' (after: ' + errors.join('; ').slice(0, 120) + ')' : '') };\n    } catch (e) {\n      errors.push(ch + ': ' + String((e && e.message) || e).slice(0, 160));\n    }\n  }\n  return { channel: order[order.length - 1], status: 'failed', detail: errors.join(' | ').slice(0, 400) };\n}\nfunction fmtVars(cfg, row, tz, is24) {\n  const dt = DateTime.fromISO(new Date(row.due_at).toISOString(), { zone: 'utc' }).setZone(tz);\n  const staff = row.staff_name ? String(row.staff_name) : '';\n  return {\n    client_name: [row.first_name].filter(Boolean).join(' ') || 'there',\n    service: row.subject || 'appointment',\n    date: dt.toFormat('ccc d LLL'),\n    time: dt.toFormat(is24 ? 'HH:mm' : 'h:mm a'),\n    staff,\n    staff_part: staff ? ' with ' + staff : '',\n    branch: row.branch || '',\n    company: row.company_name || '',\n  };\n}\n\nconst out = [];\nfor (const item of $input.all()) {\n  const row = item.json;\n  // Nothing was claimed (reminders off, or nothing due): the query returns an empty item, so skip it.\n  if (!row.reminder_id || !row.due_at) continue;\n  const cfg = row.cfg || {};\n  const vars = fmtVars(cfg, row, row.tz || 'UTC', row.tf === '24h');\n  let r;\n  try { r = await deliver.call(this, cfg, row.phone, vars); } catch (e) { r = { channel: null, status: 'failed', detail: String((e && e.message) || e).slice(0, 300) }; }\n  out.push({ json: { reminder_id: row.reminder_id, channel: r.channel, status: r.status, detail: r.detail } });\n}\nreturn out;"
+      }
+    },
+    {
+      "id": "49f9f766-7398-4cb4-938e-596e1a7510da",
+      "name": "Save Reminder Result",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        780,
+        900
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE appointment_reminders SET status = $2, channel = $3, detail = $4, sent_at = now() WHERE id = $1::int;",
+        "options": {
+          "queryReplacement": "={{ [ $json.reminder_id, $json.status, $json.channel, $json.detail ] }}",
+          "queryBatching": "independently"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook: get-messaging-settings": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: get-messaging-settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: get-messaging-settings": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token (get)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (get)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (get)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (get)": {
+      "main": [
+        [
+          {
+            "node": "Check Payload (get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload (get)": {
+      "main": [
+        [
+          {
+            "node": "Query (get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query (get)": {
+      "main": [
+        [
+          {
+            "node": "Respond (get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: save-messaging-settings": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: save-messaging-settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: save-messaging-settings": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token (save)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (save)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (save)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (save)": {
+      "main": [
+        [
+          {
+            "node": "Check Payload (save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload (save)": {
+      "main": [
+        [
+          {
+            "node": "Query (save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query (save)": {
+      "main": [
+        [
+          {
+            "node": "Respond (save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: get-reminder-log": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: get-reminder-log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: get-reminder-log": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token (log)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (log)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (log)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (log)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (log)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (log)": {
+      "main": [
+        [
+          {
+            "node": "Check Payload (log)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload (log)": {
+      "main": [
+        [
+          {
+            "node": "Query (log)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query (log)": {
+      "main": [
+        [
+          {
+            "node": "Respond (log)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: send-test-message": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: send-test-message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: send-test-message": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token (test)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (test)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (test)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (test)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (test)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (test)": {
+      "main": [
+        [
+          {
+            "node": "Check Payload (test)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload (test)": {
+      "main": [
+        [
+          {
+            "node": "Query (test)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query (test)": {
+      "main": [
+        [
+          {
+            "node": "Send Test Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Test Message": {
+      "main": [
+        [
+          {
+            "node": "Respond (test)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule: every 5 minutes": {
+      "main": [
+        [
+          {
+            "node": "Claim Due Reminders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claim Due Reminders": {
+      "main": [
+        [
+          {
+            "node": "Send Reminders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Reminders": {
+      "main": [
+        [
+          {
+            "node": "Save Reminder Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "Asia/Almaty",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "none",
+    "saveManualExecutions": false,
+    "availableInMCP": false
+  }
+}

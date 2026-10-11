@@ -22,7 +22,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, name, email, phone, color, role, notification_preferences, avatar_url FROM users WHERE active = true ORDER BY name ASC;",
+        "query": "SELECT id, name, email, phone, color, role, notification_preferences, avatar_url, email_signature, location FROM users WHERE active = true ORDER BY name ASC;",
         "options": {}
       },
       "id": "7ed2f986-ccc4-420e-a7d7-15a2fb090650",
@@ -118,7 +118,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE contacts\nSET owner_id = $1\nWHERE id = $2\nRETURNING id, owner_id, first_name, last_name;",
+        "query": "WITH upd AS (\n  UPDATE contacts SET owner_id = $1 WHERE id = $2 RETURNING id, owner_id, first_name, last_name\n), mv AS (\n  -- Upcoming, not-yet-completed calendar events of this contact follow the new owner (tasks are left alone).\n  UPDATE activities a SET user_id = $1::int\n  FROM upd\n  WHERE a.contact_id = upd.id AND $1::int IS NOT NULL AND a.type <> 'task' AND a.due_at IS NOT NULL\n    AND a.due_at > now() AND a.is_completed = false AND a.user_id IS DISTINCT FROM $1::int\n  RETURNING a.id\n)\nSELECT upd.id, upd.owner_id, upd.first_name, upd.last_name, (SELECT count(*)::int FROM mv) AS moved_events FROM upd;",
         "options": {
           "queryReplacement": "={{ [ $('Validate Admin & Payload').first().json.ownerId, $('Validate Admin & Payload').first().json.contactId ] }}"
         }
@@ -332,7 +332,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const payload = $('Validate Admin & Payload').first().json;\nconst requesterId = $('Execute Workflow: Verify Session (US1)').first().json.userId;\nconst contact = $('Update Contact Owner').first().json;\nconst ownerId = payload.ownerId;\n// Only notify when the deal is actually handed to someone else \u2014 not on\n// unassign (ownerId null) or an admin assigning themselves.\nconst notify = !!ownerId && ownerId !== requesterId;\nconst dmKey = notify ? [requesterId, ownerId].sort((a, b) => a - b).join('-') : null;\nconst contactName = `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'a contact';\nreturn [{ json: { notify, dmKey, requesterId, ownerId, contactId: payload.contactId, contactName } }];"
+        "jsCode": "const payload = $('Validate Admin & Payload').first().json;\nconst requesterId = $('Execute Workflow: Verify Session (US1)').first().json.userId;\nconst contact = $('Update Contact Owner').first().json;\nconst ownerId = payload.ownerId;\n// Only notify when the deal is actually handed to someone else \u2014 not on\n// unassign (ownerId null) or an admin assigning themselves.\nconst notify = !!ownerId && ownerId !== requesterId;\nconst dmKey = notify ? [requesterId, ownerId].sort((a, b) => a - b).join('-') : null;\nconst contactName = `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'a contact';\nconst movedEvents = Number(contact.moved_events || 0);\nreturn [{ json: { notify, dmKey, requesterId, ownerId, contactId: payload.contactId, contactName, movedEvents } }];"
       },
       "id": "b79cdc74-b54a-433e-b224-5830cb47c6bb",
       "name": "Prepare Owner Notice: assign-contact-owner",
@@ -450,7 +450,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO messages (conversation_id, sender_id, body) VALUES ($1, $2, $3);",
         "options": {
-          "queryReplacement": "={{ [ $('Postgres: Get DM Id (assign-contact-owner)').first().json.id, $('Prepare Owner Notice: assign-contact-owner').first().json.requesterId, 'You\\'ve been assigned as the owner of contact \"[[ref:contact:' + $('Prepare Owner Notice: assign-contact-owner').first().json.contactId + ':-:' + $('Prepare Owner Notice: assign-contact-owner').first().json.contactName + ']]\".' ] }}"
+          "queryReplacement": "={{ [ $('Postgres: Get DM Id (assign-contact-owner)').first().json.id, $('Prepare Owner Notice: assign-contact-owner').first().json.requesterId, 'You\\'ve been assigned as the owner of contact \"[[ref:contact:' + $('Prepare Owner Notice: assign-contact-owner').first().json.contactId + ':-:' + $('Prepare Owner Notice: assign-contact-owner').first().json.contactName + ']]\".' + ($('Prepare Owner Notice: assign-contact-owner').first().json.movedEvents > 0 ? ' Its ' + $('Prepare Owner Notice: assign-contact-owner').first().json.movedEvents + ' upcoming event(s) are now yours too.' : '') ] }}"
         }
       },
       "id": "fece806c-863f-4b12-a038-17f473f66d5a",
@@ -675,7 +675,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, name, email, phone, color, role, active, created_at, avatar_url FROM users ORDER BY active DESC, name ASC;",
+        "query": "SELECT id, name, email, phone, color, role, active, created_at, avatar_url, email_signature, location FROM users ORDER BY active DESC, name ASC;",
         "options": {}
       },
       "id": "e2f3b005-5555-4a5a-9b1a-usermgmt0005",
@@ -828,7 +828,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE users SET active = $1, updated_at = now() WHERE id = $2 RETURNING id, name, active;",
+        "query": "WITH ended AS (\n  -- deactivating a user ends their sessions immediately\n  DELETE FROM sessions WHERE user_id = $2 AND $1::boolean = false RETURNING 1\n)\nUPDATE users SET active = $1, updated_at = now() WHERE id = $2 RETURNING id, name, active;",
         "options": {
           "queryReplacement": "={{ [ $json.active, $json.targetUserId ] }}"
         }
@@ -1057,7 +1057,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const bcrypt = require('bcryptjs');\nconst requester = $('Execute Workflow: Verify Session (US8)').first().json;\nconst passwordHash = $input.first().json.password_hash;\nconst body = $('Webhook - Change Password').first().json.body || {};\n\nif (!requester.valid) throw new Error('Invalid session.');\n\nconst currentPassword = body.current_password || '';\nconst newPassword = body.new_password || '';\n\nif (!currentPassword || !newPassword) {\n  throw new Error('Current and new password are required.');\n}\nif (newPassword.length < 8) {\n  throw new Error('New password must be at least 8 characters.');\n}\n\nconst isValid = bcrypt.compareSync(currentPassword, passwordHash);\nif (!isValid) {\n  throw new Error('Current password is incorrect.');\n}\n\nconst salt = bcrypt.genSaltSync(10);\nconst newHash = bcrypt.hashSync(newPassword, salt);\n\nreturn [{ json: { targetUserId: requester.userId, newHash } }];"
+        "jsCode": "const bcrypt = require('bcryptjs');\nconst requester = $('Execute Workflow: Verify Session (US8)').first().json;\nconst passwordHash = $input.first().json.password_hash;\nconst body = $('Webhook - Change Password').first().json.body || {};\n\nif (!requester.valid) throw new Error('Invalid session.');\n\nconst currentPassword = body.current_password || '';\nconst newPassword = body.new_password || '';\n\nif (!currentPassword || !newPassword) {\n  throw new Error('Current and new password are required.');\n}\nif (newPassword.length < 10) {\n  throw new Error('New password must be at least 10 characters.');\n}\nif (newPassword.length > 72) {\n  throw new Error('New password must be 72 characters or fewer.');\n}\n\nconst isValid = bcrypt.compareSync(currentPassword, passwordHash);\nif (!isValid) {\n  throw new Error('Current password is incorrect.');\n}\n\nconst salt = bcrypt.genSaltSync(10);\nconst newHash = bcrypt.hashSync(newPassword, salt);\n\nreturn [{ json: { targetUserId: requester.userId, newHash } }];"
       },
       "id": "a5b6c004-4444-4a5a-9b1a-changepwd004",
       "name": "Verify & Hash New Password",
@@ -1072,9 +1072,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE users SET password_hash = $1, updated_at = now() WHERE id = $2 RETURNING id;",
+        "query": "WITH ended AS (\n  -- a password change signs the user out everywhere else (their current session stays)\n  DELETE FROM sessions WHERE user_id = $2 AND token <> $3 RETURNING 1\n)\nUPDATE users SET password_hash = $1, updated_at = now() WHERE id = $2 RETURNING id;",
         "options": {
-          "queryReplacement": "={{ [ $json.newHash, $json.targetUserId ] }}"
+          "queryReplacement": "={{ [ $json.newHash, $json.targetUserId, $('Extract Bearer Token (US8)').first().json.token ] }}"
         }
       },
       "id": "a5b6c005-5555-4a5a-9b1a-changepwd005",
@@ -1986,6 +1986,134 @@
         1073
       ],
       "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "update-user-signature",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "63dda525-9e0b-429d-a8f7-034fbcf83e71",
+      "name": "Webhook - Update User Signature",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        3080
+      ],
+      "onError": "continueErrorOutput",
+      "webhookId": "a94d8619-5740-46a9-871a-677052878864"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Update User Signature').first().json.body || {};\n\nif (!requester.valid) throw new Error('Invalid session.');\nconst targetUserId = parseInt(body.user_id, 10);\nif (!Number.isInteger(targetUserId)) throw new Error('\"user_id\" must be an integer.');\n// Admins can edit anyone's signature; everyone else only their own.\nif (requester.role !== 'admin' && requester.userId !== targetUserId) throw new Error('You can only change your own signature.');\nconst signature = (body.signature || '').toString().replace(/[\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f]/g, '').trim();\nif (signature.length > 1000) throw new Error('Signature must be 1,000 characters or fewer.');\nreturn [{ json: { targetUserId, signature } }];"
+      },
+      "id": "1dfb0cfb-7676-4f77-ab55-f401db6fde4f",
+      "name": "Validate Signature Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        3080
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE users SET email_signature = NULLIF($1, ''), updated_at = now() WHERE id = $2 RETURNING id, name, email_signature;",
+        "options": {
+          "queryReplacement": "={{ [ $json.signature, $json.targetUserId ] }}"
+        }
+      },
+      "id": "9f609e09-88be-4e4c-bbba-f1f96dbe6ac0",
+      "name": "Update User Signature",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1840,
+        3080
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) throw new Error('User not found.');\nreturn [{ json: { success: true, user: result.json } }];"
+      },
+      "id": "d7aa9539-a70e-4f2b-b20f-83d05ebdbf1d",
+      "name": "Check Signature Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2064,
+        3080
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "6703bae7-5c0b-46c3-87d3-ee4fbeffa0eb",
+      "name": "Respond - Update User Signature Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2288,
+        3080
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "id": "673b422a-3788-4af0-b4c1-a38934aef275",
+      "name": "Extract Bearer Token (Signature)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        2780
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "a0846934-52ab-4a04-8304-23d0347ea7fe",
+      "name": "Execute Workflow: Verify Session (Signature)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1408,
+        2780
+      ],
+      "onError": "continueErrorOutput"
     }
   ],
   "pinData": {},
@@ -3465,6 +3593,100 @@
           }
         ]
       ]
+    },
+    "Webhook - Update User Signature": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token (Signature)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (Signature)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Signature)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Signature)": {
+      "main": [
+        [
+          {
+            "node": "Validate Signature Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Signature Payload": {
+      "main": [
+        [
+          {
+            "node": "Update User Signature",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update User Signature": {
+      "main": [
+        [
+          {
+            "node": "Check Signature Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Signature Result": {
+      "main": [
+        [
+          {
+            "node": "Respond - Update User Signature Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
@@ -3474,7 +3696,8 @@
     "availableInMCP": false,
     "timeSavedMode": "fixed",
     "errorWorkflow": "U7jX0H3oE5a25GrV",
-    "callerPolicy": "workflowsFromSameOwner"
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "Asia/Almaty"
   },
   "versionId": "5ace15ef-2334-4f4d-aab1-4604ebd221e4",
   "meta": {

@@ -102,7 +102,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT\n  a.id AS activity_id,\n  a.due_at,\n  a.subject AS activity_subject,\n  c.id AS contact_id, c.first_name, c.last_name, c.email, c.timezone, c.unsubscribe_token,\n  CASE WHEN a.due_at - now() <= interval '2 hours' THEN 'booking_reminder_2h' ELSE 'booking_reminder_24h' END AS reminder_step\nFROM activities a\nJOIN contacts c ON c.id = a.contact_id\nJOIN opportunities o ON o.id = a.opportunity_id\nWHERE a.type = 'meeting'\n  AND a.due_at > now()\n  AND a.due_at - now() <= interval '24 hours'\n  AND o.status = 'Open'\n  AND o.stage_id = 19\n  AND c.is_archived = false\n  AND c.do_not_contact = false\n  AND c.dnc_email = false\n  AND c.email IS NOT NULL AND c.email <> ''\n  AND NOT EXISTS (\n    SELECT 1 FROM booking_confirmed_reminders bcr\n    WHERE bcr.activity_id = a.id\n      AND bcr.reminder_step = (CASE WHEN a.due_at - now() <= interval '2 hours' THEN 'booking_reminder_2h' ELSE 'booking_reminder_24h' END)\n  );",
+        "query": "SELECT\n  a.id AS activity_id,\n  a.due_at,\n  a.subject AS activity_subject,\n  c.id AS contact_id, c.first_name, c.last_name, c.email, c.timezone, c.unsubscribe_token,\n  CASE WHEN a.due_at - now() <= interval '2 hours' THEN 'booking_reminder_2h' ELSE 'booking_reminder_24h' END AS reminder_step\nFROM activities a\nJOIN contacts c ON c.id = a.contact_id\nJOIN opportunities o ON o.id = a.opportunity_id\nWHERE a.type = 'meeting' AND a.outcome IS NULL\n  AND a.due_at > now()\n  AND a.due_at - now() <= interval '24 hours'\n  AND o.status = 'Open'\n  AND o.stage_id = 19\n  AND c.is_archived = false\n  AND c.do_not_contact = false\n  AND c.dnc_email = false\n  AND c.email IS NOT NULL AND c.email <> ''\n  AND NOT EXISTS (\n    SELECT 1 FROM booking_confirmed_reminders bcr\n    WHERE bcr.activity_id = a.id\n      AND bcr.reminder_step = (CASE WHEN a.due_at - now() <= interval '2 hours' THEN 'booking_reminder_2h' ELSE 'booking_reminder_24h' END)\n  );",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
@@ -230,7 +230,7 @@
     },
     {
       "parameters": {
-        "jsCode": "function toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\nconst tmpl = $input.item.json;\nconst row = $('Prepare Reminder Row').item.json;\nconst tz = row.timezone || 'America/New_York';\nconst appointmentTime = row.due_at\n  ? DateTime.fromISO(row.due_at, { zone: 'utc' }).setZone(tz).toFormat(\"EEEE, MMMM d 'at' h:mm a\")\n  : '';\nconst unsubUrl = safeEnv('FRONTEND_BASE_URL') + '/unsubscribe/' + (row.unsubscribe_token || '');\nconst cancelUrl = safeEnv('FRONTEND_BASE_URL') + '/cancel-booking/' + row.activity_id + '?token=' + (row.unsubscribe_token || '');\nfunction fill(t) {\n  return (t || '')\n    .replace(/{{\\s*contact\\.first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*contact\\.last_name\\s*}}/gi, toTitleCase(row.last_name))\n    .replace(/{{\\s*contact\\.email\\s*}}/gi, row.email || '')\n    .replace(/{{\\s*appointment\\.start_time\\s*}}/gi, appointmentTime)\n    .replace(/{{\\s*unsubscribe_link\\s*}}/gi, unsubUrl)\n    .replace(/{{\\s*cancel_link\\s*}}/gi, cancelUrl)\n    .replace(/{{(?!\\s*company[._]name\\s*}})[^{}]*}}/gi, '');\n}\nconst footer = '<br><br><span style=\"font-size:11px;color:#94a3b8\">Don\\'t want these emails? <a href=\"' + unsubUrl + '\">Unsubscribe</a></span>';\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject), htmlBody: fill(tmpl.body).replace(/\\n/g, '<br>') + footer } }];"
+        "jsCode": "function toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\nconst tmpl = $input.item.json;\nconst row = $('Prepare Reminder Row').item.json;\nconst tz = row.timezone || $now.zoneName;\nconst appointmentTime = row.due_at\n  ? DateTime.fromISO(row.due_at, { zone: 'utc' }).setZone(tz).toFormat(\"EEEE, MMMM d 'at' h:mm a\")\n  : '';\nconst unsubUrl = safeEnv('FRONTEND_BASE_URL') + '/unsubscribe/' + (row.unsubscribe_token || '');\nconst cancelUrl = safeEnv('FRONTEND_BASE_URL') + '/cancel-booking/' + row.activity_id + '?token=' + (row.unsubscribe_token || '');\nfunction fill(t) {\n  return (t || '')\n    .replace(/{{\\s*contact\\.first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there')\n    .replace(/{{\\s*contact\\.last_name\\s*}}/gi, toTitleCase(row.last_name))\n    .replace(/{{\\s*contact\\.email\\s*}}/gi, row.email || '')\n    .replace(/{{\\s*appointment\\.start_time\\s*}}/gi, appointmentTime)\n    .replace(/{{\\s*unsubscribe_link\\s*}}/gi, unsubUrl)\n    .replace(/{{\\s*cancel_link\\s*}}/gi, cancelUrl)\n    .replace(/{{(?!\\s*company[._]name\\s*}})[^{}]*}}/gi, '');\n}\nconst footer = '<br><br><span style=\"font-size:11px;color:#94a3b8\">Don\\'t want these emails? <a href=\"' + unsubUrl + '\">Unsubscribe</a></span>';\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject), htmlBody: fill(tmpl.body).replace(/\\n/g, '<br>') + footer } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -266,30 +266,31 @@
       }
     },
     {
-      "parameters": {
-        "sendTo": "={{ $('Fill Reminder Email').item.json.to }}",
-        "subject": "={{ ($('Fill Reminder Email').item.json.subject).replace(/\\{\\{\\s*company[._]name\\s*\\}\\}/gi, $('Get Company Name: Booking Reminder').item.json.company_name) }}",
-        "emailType": "html",
-        "message": "={{ ($('Fill Reminder Email').item.json.htmlBody).replace(/\\{\\{\\s*company[._]name\\s*\\}\\}/gi, $('Get Company Name: Booking Reminder').item.json.company_name) }}",
-        "options": {
-          "appendAttribution": false
-        }
-      },
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
       "position": [
         1540,
         200
       ],
       "id": "bcr-send-email",
       "name": "Send Reminder Email",
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "YE9RFYruaRVVZ6H4",
-          "name": "CRMapp"
+      "onError": "continueRegularOutput",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "parameters": {
+        "fromEmail": "gilbeydulnuan@gmail.com",
+        "toEmail": "={{ $('Fill Reminder Email').item.json.to }}",
+        "subject": "={{ ($('Fill Reminder Email').item.json.subject).replace(/\\{\\{\\s*company[._]name\\s*\\}\\}/gi, $('Get Company Name: Booking Reminder').item.json.company_name) }}",
+        "emailFormat": "html",
+        "html": "={{ ($('Fill Reminder Email').item.json.htmlBody).replace(/\\{\\{\\s*company[._]name\\s*\\}\\}/gi, $('Get Company Name: Booking Reminder').item.json.company_name) }}",
+        "options": {
+          "appendAttribution": false
         }
       },
-      "onError": "continueRegularOutput"
+      "credentials": {
+        "smtp": {
+          "id": "A3AoUIlP8cbZ5VlF",
+          "name": "Gmail SMTP (gilbeydulnuan)"
+        }
+      }
     },
     {
       "parameters": {
@@ -505,7 +506,6 @@
       "onError": "continueRegularOutput"
     }
   ],
-  "pinData": {},
   "connections": {
     "Schedule Trigger: every 15 min": {
       "main": [
@@ -753,8 +753,13 @@
       ]
     }
   },
-  "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "binaryMode": "separate",
+    "timezone": "Asia/Almaty"
   }
 }

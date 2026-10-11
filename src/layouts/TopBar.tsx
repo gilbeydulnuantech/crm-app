@@ -19,7 +19,7 @@ export default function TopBar({ sidebarCollapsed }: Props) {
   const location = useLocation();
   // Matches AppLayout's NO_SIDEBAR_PATTERN — search/back-arrow track the
   // same full-page-editor condition as the hidden main nav.
-  const hideSearch = /^\/documents\/(proposals|contracts|pages)\/(new|\d+\/edit)$/.test(location.pathname);
+  const hideSearch = /^\/documents\/(proposals|contracts|pages)\/(new|\d+\/edit)$|^\/products\/(new|\d+\/edit)$/.test(location.pathname);
   const [bellOpen, setBellOpen] = useState(false);
   // The count last "seen" (bell opened at that count) — the red bubble only
   // shows the delta above this, so opening the bell clears it immediately

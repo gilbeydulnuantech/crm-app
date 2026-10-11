@@ -11,6 +11,7 @@ export default function Login() {
     null
   );
   const [submitting, setSubmitting] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
   const isSignUp = mode === 'signup';
 
@@ -21,9 +22,15 @@ export default function Login() {
 
     try {
       if (isSignUp) {
-        await signUp(name, email, password);
+        const pendingMessage = await signUp(name, email, password);
+        if (pendingMessage) {
+          // Waiting for admin approval — no session was started.
+          setMessage({ text: pendingMessage, tone: 'success' });
+          setPassword('');
+          return;
+        }
       } else {
-        await login(email, password);
+        await login(email, password, rememberMe);
       }
       setMessage({ text: 'Success! Access granted.', tone: 'success' });
       // AuthProvider's state update will swap the app to the authenticated
@@ -85,6 +92,18 @@ export default function Login() {
               className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
             />
           </div>
+
+          {!isSignUp && (
+            <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="rounded border-slate-300 text-[var(--theme-accent)] focus:ring-[var(--theme-accent)]"
+              />
+              Remember me for 7 days
+            </label>
+          )}
 
           {message && (
             <div

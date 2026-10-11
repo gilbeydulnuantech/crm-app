@@ -6,6 +6,8 @@ export interface EmailTemplate {
   trigger_event: string | null;
   subject: string;
   body: string;
+  // true when body is formatted HTML from the rich-text editor; false for plain-text templates
+  is_html?: boolean;
   is_active: boolean;
   created_by: number | null;
   created_by_name: string | null;
@@ -23,6 +25,7 @@ export interface SaveEmailTemplatePayload {
   trigger_event?: string | null;
   subject: string;
   body: string;
+  is_html?: boolean;
 }
 
 export function saveEmailTemplate(payload: SaveEmailTemplatePayload) {
@@ -51,6 +54,9 @@ export interface SendEmailTemplatePayload {
   subject: string;
   message: string;
   contact_id: number;
+  // Formatted sends: `message` is the plain-text copy (logged on the contact) and `html_message` is the HTML body.
+  is_html?: boolean;
+  html_message?: string;
 }
 
 // Hits the contacts-mail-send n8n workflow directly (see

@@ -7,6 +7,10 @@ import { useContacts } from '../hooks/useContacts';
 import { useCompanyProfile } from '../hooks/useCompanyProfile';
 import { fillContactEmailTokens } from '../utils/emailTemplateTokens';
 import { EMAIL_TRIGGER_EVENTS } from '../constants/emailTriggerEvents';
+import RichTextEditor, { RichTextEditorHandle } from '../components/RichTextEditor';
+import { useProducts } from '../hooks/useProducts';
+import { resolveProductTokens } from '../utils/mergeFields';
+import { escapeHtml, htmlToPlainText, plainTextToHtml } from '../utils/emailHtml';
 
 const inputClass =
   'w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]';
@@ -37,7 +41,8 @@ export default function EmailTemplateEditorPage() {
   const [loadedExisting, setLoadedExisting] = useState(false);
   const [activeField, setActiveField] = useState<'subject' | 'body' | null>(null);
   const subjectRef = useRef<HTMLInputElement>(null);
-  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const bodyEditorRef = useRef<RichTextEditorHandle>(null);
+  const { data: products = [] } = useProducts();
 
   const [showSendBar, setShowSendBar] = useState(false);
   const [sendContactId, setSendContactId] = useState<number | null>(null);
@@ -48,7 +53,8 @@ export default function EmailTemplateEditorPage() {
     if (!isEdit || loadedExisting) return;
     const t = templates.find((x) => String(x.id) === id);
     if (!t) return;
-    setForm({ id: t.id, name: t.name, trigger_event: t.trigger_event || '', subject: t.subject, body: t.body });
+    // Plain-text templates open as paragraphs in the formatted editor; saving stores them as formatted from then on.
+    setForm({ id: t.id, name: t.name, trigger_event: t.trigger_event || '', subject: t.subject, body: t.is_html ? t.body : plainTextToHtml(t.body) });
     setLoadedExisting(true);
   }, [isEdit, loadedExisting, templates, id]);
 
@@ -56,7 +62,7 @@ export default function EmailTemplateEditorPage() {
     if (activeField === 'subject') {
       insertAtCursor(subjectRef.current, form.subject, token, (v) => setForm((f) => ({ ...f, subject: v })));
     } else if (activeField === 'body') {
-      insertAtCursor(bodyRef.current, form.body, token, (v) => setForm((f) => ({ ...f, body: v })));
+      bodyEditorRef.current?.insertText(token);
     }
   }
 
@@ -69,10 +75,13 @@ export default function EmailTemplateEditorPage() {
 
     const ownCompanyName = companyProfile?.company_name || '';
     const subject = fillContactEmailTokens(form.subject, contact, ownCompanyName);
-    const message = fillContactEmailTokens(form.body, contact, ownCompanyName);
+    // Product tokens become their description and price; every other merge value is escaped so contact data can't inject markup.
+    const withProducts = resolveProductTokens(form.body, products);
+    const htmlMessage = withProducts.replace(/\{\{[^{}]*\}\}/g, (tok) => escapeHtml(fillContactEmailTokens(tok, contact, ownCompanyName)));
+    const message = htmlToPlainText(htmlMessage);
 
     sendTemplate.mutate(
-      { to: contact.email, subject, message, contact_id: sendContactId },
+      { to: contact.email, subject, message, is_html: true, html_message: htmlMessage, contact_id: sendContactId },
       {
         onSuccess: () => {
           setShowSendBar(false);
@@ -89,7 +98,7 @@ export default function EmailTemplateEditorPage() {
     setError(null);
     if (!form.name.trim()) return setError('Give this template a name.');
     if (!form.subject.trim()) return setError('Write a subject line.');
-    if (!form.body.trim()) return setError('Write the email body.');
+    if (!form.body.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim() && !/<img\b/i.test(form.body)) return setError('Write the email body.');
 
     saveTemplate.mutate(
       {
@@ -98,6 +107,7 @@ export default function EmailTemplateEditorPage() {
         trigger_event: form.trigger_event || null,
         subject: form.subject.trim(),
         body: form.body,
+        is_html: true,
       },
       {
         onSuccess: () => navigate('/documents/templates'),
@@ -192,7 +202,7 @@ export default function EmailTemplateEditorPage() {
 
       <div className="flex-1 flex overflow-hidden">
         <div className="flex-1 overflow-y-auto p-6">
-          <form onSubmit={handleSubmit} className="max-w-2xl mx-auto space-y-4">
+          <form onSubmit={handleSubmit} className="max-w-3xl mx-auto space-y-4">
             {error && <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-md px-2 py-1">{error}</p>}
 
             <div>
@@ -224,15 +234,17 @@ export default function EmailTemplateEditorPage() {
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Body</label>
-              <textarea
-                ref={bodyRef}
-                value={form.body}
-                onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
-                onFocus={() => setActiveField('body')}
-                rows={10}
-                placeholder="Placeholders: {{first_name}} {{last_name}} {{deal_name}}"
-                className={inputClass}
-              />
+              <div onFocusCapture={() => setActiveField('body')}>
+                <RichTextEditor
+                  ref={bodyEditorRef}
+                  variant="email"
+                  value={form.body}
+                  onChange={(html) => setForm((f) => ({ ...f, body: html }))}
+                />
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1">
+                Use the toolbar for bold, lists, links and images. Merge fields (like {'{{contact.first_name}}'}) and product tokens work anywhere in the text.
+              </p>
             </div>
           </form>
         </div>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
 
 interface Props {
   onAddContact: () => void;
@@ -7,6 +8,7 @@ interface Props {
 }
 
 export default function AddContactDropdown({ onAddContact, onImportCsv, onFindLeads }: Props) {
+  const { isAdmin } = useAuth();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -51,6 +53,8 @@ export default function AddContactDropdown({ onAddContact, onImportCsv, onFindLe
               <i className="fa-solid fa-file-csv text-xs w-4 text-slate-400" />
               Import CSV
             </button>
+            {/* The Maps import adds many contacts and sends outreach email, so the server only allows admins. */}
+            {isAdmin && (
             <button
               onClick={() => run(onFindLeads)}
               className="w-full text-left px-3 py-2 hover:bg-slate-50 text-slate-700 flex items-center gap-2"
@@ -58,6 +62,7 @@ export default function AddContactDropdown({ onAddContact, onImportCsv, onFindLe
               <i className="fa-solid fa-map-location-dot text-xs w-4 text-slate-400" />
               Find Leads (Google Maps)
             </button>
+            )}
             <div className="my-1 border-t border-slate-100" />
             <button
               onClick={copyBookingLink}

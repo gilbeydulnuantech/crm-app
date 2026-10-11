@@ -1,3 +1,6 @@
+import { useProducts } from '../hooks/useProducts';
+import { resolveProductTokens } from '../utils/mergeFields';
+
 // Sample values so a preview reads naturally instead of showing literal
 // {{tokens}} — these aren't the real resolved values (that happens once a
 // Page is linked to a contract's "Thank You page"), just stand-ins for
@@ -27,9 +30,10 @@ interface Props {
 }
 
 export default function PagePreviewOverlay({ open, onClose, name, contentHtml }: Props) {
+  const { data: products = [] } = useProducts();
   if (!open) return null;
 
-  const resolvedHtml = fillSampleFields(contentHtml);
+  const resolvedHtml = resolveProductTokens(fillSampleFields(contentHtml), products);
 
   return (
     <div

@@ -22,7 +22,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT cp.company_name, cp.email, cp.phone, cp.logo_url, cp.address, cp.website, cp.brand_color\nFROM (SELECT 1) dummy\nLEFT JOIN company_profile cp ON cp.id = 1;",
+        "query": "SELECT cp.company_name, cp.email, cp.phone, cp.logo_url, cp.address, cp.website, cp.brand_color, cp.email_branding_enabled, cp.email_footer_note, cp.document_branding_enabled, cp.timezone, cp.time_format, cp.industry, cp.staff_enabled, cp.online_provider_choice, cp.staff_label, cp.booking_hours\nFROM (SELECT 1) dummy\nLEFT JOIN company_profile cp ON cp.id = 1;",
         "options": {}
       },
       "id": "cpro0005-5555-4a5a-9b1a-companyprof005",
@@ -43,7 +43,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: true, company_name: $json.company_name || '', email: $json.email || '', phone: $json.phone || '', logo_url: $json.logo_url || null, address: $json.address || '', website: $json.website || '', brand_color: $json.brand_color || '#2563EB' } }}",
+        "responseBody": "={{ { success: true, company_name: $json.company_name || '', email: $json.email || '', phone: $json.phone || '', logo_url: $json.logo_url || null, address: $json.address || '', website: $json.website || '', brand_color: $json.brand_color || '#2563EB', email_branding_enabled: $json.email_branding_enabled === true, email_footer_note: $json.email_footer_note || '', document_branding_enabled: $json.document_branding_enabled === true, timezone: $json.timezone || '', time_format: $json.time_format === '24h' ? '24h' : '12h', industry: $json.industry || null, staff_enabled: $json.staff_enabled === true, online_provider_choice: $json.online_provider_choice === true, staff_label: $json.staff_label || 'Therapist', booking_hours: $json.booking_hours || null } }}",
         "options": {}
       },
       "id": "cpro0006-6666-4a5a-9b1a-companyprof006",
@@ -75,7 +75,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Save Company Profile').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst companyName = (body.company_name || '').toString().trim();\nconst email = (body.email || '').toString().trim();\nconst phone = (body.phone || '').toString().trim();\nconst address = (body.address || '').toString().trim();\nconst website = (body.website || '').toString().trim();\nlet brandColor = (body.brand_color || '#2563EB').toString().trim();\nif (!/^#[0-9a-fA-F]{6}$/.test(brandColor)) brandColor = '#2563EB';\n\nreturn [{ json: { companyName, email, phone, address, website, brandColor, requesterId: requester.id } }];"
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Save Company Profile').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst companyName = (body.company_name || '').toString().trim();\nconst email = (body.email || '').toString().trim();\nconst phone = (body.phone || '').toString().trim();\nconst address = (body.address || '').toString().trim();\nconst website = (body.website || '').toString().trim();\nlet brandColor = (body.brand_color || '#2563EB').toString().trim();\nif (!/^#[0-9a-fA-F]{6}$/.test(brandColor)) brandColor = '#2563EB';\n\n// null = \"not sent\" so a save from another screen (e.g. the timezone dialog) leaves these settings untouched.\nconst emailBrandingEnabled = typeof body.email_branding_enabled === 'boolean' ? body.email_branding_enabled : null;\nconst emailFooterNote = typeof body.email_footer_note === 'string' ? body.email_footer_note.trim().slice(0, 500) : null;\nconst documentBrandingEnabled = typeof body.document_branding_enabled === 'boolean' ? body.document_branding_enabled : null;\n\n// Absent = keep the current value (other screens save this profile without these two).\nlet timezone = null;\nif (typeof body.timezone === 'string' && body.timezone.trim()) {\n  const tz = body.timezone.trim();\n  try { new Intl.DateTimeFormat('en-US', { timeZone: tz }); timezone = tz; } catch (e) { throw new Error('That timezone is not valid.'); }\n}\nconst timeFormat = body.time_format === '12h' || body.time_format === '24h' ? body.time_format : null;\n\nreturn [{ json: { companyName, email, phone, address, website, brandColor, emailBrandingEnabled, emailFooterNote, documentBrandingEnabled, timezone, timeFormat, requesterId: requester.id } }];"
       },
       "id": "cpro0010-1010-4a5a-9b1a-companyprof010",
       "name": "Validate & Payload (Save)",
@@ -90,9 +90,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO company_profile (id, company_name, email, phone, address, website, brand_color, updated_at, updated_by)\nVALUES (1, $1, $2, $3, $4, $5, $6, now(), $7)\nON CONFLICT (id) DO UPDATE SET\n  company_name = EXCLUDED.company_name,\n  email = EXCLUDED.email,\n  phone = EXCLUDED.phone,\n  address = EXCLUDED.address,\n  website = EXCLUDED.website,\n  brand_color = EXCLUDED.brand_color,\n  updated_at = now(),\n  updated_by = EXCLUDED.updated_by\nRETURNING id;",
+        "query": "INSERT INTO company_profile (id, company_name, email, phone, address, website, brand_color, email_branding_enabled, email_footer_note, document_branding_enabled, timezone, time_format, updated_at, updated_by)\nVALUES (1, $1, $2, $3, $4, $5, $6, COALESCE($8::boolean, false), NULLIF($9::text, ''), COALESCE($10::boolean, false), COALESCE($11::text, 'America/New_York'), COALESCE($12::text, '12h'), now(), $7)\nON CONFLICT (id) DO UPDATE SET\n  company_name = EXCLUDED.company_name,\n  email = EXCLUDED.email,\n  phone = EXCLUDED.phone,\n  address = EXCLUDED.address,\n  website = EXCLUDED.website,\n  brand_color = EXCLUDED.brand_color,\n  email_branding_enabled = COALESCE($8::boolean, company_profile.email_branding_enabled),\n  email_footer_note = CASE WHEN $9::text IS NULL THEN company_profile.email_footer_note ELSE NULLIF($9::text, '') END,\n  document_branding_enabled = COALESCE($10::boolean, company_profile.document_branding_enabled),\n  timezone = COALESCE($11::text, company_profile.timezone),\n  time_format = COALESCE($12::text, company_profile.time_format),\n  updated_at = now(),\n  updated_by = EXCLUDED.updated_by\nRETURNING id;",
         "options": {
-          "queryReplacement": "={{ [ $json.companyName, $json.email, $json.phone, $json.address, $json.website, $json.brandColor, $json.requesterId ] }}"
+          "queryReplacement": "={{ [ $json.companyName, $json.email, $json.phone, $json.address, $json.website, $json.brandColor, $json.requesterId, $json.emailBrandingEnabled, $json.emailFooterNote, $json.documentBrandingEnabled, $json.timezone, $json.timeFormat ] }}"
         }
       },
       "id": "cpro0011-1111-4a5a-9b1a-companyprof011",
@@ -457,6 +457,114 @@
       "id": "validate-session-logo",
       "name": "Validate Session & Logo",
       "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-email-branding",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "890ce1eb-3d15-4940-9016-cd354873074b",
+      "name": "Webhook - Get Email Branding",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        2400
+      ],
+      "webhookId": "ae2efe3f-05d1-45b7-9f2d-0a7ec0d06f9f"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COALESCE(email_branding_enabled, false) AS email_branding_enabled,\n  CASE WHEN COALESCE(email_branding_enabled, false) THEN company_name END AS company_name,\n  CASE WHEN COALESCE(email_branding_enabled, false) THEN logo_url END AS logo_url,\n  CASE WHEN COALESCE(email_branding_enabled, false) THEN address END AS address,\n  CASE WHEN COALESCE(email_branding_enabled, false) THEN phone END AS phone,\n  CASE WHEN COALESCE(email_branding_enabled, false) THEN website END AS website,\n  CASE WHEN COALESCE(email_branding_enabled, false) THEN email END AS email,\n  CASE WHEN COALESCE(email_branding_enabled, false) THEN brand_color END AS brand_color,\n  CASE WHEN COALESCE(email_branding_enabled, false) THEN email_footer_note END AS email_footer_note\nFROM (SELECT 1) d LEFT JOIN company_profile cp ON cp.id = 1;",
+        "options": {}
+      },
+      "id": "0a4627ae-7697-45dc-afb3-fa8acbe00c9c",
+      "name": "Select Email Branding",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1184,
+        2400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "8f1cf2fa-92cc-4d3e-8741-bfbb475d7227",
+      "name": "Respond - Email Branding",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1408,
+        2400
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-document-branding",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "8c188535-26c5-4435-bc5f-a2c5f6d1f627",
+      "name": "Webhook - Get Document Branding",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        2700
+      ],
+      "webhookId": "5c6d999e-0375-46ad-9193-a14c0bbd0a2c"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COALESCE(document_branding_enabled, false) AS document_branding_enabled,\n  CASE WHEN COALESCE(document_branding_enabled, false) THEN company_name END AS company_name,\n  CASE WHEN COALESCE(document_branding_enabled, false) THEN logo_url END AS logo_url,\n  CASE WHEN COALESCE(document_branding_enabled, false) THEN address END AS address,\n  CASE WHEN COALESCE(document_branding_enabled, false) THEN phone END AS phone,\n  CASE WHEN COALESCE(document_branding_enabled, false) THEN website END AS website,\n  CASE WHEN COALESCE(document_branding_enabled, false) THEN email END AS email,\n  CASE WHEN COALESCE(document_branding_enabled, false) THEN brand_color END AS brand_color,\n  CASE WHEN COALESCE(document_branding_enabled, false) THEN email_footer_note END AS footer_note\nFROM (SELECT 1) d LEFT JOIN company_profile cp ON cp.id = 1;",
+        "options": {}
+      },
+      "id": "331bc8c2-1f8c-4cae-92bd-2b4af624628d",
+      "name": "Select Document Branding",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1184,
+        2700
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "410cd37b-fce4-4a7e-a820-ef4da8ea3d80",
+      "name": "Respond - Document Branding",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1408,
+        2700
+      ]
     }
   ],
   "connections": {
@@ -805,6 +913,64 @@
           }
         ]
       ]
+    },
+    "Webhook - Get Email Branding": {
+      "main": [
+        [
+          {
+            "node": "Select Email Branding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Email Branding": {
+      "main": [
+        [
+          {
+            "node": "Respond - Email Branding",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Get Document Branding": {
+      "main": [
+        [
+          {
+            "node": "Select Document Branding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Document Branding": {
+      "main": [
+        [
+          {
+            "node": "Respond - Document Branding",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "pinData": {},
@@ -813,6 +979,7 @@
     "executionOrder": "v1",
     "availableInMCP": false,
     "timeSavedMode": "fixed",
-    "callerPolicy": "workflowsFromSameOwner"
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "Asia/Almaty"
   }
 }

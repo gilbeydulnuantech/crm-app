@@ -19,7 +19,7 @@
         "operation": "executeQuery",
         "query": "SELECT id, email_logs FROM contacts WHERE email = $1;",
         "options": {
-          "queryReplacement": "={{ [ $('Gmail Trigger').item.json.from.value[0].address ] }}"
+          "queryReplacement": "={{ [ $('Email Trigger (IMAP)').item.json.from.value[0].address ] }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -42,7 +42,7 @@
         "operation": "executeQuery",
         "query": "UPDATE contacts\nSET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_array(\n    jsonb_build_object(\n        'id', gen_random_uuid()::text,\n        'type', 'received',\n        'subject', $1,\n        'message', $2,\n        'attachments', '[]'::jsonb,\n        'sent_at', NOW(),\n        'is_read', false\n    )\n)\nWHERE id = $3;",
         "options": {
-          "queryReplacement": "={{ [\n  $('Gmail Trigger').item.json.subject || $('Gmail Trigger').item.json.headers.subject,\n  $('Gmail Trigger').item.json.text.split(/On\\s+.*wrote:/i)[0].split(/^>+/m)[0].trim(),\n  Number($json.id)\n] }}"
+          "queryReplacement": "={{ [\n  $('Email Trigger (IMAP)').item.json.subject || $('Email Trigger (IMAP)').item.json.headers.subject,\n  $('Email Trigger (IMAP)').item.json.text.split(/On\\s+.*wrote:/i)[0].split(/^>+/m)[0].trim(),\n  Number($json.id)\n] }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -62,31 +62,26 @@
     },
     {
       "parameters": {
-        "pollTimes": {
-          "item": [
-            {
-              "mode": "everyMinute"
-            }
-          ]
-        },
-        "simple": false,
-        "filters": {},
+        "mailbox": "INBOX",
+        "postProcessAction": "read",
+        "format": "resolved",
+        "dataPropertyAttachmentsPrefixName": "attachment_",
         "options": {
-          "downloadAttachments": true
+          "customEmailConfig": "[\"UNSEEN\",[\"SINCE\",\"06-Oct-2026\"],[\"SUBJECT\",\"Re:\"]]"
         }
       },
-      "type": "n8n-nodes-base.gmailTrigger",
-      "typeVersion": 1.3,
+      "id": "1cebae6d-1576-42dd-927b-f2fa49c91521",
+      "name": "Email Trigger (IMAP)",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2,
       "position": [
         0,
         80
       ],
-      "id": "1cebae6d-1576-42dd-927b-f2fa49c91521",
-      "name": "Gmail Trigger",
       "credentials": {
-        "gmailOAuth2": {
-          "id": "YE9RFYruaRVVZ6H4",
-          "name": "CRMapp"
+        "imap": {
+          "id": "alxsXaqeIPa3q6lK",
+          "name": "Gmail IMAP (gilbeydulnuan)"
         }
       }
     },
@@ -173,7 +168,7 @@
         "operation": "executeQuery",
         "query": "SELECT id, email_logs FROM contacts WHERE email = $1;",
         "options": {
-          "queryReplacement": "={{ [ $('Gmail Trigger').item.json.from.value[0].address ] }}"
+          "queryReplacement": "={{ [ $('Email Trigger (IMAP)').item.json.from.value[0].address ] }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -196,7 +191,7 @@
         "operation": "executeQuery",
         "query": "UPDATE contacts\nSET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_array(\n    jsonb_build_object(\n        'id', gen_random_uuid()::text,\n        'type', 'received',\n        'subject', $1,\n        'message', $2,\n        'attachments', $3::jsonb,\n        'sent_at', NOW(),\n        'is_read', false\n    )\n)\nWHERE id = $4;",
         "options": {
-          "queryReplacement": "={{ [\n  $('Gmail Trigger').item.json.subject || $('Gmail Trigger').item.json.headers.subject,\n  $('Gmail Trigger').item.json.text.split(/On\\s+.*wrote:/i)[0].split(/^>+/m)[0].trim(),\n  JSON.stringify($('Aggregate Attachments').item.json.attachmentsArray),\n  Number($json.id)\n] }}"
+          "queryReplacement": "={{ [\n  $('Email Trigger (IMAP)').item.json.subject || $('Email Trigger (IMAP)').item.json.headers.subject,\n  $('Email Trigger (IMAP)').item.json.text.split(/On\\s+.*wrote:/i)[0].split(/^>+/m)[0].trim(),\n  JSON.stringify($('Aggregate Attachments').item.json.attachmentsArray),\n  Number($json.id)\n] }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -216,7 +211,7 @@
     },
     {
       "parameters": {
-        "jsCode": "return [{ json: { contactId: $json.id, threadId: $('Gmail Trigger').item.json.threadId } }];"
+        "jsCode": "return [{ json: { contactId: $json.id, threadId: $('Email Trigger (IMAP)').item.json.threadId } }];"
       },
       "id": "ler2-capture-context",
       "name": "Capture Reply Context",
@@ -411,7 +406,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const NOTIFIER_USER_ID = 1;\nconst ownerId = $input.item.json.owner_id;\nconst dmKey = [NOTIFIER_USER_ID, ownerId].sort((a, b) => a - b).join('-');\nreturn [{ json: { notifierUserId: NOTIFIER_USER_ID, ownerId, dmKey } }];"
+        "jsCode": "// DMs come from user 1 \u2014 unless that user is the recipient (Team Chat never counts your own messages as unread); then from the system sender.\nconst BOT_USER_ID = 9;\nconst ownerId = $input.item.json.owner_id;\nconst NOTIFIER_USER_ID = ownerId === 1 ? BOT_USER_ID : 1;\nconst dmKey = [NOTIFIER_USER_ID, ownerId].sort((a, b) => a - b).join('-');\nreturn [{ json: { notifierUserId: NOTIFIER_USER_ID, ownerId, dmKey } }];"
       },
       "id": "ler2-dmkey",
       "name": "Build DM Key",
@@ -562,30 +557,31 @@
       ]
     },
     {
-      "parameters": {
-        "sendTo": "={{ $('Fill Booking Email').item.json.to }}",
-        "subject": "={{ ($('Fill Booking Email').item.json.subject).replace(/\\{\\{\\s*company[._]name\\s*\\}\\}/gi, $('Get Company Name: Booking Email').item.json.company_name) }}",
-        "message": "={{ (($('Fill Booking Email').item.json.htmlBody).replace(/The Team/g, $('Get Company Name: Booking Email').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company[._]name\\s*\\}\\}/gi, $('Get Company Name: Booking Email').item.json.company_name) }}",
-        "options": {
-          "senderName": "={{ $('Get Company Name: Booking Email').item.json.company_name }}"
-        }
-      },
       "id": "ler2-send-booking",
       "name": "Send Booking Email",
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
       "position": [
         3712,
         464
       ],
-      "webhookId": "8e079814-2ad5-4103-aebf-56b0e3840665",
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "YE9RFYruaRVVZ6H4",
-          "name": "CRMapp"
+      "onError": "continueRegularOutput",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "parameters": {
+        "fromEmail": "={{ ($('Get Company Name: Booking Email').item.json.company_name) ? ('\"' + String($('Get Company Name: Booking Email').item.json.company_name).replace(/\"/g, '') + '\" <gilbeydulnuan@gmail.com>') : 'gilbeydulnuan@gmail.com' }}",
+        "toEmail": "={{ $('Fill Booking Email').item.json.to }}",
+        "subject": "={{ ($('Fill Booking Email').item.json.subject).replace(/\\{\\{\\s*company[._]name\\s*\\}\\}/gi, $('Get Company Name: Booking Email').item.json.company_name) }}",
+        "emailFormat": "html",
+        "html": "={{ (() => { const h = String((($('Fill Booking Email').item.json.htmlBody).replace(/The Team/g, $('Get Company Name: Booking Email').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company[._]name\\s*\\}\\}/gi, $('Get Company Name: Booking Email').item.json.company_name)); const hd = $json.__brandHeader || ''; const ft = $json.__brandFooter || ''; if (!hd && !ft) return h; const m = '<br><br><span style=\"font-size:11px'; const i = h.lastIndexOf(m); return hd + (i >= 0 ? h.slice(0, i) + ft + h.slice(i) : h + ft); })() }}",
+        "options": {
+          "appendAttribution": false
         }
       },
-      "onError": "continueRegularOutput"
+      "credentials": {
+        "smtp": {
+          "id": "A3AoUIlP8cbZ5VlF",
+          "name": "Gmail SMTP (gilbeydulnuan)"
+        }
+      }
     },
     {
       "parameters": {
@@ -615,7 +611,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO email_sends (contact_id, thread_id, message_id, workflow_id, workflow_step, sent_at, reply_status) VALUES ($1, $2, $3, 'new_lead', 'book_inspection', now(), 'waiting');",
         "options": {
-          "queryReplacement": "={{ [ $('Find Waiting Send').item.json.contact_id, $('Send Booking Email').item.json.threadId, $('Send Booking Email').item.json.id ] }}"
+          "queryReplacement": "={{ [ $('Find Waiting Send').item.json.contact_id, null, $('Send Booking Email').item.json.messageId ] }}"
         }
       },
       "id": "ler2-record-booking-send",
@@ -861,6 +857,21 @@
         65
       ],
       "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Company branding + rep signature for outgoing HTML emails. Everything is off until an admin switches on\n// \"Add company branding and signatures to emails\" in Settings > Company Profile (company_profile.email_branding_enabled).\nfunction buildBrandParts(branding, signatureText, companyName) {\n  const b = branding || {};\n  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\n  const on = b.email_branding_enabled === true;\n  if (!on) return { on: false, header: '', footer: '', sig: '', sigText: '' };\n  const color = /^#[0-9a-fA-F]{6}$/.test(b.brand_color || '') ? b.brand_color : '#2563EB';\n  const logo = /^https?:\\/\\//i.test(b.logo_url || '')\n    ? '<img src=\"' + esc(b.logo_url) + '\" alt=\"' + esc(companyName) + '\" style=\"max-height:56px;max-width:200px;display:block;margin-bottom:6px\">' : '';\n  const name = companyName ? '<div style=\"font-size:18px;font-weight:bold;color:' + color + '\">' + esc(companyName) + '</div>' : '';\n  const header = (logo || name) ? '<div style=\"padding-bottom:12px;margin-bottom:16px;border-bottom:3px solid ' + color + '\">' + logo + name + '</div>' : '';\n  const lines = [b.address, b.phone, b.website, b.email].filter(Boolean).map(esc);\n  const note = b.email_footer_note ? '<div style=\"margin-top:6px\">' + esc(b.email_footer_note).replace(/\\n/g, '<br>') + '</div>' : '';\n  const footer = (lines.length || note)\n    ? '<div style=\"margin-top:24px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b\">' + (lines.length ? '<div>' + lines.join(' &middot; ') + '</div>' : '') + note + '</div>' : '';\n  const sigText = signatureText && String(signatureText).trim() ? String(signatureText).trim() : '';\n  const sig = sigText ? '<div style=\"margin-top:16px\">' + esc(sigText).replace(/\\n/g, '<br>') + '</div>' : '';\n  return { on: true, header, footer, sig, sigText };\n}\n\n// Apply Branding \u2014 works out this email's company header and footer and adds them to the item as __brandHeader and\n// __brandFooter; the Send node then wraps its own HTML with them. Strictly additive and fail-safe: if branding is\n// switched off or anything at all goes wrong, the item passes through untouched and the email goes out exactly as before.\nconst item = $input.item;\ntry {\n  const sd = $getWorkflowStaticData('global');\n  const now = Date.now();\n  let b = sd.__brandCache && now - sd.__brandCache.t < 60000 ? sd.__brandCache.data : null;\n  if (!b) {\n    let base = 'http://localhost:5678';\n    try { if ($env.N8N_INTERNAL_URL) base = $env.N8N_INTERNAL_URL; } catch (e) { /* env access blocked */ }\n    const r = await this.helpers.httpRequest({ url: base.replace(/\\/$/, '') + '/webhook/get-email-branding', method: 'GET', json: true, timeout: 5000 });\n    b = r && typeof r === 'object' ? r : {};\n    sd.__brandCache = { t: now, data: b };\n  }\n  if (b.email_branding_enabled === true) {\n    const parts = buildBrandParts(b, '', b.company_name || '');\n    return { json: { ...item.json, __brandHeader: parts.header, __brandFooter: parts.footer }, binary: item.binary };\n  }\n} catch (e) { /* branding is optional */ }\nreturn item;\n"
+      },
+      "id": "77b6f1bd-d7bb-49ff-b522-4bfceaba23f9",
+      "name": "Apply Branding: Send Booking Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3532,
+        464
+      ],
+      "onError": "continueRegularOutput"
     }
   ],
   "pinData": {},
@@ -886,17 +897,6 @@
           },
           {
             "node": "Capture Reply Context",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Gmail Trigger": {
-      "main": [
-        [
-          {
-            "node": "Log Workflow Run: Gmail Trigger",
             "type": "main",
             "index": 0
           }
@@ -1212,7 +1212,7 @@
       "main": [
         [
           {
-            "node": "Send Booking Email",
+            "node": "Apply Branding: Send Booking Email",
             "type": "main",
             "index": 0
           }
@@ -1221,9 +1221,30 @@
     },
     "Log Workflow Run: Gmail Trigger": {
       "main": [
+        []
+      ]
+    },
+    "Email Trigger (IMAP)": {
+      "main": [
         [
           {
+            "node": "Log Workflow Run: Gmail Trigger",
+            "type": "main",
+            "index": 0
+          },
+          {
             "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply Branding: Send Booking Email": {
+      "main": [
+        [
+          {
+            "node": "Send Booking Email",
             "type": "main",
             "index": 0
           }
@@ -1238,7 +1259,8 @@
     "availableInMCP": false,
     "timeSavedMode": "fixed",
     "errorWorkflow": "U7jX0H3oE5a25GrV",
-    "callerPolicy": "workflowsFromSameOwner"
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "Asia/Almaty"
   },
   "versionId": "a53008e0-278d-4db6-8f76-f1484cfdd37d",
   "meta": {

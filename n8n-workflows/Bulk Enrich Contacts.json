@@ -124,7 +124,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: bulk-enrich-contacts').first().json.body || {};\nconst ids = Array.isArray(body.contact_ids) ? body.contact_ids.map((n) => parseInt(n, 10)).filter(Number.isInteger) : [];\nif (ids.length === 0) throw new Error('contact_ids must be a non-empty array.');\nif (ids.length > 25) throw new Error('Enrich at most 25 contacts at once.');\n\nconst authHeader = $('Validate Session').first().json.authHeader;\nreturn [{ json: { contactIds: ids, authHeader, queued: ids.length } }];"
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: bulk-enrich-contacts').first().json.body || {};\nif (!Array.isArray(body.contact_ids)) throw new Error('\"contact_ids\" must be an array of contact ids.');\n// Only whole positive numbers; duplicates are collapsed so one contact is never enriched (and billed) twice.\nconst ids = [...new Set(body.contact_ids.filter((n) => (typeof n === 'number' || (typeof n === 'string' && /^\\d+$/.test(n.trim()))) && Number.isInteger(Number(n)) && Number(n) > 0).map(Number))];\nif (ids.length === 0) throw new Error('\"contact_ids\" must contain at least one valid contact id.');\nif (ids.length > 25) throw new Error('Enrich at most 25 contacts at once.');\n\nreturn [{ json: { contactIds: ids, authHeader: requester.authHeader, queued: ids.length } }];"
       },
       "id": "bec-validate",
       "name": "Validate Payload",
@@ -138,6 +138,8 @@
     },
     {
       "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, queued: $json.queued } }}",
         "options": {}
       },
       "id": "bec-respond",
@@ -195,7 +197,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { \"success\": false, \"error\": (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Request failed.\" } }}",
+        "responseBody": "={{ (() => { let m = (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Request failed.\"; m = String(m).replace(/\\s*\\[line \\d+\\]\\s*$/, \"\"); if (/(violates|duplicate key|syntax error|relation \"|column \"|value too long|ECONNREFUSED|timeout)/i.test(m)) m = \"The request could not be completed. Please try again.\"; return { success: false, error: m }; })() }}",
         "options": {
           "responseCode": 400
         }
@@ -254,7 +256,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active, authHeader } }];"
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n// The caller's own Authorization header is passed on to each per-contact enrich call, so every contact is\n// still permission-checked as that user.\nconst headers = $('Webhook: bulk-enrich-contacts').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active, authHeader } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -271,6 +273,7 @@
   "settings": {
     "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner",
-    "availableInMCP": false
+    "availableInMCP": false,
+    "timezone": "Asia/Almaty"
   }
 }

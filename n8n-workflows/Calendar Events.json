@@ -20,7 +20,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT a.id, a.contact_id, TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS contact_name, a.opportunity_id, o.name AS opportunity_name, co.id AS company_id, co.name AS company_name, a.user_id, u.name AS assigned_user_name, u.color AS assigned_user_color, u.avatar_url AS assigned_user_avatar_url, a.type, a.subject, a.body, a.is_completed, a.due_at, a.end_at, a.location, a.is_all_day, a.completed_at, a.created_at, a.google_event_id,\n  (SELECT COALESCE(json_agg(json_build_object('id', r.id, 'name', r.name)), '[]'::json)\n   FROM activity_resources ar JOIN resources r ON r.id = ar.resource_id\n   WHERE ar.activity_id = a.id) AS resources\nFROM activities a LEFT JOIN contacts c ON c.id = a.contact_id LEFT JOIN opportunities o ON o.id = a.opportunity_id LEFT JOIN companies co ON co.id = COALESCE(a.account_id, o.account_id, c.account_id) LEFT JOIN users u ON u.id = a.user_id WHERE a.due_at IS NOT NULL AND a.due_at >= $1::date AND a.due_at <= ($2::date + interval '1 day') ORDER BY a.due_at ASC;",
+        "query": "SELECT a.id, a.contact_id, TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS contact_name, a.opportunity_id, o.name AS opportunity_name, co.id AS company_id, co.name AS company_name, a.user_id, u.name AS assigned_user_name, u.color AS assigned_user_color, u.avatar_url AS assigned_user_avatar_url, a.type, a.subject, a.body, a.is_completed, a.due_at, a.end_at, a.location, a.is_all_day, a.completed_at, a.created_at, a.google_event_id, a.product_id, COALESCE(a.price, pr.unit_price) AS product_price, pr.name AS product_name, a.staff_id, sm.name AS staff_name, a.discount_name, a.discount_percent::float AS discount_percent, a.amount_paid::float AS amount_paid, a.commission_percent::float AS commission_percent, a.commission_amount::float AS commission_amount, a.confirmed_at, a.payment_method, a.paid_at, a.client_package_id, a.client_membership_id, a.outcome,\n  (SELECT COALESCE(json_agg(json_build_object('id', r.id, 'name', r.name)), '[]'::json)\n   FROM activity_resources ar JOIN resources r ON r.id = ar.resource_id\n   WHERE ar.activity_id = a.id) AS resources\nFROM activities a LEFT JOIN contacts c ON c.id = a.contact_id LEFT JOIN opportunities o ON o.id = a.opportunity_id LEFT JOIN companies co ON co.id = COALESCE(a.account_id, o.account_id, c.account_id) LEFT JOIN users u ON u.id = a.user_id LEFT JOIN products pr ON pr.id = a.product_id LEFT JOIN staff_members sm ON sm.id = a.staff_id WHERE a.due_at IS NOT NULL AND a.due_at >= $1::date AND a.due_at <= ($2::date + interval '1 day') ORDER BY a.due_at ASC;",
         "options": {
           "queryReplacement": "={{ [$('Webhook: get-events').first().json.query.start, $('Webhook: get-events').first().json.query.end] }}"
         }
@@ -30,7 +30,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        224,
+        448,
         0
       ],
       "credentials": {
@@ -67,7 +67,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        448,
+        672,
         0
       ]
     },
@@ -84,16 +84,16 @@
       "typeVersion": 2,
       "position": [
         0,
-        224
+        608
       ],
       "webhookId": "7841834f-2e2a-45c0-a1b7-08522aeb5d35"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO activities (contact_id, account_id, opportunity_id, user_id, type, subject, body, due_at, end_at, location, is_all_day) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id, subject, due_at, end_at, user_id, contact_id, body, created_at;",
+        "query": "INSERT INTO activities (contact_id, account_id, opportunity_id, user_id, type, subject, body, due_at, end_at, location, is_all_day, notify_contact, product_id, price, staff_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::int, (SELECT unit_price FROM products WHERE id = $13::int), $14::int) RETURNING id, subject, due_at, end_at, user_id, contact_id, body, created_at;",
         "options": {
-          "queryReplacement": "={{ [$('Webhook: add-event').first().json.body.contact_id || null, $('Webhook: add-event').first().json.body.account_id || null, $('Webhook: add-event').first().json.body.opportunity_id || null, $('Webhook: add-event').first().json.body.user_id || $('Webhook: add-event').first().json.body.requester_id || null, $('Webhook: add-event').first().json.body.type || 'meeting', $('Webhook: add-event').first().json.body.subject, $('Webhook: add-event').first().json.body.body || null, $('Webhook: add-event').first().json.body.due_at, $('Webhook: add-event').first().json.body.end_at || null, $('Webhook: add-event').first().json.body.location || null, $('Webhook: add-event').first().json.body.is_all_day === true || $('Webhook: add-event').first().json.body.is_all_day === 'true'] }}"
+          "queryReplacement": "={{ [$('Webhook: add-event').first().json.body.contact_id || null, $('Webhook: add-event').first().json.body.account_id || null, $('Webhook: add-event').first().json.body.opportunity_id || null, $('Webhook: add-event').first().json.body.user_id || $('Webhook: add-event').first().json.body.requester_id || null, $('Webhook: add-event').first().json.body.type || 'meeting', $('Webhook: add-event').first().json.body.subject, $('Webhook: add-event').first().json.body.body || null, $('Webhook: add-event').first().json.body.due_at, $('Webhook: add-event').first().json.body.end_at || null, $('Webhook: add-event').first().json.body.location || null, $('Webhook: add-event').first().json.body.is_all_day === true || $('Webhook: add-event').first().json.body.is_all_day === 'true', $('Webhook: add-event').first().json.body.notify_contact === true || $('Webhook: add-event').first().json.body.notify_contact === 'true', $('Webhook: add-event').first().json.body.product_id ? parseInt($('Webhook: add-event').first().json.body.product_id, 10) : null, $('Webhook: add-event').first().json.body.staff_id ? parseInt($('Webhook: add-event').first().json.body.staff_id, 10) : null] }}"
         }
       },
       "id": "bf04f093-2874-4134-ac24-6669dd81340e",
@@ -101,8 +101,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        224,
-        224
+        1120,
+        512
       ],
       "credentials": {
         "postgres": {
@@ -124,8 +124,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        224,
-        360
+        1344,
+        416
       ],
       "credentials": {
         "postgres": {
@@ -147,8 +147,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        224,
-        480
+        1344,
+        608
       ],
       "credentials": {
         "postgres": {
@@ -185,7 +185,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        448,
+        2016,
         224
       ]
     },
@@ -202,16 +202,16 @@
       "typeVersion": 2,
       "position": [
         0,
-        448
+        1720
       ],
       "webhookId": "32f5a8b5-7022-4452-aa92-82df1e361950"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE activities SET subject = COALESCE($1, subject), body = COALESCE($2, body), type = COALESCE($3, type), contact_id = COALESCE($4, contact_id), opportunity_id = COALESCE($5, opportunity_id), user_id = COALESCE($6, user_id), due_at = COALESCE($7, due_at), is_completed = COALESCE($8, is_completed), completed_at = CASE WHEN $9::text IS NOT NULL THEN $9::timestamptz ELSE completed_at END, end_at = COALESCE($10, end_at), location = COALESCE($11, location), is_all_day = COALESCE($12, is_all_day), account_id = COALESCE($13, account_id) WHERE id = $14 AND ($15 = 'admin' OR user_id = $16) RETURNING id, google_event_id, user_id, contact_id, subject, due_at, end_at, body;",
+        "query": "UPDATE activities SET subject = COALESCE($1, subject), body = COALESCE($2, body), type = COALESCE($3, type), contact_id = COALESCE($4, contact_id), opportunity_id = COALESCE($5, opportunity_id), user_id = COALESCE($6, user_id), due_at = COALESCE($7, due_at), is_completed = COALESCE($8, is_completed), completed_at = CASE WHEN $9::text IS NOT NULL THEN $9::timestamptz ELSE completed_at END, end_at = COALESCE($10, end_at), location = COALESCE($11, location), is_all_day = COALESCE($12, is_all_day), account_id = COALESCE($13, account_id), price = CASE WHEN $17::boolean AND $18::int IS DISTINCT FROM product_id THEN (SELECT unit_price FROM products WHERE id = $18::int) ELSE price END, product_id = CASE WHEN $17::boolean THEN $18::int ELSE product_id END, staff_id = CASE WHEN $19::boolean THEN $20::int ELSE staff_id END WHERE id = $14 AND ($15 = 'admin' OR user_id = $16) RETURNING id, google_event_id, user_id, contact_id, subject, due_at, end_at, body;",
         "options": {
-          "queryReplacement": "={{ [$('Webhook: update-event').first().json.body.subject || null, $('Webhook: update-event').first().json.body.body || null, $('Webhook: update-event').first().json.body.type || null, $('Webhook: update-event').first().json.body.contact_id || null, $('Webhook: update-event').first().json.body.opportunity_id || null, $('Webhook: update-event').first().json.body.user_id || null, $('Webhook: update-event').first().json.body.due_at || null, $('Webhook: update-event').first().json.body.is_completed !== undefined ? $('Webhook: update-event').first().json.body.is_completed : null, $('Webhook: update-event').first().json.body.completed_at || null, $('Webhook: update-event').first().json.body.end_at || null, $('Webhook: update-event').first().json.body.location || null, $('Webhook: update-event').first().json.body.is_all_day !== undefined ? ($('Webhook: update-event').first().json.body.is_all_day === true || $('Webhook: update-event').first().json.body.is_all_day === 'true') : null, $('Webhook: update-event').first().json.body.account_id || null, $('Webhook: update-event').first().json.body.id, $('Validate Session update-event').first().json.role, $('Validate Session update-event').first().json.id ] }}"
+          "queryReplacement": "={{ [$('Webhook: update-event').first().json.body.subject || null, $('Webhook: update-event').first().json.body.body || null, $('Webhook: update-event').first().json.body.type || null, $('Webhook: update-event').first().json.body.contact_id || null, $('Webhook: update-event').first().json.body.opportunity_id || null, $('Webhook: update-event').first().json.body.user_id || null, $('Webhook: update-event').first().json.body.due_at || null, $('Webhook: update-event').first().json.body.is_completed !== undefined ? $('Webhook: update-event').first().json.body.is_completed : null, $('Webhook: update-event').first().json.body.completed_at || null, $('Webhook: update-event').first().json.body.end_at || null, $('Webhook: update-event').first().json.body.location || null, $('Webhook: update-event').first().json.body.is_all_day !== undefined ? ($('Webhook: update-event').first().json.body.is_all_day === true || $('Webhook: update-event').first().json.body.is_all_day === 'true') : null, $('Webhook: update-event').first().json.body.account_id || null, $('Webhook: update-event').first().json.body.id, $('Validate Session update-event').first().json.role, $('Validate Session update-event').first().json.id , ('product_id' in $('Webhook: update-event').first().json.body), $('Webhook: update-event').first().json.body.product_id ? parseInt($('Webhook: update-event').first().json.body.product_id, 10) : null, ('staff_id' in $('Webhook: update-event').first().json.body), $('Webhook: update-event').first().json.body.staff_id ? parseInt($('Webhook: update-event').first().json.body.staff_id, 10) : null] }}"
         }
       },
       "id": "898a6266-6993-4969-b70d-65ae210ca328",
@@ -219,8 +219,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        224,
-        448
+        2016,
+        1360
       ],
       "credentials": {
         "postgres": {
@@ -258,8 +258,8 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        448,
-        448
+        3136,
+        1024
       ]
     },
     {
@@ -275,7 +275,7 @@
       "typeVersion": 2,
       "position": [
         0,
-        672
+        2568
       ],
       "webhookId": "d2b2d009-aa59-4c6f-91f9-c10a7dd3e09c"
     },
@@ -292,8 +292,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        224,
-        672
+        1120,
+        2376
       ],
       "credentials": {
         "postgres": {
@@ -330,8 +330,8 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        448,
-        672
+        1344,
+        2280
       ]
     },
     {
@@ -347,7 +347,7 @@
       "typeVersion": 2,
       "position": [
         0,
-        880
+        2840
       ],
       "webhookId": "88e9583c-a0d2-4b0c-827f-3de664e0797f"
     },
@@ -380,7 +380,7 @@
       "typeVersion": 1.1,
       "position": [
         224,
-        880
+        2840
       ]
     },
     {
@@ -396,7 +396,7 @@
       "typeVersion": 2,
       "position": [
         0,
-        1008
+        3064
       ],
       "webhookId": "7ca0817d-0860-4e94-9b0d-e5fa3c3feacf"
     },
@@ -429,7 +429,7 @@
       "typeVersion": 1.1,
       "position": [
         224,
-        1008
+        3064
       ]
     },
     {
@@ -445,7 +445,7 @@
       "typeVersion": 2,
       "position": [
         0,
-        1120
+        3288
       ],
       "webhookId": "6f649189-b6a1-4669-a558-7004349f6015"
     },
@@ -478,7 +478,7 @@
       "typeVersion": 1.1,
       "position": [
         224,
-        1120
+        3288
       ]
     },
     {
@@ -494,7 +494,7 @@
       "typeVersion": 2,
       "position": [
         0,
-        1248
+        3512
       ],
       "webhookId": "6b97e506-6326-4d2b-9fcf-1760fb753910"
     },
@@ -527,7 +527,7 @@
       "typeVersion": 1.1,
       "position": [
         224,
-        1248
+        3512
       ]
     },
     {
@@ -541,7 +541,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        112,
+        224,
         0
       ],
       "credentials": {
@@ -562,8 +562,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        112,
-        224
+        448,
+        608
       ],
       "credentials": {
         "postgres": {
@@ -581,7 +581,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        336,
+        1344,
         224
       ]
     },
@@ -596,7 +596,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        560,
+        1568,
         224
       ],
       "credentials": {
@@ -615,7 +615,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        784,
+        1792,
         224
       ]
     },
@@ -630,8 +630,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        112,
-        448
+        1120,
+        1504
       ],
       "credentials": {
         "postgres": {
@@ -649,8 +649,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        336,
-        448
+        2464,
+        1024
       ]
     },
     {
@@ -664,8 +664,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        560,
-        448
+        2688,
+        1024
       ],
       "credentials": {
         "postgres": {
@@ -683,8 +683,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        784,
-        448
+        2912,
+        1024
       ]
     },
     {
@@ -696,8 +696,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        700,
-        298
+        2240,
+        1072
       ],
       "onError": "continueErrorOutput"
     },
@@ -730,8 +730,8 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        250,
-        698
+        2464,
+        1624
       ]
     },
     {
@@ -763,16 +763,16 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        250,
-        922
+        1120,
+        2616
       ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT a.id, a.subject, a.due_at, a.end_at FROM activities a WHERE a.due_at IS NOT NULL AND ( ($1::int IS NOT NULL AND a.user_id = $1) OR ($2::int IS NOT NULL AND a.contact_id = $2) ) AND a.due_at < $4::timestamptz AND COALESCE(a.end_at, a.due_at) > $3::timestamptz LIMIT 1;",
+        "query": "SELECT a.id, a.subject, a.due_at, a.end_at FROM activities a WHERE a.due_at IS NOT NULL AND a.outcome IS NULL AND ( ($5::int IS NOT NULL AND a.staff_id = $5::int) OR ($5::int IS NULL AND $1::int IS NOT NULL AND a.user_id = $1 AND a.staff_id IS NULL) OR ($2::int IS NOT NULL AND a.contact_id = $2) ) AND a.due_at < $4::timestamptz AND COALESCE(a.end_at, a.due_at) > $3::timestamptz LIMIT 1;",
         "options": {
-          "queryReplacement": "={{ [ $('Webhook: add-event').first().json.body.user_id || $('Webhook: add-event').first().json.body.requester_id || null, $('Webhook: add-event').first().json.body.contact_id || null, $('Webhook: add-event').first().json.body.due_at, $('Webhook: add-event').first().json.body.end_at || $('Webhook: add-event').first().json.body.due_at ] }}"
+          "queryReplacement": "={{ [ $('Webhook: add-event').first().json.body.user_id || $('Webhook: add-event').first().json.body.requester_id || null, $('Webhook: add-event').first().json.body.contact_id || null, $('Webhook: add-event').first().json.body.due_at, $('Webhook: add-event').first().json.body.end_at || $('Webhook: add-event').first().json.body.due_at , $('Webhook: add-event').first().json.body.staff_id ? parseInt($('Webhook: add-event').first().json.body.staff_id, 10) : null] }}"
         }
       },
       "id": "fcd59b22-22f8-4907-bf31-e0de3127d6c8",
@@ -781,8 +781,8 @@
       "typeVersion": 2.6,
       "alwaysOutputData": true,
       "position": [
-        1264,
-        100
+        672,
+        608
       ],
       "credentials": {
         "postgres": {
@@ -800,8 +800,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1488,
-        100
+        896,
+        608
       ],
       "onError": "continueErrorOutput"
     },
@@ -818,16 +818,16 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        1488,
-        260
+        1120,
+        704
       ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT other.id, other.subject, other.due_at, other.end_at FROM activities self JOIN activities other ON other.id != self.id WHERE self.id = $5 AND ( (COALESCE($1::int, self.user_id) IS NOT NULL AND COALESCE($1::int, self.user_id) = other.user_id) OR (COALESCE($2::int, self.contact_id) IS NOT NULL AND COALESCE($2::int, self.contact_id) = other.contact_id) ) AND other.due_at IS NOT NULL AND other.due_at < COALESCE($4::timestamptz, self.end_at, self.due_at) AND COALESCE(other.end_at, other.due_at) > COALESCE($3::timestamptz, self.due_at) LIMIT 1;",
+        "query": "SELECT other.id, other.subject, other.due_at, other.end_at FROM activities self JOIN activities other ON other.id != self.id WHERE self.id = $5 AND ( ((CASE WHEN $6::boolean THEN $7::int ELSE self.staff_id END) IS NOT NULL AND other.staff_id = (CASE WHEN $6::boolean THEN $7::int ELSE self.staff_id END)) OR ((CASE WHEN $6::boolean THEN $7::int ELSE self.staff_id END) IS NULL AND COALESCE($1::int, self.user_id) IS NOT NULL AND COALESCE($1::int, self.user_id) = other.user_id AND other.staff_id IS NULL) OR (COALESCE($2::int, self.contact_id) IS NOT NULL AND COALESCE($2::int, self.contact_id) = other.contact_id) ) AND other.due_at IS NOT NULL AND other.outcome IS NULL AND other.due_at < COALESCE($4::timestamptz, self.end_at, self.due_at) AND COALESCE(other.end_at, other.due_at) > COALESCE($3::timestamptz, self.due_at) LIMIT 1;",
         "options": {
-          "queryReplacement": "={{ [ $('Webhook: update-event').first().json.body.user_id || null, $('Webhook: update-event').first().json.body.contact_id || null, $('Webhook: update-event').first().json.body.due_at || null, $('Webhook: update-event').first().json.body.end_at || null, $('Webhook: update-event').first().json.body.id ] }}"
+          "queryReplacement": "={{ [ $('Webhook: update-event').first().json.body.user_id || null, $('Webhook: update-event').first().json.body.contact_id || null, $('Webhook: update-event').first().json.body.due_at || null, $('Webhook: update-event').first().json.body.end_at || null, $('Webhook: update-event').first().json.body.id , ('staff_id' in $('Webhook: update-event').first().json.body), $('Webhook: update-event').first().json.body.staff_id ? parseInt($('Webhook: update-event').first().json.body.staff_id, 10) : null] }}"
         }
       },
       "id": "7227687f-6cf3-4523-8d27-17a2f905268b",
@@ -836,8 +836,8 @@
       "typeVersion": 2.6,
       "alwaysOutputData": true,
       "position": [
-        1712,
-        300
+        1568,
+        1432
       ],
       "credentials": {
         "postgres": {
@@ -855,8 +855,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1936,
-        300
+        1792,
+        1432
       ],
       "onError": "continueErrorOutput"
     },
@@ -871,8 +871,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        448,
-        480
+        1344,
+        800
       ],
       "id": "f1a2b901-1111-4a5a-9b1a-pushevt000001",
       "name": "Look Up Push Target (Add)",
@@ -912,8 +912,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        672,
-        480
+        1568,
+        800
       ],
       "id": "f1a2b903-3333-4a5a-9b1a-pushevt000003",
       "name": "Has Target Calendar? (Add)"
@@ -929,8 +929,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1120,
-        480
+        2240,
+        800
       ],
       "id": "f1a2b905-5555-4a5a-9b1a-pushevt000005",
       "name": "Save Google Event Id (Add)",
@@ -952,8 +952,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        448,
-        640
+        2240,
+        1312
       ],
       "id": "f1a2b906-6666-4a5a-9b1a-pushevt000006",
       "name": "Look Up Push Target (Update)",
@@ -993,8 +993,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        672,
-        640
+        2464,
+        1816
       ],
       "id": "f1a2b908-8888-4a5a-9b1a-pushevt000008",
       "name": "Has Target Calendar? (Update)"
@@ -1010,8 +1010,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1344,
-        640
+        3360,
+        1912
       ],
       "id": "f1a2b912-1212-4a5a-9b1a-pushevt000012",
       "name": "Save Google Event Id (Update)",
@@ -1033,8 +1033,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        448,
-        800
+        1344,
+        2472
       ],
       "id": "f1a2b913-1313-4a5a-9b1a-pushevt000013",
       "name": "Look Up Calendar For Delete",
@@ -1084,8 +1084,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        672,
-        800
+        1568,
+        2472
       ],
       "id": "f1a2b916-1616-4a5a-9b1a-pushevt000016",
       "name": "Has Calendar & Google Event? (Delete)"
@@ -1097,8 +1097,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        896,
-        440
+        1792,
+        800
       ],
       "id": "g1a2b901-0001-4a5a-9b1a-httpevt000001",
       "name": "Build Google Event Payload (Add)"
@@ -1117,8 +1117,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1120,
-        440
+        2016,
+        800
       ],
       "id": "g1a2b902-0002-4a5a-9b1a-httpevt000002",
       "name": "Push To Google Calendar (Add)",
@@ -1137,8 +1137,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        896,
-        640
+        2688,
+        1816
       ],
       "id": "g1a2b903-0003-4a5a-9b1a-httpevt000003",
       "name": "Build Google Event Payload (Update)"
@@ -1170,8 +1170,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        1120,
-        640
+        2912,
+        1816
       ],
       "id": "g1a2b905-0005-4a5a-9b1a-httpevt000005",
       "name": "Has Existing Google Event? (Update)"
@@ -1190,8 +1190,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1344,
-        560
+        3136,
+        1312
       ],
       "id": "g1a2b906-0006-4a5a-9b1a-httpevt000006",
       "name": "Push To Google Calendar - Patch (Update)",
@@ -1217,8 +1217,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1344,
-        720
+        3136,
+        1912
       ],
       "id": "g1a2b907-0007-4a5a-9b1a-httpevt000007",
       "name": "Push To Google Calendar - Create (Update)",
@@ -1241,8 +1241,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        896,
-        800
+        1792,
+        2472
       ],
       "id": "g1a2b908-0008-4a5a-9b1a-httpevt000008",
       "name": "Cancel On Google Calendar",
@@ -1256,14 +1256,6 @@
       "notes": "Best-effort \u2014 already-deleted-on-Google's-side (404) or any other failure is fine to ignore here since the CRM-side delete already succeeded."
     },
     {
-      "id": "ce-time-changing-gate",
-      "name": "Time/Assignment Changing? (Update)",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        14616,
-        9136
-      ],
       "parameters": {
         "conditions": {
           "options": {
@@ -1275,7 +1267,7 @@
           "conditions": [
             {
               "id": "c1",
-              "leftValue": "={{ $('Webhook: update-event').first().json.body.due_at !== undefined || $('Webhook: update-event').first().json.body.end_at !== undefined || $('Webhook: update-event').first().json.body.user_id !== undefined || $('Webhook: update-event').first().json.body.contact_id !== undefined }}",
+              "leftValue": "={{ $('Webhook: update-event').first().json.body.due_at !== undefined || $('Webhook: update-event').first().json.body.end_at !== undefined || $('Webhook: update-event').first().json.body.user_id !== undefined || $('Webhook: update-event').first().json.body.contact_id !== undefined || $('Webhook: update-event').first().json.body.staff_id !== undefined }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
@@ -1287,17 +1279,17 @@
           "combinator": "and"
         },
         "options": {}
-      }
-    },
-    {
-      "id": "ce-meeting-completed-gate",
-      "name": "Meeting Just Completed? (Update)",
+      },
+      "id": "ce-time-changing-gate",
+      "name": "Time/Assignment Changing? (Update)",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        15308,
-        9276
-      ],
+        1344,
+        1504
+      ]
+    },
+    {
       "parameters": {
         "conditions": {
           "options": {
@@ -1321,17 +1313,17 @@
           "combinator": "and"
         },
         "options": {}
-      }
+      },
+      "id": "ce-meeting-completed-gate",
+      "name": "Meeting Just Completed? (Update)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2240,
+        1600
+      ]
     },
     {
-      "id": "ce-trigger-completion-check",
-      "name": "Trigger Stage Completion Check",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        15568,
-        9276
-      ],
       "parameters": {
         "method": "POST",
         "url": "http://localhost:5678/webhook/manual-test-jv5aC14FwPzUkQKG",
@@ -1342,6 +1334,14 @@
           "timeout": 8000
         }
       },
+      "id": "ce-trigger-completion-check",
+      "name": "Trigger Stage Completion Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2464,
+        2056
+      ],
       "onError": "continueRegularOutput"
     },
     {
@@ -1351,8 +1351,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        100,
-        298
+        448,
+        1720
       ],
       "id": "extract-bearer-parse-token-update-event",
       "name": "Extract Bearer Token update-event",
@@ -1382,8 +1382,8 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
-        130,
-        313
+        672,
+        1648
       ],
       "onError": "continueErrorOutput"
     },
@@ -1394,8 +1394,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        250,
-        298
+        896,
+        1576
       ],
       "id": "validate-session-parse-token-update-event",
       "name": "Validate Session update-event",
@@ -1408,8 +1408,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        100,
-        522
+        448,
+        2568
       ],
       "id": "extract-bearer-parse-token-delete-event",
       "name": "Extract Bearer Token delete-event",
@@ -1439,8 +1439,8 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
-        130,
-        537
+        672,
+        2496
       ],
       "onError": "continueErrorOutput"
     },
@@ -1451,8 +1451,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        250,
-        522
+        896,
+        2424
       ],
       "id": "validate-session-parse-token-delete-event",
       "name": "Validate Session delete-event",
@@ -1484,8 +1484,8 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
-        15,
-        209
+        224,
+        608
       ],
       "onError": "continueRegularOutput"
     },
@@ -1515,8 +1515,8 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
-        15,
-        433
+        224,
+        1720
       ],
       "onError": "continueRegularOutput"
     },
@@ -1546,13 +1546,12 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
-        15,
-        657
+        224,
+        2568
       ],
       "onError": "continueRegularOutput"
     }
   ],
-  "pinData": {},
   "connections": {
     "Webhook: get-events": {
       "main": [
@@ -2215,17 +2214,11 @@
       ]
     }
   },
-  "active": true,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate",
-    "availableInMCP": false
-  },
-  "versionId": "08c9e709-306a-465d-88b4-2921d006b4d7",
-  "meta": {
-    "templateCredsSetupCompleted": true,
-    "instanceId": "6a773e6041cc88fd4a5b60f3e46f2119d58608faafd09936499001d589f5c1af"
-  },
-  "id": "lLyzbXUKfmGury2K",
-  "tags": []
+    "availableInMCP": false,
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "Asia/Almaty"
+  }
 }

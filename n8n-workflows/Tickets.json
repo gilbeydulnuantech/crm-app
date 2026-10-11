@@ -610,7 +610,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -952,30 +953,32 @@
       ]
     },
     {
-      "parameters": {
-        "sendTo": "={{ $('Postgres: Select Ticket For Reply').item.json.customer_email }}",
-        "subject": "={{ 'Re: ' + $('Postgres: Select Ticket For Reply').item.json.subject }}",
-        "emailType": "text",
-        "message": "={{ $('Check Payload: add-ticket-comment').item.json.text + '\\n\\n' + \"Don't want these emails? Unsubscribe: \" + ($env.FRONTEND_BASE_URL || '') + '/unsubscribe/' + ($('Postgres: Select Ticket For Reply').item.json.unsubscribe_token || '') }}",
-        "options": {
-          "appendAttribution": false
-        }
-      },
       "id": "b44be104-f9d7-428b-9a0c-ed5e96c0c634",
       "name": "Send Reply Email",
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
       "position": [
         1440,
         600
       ],
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "YE9RFYruaRVVZ6H4",
-          "name": "CRMapp"
-        }
+      "onError": "continueErrorOutput",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "parameters": {
+        "fromEmail": "gilbeydulnuan@gmail.com",
+        "toEmail": "={{ $('Postgres: Select Ticket For Reply').item.json.customer_email }}",
+        "subject": "={{ 'Re: ' + $('Postgres: Select Ticket For Reply').item.json.subject }}",
+        "emailFormat": "both",
+        "text": "={{ $('Check Payload: add-ticket-comment').item.json.text + '\\n\\n' + \"Don't want these emails? Unsubscribe: \" + ($env.FRONTEND_BASE_URL || '') + '/unsubscribe/' + ($('Postgres: Select Ticket For Reply').item.json.unsubscribe_token || '') }}",
+        "options": {
+          "appendAttribution": false
+        },
+        "html": "={{ (() => { const t = String($('Check Payload: add-ticket-comment').item.json.text + '\\n\\n' + \"Don't want these emails? Unsubscribe: \" + ($env.FRONTEND_BASE_URL || '') + '/unsubscribe/' + ($('Postgres: Select Ticket For Reply').item.json.unsubscribe_token || '')); const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); const h = esc(t).replace(/\\n/g, '<br>').replace(/(https?:\\/\\/[^\\s<]+)/g, '<a href=\"$1\">$1</a>'); return ($json.__brandHeader || '') + h + ($json.__brandFooter || ''); })() }}"
       },
-      "onError": "continueErrorOutput"
+      "credentials": {
+        "smtp": {
+          "id": "A3AoUIlP8cbZ5VlF",
+          "name": "Gmail SMTP (gilbeydulnuan)"
+        }
+      }
     },
     {
       "parameters": {
@@ -1324,6 +1327,76 @@
         }
       },
       "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: 'Too many requests. Please try again in a little while.', message: 'Too many requests. Please try again in a little while.' } }}",
+        "options": {
+          "responseCode": 429
+        }
+      },
+      "id": "6b127518-b391-4572-b170-adaa15d066c5",
+      "name": "Respond - Rate Limited",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        960,
+        1700
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT rate_limit_ok($1, $2, $3::int, interval '1 hour') AND ($4 = '' OR rate_limit_ok($1 || ':email', $4, $5::int, interval '1 hour')) AS ok;",
+        "options": {
+          "queryReplacement": "={{ [ 'ticket', (($('Webhook: create-ticket-public').first().json.headers || {})['x-forwarded-for'] || '').toString().split(',')[0].trim().slice(0, 64) || 'unknown', 10, ((($('Webhook: create-ticket-public').first().json.body) || {}).email || '').toString().trim().toLowerCase().slice(0, 254), 5 ] }}"
+        }
+      },
+      "id": "2561469b-32a7-40c0-9df4-52dca861261a",
+      "name": "Rate Limit Check: create-ticket-public",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        350,
+        1780
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const ok = $input.first().json.ok === true;\nconst body = $('Webhook: create-ticket-public').first().json.body || {};\n// Honeypot fields a real browser never fills (the public forms hide them).\nconst bot = ((body.website || body.website_hp || '').toString().trim()) !== '';\nif (!ok || bot) throw new Error('Too many requests. Please try again in a little while.');\nreturn [{ json: $('Webhook: create-ticket-public').first().json }];"
+      },
+      "id": "d98fb2b8-7087-47af-8bc6-58c12e6bf4d9",
+      "name": "Rate Limit Gate: create-ticket-public",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        570,
+        1780
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Company branding + rep signature for outgoing HTML emails. Everything is off until an admin switches on\n// \"Add company branding and signatures to emails\" in Settings > Company Profile (company_profile.email_branding_enabled).\nfunction buildBrandParts(branding, signatureText, companyName) {\n  const b = branding || {};\n  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\n  const on = b.email_branding_enabled === true;\n  if (!on) return { on: false, header: '', footer: '', sig: '', sigText: '' };\n  const color = /^#[0-9a-fA-F]{6}$/.test(b.brand_color || '') ? b.brand_color : '#2563EB';\n  const logo = /^https?:\\/\\//i.test(b.logo_url || '')\n    ? '<img src=\"' + esc(b.logo_url) + '\" alt=\"' + esc(companyName) + '\" style=\"max-height:56px;max-width:200px;display:block;margin-bottom:6px\">' : '';\n  const name = companyName ? '<div style=\"font-size:18px;font-weight:bold;color:' + color + '\">' + esc(companyName) + '</div>' : '';\n  const header = (logo || name) ? '<div style=\"padding-bottom:12px;margin-bottom:16px;border-bottom:3px solid ' + color + '\">' + logo + name + '</div>' : '';\n  const lines = [b.address, b.phone, b.website, b.email].filter(Boolean).map(esc);\n  const note = b.email_footer_note ? '<div style=\"margin-top:6px\">' + esc(b.email_footer_note).replace(/\\n/g, '<br>') + '</div>' : '';\n  const footer = (lines.length || note)\n    ? '<div style=\"margin-top:24px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b\">' + (lines.length ? '<div>' + lines.join(' &middot; ') + '</div>' : '') + note + '</div>' : '';\n  const sigText = signatureText && String(signatureText).trim() ? String(signatureText).trim() : '';\n  const sig = sigText ? '<div style=\"margin-top:16px\">' + esc(sigText).replace(/\\n/g, '<br>') + '</div>' : '';\n  return { on: true, header, footer, sig, sigText };\n}\n\n// Apply Branding \u2014 works out this email's company header and footer and adds them to the item as __brandHeader and\n// __brandFooter; the Send node then wraps its own HTML with them. Strictly additive and fail-safe: if branding is\n// switched off or anything at all goes wrong, the item passes through untouched and the email goes out exactly as before.\nconst item = $input.item;\ntry {\n  const sd = $getWorkflowStaticData('global');\n  const now = Date.now();\n  let b = sd.__brandCache && now - sd.__brandCache.t < 60000 ? sd.__brandCache.data : null;\n  if (!b) {\n    let base = 'http://localhost:5678';\n    try { if ($env.N8N_INTERNAL_URL) base = $env.N8N_INTERNAL_URL; } catch (e) { /* env access blocked */ }\n    const r = await this.helpers.httpRequest({ url: base.replace(/\\/$/, '') + '/webhook/get-email-branding', method: 'GET', json: true, timeout: 5000 });\n    b = r && typeof r === 'object' ? r : {};\n    sd.__brandCache = { t: now, data: b };\n  }\n  if (b.email_branding_enabled === true) {\n    const parts = buildBrandParts(b, '', b.company_name || '');\n    return { json: { ...item.json, __brandHeader: parts.header, __brandFooter: parts.footer }, binary: item.binary };\n  }\n} catch (e) { /* branding is optional */ }\nreturn item;\n"
+      },
+      "id": "e68a01c5-4245-45bd-8338-915287c4c7aa",
+      "name": "Apply Branding: Send Reply Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1260,
+        600
+      ],
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
@@ -1617,7 +1690,7 @@
       "main": [
         [
           {
-            "node": "Check Payload: create-ticket-public",
+            "node": "Rate Limit Check: create-ticket-public",
             "type": "main",
             "index": 0
           }
@@ -1829,7 +1902,7 @@
       "main": [
         [
           {
-            "node": "Send Reply Email",
+            "node": "Apply Branding: Send Reply Email",
             "type": "main",
             "index": 0
           }
@@ -2062,6 +2135,53 @@
           }
         ]
       ]
+    },
+    "Rate Limit Check: create-ticket-public": {
+      "main": [
+        [
+          {
+            "node": "Rate Limit Gate: create-ticket-public",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Rate Limited",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rate Limit Gate: create-ticket-public": {
+      "main": [
+        [
+          {
+            "node": "Check Payload: create-ticket-public",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Rate Limited",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply Branding: Send Reply Email": {
+      "main": [
+        [
+          {
+            "node": "Send Reply Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "pinData": {},
@@ -2071,6 +2191,7 @@
     "binaryMode": "separate",
     "availableInMCP": false,
     "timeSavedMode": "fixed",
-    "callerPolicy": "workflowsFromSameOwner"
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "Asia/Almaty"
   }
 }

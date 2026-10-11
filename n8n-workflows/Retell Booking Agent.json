@@ -1425,6 +1425,7 @@
   },
   "settings": {
     "executionOrder": "v1",
-    "errorWorkflow": "U7jX0H3oE5a25GrV"
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "timezone": "Asia/Almaty"
   }
 }

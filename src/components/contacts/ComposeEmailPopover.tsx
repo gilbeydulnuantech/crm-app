@@ -5,6 +5,10 @@ import { useEmailTemplates } from '../../hooks/useEmailTemplates';
 import { useCompanyProfile } from '../../hooks/useCompanyProfile';
 import { useAuth } from '../../context/AuthContext';
 import { fillContactEmailTokens } from '../../utils/emailTemplateTokens';
+import { escapeHtml, htmlToPlainText, plainTextToHtml } from '../../utils/emailHtml';
+import { resolveProductTokens } from '../../utils/mergeFields';
+import { useProducts } from '../../hooks/useProducts';
+import RichTextEditor from '../RichTextEditor';
 
 interface Props {
   contact: Contact;
@@ -45,6 +49,7 @@ export default function ComposeEmailPopover({ contact, open, onClose }: Props) {
   const sendEmail = useSendContactEmail();
   const { data: templates = [] } = useEmailTemplates();
   const { data: companyProfile } = useCompanyProfile(open);
+  const { data: products = [] } = useProducts();
 
   useEffect(() => {
     if (open) {
@@ -62,7 +67,13 @@ export default function ComposeEmailPopover({ contact, open, onClose }: Props) {
     const t = templates.find((x) => String(x.id) === id);
     if (!t) return;
     setSubject(fillContactEmailTokens(t.subject, contact, companyProfile?.company_name || ''));
-    setMessage(fillContactEmailTokens(t.body, contact, companyProfile?.company_name || ''));
+    // The message box is the formatted editor: templates arrive as HTML (plain ones become paragraphs). Product tokens
+    // become their description and price, other merge values are escaped as they're filled in.
+    const own = companyProfile?.company_name || '';
+    const asHtml = t.is_html ? t.body : plainTextToHtml(t.body);
+    setMessage(
+      resolveProductTokens(asHtml, products).replace(/\{\{[^{}]*\}\}/g, (tok) => escapeHtml(fillContactEmailTokens(tok, contact, own)))
+    );
   }
 
   if (!open) return null;
@@ -107,8 +118,13 @@ export default function ComposeEmailPopover({ contact, open, onClose }: Props) {
       setError('Your account has no email on file — cannot set a sender address.');
       return;
     }
+    const plain = htmlToPlainText(message);
+    if (!plain && !/<img\b/i.test(message)) {
+      setError('Write a message.');
+      return;
+    }
     sendEmail.mutate(
-      { contactId: contact.id, subject, message, to: contact.email!, from: user.email, attachments },
+      { contactId: contact.id, subject, message: plain, htmlMessage: message, to: contact.email!, from: user.email, attachments },
       {
         onSuccess: () => onClose(),
         onError: (err) => setError(err instanceof Error ? err.message : 'Failed to send email.'),
@@ -119,7 +135,7 @@ export default function ComposeEmailPopover({ contact, open, onClose }: Props) {
   return (
     <div className="fixed inset-0 z-[110] flex items-start justify-center pt-24 px-4">
       <div className="fixed inset-0 bg-slate-900/40" onClick={onClose} />
-      <div className="relative bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-md p-4">
+      <div className="relative bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-2xl p-4 max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-3">
           <h4 className="text-sm font-semibold text-slate-700">Send Email</h4>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
@@ -169,13 +185,7 @@ export default function ComposeEmailPopover({ contact, open, onClose }: Props) {
             </div>
             <div>
               <label className="block text-[11px] font-medium text-slate-500 mb-1">Message</label>
-              <textarea
-                required
-                rows={5}
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                className="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
-              />
+              <RichTextEditor variant="email" value={message} onChange={setMessage} />
             </div>
             <div>
               <label className="block text-[11px] font-medium text-slate-500 mb-1">Attachments</label>

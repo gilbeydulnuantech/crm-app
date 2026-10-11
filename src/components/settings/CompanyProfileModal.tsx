@@ -21,6 +21,9 @@ export default function CompanyProfileModal({ open, onClose }: Props) {
   const [website, setWebsite] = useState('');
   const [brandColor, setBrandColor] = useState('#2563EB');
   const [timezone, setTimezone] = useState('America/New_York');
+  const [emailBranding, setEmailBranding] = useState(false);
+  const [footerNote, setFooterNote] = useState('');
+  const [documentBranding, setDocumentBranding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
@@ -50,6 +53,9 @@ export default function CompanyProfileModal({ open, onClose }: Props) {
       setWebsite(data.website || '');
       setBrandColor(data.brand_color || '#2563EB');
       setTimezone(data.timezone || 'America/New_York');
+      setEmailBranding(data.email_branding_enabled === true);
+      setFooterNote(data.email_footer_note || '');
+      setDocumentBranding(data.document_branding_enabled === true);
     }
   }, [data]);
 
@@ -68,6 +74,9 @@ export default function CompanyProfileModal({ open, onClose }: Props) {
         website: website.trim(),
         brand_color: brandColor,
         timezone,
+        email_branding_enabled: emailBranding,
+        email_footer_note: footerNote.trim(),
+        document_branding_enabled: documentBranding,
       },
       {
         onSuccess: () => setSaved(true),
@@ -166,6 +175,67 @@ export default function CompanyProfileModal({ open, onClose }: Props) {
                 <input type="text" value={brandColor} onChange={(e) => setBrandColor(e.target.value)} className={inputClass} />
               </div>
               <p className="text-[11px] text-slate-400 mt-0.5">Default accent color for new invoice templates.</p>
+            </div>
+
+            <div className="border border-slate-200 rounded-xl p-3 bg-slate-50">
+              <label className="flex items-start gap-2 text-xs text-slate-700 cursor-pointer">
+                <input type="checkbox" checked={documentBranding} onChange={(e) => setDocumentBranding(e.target.checked)} className="mt-0.5 rounded border-slate-300" />
+                <span>
+                  <span className="font-semibold">Show company header and footer on proposals and contracts</span>
+                  <span className="block text-[11px] text-slate-400">
+                    Adds your logo and company name at the top, and your address, phone, website and email at the bottom, on the page the
+                    customer opens, the internal views, the editor previews and the signed PDF. Uses the same footer note as emails.
+                  </span>
+                </span>
+              </label>
+            </div>
+
+            <div className="border border-slate-200 rounded-xl p-3 space-y-2.5 bg-slate-50">
+              <label className="flex items-start gap-2 text-xs text-slate-700 cursor-pointer">
+                <input type="checkbox" checked={emailBranding} onChange={(e) => setEmailBranding(e.target.checked)} className="mt-0.5 rounded border-slate-300" />
+                <span>
+                  <span className="font-semibold">Add company branding and signatures to emails</span>
+                  <span className="block text-[11px] text-slate-400">
+                    Puts your logo and company name at the top, your address, phone and website at the bottom, and the sender's
+                    signature (set in My Profile) on every email the system sends.
+                  </span>
+                </span>
+              </label>
+              {emailBranding && (
+                <>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Footer note (optional)</label>
+                    <textarea
+                      value={footerNote}
+                      onChange={(e) => setFooterNote(e.target.value)}
+                      rows={2}
+                      maxLength={500}
+                      className={inputClass}
+                      placeholder="e.g. Licensed and insured. Reply to this email any time."
+                    />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-medium text-slate-500 mb-1">Preview</p>
+                    <div className="bg-white border border-slate-200 rounded-lg p-3 text-[13px] text-slate-700">
+                      <div className="pb-2 mb-3" style={{ borderBottom: `3px solid ${brandColor}` }}>
+                        {data?.logo_url && <img src={data.logo_url} alt="" className="max-h-12 max-w-[180px] mb-1" />}
+                        {companyName && (
+                          <div className="font-bold text-base" style={{ color: brandColor }}>
+                            {companyName}
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-slate-500">Your email text appears here…</p>
+                      <p className="mt-2 text-slate-500 whitespace-pre-line">Sender's name{'\n'}Title · phone</p>
+                      <div className="mt-3 pt-2 border-t border-slate-200 text-[11px] text-slate-500">
+                        {[address, phone, website, email].filter(Boolean).join(' · ')}
+                        {footerNote && <div className="mt-1 whitespace-pre-line">{footerNote}</div>}
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1">Applies to emails sent from automations, the template editor and the contact Send Email box.</p>
+                  </div>
+                </>
+              )}
             </div>
 
             {error && <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-md px-2 py-1">{error}</p>}

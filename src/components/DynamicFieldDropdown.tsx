@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useProducts } from '../hooks/useProducts';
 
 export interface DynamicField {
   token: string;
@@ -213,7 +214,7 @@ function FieldList({ onInsert, fields }: { onInsert: (token: string) => void; fi
 //     make an already-long form much longer.
 export default function DynamicFieldDropdown({
   onInsert,
-  fields = DYNAMIC_FIELDS,
+  fields: baseFields = DYNAMIC_FIELDS,
   mode = 'panel',
 }: {
   onInsert: (token: string) => void;
@@ -221,6 +222,17 @@ export default function DynamicFieldDropdown({
   mode?: 'panel' | 'popover';
 }) {
   const [open, setOpen] = useState(false);
+  // Every saved (active) product is offered as a {{product_<slug>}} token
+  // under a "Products" group, on every page that shows this picker. The
+  // token resolves to the product's name, price and description (see
+  // resolve_product_tokens in n8n-workflows/products_tokens.sql).
+  const { data: products = [] } = useProducts();
+  const fields = useMemo(() => {
+    const active = products.filter((p) => p.is_active && p.slug);
+    if (active.length === 0) return baseFields;
+    const grouped = baseFields.some((f) => f.group) ? baseFields : baseFields.map((f) => ({ ...f, group: 'Fields' }));
+    return [...grouped, ...active.map((p) => ({ token: `{{product_${p.slug}}}`, label: p.name, group: 'Products' }))];
+  }, [baseFields, products]);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

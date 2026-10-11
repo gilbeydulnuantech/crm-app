@@ -4,17 +4,13 @@ import { usePages, useSavePage } from '../hooks/usePages';
 import ScopeOfWorkEditor from '../components/ScopeOfWorkEditor';
 import { RichTextEditorHandle } from '../components/RichTextEditor';
 import PagePreviewOverlay from '../components/PagePreviewOverlay';
-import DynamicFieldDropdown, { DynamicField } from '../components/DynamicFieldDropdown';
+import DynamicFieldDropdown, { AUTOMATION_DYNAMIC_FIELDS, DynamicField } from '../components/DynamicFieldDropdown';
 
-// A curated subset of AUTOMATION_DYNAMIC_FIELDS's naming, limited to what
-// src/utils/mergeFields.ts's fillPageFields() actually resolves — this page
-// only ever renders once a contract is signed, so it doesn't have the full
-// contact/company/opportunity/payment data an automation email would.
+// Every token the proposal editor offers, plus the contract-only ones.
+// The thank-you page resolves the ones the signed contract/proposal has data
+// for (see fillPageFields); anything without data resolves to blank.
 const PAGE_DYNAMIC_FIELDS: DynamicField[] = [
-  { token: '{{contact.first_name}}', label: 'First Name', group: 'Contact' },
-  { token: '{{contact.last_name}}', label: 'Last Name', group: 'Contact' },
-  { token: '{{contact.full_name}}', label: 'Full Name', group: 'Contact' },
-  { token: '{{user.full_name}}', label: 'Full Name', group: 'User' },
+  ...AUTOMATION_DYNAMIC_FIELDS,
   { token: '{{contract.signature_name}}', label: 'Signature Name', group: 'Contract' },
   { token: '{{contract.signed_at}}', label: 'Signed At', group: 'Contract' },
 ];

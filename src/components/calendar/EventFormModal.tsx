@@ -1,12 +1,23 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { CalendarEvent, EVENT_TYPE_META, EVENT_TYPES, EventType } from '../../types/event';
+import { CalendarEvent, EventType } from '../../types/event';
+import { useEventTypes } from '../../hooks/useEventTypes';
+import { useProducts } from '../../hooks/useProducts';
+import { useSaveStaff, useStaff } from '../../hooks/useStaff';
+import { useStaffFeature } from '../../hooks/useIndustry';
+import { useEventTypeLookup } from '../../utils/eventTypes';
+import EventTypeCreateInline from '../EventTypeCreateInline';
 import { useAddEvent, useEvents, useUpdateEvent } from '../../hooks/useEvents';
-import { useContacts, useSendContactEmail, useUsers } from '../../hooks/useContacts';
+import { useQueryClient } from '@tanstack/react-query';
+import { createCalendarContact } from '../../api/contacts';
+import { useContacts, useUsers } from '../../hooks/useContacts';
 import { useAuth } from '../../context/AuthContext';
 import { toTitleCase } from '../../utils/text';
 import ContactPicker from '../pipeline/ContactPicker';
 import CompanyPicker from '../contacts/CompanyPicker';
 import ResourcePicker from './ResourcePicker';
+import ProductTitleInput from './ProductTitleInput';
+import TimeInput from '../TimeInput';
+import { formatClockRange } from '../../utils/timeFormat';
 
 interface Props {
   open: boolean;
@@ -15,6 +26,10 @@ interface Props {
   defaultContactId?: number | null;
   defaultAccountId?: number | null;
   defaultCompanyName?: string;
+  // Set when a slot is clicked in the Day view: pre-fills the start time, team member and room.
+  defaultStartTime?: string; // "HH:MM"
+  defaultUserId?: number | null;
+  defaultResourceId?: number | null;
   onClose: () => void;
 }
 
@@ -33,6 +48,12 @@ const EMPTY = {
   resource_ids: [] as number[],
   body: '',
   sendConfirmation: true,
+  product_id: '',
+  staff_id: '',
+  // A client who is not in Contacts yet: typed into the contact box and created when the event is saved.
+  new_contact: false,
+  new_email: '',
+  new_phone: '',
 };
 
 // Accepts either an ISO timestamp (from a stored due_at) or a plain Date
@@ -49,6 +70,11 @@ function toTimeInput(iso: string) {
   const d = new Date(iso);
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
+function addMinutesToTime(time: string, minutes: number) {
+  const [h, m] = time.split(':').map(Number);
+  const total = Math.min(23 * 60 + 59, h * 60 + m + minutes);
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+}
 function combineDateTime(date: string, time: string): string | null {
   if (!date || !time) return null;
   return new Date(`${date}T${time}`).toISOString();
@@ -56,7 +82,12 @@ function combineDateTime(date: string, time: string): string | null {
 
 function TypeSelect({ value, onChange }: { value: EventType; onChange: (t: EventType) => void }) {
   const [open, setOpen] = useState(false);
-  const meta = EVENT_TYPE_META[value];
+  const [creating, setCreating] = useState(false);
+  const { data: types = [] } = useEventTypes();
+  const typeOf = useEventTypeLookup();
+  const meta = typeOf(value);
+  // An older event can carry a type that is no longer in the list; keep it selectable so saving doesn't change it.
+  const options = types.some((t) => t.key === value) || !value ? types.map((t) => ({ key: t.key, name: t.name, color: t.color })) : [{ key: value, name: meta.label, color: meta.color }, ...types.map((t) => ({ key: t.key, name: t.name, color: t.color }))];
   return (
     <div className="relative">
       <button
@@ -65,7 +96,7 @@ function TypeSelect({ value, onChange }: { value: EventType; onChange: (t: Event
         className="w-full flex items-center justify-between px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
       >
         <span className="flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full ${meta.dot}`} />
+          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: meta.color }} />
           {meta.label}
         </span>
         <i className="fa-solid fa-chevron-down text-[10px] text-slate-400" />
@@ -73,23 +104,45 @@ function TypeSelect({ value, onChange }: { value: EventType; onChange: (t: Event
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute top-full mt-1 left-0 w-full bg-white border border-slate-200 rounded-lg shadow-lg z-20 py-1 max-h-52 overflow-y-auto">
-            {EVENT_TYPES.map((t) => (
+          <div className="absolute top-full mt-1 left-0 w-full bg-white border border-slate-200 rounded-lg shadow-lg z-20 py-1 max-h-60 overflow-y-auto">
+            {options.map((t) => (
               <button
-                key={t}
+                key={t.key}
                 type="button"
                 onClick={() => {
-                  onChange(t);
+                  onChange(t.key);
                   setOpen(false);
                 }}
                 className="w-full flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-slate-50 text-slate-700"
               >
-                <span className={`w-2 h-2 rounded-full ${EVENT_TYPE_META[t].dot}`} />
-                {EVENT_TYPE_META[t].label}
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: t.color }} />
+                {t.name}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                setCreating(true);
+              }}
+              className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--theme-accent-hover)] hover:bg-slate-50 border-t border-slate-100"
+            >
+              <i className="fa-solid fa-plus text-[10px]" />
+              New type...
+            </button>
           </div>
         </>
+      )}
+      {creating && (
+        <div className="mt-1.5">
+          <EventTypeCreateInline
+            onCancel={() => setCreating(false)}
+            onCreated={(t) => {
+              onChange(t.key);
+              setCreating(false);
+            }}
+          />
+        </div>
       )}
     </div>
   );
@@ -102,19 +155,30 @@ export default function EventFormModal({
   defaultContactId,
   defaultAccountId,
   defaultCompanyName,
+  defaultStartTime,
+  defaultUserId,
+  defaultResourceId,
   onClose,
 }: Props) {
   const { user } = useAuth();
   const { data: users = [] } = useUsers();
   const { data: contacts = [] } = useContacts();
+  const { data: products = [] } = useProducts();
   const [form, setForm] = useState(EMPTY);
   const [error, setError] = useState<string | null>(null);
+  const [creatingContact, setCreatingContact] = useState(false);
+  const [addingStaff, setAddingStaff] = useState(false);
+  const [newStaffName, setNewStaffName] = useState('');
+  const staffFeature = useStaffFeature();
+  const staffLabel = staffFeature.label;
+  const { data: allStaff = [] } = useStaff();
+  const saveStaff = useSaveStaff();
+  const qc = useQueryClient();
   const addEvent = useAddEvent();
   const updateEvent = useUpdateEvent();
-  const sendConfirmationEmail = useSendContactEmail();
 
   const isEdit = !!event;
-  const isSaving = addEvent.isPending || updateEvent.isPending;
+  const isSaving = addEvent.isPending || updateEvent.isPending || creatingContact;
 
   useEffect(() => {
     if (!open) return;
@@ -134,6 +198,11 @@ export default function EventFormModal({
         location: event.location ?? '',
         resource_ids: (event.resources ?? []).map((r) => r.id),
         body: event.body ?? '',
+        product_id: event.product_id ? String(event.product_id) : '',
+        staff_id: event.staff_id ? String(event.staff_id) : '',
+        new_contact: false,
+        new_email: '',
+        new_phone: '',
         sendConfirmation: false,
       });
     } else {
@@ -150,13 +219,15 @@ export default function EventFormModal({
             : '',
         company_name: defaultContact?.company_name ?? defaultCompanyName ?? '',
         date: toDateInput(base),
-        startTime: '09:00',
-        assigned_user: user ? String(user.id) : '',
+        startTime: defaultStartTime ?? '09:00',
+        endTime: defaultStartTime ? addMinutesToTime(defaultStartTime, 60) : '',
+        assigned_user: defaultUserId ? String(defaultUserId) : user ? String(user.id) : '',
+        resource_ids: defaultResourceId ? [defaultResourceId] : [],
       });
     }
     setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [event, open, defaultDate, defaultContactId, defaultAccountId, defaultCompanyName, user]);
+  }, [event, open, defaultDate, defaultContactId, defaultAccountId, defaultCompanyName, defaultStartTime, defaultUserId, defaultResourceId, user]);
 
   // Which resources are already booked by another event overlapping this
   // date/time — informational, not a hard block on selecting them anyway.
@@ -199,10 +270,17 @@ export default function EventFormModal({
       .sort((a, b) => a.start.getTime() - b.start.getTime());
   }
 
+  // Who can be double-booked: the chosen staff member if there is one (so two staff can take the same time under one
+  // owner), otherwise the assigned user, counting only events where that user is the one doing the work (no staff member).
   const userBusySlots = useMemo(
-    () => (form.assigned_user ? busySlotsFor((e) => e.user_id === Number(form.assigned_user)) : []),
+    () =>
+      form.staff_id
+        ? busySlotsFor((e) => e.staff_id === Number(form.staff_id))
+        : form.assigned_user
+          ? busySlotsFor((e) => e.user_id === Number(form.assigned_user) && !e.staff_id)
+          : [],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [dayEvents, form.assigned_user, event]
+    [dayEvents, form.assigned_user, form.staff_id, event]
   );
   const contactBusySlots = useMemo(
     () => (form.contact_id ? busySlotsFor((e) => e.contact_id === Number(form.contact_id)) : []),
@@ -211,8 +289,7 @@ export default function EventFormModal({
   );
 
   function formatSlot(s: { start: Date; end: Date }) {
-    const opts: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit', hour12: false };
-    return `${s.start.toLocaleTimeString(undefined, opts)} - ${s.end.toLocaleTimeString(undefined, opts)}`;
+    return formatClockRange(s.start, s.end);
   }
 
   const selectedStart = form.date && form.startTime ? new Date(`${form.date}T${form.startTime}`) : null;
@@ -237,6 +314,7 @@ export default function EventFormModal({
       ...f,
       contact_id: id ? String(id) : '',
       contact_name: name,
+      new_contact: id ? false : f.new_contact,
       account_id: matched?.account_id ? String(matched.account_id) : f.account_id,
       company_name: matched?.company_name ?? (id ? f.company_name : ''),
       // Only auto-fill if the user hasn't already typed a location.
@@ -247,7 +325,27 @@ export default function EventFormModal({
     }));
   }
 
-  function handleSubmit(e: FormEvent) {
+  // Therapists come from the assigned user's own list (the person saving, if the event is unassigned).
+  const staffOwnerId = form.assigned_user ? Number(form.assigned_user) : user?.id ?? null;
+  const therapistOptions = allStaff.filter(
+    (s) => (s.owner_user_id === staffOwnerId && s.is_active) || String(s.id) === form.staff_id
+  );
+
+  async function handleAddStaff() {
+    const name = newStaffName.trim();
+    if (!name) return;
+    try {
+      const res = await saveStaff.mutateAsync({ name, owner_user_id: staffOwnerId ?? undefined });
+      if (!res.success || !res.id) throw new Error(res.error || 'Could not add.');
+      update('staff_id', String(res.id));
+      setNewStaffName('');
+      setAddingStaff(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not add.');
+    }
+  }
+
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
 
@@ -257,41 +355,54 @@ export default function EventFormModal({
       return;
     }
 
+    let contactId = form.contact_id ? Number(form.contact_id) : null;
+    if (form.new_contact && contactId === null) {
+      // The client isn't in Contacts yet: the Calendar Contact Create workflow adds them (or finds
+      // them by email/phone) and returns the id, which the event is then saved against.
+      setCreatingContact(true);
+      try {
+        const res = await createCalendarContact({
+          name: form.contact_name.trim(),
+          email: form.new_email.trim() || undefined,
+          phone: form.new_phone.trim() || undefined,
+          owner_id: form.assigned_user ? Number(form.assigned_user) : undefined,
+          account_id: form.account_id ? Number(form.account_id) : undefined,
+        });
+        if (!res.success || !res.contact_id) throw new Error(res.error || 'Could not add the contact.');
+        contactId = res.contact_id;
+        // Remember the id so a retry after a failed save (for example a time clash) doesn't add them twice.
+        setForm((f) => ({ ...f, contact_id: String(contactId), contact_name: res.name || f.contact_name, new_contact: false }));
+        qc.invalidateQueries({ queryKey: ['contacts'] });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Could not add the contact.');
+        return;
+      } finally {
+        setCreatingContact(false);
+      }
+    }
+
     const payload = {
       subject: form.subject,
       type: form.type,
       body: form.body || undefined,
-      contact_id: form.contact_id ? Number(form.contact_id) : null,
+      contact_id: contactId,
       account_id: form.account_id ? Number(form.account_id) : null,
       user_id: form.assigned_user ? Number(form.assigned_user) : null,
       due_at,
       end_at: combineDateTime(form.date, form.endTime),
       location: form.location || null,
       resource_ids: form.resource_ids,
+      product_id: form.product_id ? Number(form.product_id) : null,
+      staff_id: form.staff_id ? Number(form.staff_id) : null,
+      // The confirmation email itself is sent by the "Calendar - Event confirmation email" automation rule (editable under Automation).
+      ...(isEdit ? {} : { notify_contact: form.sendConfirmation }),
     };
-
-    function maybeSendConfirmation() {
-      const contact = form.contact_id ? contacts.find((c) => c.id === Number(form.contact_id)) : undefined;
-      if (!form.sendConfirmation || !contact?.email) return;
-      const when = new Date(due_at!).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-      sendConfirmationEmail.mutate({
-        contactId: contact.id,
-        subject: `Appointment Confirmed: ${form.subject}`,
-        message: `Hi ${contact.first_name || 'there'},\n\nThis confirms your upcoming ${EVENT_TYPE_META[form.type].label.toLowerCase()} "${form.subject}" scheduled for ${when}.${
-          form.location ? `\nLocation: ${form.location}` : ''
-        }\n\nSee you then!`,
-        to: contact.email,
-        from: user?.email ?? '',
-        attachments: [],
-      });
-    }
 
     if (isEdit && event) {
       updateEvent.mutate(
         { id: event.id, payload },
         {
           onSuccess: () => {
-            maybeSendConfirmation();
             onClose();
           },
           onError: (err) => setError(err instanceof Error ? err.message : 'Failed to update event.'),
@@ -300,7 +411,6 @@ export default function EventFormModal({
     } else {
       addEvent.mutate(payload, {
         onSuccess: () => {
-          maybeSendConfirmation();
           setForm(EMPTY);
           onClose();
         },
@@ -322,11 +432,16 @@ export default function EventFormModal({
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Event Title</label>
-            <input
-              required
+            <ProductTitleInput
               value={form.subject}
-              onChange={(e) => update('subject', e.target.value)}
-              placeholder="Roof Inspection - ABC Roofing"
+              onChange={(v) => update('subject', v)}
+              productId={form.product_id ? Number(form.product_id) : null}
+              onProductChange={(id) => {
+                // Picking a service also fills in its event type (set on the service in Products); the rep can still change it below.
+                const typeKey = id ? products.find((p) => p.id === id)?.event_type_key : null;
+                setForm((f) => ({ ...f, product_id: id ? String(id) : '', ...(typeKey ? { type: typeKey } : {}) }));
+              }}
+              placeholder="Pick a product or service, or type a title"
               className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
             />
           </div>
@@ -341,6 +456,10 @@ export default function EventFormModal({
               contactId={form.contact_id ? Number(form.contact_id) : null}
               contactName={form.contact_name}
               onChange={handleContactChange}
+              onCreateNew={(name) => setForm((f) => ({ ...f, new_contact: true, contact_id: '', contact_name: name }))}
+              onQueryChange={(text) =>
+                setForm((f) => ({ ...f, contact_name: text, new_contact: text.trim() ? f.new_contact : false }))
+              }
               accountId={form.account_id ? Number(form.account_id) : null}
             />
             <CompanyPicker
@@ -351,6 +470,47 @@ export default function EventFormModal({
               }
             />
           </div>
+
+          {form.new_contact && !form.contact_id && (
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-semibold text-slate-700">
+                  <i className="fa-solid fa-user-plus text-slate-400 mr-1.5" />
+                  New contact: {toTitleCase(form.contact_name)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, new_contact: false, new_email: '', new_phone: '' }))}
+                  className="text-[11px] text-slate-400 hover:text-slate-600"
+                >
+                  Cancel
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  type="email"
+                  value={form.new_email}
+                  onChange={(e) => update('new_email', e.target.value)}
+                  placeholder="Email (optional)"
+                  className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
+                />
+                <input
+                  type="tel"
+                  value={form.new_phone}
+                  onChange={(e) => update('new_phone', e.target.value)}
+                  placeholder="Phone (optional)"
+                  className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
+                />
+              </div>
+              <p className="text-[11px] text-slate-400">
+                Added to Contacts when you save. The owner is whoever the event is assigned to
+                {form.assigned_user
+                  ? ` (${toTitleCase(users.find((u) => String(u.id) === form.assigned_user)?.name ?? '')})`
+                  : ' (you, if left unassigned)'}
+                . If this email or phone already exists, that contact is used instead.
+              </p>
+            </div>
+          )}
 
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Date</label>
@@ -364,22 +524,11 @@ export default function EventFormModal({
               />
               <div>
                 <span className="block text-[11px] text-slate-400 mb-1">Start Time</span>
-                <input
-                  required
-                  type="time"
-                  value={form.startTime}
-                  onChange={(e) => update('startTime', e.target.value)}
-                  className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
-                />
+                <TimeInput required label="Start time" value={form.startTime} onChange={(v) => update('startTime', v)} />
               </div>
               <div>
                 <span className="block text-[11px] text-slate-400 mb-1">End Time</span>
-                <input
-                  type="time"
-                  value={form.endTime}
-                  onChange={(e) => update('endTime', e.target.value)}
-                  className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
-                />
+                <TimeInput label="End time" value={form.endTime} onChange={(v) => update('endTime', v)} />
               </div>
             </div>
           </div>
@@ -388,7 +537,14 @@ export default function EventFormModal({
             <label className="block text-xs font-medium text-slate-600 mb-1">Assigned To</label>
             <select
               value={form.assigned_user}
-              onChange={(e) => update('assigned_user', e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value;
+                // A therapist belongs to one user's list, so changing the assignee clears one from someone else's list.
+                setForm((f) => {
+                  const keep = allStaff.find((s) => String(s.id) === f.staff_id && String(s.owner_user_id) === (next || String(user?.id ?? '')));
+                  return { ...f, assigned_user: next, staff_id: keep ? f.staff_id : '' };
+                });
+              }}
               className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
             >
               <option value="">Unassigned</option>
@@ -400,6 +556,62 @@ export default function EventFormModal({
               ))}
             </select>
           </div>
+
+          {(staffFeature.enabled || !!form.staff_id) && (
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">{staffLabel}</label>
+            <select
+              value={form.staff_id}
+              onChange={(e) => {
+                if (e.target.value === '__new') setAddingStaff(true);
+                else update('staff_id', e.target.value);
+              }}
+              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
+            >
+              <option value="">No {staffLabel.toLowerCase()}</option>
+              {therapistOptions.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {toTitleCase(s.name)}
+                  {!s.is_active ? ' (hidden)' : ''}
+                </option>
+              ))}
+              <option value="__new">+ Add {staffLabel.toLowerCase()}...</option>
+            </select>
+            {addingStaff && (
+              <div className="mt-1.5 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2">
+                <input
+                  autoFocus
+                  value={newStaffName}
+                  onChange={(e) => setNewStaffName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddStaff();
+                    }
+                  }}
+                  maxLength={100}
+                  placeholder={`${staffLabel} name`}
+                  className="flex-1 min-w-0 px-2 py-1 text-sm border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddStaff}
+                  disabled={saveStaff.isPending}
+                  className="px-2.5 py-1 text-xs font-semibold text-white rounded-md disabled:opacity-50"
+                  style={{ backgroundColor: 'var(--theme-accent)' }}
+                >
+                  {saveStaff.isPending ? 'Adding...' : 'Add'}
+                </button>
+                <button type="button" onClick={() => setAddingStaff(false)} className="text-xs text-slate-400 hover:text-slate-600">
+                  Cancel
+                </button>
+              </div>
+            )}
+            {therapistOptions.length === 0 && !addingStaff && (
+              <p className="text-[11px] text-slate-400 mt-1">None on this person's list yet. Add one with "+ Add {staffLabel.toLowerCase()}".</p>
+            )}
+          </div>
+          )}
 
           {form.date && (userBusySlots.length > 0 || contactBusySlots.length > 0) && (
             <div
@@ -421,9 +633,11 @@ export default function EventFormModal({
               {userBusySlots.length > 0 && (
                 <div className={`text-xs ${hasConflict ? 'text-rose-700' : 'text-amber-800'}`}>
                   <p className="font-medium">
-                    {users.find((u) => String(u.id) === form.assigned_user)?.name
-                      ? toTitleCase(users.find((u) => String(u.id) === form.assigned_user)!.name)
-                      : 'Assigned user'}
+                    {form.staff_id
+                      ? toTitleCase(allStaff.find((s) => String(s.id) === form.staff_id)?.name ?? staffLabel)
+                      : users.find((u) => String(u.id) === form.assigned_user)?.name
+                        ? toTitleCase(users.find((u) => String(u.id) === form.assigned_user)!.name)
+                        : 'Assigned user'}
                     :
                   </p>
                   {userBusySlots.map((s) => (
@@ -488,6 +702,7 @@ export default function EventFormModal({
                 className="rounded border-slate-300 text-[var(--theme-accent)] focus:ring-[var(--theme-accent)]"
               />
               Send confirmation to contact
+              <span className="text-[10px] text-slate-400">(new events only; wording is set in Automation)</span>
             </label>
             <label className="flex items-center gap-2 text-sm text-slate-400 cursor-not-allowed" title="No reminder/notification system exists yet">
               <input type="checkbox" disabled className="rounded border-slate-300" />

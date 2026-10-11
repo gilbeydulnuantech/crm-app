@@ -27,6 +27,7 @@ export type ActionType =
   | 'send_email'
   | 'send_team_notification'
   | 'send_sms'
+  | 'send_telegram'
   | 'wait'
   | 'update_field'
   | 'mark_closed_won'
@@ -35,6 +36,7 @@ export type ActionType =
   | 'branch_if'
   | 'assign_owner_round_robin'
   | 'send_dm'
+  | 'ai_triage'
   | 'create_task'
   | 'enroll_nurture';
 

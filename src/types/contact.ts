@@ -27,6 +27,11 @@ export interface Contact {
   dnc_email?: boolean;
   dnc_call?: boolean;
   dnc_sms?: boolean;
+  dnc_telegram?: boolean;
+  // Set when the contact presses Start on their personal Telegram invite link
+  // (see the Telegram Inbound workflow) — a bot can't message anyone before that.
+  telegram_chat_id?: number | string | null;
+  telegram_linked_at?: string | null;
   owner_id?: number | null;
   owner_name?: string;
   created_at?: string;
@@ -72,11 +77,12 @@ export type ContactsView = 'all' | 'mine' | 'archived';
 export const DO_NOT_CONTACT_STATUS = 'Do Not Contact';
 export const LEAD_STATUS_OPTIONS = ['New', 'Active', 'Customer', 'Inactive', 'Unqualified', DO_NOT_CONTACT_STATUS];
 
-export type DncChannel = 'email' | 'call' | 'sms';
-export const DNC_CHANNELS: { channel: DncChannel; label: string; field: 'dnc_email' | 'dnc_call' | 'dnc_sms' }[] = [
+export type DncChannel = 'email' | 'call' | 'sms' | 'telegram';
+export const DNC_CHANNELS: { channel: DncChannel; label: string; field: 'dnc_email' | 'dnc_call' | 'dnc_sms' | 'dnc_telegram' }[] = [
   { channel: 'email', label: 'Email', field: 'dnc_email' },
   { channel: 'call', label: 'Call', field: 'dnc_call' },
   { channel: 'sms', label: 'SMS', field: 'dnc_sms' },
+  { channel: 'telegram', label: 'Telegram', field: 'dnc_telegram' },
 ];
 
 // Matches import-contacts.json's "Validate Token & Rows" node — only

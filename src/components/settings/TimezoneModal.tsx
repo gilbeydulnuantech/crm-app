@@ -35,10 +35,12 @@ export default function TimezoneModal({ open, onClose }: Props) {
   const saveProfile = useSaveCompanyProfile();
 
   const [timezone, setTimezone] = useState('');
+  const [timeFormat, setTimeFormatChoice] = useState<'12h' | '24h'>('12h');
 
   useEffect(() => {
     setTimezone(data?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
-  }, [data?.timezone, open]);
+    setTimeFormatChoice(data?.time_format === '24h' ? '24h' : '12h');
+  }, [data?.timezone, data?.time_format, open]);
 
   if (!open) return null;
 
@@ -53,6 +55,7 @@ export default function TimezoneModal({ open, onClose }: Props) {
         website: data.website,
         brand_color: data.brand_color,
         timezone,
+        time_format: timeFormat,
       },
       { onSuccess: onClose }
     );
@@ -68,7 +71,7 @@ export default function TimezoneModal({ open, onClose }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-slate-800">Timezone</h3>
+          <h3 className="text-lg font-bold text-slate-800">Timezone &amp; time display</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
             <i className="fa-solid fa-xmark" />
           </button>
@@ -95,11 +98,30 @@ export default function TimezoneModal({ open, onClose }: Props) {
           ))}
         </select>
 
+        <label className="block text-xs font-medium text-slate-600 mt-4 mb-1">Time display</label>
+        <div className="inline-flex items-center border border-slate-200 rounded-lg p-0.5 bg-slate-50">
+          {(['12h', '24h'] as const).map((f) => (
+            <button
+              key={f}
+              type="button"
+              disabled={!isAdmin}
+              onClick={() => setTimeFormatChoice(f)}
+              aria-pressed={timeFormat === f}
+              className={`px-3 py-1.5 text-sm font-semibold rounded-md disabled:cursor-not-allowed ${
+                timeFormat === f ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500'
+              }`}
+            >
+              {f === '12h' ? '12-hour' : '24-hour'}
+              <span className="ml-1.5 text-[11px] font-normal text-slate-400">{f === '12h' ? '3:30 PM' : '15:30'}</span>
+            </button>
+          ))}
+        </div>
+
         {!isAdmin && (
-          <p className="text-[11px] text-slate-400 mt-1.5">Only an admin can change the CRM timezone.</p>
+          <p className="text-[11px] text-slate-400 mt-1.5">Only an admin can change the CRM timezone and time display.</p>
         )}
         {saveProfile.isError && (
-          <p className="text-[11px] text-rose-600 mt-1.5">Failed to save timezone. Try again.</p>
+          <p className="text-[11px] text-rose-600 mt-1.5">Failed to save. Try again.</p>
         )}
 
         <div className="flex justify-end gap-2 pt-6">

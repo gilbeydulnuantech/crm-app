@@ -4,7 +4,7 @@ import { CalendarEvent } from '../types/event';
 // resource_ids isn't part of the read-side CalendarEvent shape (that has
 // resources: {id, name}[] instead) — it's how the form tells the backend
 // which activity_resources rows to (re)link on save.
-export type EventPayload = Partial<CalendarEvent> & { resource_ids?: number[] };
+export type EventPayload = Partial<CalendarEvent> & { resource_ids?: number[]; notify_contact?: boolean };
 
 export function fetchEvents(monthStart: string, monthEnd: string) {
   return apiFetch<CalendarEvent[]>(

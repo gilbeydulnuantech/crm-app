@@ -1,5 +1,8 @@
+import { useProducts } from '../../hooks/useProducts';
+import { resolveProductTokens } from '../../utils/mergeFields';
 import { useRef, useState } from 'react';
 import FillableFieldsRenderer, { FieldValue } from '../richtext/FillableFieldsRenderer';
+import { DocBrandHeader, DocBrandFooter } from '../DocumentBranding';
 
 interface Props {
   open: boolean;
@@ -16,7 +19,9 @@ interface Props {
 // their real interactive controls here too, via FillableFieldsRenderer —
 // not just the editor's static "[Signature]" chip — so this is a true
 // size/layout preview of what the client will actually see and fill in.
-export default function ContractPreviewOverlay({ open, onClose, title, contentHtml }: Props) {
+export default function ContractPreviewOverlay({ open, onClose, title, contentHtml: rawContentHtml }: Props) {
+  const { data: products = [] } = useProducts();
+  const contentHtml = resolveProductTokens(rawContentHtml, products);
   const contentRef = useRef<HTMLDivElement>(null);
   const [fieldValues, setFieldValues] = useState<Record<string, FieldValue>>({});
 
@@ -34,6 +39,8 @@ export default function ContractPreviewOverlay({ open, onClose, title, contentHt
 
         <h1 className="text-2xl font-bold text-slate-800">{title || 'Untitled Contract'}</h1>
 
+        <DocBrandHeader />
+
         {contentHtml.replace(/<[^>]*>/g, '').trim() ? (
           <div ref={contentRef} className="rte-content mt-6 bg-slate-50 border border-slate-100 rounded-lg p-4" dangerouslySetInnerHTML={{ __html: contentHtml }} />
         ) : (
@@ -45,6 +52,7 @@ export default function ContractPreviewOverlay({ open, onClose, title, contentHt
           values={fieldValues}
           onChange={(fieldId, value) => setFieldValues((v) => ({ ...v, [fieldId]: value }))}
         />
+          <DocBrandFooter />
 
         <div className="mt-8 pt-6 border-t border-slate-100 text-center">
           <button

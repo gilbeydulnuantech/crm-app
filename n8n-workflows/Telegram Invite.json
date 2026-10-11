@@ -1,0 +1,200 @@
+{
+  "name": "Telegram Invite",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-telegram-invite",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "0cab25d9-162c-4ee8-88f8-721de7c186ce",
+      "name": "Webhook: get-telegram-invite",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "df5f705c-3c77-433f-ae26-bdaaee9894d0"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "id": "5b930751-bfd4-4643-8f45-936f4e218f24",
+      "name": "Extract Bearer Token: get-telegram-invite",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "3884a6c9-58b2-405c-8d57-ed7f700a6564",
+      "name": "Execute Workflow: Verify Session: get-telegram-invite",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid || !r.active) throw new Error('Invalid session.');\nconst contactId = parseInt($('Webhook: get-telegram-invite').first().json.query.contact_id, 10);\nif (!Number.isInteger(contactId)) throw new Error('\"contact_id\" is required.');\nreturn [{ json: { contactId, userId: r.userId, role: r.role } }];"
+      },
+      "id": "52076851-7142-4dfd-90b3-26a15c64478a",
+      "name": "Validate Session: get-telegram-invite",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.id, c.telegram_link_token, (c.telegram_chat_id IS NOT NULL) AS linked, c.telegram_linked_at, c.dnc_telegram,\n  (SELECT config->>'bot_username' FROM integrations WHERE provider = 'telegram' AND is_active = true LIMIT 1) AS bot_username\nFROM contacts c\nWHERE c.id = $1 AND c.is_archived = false AND ($2 = 'admin' OR c.owner_id = $3);",
+        "options": {
+          "queryReplacement": "={{ [ $json.contactId, $json.role, $json.userId ] }}"
+        }
+      },
+      "id": "4658d605-29e2-4ff8-ad4c-35784cf206b8",
+      "name": "Look Up Telegram Invite",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        880,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r || !r.id) return [{ json: { success: false, error: 'Contact not found, or you do not have access to it.' } }];\nconst username = (r.bot_username || '').toString().trim().replace(/^@/, '');\nconst configured = !!username;\nreturn [{ json: {\n  success: true,\n  configured,\n  linked: r.linked === true,\n  linked_at: r.telegram_linked_at || null,\n  opted_out: r.dnc_telegram === true,\n  invite_url: configured && r.telegram_link_token ? `https://t.me/${username}?start=${r.telegram_link_token}` : null,\n} }];"
+      },
+      "id": "fe45dfc6-72bc-4c08-a5b2-fb415a3fc492",
+      "name": "Build Telegram Invite",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "2660698c-dca9-4619-927d-dbc1d1c91a8b",
+      "name": "Respond: get-telegram-invite",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1320,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook: get-telegram-invite": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token: get-telegram-invite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: get-telegram-invite": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: get-telegram-invite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: get-telegram-invite": {
+      "main": [
+        [
+          {
+            "node": "Validate Session: get-telegram-invite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session: get-telegram-invite": {
+      "main": [
+        [
+          {
+            "node": "Look Up Telegram Invite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Telegram Invite": {
+      "main": [
+        [
+          {
+            "node": "Build Telegram Invite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Telegram Invite": {
+      "main": [
+        [
+          {
+            "node": "Respond: get-telegram-invite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "timezone": "Asia/Almaty"
+  }
+}

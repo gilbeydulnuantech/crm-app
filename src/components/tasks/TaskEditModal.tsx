@@ -1,3 +1,4 @@
+import TimeInput from '../TimeInput';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import {
   ESTIMATED_DURATION_OPTIONS,
@@ -268,7 +269,7 @@ export default function TaskEditModal({ open, task, onClose }: Props) {
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Due Time</label>
-              <input type="time" value={form.time} onChange={(e) => update('time', e.target.value)} className={inputClass} />
+              <TimeInput label="Due time" value={form.time} onChange={(v) => update('time', v)} />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Estimated Duration</label>

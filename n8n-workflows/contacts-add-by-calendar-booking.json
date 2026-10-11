@@ -96,27 +96,28 @@
       "notes": "Same idempotent find-or-create pattern as Google Calendar Sync.json \u2014 safe to run twice on the same event, matches contacts by email instead of the old (non-functional) id-based matchingColumns."
     },
     {
-      "parameters": {
-        "sendTo": "={{ $('Extract Lead Info').item.json.email }}",
-        "subject": "Confirmed: Your AI Automation Discovery Call",
-        "message": "=<br><br><br><br>\n\nHi <strong>{{ $('Extract Lead Info').item.json.name }}</strong>,<br><br>\n\nThanks for scheduling a discovery call! <br><br>I\u2019m looking forward to diving into your workflow and exploring how we can build<br>custom AI automations to save you time and scale your operations.<br><br>\n\n<strong>Meeting Details:</strong><br>\n\nDate & Time: {{ $('Extract Lead Info').item.json.displayStart }}<br><br>\n\n<strong>Location:</strong><br> Google Meet (link in calendar invite)<br><br>\n\n<strong>To help us make the most of our time:</strong><br>\nIf you have any specific tools (like your CRM, webhooks, or current manual pipelines) <br>you\u2019d like us to focus on, feel free to reply directly to this email with a brief overview.<br><br>\n\nSee you then!<br><br>\n\nBest regards,<br><br>\n\nGilbert Dulnuan<br>\nAI Automation & CRM Specialist<br><br><span style=\"font-size:11px;color:#94a3b8\">Don't want these emails? <a href=\"{{ $env.FRONTEND_BASE_URL }}/unsubscribe/{{ $json.unsubscribe_token }}\">Unsubscribe</a></span>",
-        "options": {
-          "appendAttribution": false
-        }
-      },
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
       "position": [
         496,
         -368
       ],
       "id": "f8a9d7c0-2c15-4d2a-b8c2-dc2b6539e296",
       "name": "Send Confirmation Email",
-      "webhookId": "af192893-b019-48bc-b2f3-2b28f81d0c2a",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "parameters": {
+        "fromEmail": "gilbeydulnuan@gmail.com",
+        "toEmail": "={{ $('Extract Lead Info').item.json.email }}",
+        "subject": "Confirmed: Your AI Automation Discovery Call",
+        "emailFormat": "html",
+        "html": "={{ $json.__brandHeader || '' }}<br><br><br><br>\n\nHi <strong>{{ String($('Extract Lead Info').item.json.name || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&#39;') }}</strong>,<br><br>\n\nThanks for scheduling a discovery call! <br><br>I\u2019m looking forward to diving into your workflow and exploring how we can build<br>custom AI automations to save you time and scale your operations.<br><br>\n\n<strong>Meeting Details:</strong><br>\n\nDate & Time: {{ $('Extract Lead Info').item.json.displayStart }}<br><br>\n\n<strong>Location:</strong><br> Google Meet (link in calendar invite)<br><br>\n\n<strong>To help us make the most of our time:</strong><br>\nIf you have any specific tools (like your CRM, webhooks, or current manual pipelines) <br>you\u2019d like us to focus on, feel free to reply directly to this email with a brief overview.<br><br>\n\nSee you then!<br><br>\n\nBest regards,<br><br>\n\nGilbert Dulnuan<br>\nAI Automation & CRM Specialist<br><br><span style=\"font-size:11px;color:#94a3b8\">Don't want these emails? <a href=\"{{ $env.FRONTEND_BASE_URL }}/unsubscribe/{{ $json.unsubscribe_token }}\">Unsubscribe</a></span>{{ $json.__brandFooter || '' }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
       "credentials": {
-        "gmailOAuth2": {
-          "id": "YE9RFYruaRVVZ6H4",
-          "name": "CRMapp"
+        "smtp": {
+          "id": "A3AoUIlP8cbZ5VlF",
+          "name": "Gmail SMTP (gilbeydulnuan)"
         }
       }
     },
@@ -287,6 +288,21 @@
         }
       },
       "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Company branding + rep signature for outgoing HTML emails. Everything is off until an admin switches on\n// \"Add company branding and signatures to emails\" in Settings > Company Profile (company_profile.email_branding_enabled).\nfunction buildBrandParts(branding, signatureText, companyName) {\n  const b = branding || {};\n  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\n  const on = b.email_branding_enabled === true;\n  if (!on) return { on: false, header: '', footer: '', sig: '', sigText: '' };\n  const color = /^#[0-9a-fA-F]{6}$/.test(b.brand_color || '') ? b.brand_color : '#2563EB';\n  const logo = /^https?:\\/\\//i.test(b.logo_url || '')\n    ? '<img src=\"' + esc(b.logo_url) + '\" alt=\"' + esc(companyName) + '\" style=\"max-height:56px;max-width:200px;display:block;margin-bottom:6px\">' : '';\n  const name = companyName ? '<div style=\"font-size:18px;font-weight:bold;color:' + color + '\">' + esc(companyName) + '</div>' : '';\n  const header = (logo || name) ? '<div style=\"padding-bottom:12px;margin-bottom:16px;border-bottom:3px solid ' + color + '\">' + logo + name + '</div>' : '';\n  const lines = [b.address, b.phone, b.website, b.email].filter(Boolean).map(esc);\n  const note = b.email_footer_note ? '<div style=\"margin-top:6px\">' + esc(b.email_footer_note).replace(/\\n/g, '<br>') + '</div>' : '';\n  const footer = (lines.length || note)\n    ? '<div style=\"margin-top:24px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b\">' + (lines.length ? '<div>' + lines.join(' &middot; ') + '</div>' : '') + note + '</div>' : '';\n  const sigText = signatureText && String(signatureText).trim() ? String(signatureText).trim() : '';\n  const sig = sigText ? '<div style=\"margin-top:16px\">' + esc(sigText).replace(/\\n/g, '<br>') + '</div>' : '';\n  return { on: true, header, footer, sig, sigText };\n}\n\n// Apply Branding \u2014 works out this email's company header and footer and adds them to the item as __brandHeader and\n// __brandFooter; the Send node then wraps its own HTML with them. Strictly additive and fail-safe: if branding is\n// switched off or anything at all goes wrong, the item passes through untouched and the email goes out exactly as before.\nconst item = $input.item;\ntry {\n  const sd = $getWorkflowStaticData('global');\n  const now = Date.now();\n  let b = sd.__brandCache && now - sd.__brandCache.t < 60000 ? sd.__brandCache.data : null;\n  if (!b) {\n    let base = 'http://localhost:5678';\n    try { if ($env.N8N_INTERNAL_URL) base = $env.N8N_INTERNAL_URL; } catch (e) { /* env access blocked */ }\n    const r = await this.helpers.httpRequest({ url: base.replace(/\\/$/, '') + '/webhook/get-email-branding', method: 'GET', json: true, timeout: 5000 });\n    b = r && typeof r === 'object' ? r : {};\n    sd.__brandCache = { t: now, data: b };\n  }\n  if (b.email_branding_enabled === true) {\n    const parts = buildBrandParts(b, '', b.company_name || '');\n    return { json: { ...item.json, __brandHeader: parts.header, __brandFooter: parts.footer }, binary: item.binary };\n  }\n} catch (e) { /* branding is optional */ }\nreturn item;\n"
+      },
+      "id": "4552d946-1c28-4b00-88ca-d65955a7da3c",
+      "name": "Apply Branding: Send Confirmation Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        316,
+        -368
+      ],
+      "onError": "continueRegularOutput"
     }
   ],
   "pinData": {},
@@ -333,7 +349,7 @@
             "index": 0
           },
           {
-            "node": "Send Confirmation Email",
+            "node": "Apply Branding: Send Confirmation Email",
             "type": "main",
             "index": 0
           }
@@ -396,6 +412,17 @@
           }
         ]
       ]
+    },
+    "Apply Branding: Send Confirmation Email": {
+      "main": [
+        [
+          {
+            "node": "Send Confirmation Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
@@ -404,7 +431,7 @@
     "binaryMode": "separate",
     "availableInMCP": false,
     "timeSavedMode": "fixed",
-    "timezone": "Asia/Aqtobe",
+    "timezone": "Asia/Almaty",
     "callerPolicy": "workflowsFromSameOwner",
     "errorWorkflow": "U7jX0H3oE5a25GrV"
   },

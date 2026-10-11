@@ -6,6 +6,8 @@ import { fetchPublicProposal } from '../api/proposals';
 import FillableFieldsRenderer, { FieldValue } from '../components/richtext/FillableFieldsRenderer';
 import { fillMergeFields } from '../utils/mergeFields';
 import { toTitleCase } from '../utils/text';
+import { DocBrandHeader, DocBrandFooter } from '../components/DocumentBranding';
+import { useDocumentBranding } from '../hooks/useDocumentBranding';
 
 function money(n: number) {
   return `$${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -51,7 +53,9 @@ export default function PrintContractPage() {
   const contentRef = useRef<HTMLDivElement>(null);
   const proposalContentRef = useRef<HTMLDivElement>(null);
 
-  if (isLoading || (proposalToken && proposalLoading)) return null;
+  // Wait for the branding lookup too: the PDF is snapshotted as soon as the page settles, so the header must already be in it.
+  const { isLoading: brandingLoading } = useDocumentBranding();
+  if (isLoading || brandingLoading || (proposalToken && proposalLoading)) return null;
   if (!data || !data.success) return <p className="p-8 text-sm text-rose-600">This contract link is invalid or has expired.</p>;
 
   const resolvedHtml = fillMergeFields(data.content_html, {
@@ -84,6 +88,7 @@ export default function PrintContractPage() {
           down_payment_paid_at: proposal.down_payment_paid_at,
           balance_amount: proposal.balance_amount,
           balance_paid_at: proposal.balance_paid_at,
+          line_items: proposal.line_items,
         })
       : '';
 
@@ -91,6 +96,7 @@ export default function PrintContractPage() {
     <div className="bg-white">
       {proposal && proposal.success && (
         <div className="p-8" style={{ breakAfter: 'page' }}>
+          <DocBrandHeader />
           <div
             ref={proposalContentRef}
             className="rte-content"
@@ -104,10 +110,12 @@ export default function PrintContractPage() {
             readOnly
           />
           <p className="text-right text-lg font-bold text-slate-800 mt-3">Total: {money(proposal.total_amount)}</p>
+          <DocBrandFooter />
         </div>
       )}
 
       <div className="p-8">
+        <DocBrandHeader />
         <div
           ref={contentRef}
           className="rte-content"
@@ -121,6 +129,7 @@ export default function PrintContractPage() {
           readOnly
         />
         <p className="text-right text-lg font-bold text-slate-800 mt-3">Total: {money(data.total_amount)}</p>
+        <DocBrandFooter />
 
         {data.status === 'signed' && (
           // Audit trail only — the actual signature images already render

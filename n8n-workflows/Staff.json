@@ -1,0 +1,853 @@
+{
+  "name": "Staff",
+  "nodes": [
+    {
+      "id": "544f20d9-cc9f-4220-8ded-ca52eea292bd",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1500,
+        700
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ (() => { let m = (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Request failed.\"; m = String(m).replace(/\\s*\\[line \\d+\\]\\s*$/, \"\"); if (/event_types_name_lower|duplicate key/i.test(m)) m = \"There is already an event type with that name.\"; else if (/violates foreign key/i.test(m)) m = \"That event type does not exist.\"; else if (/(violates|syntax error|relation \\\"|column \\\"|ECONNREFUSED|timeout)/i.test(m)) m = \"Could not save this. Please try again.\"; return { success: false, error: m }; })() }}",
+        "options": {
+          "responseCode": 400
+        }
+      }
+    },
+    {
+      "id": "28bde503-3eb3-4427-a3ea-7121c8aed03f",
+      "name": "Webhook: get-staff",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-staff",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "http://localhost:5173"
+        }
+      },
+      "webhookId": "4a6c3818-3b15-4539-b9ed-8ab7f242a180"
+    },
+    {
+      "id": "23eee58d-47b7-4be3-84a4-707aef693758",
+      "name": "Log Workflow Run: get-staff",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Staff\" }}",
+            "workflow_id": "={{ \"i2tawxJGHG18WkFC\" }}",
+            "entity_type": "={{ \"users\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "db9199a4-8cef-4bf4-a097-6a9860d68b8a",
+      "name": "Extract Bearer Token (get)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: get-staff').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "906c76b0-9224-44f9-8678-0a1aa59add74",
+      "name": "Execute Workflow: Verify Session (get)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "d74a3792-009c-4fa2-bc11-044bcb3eb7dc",
+      "name": "Validate Session (get)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "e2068703-61bb-4d83-b89b-dee7277d15f7",
+      "name": "Check Payload (get)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nreturn [{ json: { userId: requester.id, isAdmin: requester.role === 'admin' } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "9a5446f3-aca3-49cd-bce2-eaa1e04f62f2",
+      "name": "Query (get)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1440,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT sm.id, sm.owner_user_id, u.name AS owner_name, sm.name, sm.phone, sm.email, sm.color, sm.is_active, sm.bookable_online, sm.commission_percent::float AS commission_percent,\n  (SELECT count(*)::int FROM activities a WHERE a.staff_id = sm.id AND a.due_at IS NOT NULL) AS event_count\nFROM staff_members sm LEFT JOIN users u ON u.id = sm.owner_user_id\nWHERE $2::boolean OR sm.owner_user_id = $1::int\nORDER BY lower(u.name), lower(sm.name);",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [ $json.userId, $json.isAdmin ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "id": "a56c3cb8-c2be-4078-a8f0-b7c52a01c489",
+      "name": "Respond (get)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1680,
+        -60
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().map((i) => i.json).filter((r) => r.id) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "f1495a56-84b7-46aa-a4a9-1987aa6ddfba",
+      "name": "Webhook: save-staff",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        200
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "save-staff",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "http://localhost:5173"
+        }
+      },
+      "webhookId": "6a69cb40-353c-4371-9cdf-766d72322f5d"
+    },
+    {
+      "id": "035ce884-66ea-4f26-a521-7dbcc3d87487",
+      "name": "Log Workflow Run: save-staff",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        200
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Staff\" }}",
+            "workflow_id": "={{ \"i2tawxJGHG18WkFC\" }}",
+            "entity_type": "={{ \"users\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "7cd62548-88be-4f53-b792-9c310ec56648",
+      "name": "Extract Bearer Token (save)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        200
+      ],
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: save-staff').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "04e9f0ba-a1b3-4b92-9687-7f78ee20d1e5",
+      "name": "Execute Workflow: Verify Session (save)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        200
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "fbd934d1-d446-444b-a936-7f10409d7c70",
+      "name": "Validate Session (save)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        200
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "468be72b-0613-4cd4-9ee4-f6d9ca619c93",
+      "name": "Check Payload (save)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        200
+      ],
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nconst body = $('Webhook: save-staff').first().json.body || {};\nconst clean = (v, max) => (typeof v === 'string' || typeof v === 'number' ? String(v) : '').replace(/[\\u0000-\\u001f\\u007f]/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, max);\nconst id = body.id ? parseInt(body.id, 10) : null;\nif (body.id && !Number.isInteger(id)) throw new Error('\"id\" must be an integer.');\nconst name = clean(body.name, 100);\nif (!name) throw new Error('Give this staff member a name.');\nconst email = clean(body.email, 255).toLowerCase();\nif (email && !/^[^\\s@<>]+@[^\\s@<>]+\\.[^\\s@<>]{2,}$/.test(email)) throw new Error('That email address does not look valid.');\nconst phone = clean(body.phone, 50);\nconst color = typeof body.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(body.color.trim()) ? body.color.trim().toUpperCase() : null;\nconst isActive = body.is_active === false || body.is_active === 'false' ? false : true;\nconst bookable = body.bookable_online === true || body.bookable_online === 'true' ? true : body.bookable_online === false || body.bookable_online === 'false' ? false : null;\nlet commission = null;\nif (body.commission_percent !== undefined && body.commission_percent !== null && body.commission_percent !== '') {\n  commission = Number(body.commission_percent);\n  if (!Number.isFinite(commission) || commission < 0 || commission > 100) throw new Error('Commission must be between 0 and 100 percent.');\n  commission = Math.round(commission * 100) / 100;\n}\nconst isAdmin = requester.role === 'admin';\n// Only an admin can create staff for someone else; everyone else's staff belong to themselves.\nconst ownerId = isAdmin && parseInt(body.owner_user_id, 10) > 0 ? parseInt(body.owner_user_id, 10) : requester.id;\nreturn [{ json: { id, name, email, phone, color, isActive, bookable, commission, ownerId, requesterId: requester.id, isAdmin } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "42aad7b1-e681-457b-8dfe-a85a529a6674",
+      "name": "Query (save)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1440,
+        200
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH upd AS (\n  UPDATE staff_members SET name = $2, email = NULLIF($3, ''), phone = NULLIF($4, ''), color = COALESCE($5, color), is_active = $6::boolean, bookable_online = COALESCE($10::boolean, bookable_online), commission_percent = COALESCE($11::numeric, commission_percent)\n  WHERE id = $1::int AND ($8::boolean OR owner_user_id = $7::int) RETURNING id\n), ins AS (\n  INSERT INTO staff_members (owner_user_id, name, email, phone, color, is_active, bookable_online, commission_percent)\n  SELECT $9::int, $2, NULLIF($3, ''), NULLIF($4, ''), $5, $6::boolean, COALESCE($10::boolean, false), COALESCE($11::numeric, 30) WHERE $1::int IS NULL RETURNING id\n)\nSELECT id FROM upd UNION ALL SELECT id FROM ins;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [ $json.id, $json.name, $json.email, $json.phone, $json.color, $json.isActive, $json.requesterId, $json.isAdmin, $json.ownerId, $json.bookable, $json.commission ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "alwaysOutputData": false
+    },
+    {
+      "id": "0248be8c-afd2-4e5e-88fd-f94f91e136e1",
+      "name": "Respond (save)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1680,
+        140
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().length && $input.first().json.id ? { success: true, id: $input.first().json.id } : { success: false, error: 'That staff member was not found, or belongs to someone else.' } }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "20c95e1d-fe84-418b-b962-d9ced4a2d67f",
+      "name": "Webhook: delete-staff",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        400
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "delete-staff",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "http://localhost:5173"
+        }
+      },
+      "webhookId": "97bde9a2-9170-4afe-9fe0-bd9c4dc9622e"
+    },
+    {
+      "id": "59711a50-694c-4d55-b8ee-44166c412ee8",
+      "name": "Log Workflow Run: delete-staff",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        400
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Staff\" }}",
+            "workflow_id": "={{ \"i2tawxJGHG18WkFC\" }}",
+            "entity_type": "={{ \"users\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "ed0a5e8b-2edf-4b21-a4f4-32f6d2077f3d",
+      "name": "Extract Bearer Token (delete)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: delete-staff').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "d33e77c0-c4e2-4b70-8593-15ec7a9e5a46",
+      "name": "Execute Workflow: Verify Session (delete)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        400
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "b4a3b509-650c-4f32-819b-d7e716a2f6e7",
+      "name": "Validate Session (delete)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "7f3a8c6d-56c3-48f4-9015-127e609ffcbf",
+      "name": "Check Payload (delete)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nconst body = $('Webhook: delete-staff').first().json.body || {};\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" must be an integer.');\nreturn [{ json: { id, requesterId: requester.id, isAdmin: requester.role === 'admin' } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "6e96ae65-508f-449c-8db2-c22e63106d21",
+      "name": "Query (delete)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1440,
+        400
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM staff_members WHERE id = $1::int AND ($3::boolean OR owner_user_id = $2::int) RETURNING id;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [ $json.id, $json.requesterId, $json.isAdmin ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "alwaysOutputData": false
+    },
+    {
+      "id": "bcf69167-c191-4065-80c9-77c306c87468",
+      "name": "Respond (delete)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1680,
+        340
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().length && $input.first().json.id ? { success: true } : { success: false, error: 'That staff member was not found, or belongs to someone else.' } }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Webhook: get-staff": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: get-staff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: get-staff": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token (get)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (get)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (get)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (get)": {
+      "main": [
+        [
+          {
+            "node": "Check Payload (get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload (get)": {
+      "main": [
+        [
+          {
+            "node": "Query (get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query (get)": {
+      "main": [
+        [
+          {
+            "node": "Respond (get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: save-staff": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: save-staff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: save-staff": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token (save)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (save)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (save)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (save)": {
+      "main": [
+        [
+          {
+            "node": "Check Payload (save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload (save)": {
+      "main": [
+        [
+          {
+            "node": "Query (save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query (save)": {
+      "main": [
+        [
+          {
+            "node": "Respond (save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: delete-staff": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: delete-staff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: delete-staff": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token (delete)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (delete)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (delete)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (delete)": {
+      "main": [
+        [
+          {
+            "node": "Check Payload (delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload (delete)": {
+      "main": [
+        [
+          {
+            "node": "Query (delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query (delete)": {
+      "main": [
+        [
+          {
+            "node": "Respond (delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "Asia/Almaty",
+    "availableInMCP": false
+  }
+}

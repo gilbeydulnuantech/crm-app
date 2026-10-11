@@ -17,36 +17,29 @@
       "name": "Respond to Webhook"
     },
     {
-      "parameters": {
-        "sendTo": "={{ $('If').item.json.to }}",
-        "subject": "={{ ($('Prepare HTML Email').item.json.subject).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: message').item.json.company_name) }}",
-        "emailType": "html",
-        "message": "={{ (($('Prepare HTML Email').item.json.htmlMessage).replace(/The Team/g, $('Get Company Name: message').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: message').item.json.company_name) }}",
-        "options": {
-          "attachmentsUi": {
-            "attachmentsBinary": [
-              {
-                "property": "={{ Object.keys($binary).join(',') }}"
-              }
-            ]
-          },
-          "senderName": "={{ $('Get Company Name: message').item.json.company_name }}",
-          "appendAttribution": false
-        }
-      },
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
       "position": [
         2480,
         1232
       ],
       "id": "9c25e5f9-362c-4bf4-881e-64e5f2a4fd42",
       "name": "Send a message",
-      "webhookId": "c8cc0589-78a6-4dc1-8cba-f8bcfa0c62ca",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "parameters": {
+        "fromEmail": "={{ ($('Get Company Name: message').item.json.company_name) ? ('\"' + String($('Get Company Name: message').item.json.company_name).replace(/\"/g, '') + '\" <gilbeydulnuan@gmail.com>') : 'gilbeydulnuan@gmail.com' }}",
+        "toEmail": "={{ $('If').item.json.to }}",
+        "subject": "={{ ($('Prepare HTML Email').item.json.subject).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: message').item.json.company_name) }}",
+        "emailFormat": "html",
+        "html": "={{ (($('Prepare HTML Email').item.json.htmlMessage).replace(/The Team/g, $('Get Company Name: message').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: message').item.json.company_name) }}",
+        "options": {
+          "appendAttribution": false,
+          "attachments": "={{ Object.keys($binary).join(',') }}"
+        }
+      },
       "credentials": {
-        "gmailOAuth2": {
-          "id": "YE9RFYruaRVVZ6H4",
-          "name": "CRMapp"
+        "smtp": {
+          "id": "A3AoUIlP8cbZ5VlF",
+          "name": "Gmail SMTP (gilbeydulnuan)"
         }
       }
     },
@@ -136,7 +129,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Fetch the uploaded file metadata directly from 'Upload file' — the\n// 'Share file' node's output is a permission resource, not file metadata,\n// so we read name/webViewLink from the upload step instead (same item count,\n// Share runs first to guarantee the link is open before we log/send it).\nconst items = $('Upload file').all();\nconst attachmentList = [];\n\nitems.forEach(item => {\n    // Access item JSON data aggregated from the Google Drive node\n    const data = item.json;\n\n    // Handle whether Aggregate outputted an array or individual item objects\n    const fileArray = Array.isArray(data) ? data : (data.data || [data]);\n\n    fileArray.forEach(file => {\n        // Skip execution metadata or items without a webViewLink\n        if (!file || !file.webViewLink) return;\n\n        const fileName = file.name || file.fileName || 'Attachment';\n        const fileUrl = file.webViewLink;\n\n        attachmentList.push({\n            name: fileName,\n            url: fileUrl\n        });\n    });\n});\n\n// Return as a formatted JSON string for Postgres $3 parameter\nreturn [{\n    json: {\n        attachments_json: JSON.stringify(attachmentList)\n    }\n}];"
+        "jsCode": "// Fetch the uploaded file metadata directly from 'Upload file' \u2014 the\n// 'Share file' node's output is a permission resource, not file metadata,\n// so we read name/webViewLink from the upload step instead (same item count,\n// Share runs first to guarantee the link is open before we log/send it).\nconst items = $('Upload file').all();\nconst attachmentList = [];\n\nitems.forEach(item => {\n    // Access item JSON data aggregated from the Google Drive node\n    const data = item.json;\n\n    // Handle whether Aggregate outputted an array or individual item objects\n    const fileArray = Array.isArray(data) ? data : (data.data || [data]);\n\n    fileArray.forEach(file => {\n        // Skip execution metadata or items without a webViewLink\n        if (!file || !file.webViewLink) return;\n\n        const fileName = file.name || file.fileName || 'Attachment';\n        const fileUrl = file.webViewLink;\n\n        attachmentList.push({\n            name: fileName,\n            url: fileUrl\n        });\n    });\n});\n\n// Return as a formatted JSON string for Postgres $3 parameter\nreturn [{\n    json: {\n        attachments_json: JSON.stringify(attachmentList)\n    }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -174,29 +167,28 @@
       "name": "format base64"
     },
     {
-      "parameters": {
-        "sendTo": "={{ $('format base64').item.json.to }}",
-        "subject": "={{ ($('Prepare HTML Email').item.json.subject).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: message1').item.json.company_name) }}",
-        "emailType": "html",
-        "message": "={{ (($('Prepare HTML Email').item.json.htmlMessage).replace(/The Team/g, $('Get Company Name: message1').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: message1').item.json.company_name) }}",
-        "options": {
-          "senderName": "={{ $('Get Company Name: message1').item.json.company_name }}",
-          "appendAttribution": false
-        }
-      },
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
       "position": [
         2848,
         1568
       ],
       "id": "c431bde1-bd44-46e1-aff4-6375773abaef",
       "name": "Send a message1",
-      "webhookId": "c8cc0589-78a6-4dc1-8cba-f8bcfa0c62ca",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "parameters": {
+        "fromEmail": "={{ ($('Get Company Name: message1').item.json.company_name) ? ('\"' + String($('Get Company Name: message1').item.json.company_name).replace(/\"/g, '') + '\" <gilbeydulnuan@gmail.com>') : 'gilbeydulnuan@gmail.com' }}",
+        "toEmail": "={{ $('format base64').item.json.to }}",
+        "subject": "={{ ($('Prepare HTML Email').item.json.subject).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: message1').item.json.company_name) }}",
+        "emailFormat": "html",
+        "html": "={{ (($('Prepare HTML Email').item.json.htmlMessage).replace(/The Team/g, $('Get Company Name: message1').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: message1').item.json.company_name) }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
       "credentials": {
-        "gmailOAuth2": {
-          "id": "YE9RFYruaRVVZ6H4",
-          "name": "CRMapp"
+        "smtp": {
+          "id": "A3AoUIlP8cbZ5VlF",
+          "name": "Gmail SMTP (gilbeydulnuan)"
         }
       }
     },
@@ -297,7 +289,7 @@
     },
     {
       "parameters": {
-        "jsCode": "function safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\nfunction escapeHtml(s) {\n  return (s || '').toString()\n    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')\n    .replace(/\"/g, '&quot;').replace(/'/g, '&#39;');\n}\nfunction genId() {\n  return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);\n}\nfunction toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction money(n) { return n != null && n !== '' ? '$' + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''; }\nfunction dateStr(d) { return d ? new Date(d).toLocaleDateString() : ''; }\n\n// A tracking pixel only works in an HTML email — the two Gmail nodes\n// downstream switched from emailType 'text' to 'html' alongside this.\n// contact_id always comes straight from the webhook body here (this is\n// the manual \"Email Contact\" send, always initiated FROM a contact).\n// Source data comes from 'format base64' rather than $json/$input because\n// intervening Postgres lookups (like every other Postgres lookup in this\n// workflow) don't pass through the original item's fields or binary data\n// — only a named-node reference does.\nconst source = $('format base64').item.json;\nconst contactId = Number(source.contact_id);\nconst pixelId = genId();\nconst pixelUrl = `${safeEnv('N8N_WEBHOOK_BASE_URL')}/webhook/track-email-open?id=${pixelId}&contact_id=${contactId}`;\nconst pixelTag = `<img src=\"${pixelUrl}\" width=\"1\" height=\"1\" style=\"display:none\" alt=\"\" />`;\nconst unsubToken = $('Get Unsubscribe Token').item.json.unsubscribe_token || '';\nconst unsubUrl = safeEnv('FRONTEND_BASE_URL') + '/unsubscribe/' + unsubToken;\nconst footer = `<br><br><span style=\"font-size:11px;color:#94a3b8\">Don't want these emails? <a href=\"${unsubUrl}\">Unsubscribe</a></span>`;\n\n// Dynamic-field substitution — resolves tokens a manual send previously\n// couldn't (e.g. {{appointment.start_time}}), using the Dynamic Fields:*\n// lookup nodes upstream (each alwaysOutputData:true so a contact with no\n// deal/activity still yields an item, just with null columns, instead of\n// crashing this node on a missing item). {{company_name}} (the SENDER's\n// own company) is deliberately left untouched here — the two Gmail nodes\n// still substitute that themselves via Get Company Name: message/message1,\n// same as before this change; only {{company.name}} (the CONTACT's own\n// company) is resolved here.\nconst contactFields = $('Dynamic Fields: Contact').item.json;\nconst pipelineFields = $('Dynamic Fields: Pipeline').item.json;\nconst stageFields = $('Dynamic Fields: Pipeline Stage').item.json;\nconst activityFields = $('Dynamic Fields: Activities').item.json;\nconst contactTz = contactFields?.timezone || 'America/New_York';\nconst appointmentTime = activityFields?.due_at\n  ? DateTime.fromISO(activityFields.due_at, { zone: 'utc' }).setZone(contactTz).toFormat(\"EEEE, MMMM d 'at' h:mm a\")\n  : '';\n\nfunction fillDynamicFields(t) {\n  return (t || '')\n    .replace(/{{\\s*appointment\\.start_time\\s*}}/gi, appointmentTime)\n    .replace(/{{\\s*appointment\\.title\\s*}}/gi, activityFields?.subject || '')\n    .replace(/{{\\s*appointment\\.location\\s*}}/gi, activityFields?.location || '')\n    .replace(/{{\\s*company\\.name\\s*}}/gi, toTitleCase(contactFields?.company_name))\n    .replace(/{{\\s*opportunity\\.name\\s*}}/gi, pipelineFields?.name || '')\n    .replace(/{{\\s*opportunity\\.value\\s*}}/gi, money(pipelineFields?.deal_value))\n    .replace(/{{\\s*opportunity\\.stage\\s*}}/gi, stageFields?.name || '')\n    .replace(/{{\\s*opportunity\\.pipeline\\s*}}/gi, pipelineFields?.pipeline_name || '')\n    .replace(/{{\\s*opportunity\\.due_at\\s*}}/gi, dateStr(pipelineFields?.expected_close));\n}\n\nconst filledSubject = fillDynamicFields(source.subject || '');\nconst filledMessage = fillDynamicFields(source.message || '');\nconst htmlMessage = escapeHtml(filledMessage).replace(/\\n/g, '<br>') + pixelTag + footer;\nreturn [{ json: { ...source, subject: filledSubject, htmlMessage, pixelId }, binary: $('format base64').item.binary }];"
+        "jsCode": "// Company branding + rep signature for outgoing HTML emails. Everything is off until an admin switches on\n// \"Add company branding and signatures to emails\" in Settings > Company Profile (company_profile.email_branding_enabled).\nfunction buildBrandParts(branding, signatureText, companyName) {\n  const b = branding || {};\n  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\n  const on = b.email_branding_enabled === true;\n  if (!on) return { on: false, header: '', footer: '', sig: '', sigText: '' };\n  const color = /^#[0-9a-fA-F]{6}$/.test(b.brand_color || '') ? b.brand_color : '#2563EB';\n  const logo = /^https?:\\/\\//i.test(b.logo_url || '')\n    ? '<img src=\"' + esc(b.logo_url) + '\" alt=\"' + esc(companyName) + '\" style=\"max-height:56px;max-width:200px;display:block;margin-bottom:6px\">' : '';\n  const name = companyName ? '<div style=\"font-size:18px;font-weight:bold;color:' + color + '\">' + esc(companyName) + '</div>' : '';\n  const header = (logo || name) ? '<div style=\"padding-bottom:12px;margin-bottom:16px;border-bottom:3px solid ' + color + '\">' + logo + name + '</div>' : '';\n  const lines = [b.address, b.phone, b.website, b.email].filter(Boolean).map(esc);\n  const note = b.email_footer_note ? '<div style=\"margin-top:6px\">' + esc(b.email_footer_note).replace(/\\n/g, '<br>') + '</div>' : '';\n  const footer = (lines.length || note)\n    ? '<div style=\"margin-top:24px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b\">' + (lines.length ? '<div>' + lines.join(' &middot; ') + '</div>' : '') + note + '</div>' : '';\n  const sigText = signatureText && String(signatureText).trim() ? String(signatureText).trim() : '';\n  const sig = sigText ? '<div style=\"margin-top:16px\">' + esc(sigText).replace(/\\n/g, '<br>') + '</div>' : '';\n  return { on: true, header, footer, sig, sigText };\n}\n\n// Allow-list HTML sanitizer for formatted emails: only the tags/attributes below survive, links must be\n// http(s)/mailto/tel, images http(s) or inline png/jpeg/gif/webp, and style attributes keep only simple\n// presentation properties. Everything else (scripts, event handlers, iframes, forms...) is dropped.\nfunction sanitizeEmailHtmlCore(html) {\n  const ALLOWED = new Set(['p','br','strong','b','em','i','u','s','strike','ul','ol','li','a','h1','h2','h3','h4','blockquote','hr','span','div','img','table','thead','tbody','tr','td','th','code','pre']);\n  const VOID = new Set(['br','hr','img']);\n  const STYLE_OK = new Set(['color','background-color','font-size','font-weight','font-style','font-family','text-align','text-decoration','line-height','margin','margin-top','margin-bottom','margin-left','margin-right','padding','padding-top','padding-bottom','padding-left','padding-right','border','border-radius','width','max-width','height','display']);\n  const esc = (v) => String(v).replace(/&(?!(?:amp|lt|gt|quot|#\\d+|#x[0-9a-f]+);)/gi, '&amp;').replace(/\"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n  let s = String(html || '').replace(/<!--[\\s\\S]*?-->/g, '');\n  s = s.replace(/<(script|style|iframe|object|embed|form|meta|link|svg|math|base|textarea|button|input|select)\\b[\\s\\S]*?<\\/\\1\\s*>/gi, '');\n  return s.replace(/<\\/?([a-zA-Z][a-zA-Z0-9]*)\\b([^>]*)>/g, (m, tag, attrs) => {\n    const t = tag.toLowerCase();\n    if (!ALLOWED.has(t)) return '';\n    if (m.charAt(1) === '/') return VOID.has(t) ? '' : '</' + t + '>';\n    const out = [];\n    const re = /([a-zA-Z_:][-a-zA-Z0-9_:.]*)\\s*(?:=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s\"'>]+)))?/g;\n    let a;\n    while ((a = re.exec(attrs))) {\n      const name = a[1].toLowerCase();\n      const val = a[2] !== undefined ? a[2] : a[3] !== undefined ? a[3] : a[4] !== undefined ? a[4] : '';\n      const probe = val.replace(/[\\u0000- ]/g, '').toLowerCase();\n      if (name === 'href' && t === 'a') { if (/^(https?:|mailto:|tel:|#|\\/(?!\\/))/.test(probe)) out.push('href=\"' + esc(val) + '\"'); }\n      else if (name === 'src' && t === 'img') { if (/^(https?:|\\/(?!\\/))/.test(probe) || /^data:image\\/(png|jpe?g|gif|webp);base64,/.test(probe)) out.push('src=\"' + esc(val) + '\"'); }\n      else if (name === 'alt' || name === 'title') out.push(name + '=\"' + esc(val) + '\"');\n      else if ((name === 'width' || name === 'height') && /^\\d{1,4}(px|%)?$/.test(val.trim())) out.push(name + '=\"' + esc(val.trim()) + '\"');\n      else if ((name === 'colspan' || name === 'rowspan') && /^\\d{1,2}$/.test(val.trim())) out.push(name + '=\"' + val.trim() + '\"');\n      else if (name === 'align' && /^(left|center|right)$/i.test(val.trim())) out.push('align=\"' + val.trim().toLowerCase() + '\"');\n      else if (name === 'target' && t === 'a') out.push('target=\"_blank\"');\n      else if (name === 'style') {\n        const kept = val.split(';').map((d) => d.trim()).filter(Boolean).filter((d) => {\n          const i = d.indexOf(':'); if (i < 1) return false;\n          const prop = d.slice(0, i).trim().toLowerCase(), v = d.slice(i + 1).toLowerCase();\n          return STYLE_OK.has(prop) && !/url\\s*\\(|expression|javascript|@import|[<>\\\\]/.test(v);\n        });\n        if (kept.length) out.push('style=\"' + esc(kept.join('; ')) + '\"');\n      }\n    }\n    if (t === 'img' && !out.some((x) => x.indexOf('src=') === 0)) return '';\n    if (t === 'a' && out.some((x) => x.indexOf('target=') === 0)) out.push('rel=\"noopener noreferrer\"');\n    return '<' + t + (out.length ? ' ' + out.join(' ') : '') + '>';\n  });\n}\n// Empty paragraphs are the blank lines typed in the editor; mail clients collapse a bare <p></p>, so give them a line break to keep the spacing.\nfunction sanitizeEmailHtml(html) { return sanitizeEmailHtmlCore(html).replace(/<p>\\s*<\\/p>/gi, '<p><br></p>'); }\nfunction emailHtmlToText(html) {\n  return String(html || '')\n    .replace(/<\\s*br\\s*\\/?>/gi, '\\n').replace(/<\\/(p|div|li|h[1-6]|tr|blockquote)>/gi, '\\n')\n    .replace(/<a\\b[^>]*href=\"([^\"]+)\"[^>]*>(.*?)<\\/a>/gi, (m, h, t) => (t.replace(/<[^>]*>/g, '').trim() || h) + ' (' + h + ')')\n    .replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&mdash;/g, '\\u2014').replace(/&ndash;/g, '\\u2013').replace(/&hellip;/g, '\\u2026').replace(/&[lr]squo;/g, \"'\").replace(/&[lr]dquo;/g, '\"').replace(/&#(\\d+);/g, (m, n) => String.fromCharCode(Number(n))).replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '\"').replace(/&#39;/g, \"'\").replace(/&amp;/g, '&')\n    .replace(/\\n{3,}/g, '\\n\\n').trim();\n}\n\nfunction safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\nfunction escapeHtml(s) {\n  return (s || '').toString()\n    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')\n    .replace(/\"/g, '&quot;').replace(/'/g, '&#39;');\n}\nfunction genId() {\n  return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);\n}\nfunction toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction money(n) { return n != null && n !== '' ? '$' + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''; }\nfunction dateStr(d) { return d ? new Date(d).toLocaleDateString() : ''; }\n\n// A tracking pixel only works in an HTML email \u2014 the two Gmail nodes\n// downstream switched from emailType 'text' to 'html' alongside this.\n// contact_id always comes straight from the webhook body here (this is\n// the manual \"Email Contact\" send, always initiated FROM a contact).\n// Source data comes from 'format base64' rather than $json/$input because\n// intervening Postgres lookups (like every other Postgres lookup in this\n// workflow) don't pass through the original item's fields or binary data\n// \u2014 only a named-node reference does.\nconst source = $('format base64').item.json;\nconst contactId = Number(source.contact_id);\nconst pixelId = genId();\nconst pixelUrl = `${safeEnv('N8N_WEBHOOK_BASE_URL')}/webhook/track-email-open?id=${pixelId}&contact_id=${contactId}`;\nconst pixelTag = `<img src=\"${pixelUrl}\" width=\"1\" height=\"1\" style=\"display:none\" alt=\"\" />`;\nconst unsubToken = $('Get Unsubscribe Token').item.json.unsubscribe_token || '';\nconst unsubUrl = safeEnv('FRONTEND_BASE_URL') + '/unsubscribe/' + unsubToken;\nconst footer = `<br><br><span style=\"font-size:11px;color:#94a3b8\">Don't want these emails? <a href=\"${unsubUrl}\">Unsubscribe</a></span>`;\n\n// Dynamic-field substitution \u2014 resolves tokens a manual send previously\n// couldn't (e.g. {{appointment.start_time}}), using the Dynamic Fields:*\n// lookup nodes upstream (each alwaysOutputData:true so a contact with no\n// deal/activity still yields an item, just with null columns, instead of\n// crashing this node on a missing item). {{company_name}} (the SENDER's\n// own company) is deliberately left untouched here \u2014 the two Gmail nodes\n// still substitute that themselves via Get Company Name: message/message1,\n// same as before this change; only {{company.name}} (the CONTACT's own\n// company) is resolved here.\nconst contactFields = $('Dynamic Fields: Contact').item.json;\nconst pipelineFields = $('Dynamic Fields: Pipeline').item.json;\nconst stageFields = $('Dynamic Fields: Pipeline Stage').item.json;\nconst activityFields = $('Dynamic Fields: Activities').item.json;\nconst contactTz = contactFields?.timezone || $now.zoneName;\nconst appointmentTime = activityFields?.due_at\n  ? DateTime.fromISO(activityFields.due_at, { zone: 'utc' }).setZone(contactTz).toFormat(\"EEEE, MMMM d 'at' h:mm a\")\n  : '';\n\nfunction fillDynamicFields(t) {\n  return (t || '')\n    .replace(/{{\\s*appointment\\.start_time\\s*}}/gi, appointmentTime)\n    .replace(/{{\\s*appointment\\.title\\s*}}/gi, activityFields?.subject || '')\n    .replace(/{{\\s*appointment\\.location\\s*}}/gi, activityFields?.location || '')\n    .replace(/{{\\s*company\\.name\\s*}}/gi, toTitleCase(contactFields?.company_name))\n    .replace(/{{\\s*opportunity\\.name\\s*}}/gi, pipelineFields?.name || '')\n    .replace(/{{\\s*opportunity\\.value\\s*}}/gi, money(pipelineFields?.deal_value))\n    .replace(/{{\\s*opportunity\\.stage\\s*}}/gi, stageFields?.name || '')\n    .replace(/{{\\s*opportunity\\.pipeline\\s*}}/gi, pipelineFields?.pipeline_name || '')\n    .replace(/{{\\s*opportunity\\.due_at\\s*}}/gi, dateStr(pipelineFields?.expected_close));\n}\n\nconst filledSubject = fillDynamicFields(source.subject || '');\nconst filledMessage = fillDynamicFields(source.message || '');\n// Formatted (HTML) sends: the editor sends the HTML in html_message and a plain-text copy in message (which is what gets logged).\nconst unsubRow = $('Get Unsubscribe Token').item.json;\nconst brandInfo = unsubRow.branding || {};\nconst brand = buildBrandParts(brandInfo, unsubRow.sender_signature, brandInfo.company_name || '');\nconst wrapStyleM = 'font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#222222';\nconst isHtmlSend = source.is_html === true && typeof source.html_message === 'string';\nconst htmlMessage = isHtmlSend\n  ? '<div style=\"' + wrapStyleM + '\">' + brand.header + sanitizeEmailHtml(fillDynamicFields(source.html_message)) + brand.sig + brand.footer + '</div>' + pixelTag + footer\n  : (brand.on ? '<div style=\"' + wrapStyleM + '\">' + brand.header + escapeHtml(filledMessage).replace(/\\n/g, '<br>') + brand.sig + brand.footer + '</div>' : escapeHtml(filledMessage).replace(/\\n/g, '<br>')) + pixelTag + footer;\nreturn [{ json: { ...source, subject: filledSubject, htmlMessage, pixelId }, binary: $('format base64').item.binary }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -311,9 +303,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT unsubscribe_token FROM contacts WHERE id = $1;",
+        "query": "SELECT unsubscribe_token,\n  (SELECT row_to_json(b) FROM (SELECT company_name, logo_url, address, phone, website, email, brand_color, email_branding_enabled, email_footer_note FROM company_profile WHERE id = 1) b) AS branding,\n  (SELECT email_signature FROM users WHERE id = $2) AS sender_signature\nFROM contacts WHERE id = $1;",
         "options": {
-          "queryReplacement": "={{ [ Number($json.contact_id) ] }}"
+          "queryReplacement": "={{ [ Number($json.contact_id), Number($('Validate Session: send-email').first().json.id) || null ] }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -403,7 +395,7 @@
       "id": "dyn-contact-fields",
       "name": "Dynamic Fields: Contact",
       "notesInFlow": true,
-      "notes": "Read-only lookup, not wired into any send/substitution logic yet — stages the contact/company/owner data for a future dynamic-field pass without touching the existing code nodes.",
+      "notes": "Read-only lookup, not wired into any send/substitution logic yet \u2014 stages the contact/company/owner data for a future dynamic-field pass without touching the existing code nodes.",
       "credentials": {
         "postgres": {
           "id": "OJlr1rmibAS2w3rj",
@@ -429,7 +421,7 @@
       "id": "dyn-pipeline-fields",
       "name": "Dynamic Fields: Pipeline",
       "notesInFlow": true,
-      "notes": "Most relevant deal for this contact — prefers an Open one, falls back to the most recently updated. Read-only, not consumed anywhere yet.",
+      "notes": "Most relevant deal for this contact \u2014 prefers an Open one, falls back to the most recently updated. Read-only, not consumed anywhere yet.",
       "credentials": {
         "postgres": {
           "id": "OJlr1rmibAS2w3rj",
@@ -481,7 +473,7 @@
       "id": "dyn-activities-fields",
       "name": "Dynamic Fields: Activities",
       "notesInFlow": true,
-      "notes": "Most relevant activity for this contact — prefers the next upcoming one, falls back to the most recent past one. Read-only, not consumed anywhere yet.",
+      "notes": "Most relevant activity for this contact \u2014 prefers the next upcoming one, falls back to the most recent past one. Read-only, not consumed anywhere yet.",
       "credentials": {
         "postgres": {
           "id": "OJlr1rmibAS2w3rj",
@@ -857,7 +849,8 @@
     "availableInMCP": false,
     "timeSavedMode": "fixed",
     "errorWorkflow": "U7jX0H3oE5a25GrV",
-    "callerPolicy": "workflowsFromSameOwner"
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "Asia/Almaty"
   },
   "versionId": "0d8758df-e55b-4a61-8f3c-0ac90826c006",
   "meta": {

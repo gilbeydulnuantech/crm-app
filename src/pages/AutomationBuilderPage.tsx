@@ -1,3 +1,4 @@
+import { useEventTypes } from '../hooks/useEventTypes';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ReactFlow, Background, Controls, Handle, Position, MarkerType } from '@xyflow/react';
@@ -7,6 +8,9 @@ import { ConditionNode, SaveAutomationPayload, TestAutomationPayload, TestAutoma
 import { useAutomations, useSaveAutomationRule, useTestAutomationRule } from '../hooks/useAutomations';
 import { useTags, useUsers } from '../hooks/useContacts';
 import { useEmailTemplates } from '../hooks/useEmailTemplates';
+import RichTextEditor, { RichTextEditorHandle } from '../components/RichTextEditor';
+import { plainTextToHtml, templatePlainBody } from '../utils/emailHtml';
+import type { EmailTemplate } from '../api/emailTemplates';
 import { useConversations } from '../hooks/useChat';
 import { useAllStages, usePipelines, useStages } from '../hooks/useOpportunities';
 import DynamicFieldDropdown, { AUTOMATION_DYNAMIC_FIELDS } from '../components/DynamicFieldDropdown';
@@ -20,6 +24,7 @@ import {
   StepDraft,
   SupportedActionType,
   TRIGGER_FIELDS,
+  setEventTypeOptions,
   TRIGGER_TYPE_LABELS,
   UPDATE_FIELD_OPTIONS,
   UpdateFieldDef,
@@ -109,7 +114,7 @@ function ConditionValueEditor({
         <option value="">Choose...</option>
         {def.options.map((o) => (
           <option key={o} value={o}>
-            {o}
+            {def.optionLabels?.[o] ?? o}
           </option>
         ))}
       </select>
@@ -230,6 +235,91 @@ function UpdateFieldValueEditor({ def, value, onChange }: { def: UpdateFieldDef;
   return <input type="text" className={inputClass} value={String(value ?? '')} onChange={(e) => onChange(e.target.value)} />;
 }
 
+// The "Send email" step. New and converted emails are formatted (rich-text body, config.is_html = true);
+// older steps stay plain text until someone switches them, so nothing already running changes by itself.
+function EmailActionConfig({
+  cfg,
+  onChange,
+  emailTemplates,
+}: {
+  cfg: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+  emailTemplates: EmailTemplate[];
+}) {
+  const bodyEditorRef = useRef<RichTextEditorHandle>(null);
+  const isHtml = cfg.is_html === true;
+
+  return (
+    <div className="space-y-2">
+      <div>
+        <label className={labelClass}>Use a template (optional)</label>
+        <select
+          className={inputClass}
+          value=""
+          onChange={(e) => {
+            const tmpl = emailTemplates.find((t) => String(t.id) === e.target.value);
+            if (tmpl) {
+              // A formatted template switches the step to a formatted email (so its bold, lists and links are sent);
+              // a plain template keeps the step's current format.
+              const useHtml = isHtml || tmpl.is_html === true;
+              const body = useHtml ? (tmpl.is_html ? tmpl.body : plainTextToHtml(tmpl.body)) : templatePlainBody(tmpl);
+              onChange({ ...cfg, subject: tmpl.subject, body, ...(useHtml ? { is_html: true } : {}) });
+            }
+            e.target.value = '';
+          }}
+        >
+          <option value="">Choose a template to fill subject/body...</option>
+          {emailTemplates.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
+            </option>
+          ))}
+        </select>
+        <p className="text-[11px] text-slate-400 mt-1">Copies the template's subject/body in — you can still edit them below.</p>
+      </div>
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <label className={labelClass}>Subject</label>
+          <DynamicFieldDropdown fields={AUTOMATION_DYNAMIC_FIELDS} mode="popover" onInsert={(t) => onChange({ ...cfg, subject: `${cfg.subject ?? ''}${t}` })} />
+        </div>
+        <input type="text" className={inputClass} value={String(cfg.subject ?? '')} onChange={(e) => onChange({ ...cfg, subject: e.target.value })} />
+      </div>
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <label className={labelClass}>Body</label>
+          <DynamicFieldDropdown
+            fields={AUTOMATION_DYNAMIC_FIELDS}
+            mode="popover"
+            onInsert={(t) => {
+              if (isHtml) bodyEditorRef.current?.insertText(t);
+              else onChange({ ...cfg, body: `${cfg.body ?? ''}${t}` });
+            }}
+          />
+        </div>
+        {isHtml ? (
+          <RichTextEditor
+            ref={bodyEditorRef}
+            variant="email"
+            value={String(cfg.body ?? '')}
+            onChange={(html) => onChange({ ...cfg, body: html, is_html: true })}
+          />
+        ) : (
+          <>
+            <textarea className={inputClass} rows={5} value={String(cfg.body ?? '')} onChange={(e) => onChange({ ...cfg, body: e.target.value })} />
+            <button
+              type="button"
+              onClick={() => onChange({ ...cfg, body: plainTextToHtml(String(cfg.body ?? '')), is_html: true })}
+              className="mt-1 text-[11px] font-semibold text-[var(--theme-accent)] hover:underline"
+            >
+              Switch to a formatted email (bold, links, lists, images)
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ActionConfigForm({
   triggerType,
   step,
@@ -265,54 +355,7 @@ function ActionConfigForm({
   }
 
   if (step.actionType === 'send_email') {
-    return (
-      <div className="space-y-2">
-        <div>
-          <label className={labelClass}>Use a template (optional)</label>
-          <select
-            className={inputClass}
-            value=""
-            onChange={(e) => {
-              const tmpl = emailTemplates.find((t) => String(t.id) === e.target.value);
-              if (tmpl) onChange({ ...cfg, subject: tmpl.subject, body: tmpl.body });
-              e.target.value = '';
-            }}
-          >
-            <option value="">Choose a template to fill subject/body...</option>
-            {emailTemplates.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-          <p className="text-[11px] text-slate-400 mt-1">Copies the template's subject/body in — you can still edit them below.</p>
-        </div>
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <label className={labelClass}>Subject</label>
-            <DynamicFieldDropdown fields={AUTOMATION_DYNAMIC_FIELDS} mode="popover" onInsert={(t) => onChange({ ...cfg, subject: `${cfg.subject ?? ''}${t}` })} />
-          </div>
-          <input
-            type="text"
-            className={inputClass}
-            value={String(cfg.subject ?? '')}
-            onChange={(e) => onChange({ ...cfg, subject: e.target.value })}
-          />
-        </div>
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <label className={labelClass}>Body</label>
-            <DynamicFieldDropdown fields={AUTOMATION_DYNAMIC_FIELDS} mode="popover" onInsert={(t) => onChange({ ...cfg, body: `${cfg.body ?? ''}${t}` })} />
-          </div>
-          <textarea
-            className={inputClass}
-            rows={5}
-            value={String(cfg.body ?? '')}
-            onChange={(e) => onChange({ ...cfg, body: e.target.value })}
-          />
-        </div>
-      </div>
-    );
+    return <EmailActionConfig cfg={cfg} onChange={onChange} emailTemplates={emailTemplates} />;
   }
 
   if (step.actionType === 'send_team_notification') {
@@ -470,8 +513,16 @@ function ActionConfigForm({
           value={String(cfg.message ?? '')}
           onChange={(e) => onChange({ ...cfg, message: e.target.value })}
         />
-        <p className="text-[11px] text-slate-400 mt-1">Sent as a direct message to the record's owner in Team Chat.</p>
+        <p className="text-[11px] text-slate-400 mt-1">Sent as a direct message to the record's owner in Team Chat. If the record has no owner (for example an imported contact), it goes to whoever built this automation. The recipient sees it on the bell and as an unread badge on Team Chat.</p>
       </div>
+    );
+  }
+
+  if (step.actionType === 'ai_triage') {
+    return (
+      <p className="text-[11px] text-slate-500">
+        Reads the contact's latest received email with the local AI (Ollama), pulls out the service, urgency, ZIP, budget and phone, scores the intent and priority, then opens a ticket and messages the contact's owner in Team Chat. Urgent tickets that nobody opens within 5 minutes are escalated to the owner and the admins. Skipped if the contact has not emailed you yet. Needs no settings.
+      </p>
     );
   }
 
@@ -489,6 +540,26 @@ function ActionConfigForm({
           onChange={(e) => onChange({ ...cfg, message: e.target.value })}
         />
         <p className="text-[11px] text-slate-400 mt-1">Skipped if the contact has no phone number or has opted out of SMS.</p>
+      </div>
+    );
+  }
+
+  if (step.actionType === 'send_telegram') {
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <label className={labelClass}>Message</label>
+          <DynamicFieldDropdown fields={AUTOMATION_DYNAMIC_FIELDS} mode="popover" onInsert={(t) => onChange({ ...cfg, message: `${cfg.message ?? ''}${t}` })} />
+        </div>
+        <textarea
+          className={inputClass}
+          rows={3}
+          value={String(cfg.message ?? '')}
+          onChange={(e) => onChange({ ...cfg, message: e.target.value })}
+        />
+        <p className="text-[11px] text-slate-400 mt-1">
+          Sent as a plain-text Telegram message. Skipped if the contact hasn't linked Telegram (they open their personal invite link from the contact card and press Start) or has opted out.
+        </p>
       </div>
     );
   }
@@ -613,7 +684,7 @@ function StepSequenceEditor({
               <select
                 className={`${inputClass} flex-1`}
                 value={step.actionType}
-                onChange={(e) => update(i, { actionType: e.target.value as SupportedActionType, actionConfig: {} })}
+                onChange={(e) => update(i, { actionType: e.target.value as SupportedActionType, actionConfig: e.target.value === 'send_email' ? { is_html: true } : {} })}
               >
                 {ACTION_TYPES_BY_TRIGGER[triggerType].map((t) => (
                   <option key={t} value={t}>
@@ -908,6 +979,9 @@ export default function AutomationBuilderPage() {
   const saveAutomation = useSaveAutomationRule();
   const testAutomation = useTestAutomationRule();
   const { data: automations = [] } = useAutomations();
+  // The calendar "Type" condition lists the event types set up under Settings > Event types.
+  const { data: eventTypes = [] } = useEventTypes();
+  setEventTypeOptions(eventTypes);
 
   const [name, setName] = useState('');
   const [triggerType, setTriggerType] = useState<CreatableTriggerType>('contact');
@@ -1011,6 +1085,7 @@ export default function AutomationBuilderPage() {
       if (step.actionType === 'create_task' && !String(cfg.subject || '').trim()) return 'Every "Create task" action needs a subject.';
       if (step.actionType === 'send_dm' && !String(cfg.message || '').trim()) return 'Every "Message owner" action needs a message.';
       if (step.actionType === 'send_sms' && !String(cfg.message || '').trim()) return 'Every "Send SMS" action needs a message.';
+      if (step.actionType === 'send_telegram' && !String(cfg.message || '').trim()) return 'Every "Send Telegram" action needs a message.';
       if (step.actionType === 'update_field') {
         if (!String(cfg.field || '').trim()) return 'Every "Update field" action needs a field chosen.';
         if (cfg.value === undefined || cfg.value === '') return 'Every "Update field" action needs a value.';

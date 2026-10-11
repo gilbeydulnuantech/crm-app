@@ -1,0 +1,852 @@
+{
+  "name": "Event Types",
+  "nodes": [
+    {
+      "id": "7558a3c1-2eb9-4b38-909d-3eb384b17c71",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1500,
+        700
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ (() => { let m = (typeof $json.error === \"string\" ? $json.error : ($json.error?.message || $json.error?.description)) || $json.message || \"Request failed.\"; m = String(m).replace(/\\s*\\[line \\d+\\]\\s*$/, \"\"); if (/already exists|event_types_name_lower|duplicate key/i.test(m)) m = \"There is already an event type with that name.\"; else if (/violates foreign key/i.test(m)) m = \"That event type does not exist.\"; else if (/(violates|syntax error|relation \\\"|column \\\"|ECONNREFUSED|timeout)/i.test(m)) m = \"Could not save this. Please try again.\"; return { success: false, error: m }; })() }}",
+        "options": {
+          "responseCode": 400
+        }
+      }
+    },
+    {
+      "id": "517c374e-5fe8-44af-8ec2-2f84a1d08af9",
+      "name": "Webhook: get-event-types",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-event-types",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "http://localhost:5173"
+        }
+      },
+      "webhookId": "50dfe395-ac07-4cf8-8269-869ee1ac07b6"
+    },
+    {
+      "id": "4ee884eb-9b45-44e2-b923-1b6acc4478f6",
+      "name": "Log Workflow Run: get-event-types",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Event Types\" }}",
+            "workflow_id": "={{ \"wTziZqHpp0Nf05I3\" }}",
+            "entity_type": "={{ \"event_types\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "5787f6fc-1fb2-4305-b62b-b90e556cfbe0",
+      "name": "Extract Bearer Token (get)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: get-event-types').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "b9e4f28f-a2a7-4f7b-bdf1-d7f2b83f3920",
+      "name": "Execute Workflow: Verify Session (get)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "596ebdeb-d43d-4a43-8a80-ad34b86eed41",
+      "name": "Validate Session (get)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "378c8f16-8add-476d-a84d-a19878eddd16",
+      "name": "Check Payload (get)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nreturn [{ json: { ok: true } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "a1d4c552-c5be-4685-a9d3-e1c5c04823d7",
+      "name": "Query (get)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1440,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT et.id, et.key, et.name, et.color, et.sort_order, et.is_system,\n  (SELECT count(*)::int FROM activities a WHERE a.type = et.key AND a.due_at IS NOT NULL) AS event_count,\n  (SELECT count(*)::int FROM products p WHERE p.event_type_id = et.id) AS product_count\nFROM event_types et ORDER BY et.sort_order, lower(et.name);",
+        "options": {
+          "queryBatching": "independently"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "id": "73e8a14a-9489-4af7-98a7-53a33af55403",
+      "name": "Respond (get)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1680,
+        -60
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().map((i) => i.json).filter((r) => r.id) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "7bff43f8-6761-4916-a661-d8493510ffb3",
+      "name": "Webhook: save-event-type",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        200
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "save-event-type",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "http://localhost:5173"
+        }
+      },
+      "webhookId": "2da8dab5-ca61-4cc2-8ec5-a3a9a85739f9"
+    },
+    {
+      "id": "cf0e94b8-e1b0-4786-97b4-b77b264cdf10",
+      "name": "Log Workflow Run: save-event-type",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        200
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Event Types\" }}",
+            "workflow_id": "={{ \"wTziZqHpp0Nf05I3\" }}",
+            "entity_type": "={{ \"event_types\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "998ed646-dd09-4df9-8902-f6ce073334fa",
+      "name": "Extract Bearer Token (save)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        200
+      ],
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: save-event-type').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "d231c231-e35e-4514-b003-1b2c69d9b368",
+      "name": "Execute Workflow: Verify Session (save)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        200
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "3b56f759-5152-4439-a024-c0f39c77b2e7",
+      "name": "Validate Session (save)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        200
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "8d14ebf9-1d6c-46fd-8fa4-37586ff68731",
+      "name": "Check Payload (save)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        200
+      ],
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nconst body = $('Webhook: save-event-type').first().json.body || {};\nconst id = body.id ? parseInt(body.id, 10) : null;\nif (body.id && !Number.isInteger(id)) throw new Error('\"id\" must be an integer.');\nconst name = (typeof body.name === 'string' ? body.name : '').replace(/[\\u0000-\\u001f\\u007f]/g, ' ').replace(/\\s+/g, ' ').trim();\nif (!name) throw new Error('Give this event type a name.');\nif (name.length > 60) throw new Error('The name is too long (maximum 60 characters).');\nconst color = typeof body.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(body.color.trim()) ? body.color.trim().toUpperCase() : null;\n// The key is what events store. It is made once from the first name and never changes, so renaming is safe.\nlet key = name.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40);\nif (!key) key = 'type';\nreturn [{ json: { id, name, color, key, requesterId: requester.id } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "7994d274-c6c2-44a5-a730-f32c9852c91c",
+      "name": "Query (save)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1440,
+        200
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH base AS (SELECT $4::text AS key),\nfree AS (\n  SELECT CASE WHEN EXISTS (SELECT 1 FROM event_types WHERE key = b.key)\n              THEN b.key || '_' || (SELECT COALESCE(max(id), 0) + 1 FROM event_types) ELSE b.key END AS key\n  FROM base b\n), upd AS (\n  UPDATE event_types SET name = $2, color = COALESCE($3, color) WHERE id = $1::int RETURNING id, key\n), ins AS (\n  INSERT INTO event_types (key, name, color, sort_order, created_by)\n  SELECT (SELECT key FROM free), $2, COALESCE($3, '#64748B'), COALESCE((SELECT max(sort_order) + 1 FROM event_types), 0), $5::int\n  WHERE $1::int IS NULL\n  RETURNING id, key\n)\nSELECT id, key FROM upd UNION ALL SELECT id, key FROM ins;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [ $json.id, $json.name, $json.color, $json.key, $json.requesterId ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "alwaysOutputData": false
+    },
+    {
+      "id": "6c18b0fe-e492-4411-88e0-d809b25fe881",
+      "name": "Respond (save)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1680,
+        140
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().length ? { success: true, id: $input.first().json.id, key: $input.first().json.key } : { success: false, error: 'That event type was not found.' } }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "3f5c1433-cb1f-4990-b7a4-0dee25c8b56d",
+      "name": "Webhook: delete-event-type",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        400
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "delete-event-type",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "http://localhost:5173"
+        }
+      },
+      "webhookId": "53752b25-0d04-4ecc-ac5d-79d832a2135e"
+    },
+    {
+      "id": "e48a47b3-5d5c-4a31-94db-ec29f4a2aec2",
+      "name": "Log Workflow Run: delete-event-type",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        400
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Event Types\" }}",
+            "workflow_id": "={{ \"wTziZqHpp0Nf05I3\" }}",
+            "entity_type": "={{ \"event_types\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "8cdf7acf-4f7c-4910-b620-96cd100bbdbc",
+      "name": "Extract Bearer Token (delete)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: delete-event-type').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "f09b14d2-b98a-4fae-9902-05d6ae02b31b",
+      "name": "Execute Workflow: Verify Session (delete)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        400
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "448f5a42-8471-4de7-8299-b11521bafee0",
+      "name": "Validate Session (delete)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "efc5ff2b-be75-4894-a676-af5d710e54d8",
+      "name": "Check Payload (delete)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Only an admin can delete an event type.');\nconst body = $('Webhook: delete-event-type').first().json.body || {};\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" must be an integer.');\nconst reassign = body.reassign_to_id ? parseInt(body.reassign_to_id, 10) : null;\nif (body.reassign_to_id && !Number.isInteger(reassign)) throw new Error('\"reassign_to_id\" must be an integer.');\nif (reassign === id) throw new Error('Choose a different event type to move the events to.');\nreturn [{ json: { id, reassign } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "69220393-b04b-440a-936c-fb0f1cd01df5",
+      "name": "Query (delete)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1440,
+        400
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH tgt AS (SELECT id, key, is_system FROM event_types WHERE id = $1::int),\ndest AS (SELECT id, key FROM event_types WHERE id = $2::int),\nchk AS (\n  SELECT\n    (SELECT count(*) FROM tgt) AS found,\n    (SELECT is_system FROM tgt) AS is_system,\n    (SELECT count(*) FROM activities a, tgt WHERE a.type = tgt.key AND a.due_at IS NOT NULL) AS events,\n    (SELECT count(*) FROM dest) AS dest_found\n), ok AS (\n  SELECT * FROM chk WHERE found = 1 AND is_system IS NOT TRUE AND (events = 0 OR dest_found = 1)\n), mv AS (\n  UPDATE activities SET type = (SELECT key FROM dest) WHERE type = (SELECT key FROM tgt) AND EXISTS (SELECT 1 FROM ok) AND (SELECT dest_found FROM chk) = 1 RETURNING id\n), pm AS (\n  UPDATE products SET event_type_id = (SELECT id FROM dest) WHERE event_type_id = $1::int AND EXISTS (SELECT 1 FROM ok) RETURNING id\n), del AS (\n  DELETE FROM event_types WHERE id = $1::int AND EXISTS (SELECT 1 FROM ok) RETURNING id\n)\nSELECT (SELECT count(*) FROM del) AS deleted, (SELECT found FROM chk) AS found, (SELECT is_system FROM chk) AS is_system, (SELECT events FROM chk) AS events, (SELECT dest_found FROM chk) AS dest_found, (SELECT count(*) FROM mv) AS moved;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [ $json.id, $json.reassign ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "alwaysOutputData": false
+    },
+    {
+      "id": "0eb37ae4-65c8-4e84-a5d9-506f32674b96",
+      "name": "Respond (delete)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1680,
+        340
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ (() => { const r = $input.first().json; if (Number(r.deleted) === 1) return { success: true, moved: Number(r.moved) }; if (Number(r.found) === 0) return { success: false, error: 'That event type was not found.' }; if (r.is_system === true) return { success: false, error: 'This type is used by the booking page and reminders, so it can be renamed but not deleted.' }; if (Number(r.events) > 0 && Number(r.dest_found) !== 1) return { success: false, error: 'This type is used by ' + r.events + ' event(s). Choose another type to move them to.' }; return { success: false, error: 'Could not delete this event type.' }; })() }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Webhook: get-event-types": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: get-event-types",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: get-event-types": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token (get)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (get)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (get)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (get)": {
+      "main": [
+        [
+          {
+            "node": "Check Payload (get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload (get)": {
+      "main": [
+        [
+          {
+            "node": "Query (get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query (get)": {
+      "main": [
+        [
+          {
+            "node": "Respond (get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: save-event-type": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: save-event-type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: save-event-type": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token (save)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (save)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (save)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (save)": {
+      "main": [
+        [
+          {
+            "node": "Check Payload (save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload (save)": {
+      "main": [
+        [
+          {
+            "node": "Query (save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query (save)": {
+      "main": [
+        [
+          {
+            "node": "Respond (save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: delete-event-type": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: delete-event-type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: delete-event-type": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token (delete)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (delete)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (delete)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (delete)": {
+      "main": [
+        [
+          {
+            "node": "Check Payload (delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload (delete)": {
+      "main": [
+        [
+          {
+            "node": "Query (delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query (delete)": {
+      "main": [
+        [
+          {
+            "node": "Respond (delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "Asia/Almaty",
+    "availableInMCP": false
+  }
+}

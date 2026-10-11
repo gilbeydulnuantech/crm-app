@@ -1,6 +1,14 @@
 import { useMemo } from 'react';
-import { CalendarEvent, EVENT_TYPE_META } from '../../types/event';
+import { CalendarEvent } from '../../types/event';
+import { typeCardStyle, useEventTypeLookup } from '../../utils/eventTypes';
+import { useCardDisplay } from '../../hooks/useCardDisplay';
+import StaffPill from './StaffPill';
+import EventQuickMenu from './EventQuickMenu';
+import { outcomeLabel } from '../../utils/eventOutcome';
 import { matchedResourceColor } from '../../utils/calendarHighlight';
+import { eventDiscountLabel, eventPriceLabel } from '../../utils/eventPrice';
+import { formatClockRange } from '../../utils/timeFormat';
+import { toTitleCase } from '../../utils/text';
 
 interface Props {
   weekStart: Date;
@@ -19,6 +27,8 @@ export default function WeekView({
   onEventClick,
   timezone,
 }: Props) {
+  const typeOf = useEventTypeLookup();
+  const cd = useCardDisplay();
   const days = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(weekStart);
@@ -58,17 +68,31 @@ export default function WeekView({
                     <div
                       key={e.id}
                       onClick={() => onEventClick(e)}
-                      className={`text-[11px] px-1.5 py-1 rounded cursor-pointer ${EVENT_TYPE_META[e.type]?.color ?? 'bg-slate-100 text-slate-700'}`}
-                      style={highlight ? { boxShadow: `inset 0 0 0 1.5px ${highlight}` } : undefined}
+                      className={`relative text-[11px] px-1.5 py-1 rounded cursor-pointer ${e.outcome ? 'opacity-60' : ''}`}
+                      style={{ ...typeCardStyle(typeOf(e.type).color), ...(highlight ? { boxShadow: `inset 0 0 0 1.5px ${highlight}` } : {}) }}
                     >
-                      <div className="font-medium">
-                        {new Date(e.due_at).toLocaleTimeString(undefined, {
-                          hour: 'numeric',
-                          minute: '2-digit',
-                          timeZone: timezone,
-                        })}
+                      <div className="absolute top-0.5 right-0.5 z-10">
+                        <EventQuickMenu event={e} onViewDetails={onEventClick} />
                       </div>
-                      <div className="truncate">{e.subject}</div>
+                      <div style={cd.zoomStyle}>
+                        {outcomeLabel(e) && <div className="text-[0.85em] font-bold uppercase tracking-wide text-rose-700 pr-5">{outcomeLabel(e)}</div>}
+                        {cd.show_time && <div className="font-medium pr-5">{formatClockRange(e.due_at, e.end_at, timezone)}</div>}
+                        <div className={`truncate pr-5 ${e.outcome ? 'line-through' : ''}`} style={{ fontWeight: cd.titleWeight }}>
+                          {e.subject}
+                        </div>
+                        {cd.show_contact && e.contact_name && <div className="truncate opacity-70">{toTitleCase(e.contact_name)}</div>}
+                        {cd.show_staff && e.staff_name && (
+                          <div className="mt-0.5">
+                            <StaffPill name={e.staff_name} commission={cd.show_commission ? e.commission_amount : null} />
+                          </div>
+                        )}
+                        {cd.show_price && eventPriceLabel(e) && (
+                          <div className="font-semibold">
+                            {eventDiscountLabel(e) && <span className="mr-1 text-rose-600">{eventDiscountLabel(e)}</span>}
+                            {eventPriceLabel(e)}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })}

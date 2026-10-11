@@ -80,7 +80,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT due_at, COALESCE(end_at, due_at) AS end_at FROM activities\nWHERE user_id = $1 AND due_at IS NOT NULL AND COALESCE(is_completed, false) = false\n  AND due_at >= now() AND due_at <= now() + interval '14 days';",
+        "query": "SELECT due_at, COALESCE(end_at, due_at) AS end_at FROM activities\nWHERE user_id = $1 AND due_at IS NOT NULL AND COALESCE(is_completed, false) = false AND outcome IS NULL\n  AND due_at >= now() AND due_at <= now() + interval '14 days'\n  AND type IN ('meeting','site_visit');",
         "options": {
           "queryReplacement": "={{ [ $('Look Up Contact By Token: Availability').item.json.owner_id ] }}"
         }
@@ -103,7 +103,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Working-hours model: Mon-Fri, 9am-5pm, 60-min slots, in the owner's\n// timezone (falls back to America/New_York if they haven't set one in\n// Settings). 14-day window, 2-hour minimum lead time from now. Busy time\n// is any activity with a due_at set (matches Check Event Conflict's\n// definition elsewhere in this app) \u2014 not just type='meeting', since an\n// existing Inspection/Call/Site Visit on the calendar should block the\n// slot too.\nconst contact = $('Look Up Contact By Token: Availability').item.json;\nconst tz = contact.timezone || 'America/New_York';\nconst now = DateTime.now().setZone(tz);\nconst leadTime = now.plus({ hours: 2 });\nconst windowEnd = now.plus({ days: 14 });\n\nconst busy = $input.all().map((i) => ({\n  start: DateTime.fromISO(i.json.due_at, { zone: 'utc' }),\n  end: DateTime.fromISO(i.json.end_at, { zone: 'utc' }),\n}));\n\nfunction overlaps(slotStart, slotEnd) {\n  return busy.some((b) => slotStart < b.end && slotEnd > b.start);\n}\n\nconst byDay = {};\nfor (let d = 0; d <= 14; d++) {\n  const day = now.plus({ days: d }).startOf('day');\n  if (day > windowEnd) break;\n  if (day.weekday === 6 || day.weekday === 7) continue; // Sat/Sun\n  for (let h = 9; h < 17; h++) {\n    const slotStart = day.set({ hour: h, minute: 0, second: 0, millisecond: 0 });\n    const slotEnd = slotStart.plus({ minutes: 60 });\n    if (slotStart < leadTime) continue;\n    if (overlaps(slotStart.toUTC(), slotEnd.toUTC())) continue;\n    const dayKey = slotStart.toISODate();\n    (byDay[dayKey] ||= []).push({\n      start_at: slotStart.toUTC().toISO(),\n      label: slotStart.toFormat('h:mm a'),\n    });\n  }\n}\n\nconst days = Object.keys(byDay).sort().map((date) => ({\n  date,\n  label: DateTime.fromISO(date, { zone: tz }).toFormat('EEEE, MMM d'),\n  slots: byDay[date],\n}));\n\nreturn [{\n  json: {\n    contact_first_name: contact.first_name,\n    contact_last_name: contact.last_name,\n    owner_name: contact.owner_name,\n    timezone: tz,\n    days,\n  },\n}];"
+        "jsCode": "// Working-hours model: Mon-Fri, 9am-5pm, 60-min slots, in the owner's\n// timezone (falls back to America/New_York if they haven't set one in\n// Settings). 14-day window, 2-hour minimum lead time from now. Busy time\n// is any activity with a due_at set (matches Check Event Conflict's\n// definition elsewhere in this app) \u2014 not just type='meeting', since an\n// existing Inspection/Call/Site Visit on the calendar should block the\n// slot too.\nconst contact = $('Look Up Contact By Token: Availability').item.json;\nconst tz = contact.timezone || $now.zoneName;\nconst now = DateTime.now().setZone(tz);\nconst leadTime = now.plus({ hours: 2 });\nconst windowEnd = now.plus({ days: 14 });\n\nconst busy = $input.all().map((i) => ({\n  start: DateTime.fromISO(i.json.due_at, { zone: 'utc' }),\n  end: DateTime.fromISO(i.json.end_at, { zone: 'utc' }),\n}));\n\nfunction overlaps(slotStart, slotEnd) {\n  return busy.some((b) => slotStart < b.end && slotEnd > b.start);\n}\n\nconst byDay = {};\nfor (let d = 0; d <= 14; d++) {\n  const day = now.plus({ days: d }).startOf('day');\n  if (day > windowEnd) break;\n  if (day.weekday === 6 || day.weekday === 7) continue; // Sat/Sun\n  for (let h = 9; h < 17; h++) {\n    const slotStart = day.set({ hour: h, minute: 0, second: 0, millisecond: 0 });\n    const slotEnd = slotStart.plus({ minutes: 60 });\n    if (slotStart < leadTime) continue;\n    if (overlaps(slotStart.toUTC(), slotEnd.toUTC())) continue;\n    const dayKey = slotStart.toISODate();\n    (byDay[dayKey] ||= []).push({\n      start_at: slotStart.toUTC().toISO(),\n      label: slotStart.toFormat('h:mm a'),\n    });\n  }\n}\n\nconst days = Object.keys(byDay).sort().map((date) => ({\n  date,\n  label: DateTime.fromISO(date, { zone: tz }).toFormat('EEEE, MMM d'),\n  slots: byDay[date],\n}));\n\nreturn [{\n  json: {\n    contact_first_name: contact.first_name,\n    contact_last_name: contact.last_name,\n    owner_name: contact.owner_name,\n    timezone: tz,\n    days,\n  },\n}];"
       },
       "id": "pb-l6fzbro1",
       "name": "Compute Slots",
@@ -165,7 +165,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $('Webhook: book-inspection-public').first().json.body || {};\nconst token = (body.token || '').toString().trim();\nconst startAt = (body.start_at || '').toString().trim();\nif (!token || !startAt) throw new Error('token and start_at are required.');\nconst parsed = DateTime.fromISO(startAt);\nif (!parsed.isValid) throw new Error('\"start_at\" must be a valid date/time.');\nif (parsed < DateTime.now()) throw new Error('\"start_at\" must be in the future.');\nreturn [{ json: { token, startAt } }];"
+        "jsCode": "const body = $('Webhook: book-inspection-public').first().json.body || {};\n\nconst LIMITS = { first_name: 150, last_name: 150, email: 255, phone: 50 };\n// Wrong-typed values (objects/arrays/booleans) become '' instead of \"[object Object]\"; control characters are stripped.\nconst clean = (v) => (typeof v === 'string' || typeof v === 'number' ? String(v) : '').replace(/[\\u0000-\\u001f\\u007f]/g, ' ').trim();\nconst EMAIL_RE = /^[^\\s@<>\"'`,;()\\[\\]\\\\]+@[^\\s@<>\"'`,;()\\[\\]\\\\]+\\.[^\\s@<>\"'`,;()\\[\\]\\\\]{2,}$/;\nconst ISO_RE = /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2}(\\.\\d{1,3})?)?(Z|[+-]\\d{2}:?\\d{2})$/;\n// Only a real ISO-8601 time with an explicit timezone is accepted. (Postgres also accepts words like\n// 'tomorrow' or 'now' as timestamps, which would otherwise slip straight through to the database.)\nfunction parseStart(raw) {\n  if (!raw) throw new Error('\"start_at\" is required.');\n  if (!ISO_RE.test(raw)) throw new Error('\"start_at\" must be an ISO 8601 date and time with a timezone (use a time returned by the availability list).');\n  const dt = DateTime.fromISO(raw, { setZone: true });\n  if (!dt.isValid) throw new Error('\"start_at\" must be a valid date/time.');\n  return dt.toUTC().toISO();\n}\n\nconst token = clean(body.token);\nif (!token || !body.start_at) throw new Error('token and start_at are required.');\nif (token.length > 128) throw new Error('This booking link is invalid or has expired.');\nconst startAt = parseStart(clean(body.start_at));\nif (DateTime.fromISO(startAt) < DateTime.now()) throw new Error('\"start_at\" must be in the future.');\nreturn [{ json: { token, startAt } }];"
       },
       "id": "pb-6phsmgr8",
       "name": "Parse Booking Payload",
@@ -174,7 +174,8 @@
       "position": [
         448,
         528
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -198,7 +199,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -237,7 +239,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT count(*)::int AS conflict_count FROM activities\nWHERE user_id = $1 AND type = 'meeting' AND COALESCE(is_completed, false) = false\n  AND due_at < $2::timestamptz + interval '60 minutes' AND end_at > $2::timestamptz;",
+        "query": "WITH s AS (SELECT $2::timestamptz AS t_utc, ($2::timestamptz AT TIME ZONE COALESCE((SELECT timezone FROM company_profile WHERE id = 1), 'America/New_York')) AS t_local)\nSELECT (SELECT count(*)::int FROM activities a, s WHERE a.user_id = $1 AND a.type IN ('meeting','site_visit') AND COALESCE(a.is_completed, false) = false AND a.outcome IS NULL\n  AND a.due_at < s.t_utc + interval '60 minutes' AND COALESCE(a.end_at, a.due_at) > s.t_utc) AS conflict_count,\n  (s.t_utc >= now() + interval '2 hours' AND s.t_utc <= now() + interval '15 days' AND EXTRACT(ISODOW FROM s.t_local) BETWEEN 1 AND 5 AND EXTRACT(HOUR FROM s.t_local) BETWEEN 9 AND 16 AND EXTRACT(MINUTE FROM s.t_local) = 0 AND EXTRACT(SECOND FROM s.t_local) = 0) AS valid_slot FROM s;",
         "options": {
           "queryReplacement": "={{ [ $('Assign Owner (Round Robin): Booking').item.json.owner_id, $('Parse Booking Payload').item.json.startAt ] }}"
         }
@@ -255,7 +257,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -270,6 +273,16 @@
             {
               "id": "c1",
               "leftValue": "={{ $json.conflict_count === 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "c2-valid",
+              "leftValue": "={{ $json.valid_slot }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
@@ -341,7 +354,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH existing AS (SELECT id FROM opportunities WHERE contact_id = $2 AND pipeline_id = 3 AND status = 'Open' LIMIT 1), inserted AS (INSERT INTO opportunities (name, contact_id, pipeline_id, stage_id, assigned_user, status, created_at, updated_at, stage_entered_at) SELECT $1, $2, 3, 19, $3, 'Open', now(), now(), now() WHERE NOT EXISTS (SELECT 1 FROM existing) RETURNING id) SELECT id FROM inserted UNION ALL SELECT id FROM existing LIMIT 1;",
+        "query": "WITH existing AS (SELECT id FROM opportunities WHERE contact_id = $2 AND pipeline_id = 3 AND status = 'Open' LIMIT 1), inserted AS (INSERT INTO opportunities (name, contact_id, pipeline_id, stage_id, assigned_user, status, created_at, updated_at, stage_entered_at) SELECT $1, $2, 3, 19, $3, 'Open', now(), now(), now() WHERE NOT EXISTS (SELECT 1 FROM existing) RETURNING id), reset_existing AS (UPDATE opportunities o SET stage_id = 19, stage_entered_at = now(), updated_at = now() FROM existing e WHERE o.id = e.id RETURNING o.id) SELECT id FROM inserted UNION ALL SELECT id FROM reset_existing LIMIT 1;",
         "options": {
           "queryReplacement": "={{ [ $('Look Up Contact By Token: Booking').item.json.first_name + ' ' + $('Look Up Contact By Token: Booking').item.json.last_name + ' - Inspection', $('Look Up Contact By Token: Booking').item.json.contact_id, $('Assign Owner (Round Robin): Booking').item.json.owner_id ] }}"
         }
@@ -359,12 +372,13 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO activities (contact_id, opportunity_id, user_id, type, subject, due_at, end_at, created_at)\nVALUES ($1, $2, $3, 'meeting', $4, $5::timestamptz, $6::timestamptz, now()) RETURNING id, due_at, end_at;",
+        "query": "WITH superseded AS (\n  UPDATE activities SET is_completed = true, completed_at = now()\n  WHERE opportunity_id = $2 AND type = 'meeting' AND is_completed = false\n  RETURNING id\n)\nINSERT INTO activities (contact_id, opportunity_id, user_id, type, subject, due_at, end_at, created_at, is_reschedule)\nVALUES ($1, $2, $3, 'meeting', $4, $5::timestamptz, $6::timestamptz, now(), (SELECT COUNT(*) FROM superseded) > 0)\nRETURNING id, due_at, end_at, is_reschedule;",
         "options": {
           "queryReplacement": "={{ [ $('Look Up Contact By Token: Booking').item.json.contact_id, $('Create Inspection Deal').item.json.id, $('Assign Owner (Round Robin): Booking').item.json.owner_id, 'Home Inspection - ' + $('Look Up Contact By Token: Booking').item.json.first_name, $('Parse Booking Payload').item.json.startAt, DateTime.fromISO($('Parse Booking Payload').item.json.startAt).plus({minutes: 60}).toISO() ] }}"
         }
@@ -382,7 +396,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -494,7 +509,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: false, error: \"That time was just booked by someone else. Please pick another slot.\" } }}",
+        "responseBody": "={{ { success: false, error: $('Check Slot Still Free').item.json.valid_slot === false ? \"That time is not available. Please pick one of the listed slots.\" : \"That time was just booked by someone else. Please pick another slot.\" } }}",
         "options": {}
       },
       "id": "pb-qd1dm1r4",
@@ -612,7 +627,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT due_at, COALESCE(end_at, due_at) AS end_at FROM activities a\nWHERE a.due_at IS NOT NULL AND COALESCE(a.is_completed, false) = false\n  AND a.user_id IN (SELECT id FROM users WHERE role = 'user' AND active = true)\n  AND a.due_at >= now() AND a.due_at <= now() + interval '14 days';",
+        "query": "SELECT due_at, COALESCE(end_at, due_at) AS end_at FROM activities a\nWHERE a.due_at IS NOT NULL AND COALESCE(a.is_completed, false) = false AND a.outcome IS NULL\n  AND a.user_id IN (SELECT id FROM users WHERE role = 'user' AND active = true)\n  AND a.due_at >= now() AND a.due_at <= now() + interval '14 days'\n  AND a.type IN ('meeting','site_visit');",
         "options": {}
       },
       "id": "gb-select-meetings",
@@ -633,7 +648,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Working-hours model: Mon-Fri, 9am-5pm, 60-min slots, in the CRM's\n// system timezone (Settings -> Timezone). 14-day window, 2-hour minimum\n// lead time from now. Company-wide availability \u2014 a slot is blocked if\n// ANY active field rep has a due_at'd activity overlapping it. No\n// per-rep round robin here: this form doesn't pin the visitor to one\n// rep, so it just shows real open time across the whole team.\nconst tzRow = $('Get Company Timezone: Generic').item.json;\nconst tz = tzRow.timezone || 'America/New_York';\nconst now = DateTime.now().setZone(tz);\nconst leadTime = now.plus({ hours: 2 });\nconst windowEnd = now.plus({ days: 14 });\n\nconst busy = $input.all().map((i) => ({\n  start: DateTime.fromISO(i.json.due_at, { zone: 'utc' }),\n  end: DateTime.fromISO(i.json.end_at, { zone: 'utc' }),\n}));\n\nfunction overlaps(slotStart, slotEnd) {\n  return busy.some((b) => slotStart < b.end && slotEnd > b.start);\n}\n\nconst byDay = {};\nfor (let d = 0; d <= 14; d++) {\n  const day = now.plus({ days: d }).startOf('day');\n  if (day > windowEnd) break;\n  if (day.weekday === 6 || day.weekday === 7) continue; // Sat/Sun\n  for (let h = 9; h < 17; h++) {\n    const slotStart = day.set({ hour: h, minute: 0, second: 0, millisecond: 0 });\n    const slotEnd = slotStart.plus({ minutes: 60 });\n    if (slotStart < leadTime) continue;\n    if (overlaps(slotStart.toUTC(), slotEnd.toUTC())) continue;\n    const dayKey = slotStart.toISODate();\n    (byDay[dayKey] ||= []).push({\n      start_at: slotStart.toUTC().toISO(),\n      label: slotStart.toFormat('h:mm a'),\n    });\n  }\n}\n\nconst days = Object.keys(byDay).sort().map((date) => ({\n  date,\n  label: DateTime.fromISO(date, { zone: tz }).toFormat('EEEE, MMM d'),\n  slots: byDay[date],\n}));\n\nreturn [{\n  json: {\n    timezone: tz,\n    days,\n  },\n}];"
+        "jsCode": "// Working-hours model: Mon-Fri, 9am-5pm, 60-min slots, in the CRM's\n// system timezone (Settings -> Timezone). 14-day window, 2-hour minimum\n// lead time from now. Company-wide availability \u2014 a slot is blocked if\n// ANY active field rep has a due_at'd activity overlapping it. No\n// per-rep round robin here: this form doesn't pin the visitor to one\n// rep, so it just shows real open time across the whole team.\nconst tzRow = $('Get Company Timezone: Generic').item.json;\nconst tz = tzRow.timezone || $now.zoneName;\nconst now = DateTime.now().setZone(tz);\nconst leadTime = now.plus({ hours: 2 });\nconst windowEnd = now.plus({ days: 14 });\n\nconst busy = $input.all().map((i) => ({\n  start: DateTime.fromISO(i.json.due_at, { zone: 'utc' }),\n  end: DateTime.fromISO(i.json.end_at, { zone: 'utc' }),\n}));\n\nfunction overlaps(slotStart, slotEnd) {\n  return busy.some((b) => slotStart < b.end && slotEnd > b.start);\n}\n\nconst byDay = {};\nfor (let d = 0; d <= 14; d++) {\n  const day = now.plus({ days: d }).startOf('day');\n  if (day > windowEnd) break;\n  if (day.weekday === 6 || day.weekday === 7) continue; // Sat/Sun\n  for (let h = 9; h < 17; h++) {\n    const slotStart = day.set({ hour: h, minute: 0, second: 0, millisecond: 0 });\n    const slotEnd = slotStart.plus({ minutes: 60 });\n    if (slotStart < leadTime) continue;\n    if (overlaps(slotStart.toUTC(), slotEnd.toUTC())) continue;\n    const dayKey = slotStart.toISODate();\n    (byDay[dayKey] ||= []).push({\n      start_at: slotStart.toUTC().toISO(),\n      label: slotStart.toFormat('h:mm a'),\n    });\n  }\n}\n\nconst days = Object.keys(byDay).sort().map((date) => ({\n  date,\n  label: DateTime.fromISO(date, { zone: tz }).toFormat('EEEE, MMM d'),\n  slots: byDay[date],\n}));\n\nreturn [{\n  json: {\n    timezone: tz,\n    days,\n  },\n}];"
       },
       "id": "gb-compute-slots",
       "name": "Compute Slots: Generic",
@@ -680,7 +695,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $('Webhook: book-inspection-generic').first().json.body || {};\n\n// Honeypot - a real visitor never fills this (hidden via CSS on the\n// public form); a bot filling every field will. Silently pretend\n// success without touching the database.\nif ((body.website_hp || '').toString().trim()) {\n  return [{ json: { spam: true } }];\n}\n\nconst firstName = (body.first_name || '').toString().trim();\nconst lastName = (body.last_name || '').toString().trim();\nconst email = (body.email || '').toString().trim().toLowerCase();\nconst phone = (body.phone || '').toString().trim();\nconst startAt = (body.start_at || '').toString().trim();\n\nif (!firstName) throw new Error('\"first_name\" is required.');\nif (!email || !email.includes('@')) throw new Error('A valid \"email\" is required.');\nif (!startAt) throw new Error('\"start_at\" is required.');\n\nreturn [{\n  json: {\n    spam: false,\n    first_name: firstName, last_name: lastName, email, secondary_email: '', phone, secondary_phone: '',\n    job_title: '', account_id: null, linkedin_url: '', city: '', state: '', zip_code: '', country: '',\n    lead_status: 'New', lead_source: 'Website Booking', timezone: '', birthdate: null,\n    do_not_contact: false, dnc_email: false, dnc_call: false, dnc_sms: false,\n    createdBy: null, startAt,\n  },\n}];"
+        "jsCode": "const body = $('Webhook: book-inspection-generic').first().json.body || {};\n\n// Honeypot - a real visitor never fills this (hidden via CSS on the\n// public form); a bot filling every field will. Silently pretend\n// success without touching the database.\nif ((body.website_hp || '').toString().trim()) {\n  return [{ json: { spam: true } }];\n}\n\nconst LIMITS = { first_name: 150, last_name: 150, email: 255, phone: 50 };\n// Wrong-typed values (objects/arrays/booleans) become '' instead of \"[object Object]\"; control characters are stripped.\nconst clean = (v) => (typeof v === 'string' || typeof v === 'number' ? String(v) : '').replace(/[\\u0000-\\u001f\\u007f]/g, ' ').trim();\nconst EMAIL_RE = /^[^\\s@<>\"'`,;()\\[\\]\\\\]+@[^\\s@<>\"'`,;()\\[\\]\\\\]+\\.[^\\s@<>\"'`,;()\\[\\]\\\\]{2,}$/;\nconst ISO_RE = /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2}(\\.\\d{1,3})?)?(Z|[+-]\\d{2}:?\\d{2})$/;\n// Only a real ISO-8601 time with an explicit timezone is accepted. (Postgres also accepts words like\n// 'tomorrow' or 'now' as timestamps, which would otherwise slip straight through to the database.)\nfunction parseStart(raw) {\n  if (!raw) throw new Error('\"start_at\" is required.');\n  if (!ISO_RE.test(raw)) throw new Error('\"start_at\" must be an ISO 8601 date and time with a timezone (use a time returned by the availability list).');\n  const dt = DateTime.fromISO(raw, { setZone: true });\n  if (!dt.isValid) throw new Error('\"start_at\" must be a valid date/time.');\n  return dt.toUTC().toISO();\n}\n\nconst f = { first_name: clean(body.first_name), last_name: clean(body.last_name), email: clean(body.email).toLowerCase(), phone: clean(body.phone) };\nif (!f.first_name) throw new Error('\"first_name\" is required.');\nif (!f.email || !EMAIL_RE.test(f.email)) throw new Error('A valid \"email\" is required.');\nfor (const [k, max] of Object.entries(LIMITS)) { if ((f[k] || '').length > max) throw new Error(`\"${k}\" is too long (maximum ${max} characters).`); }\nconst startAt = parseStart(clean(body.start_at));\n\nreturn [{\n  json: {\n    spam: false,\n    first_name: f.first_name, last_name: f.last_name, email: f.email, secondary_email: '', phone: f.phone, secondary_phone: '',\n    job_title: '', account_id: null, linkedin_url: '', city: '', state: '', zip_code: '', country: '',\n    lead_status: 'New', lead_source: 'Website Booking', timezone: '', birthdate: null,\n    do_not_contact: false, dnc_email: false, dnc_call: false, dnc_sms: false,\n    createdBy: null, startAt,\n  },\n}];"
       },
       "id": "gb-parse",
       "name": "Parse Generic Booking Payload",
@@ -689,7 +704,8 @@
       "position": [
         448,
         2480
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -798,14 +814,15 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT count(*)::int AS conflict_count FROM activities\nWHERE user_id = $1 AND type = 'meeting' AND COALESCE(is_completed, false) = false\n  AND due_at < $2::timestamptz + interval '60 minutes' AND end_at > $2::timestamptz;",
+        "query": "WITH s AS (SELECT $1::timestamptz AS t_utc, ($1::timestamptz AT TIME ZONE COALESCE((SELECT timezone FROM company_profile WHERE id = 1), 'America/New_York')) AS t_local)\nSELECT (SELECT count(*)::int FROM activities a, s WHERE a.type IN ('meeting','site_visit') AND COALESCE(a.is_completed, false) = false AND a.outcome IS NULL\n  AND a.user_id IN (SELECT id FROM users WHERE role = 'user' AND active = true)\n  AND a.due_at < s.t_utc + interval '60 minutes' AND COALESCE(a.end_at, a.due_at) > s.t_utc) AS conflict_count,\n  (s.t_utc >= now() + interval '2 hours' AND s.t_utc <= now() + interval '15 days' AND EXTRACT(ISODOW FROM s.t_local) BETWEEN 1 AND 5 AND EXTRACT(HOUR FROM s.t_local) BETWEEN 9 AND 16 AND EXTRACT(MINUTE FROM s.t_local) = 0 AND EXTRACT(SECOND FROM s.t_local) = 0) AS valid_slot FROM s;",
         "options": {
-          "queryReplacement": "={{ [ $('Assign Owner (Round Robin): Generic').item.json.owner_id, $('Parse Generic Booking Payload').item.json.startAt ] }}"
+          "queryReplacement": "={{ [ $('Parse Generic Booking Payload').item.json.startAt ] }}"
         }
       },
       "id": "gb-check-slot",
@@ -821,7 +838,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -836,6 +854,16 @@
             {
               "id": "c1",
               "leftValue": "={{ $json.conflict_count === 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "c2-valid",
+              "leftValue": "={{ $json.valid_slot }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
@@ -860,7 +888,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: false, error: \"That time was just booked by someone else. Please pick another slot.\" } }}",
+        "responseBody": "={{ { success: false, error: $('Check Slot Still Free (Generic)').item.json.valid_slot === false ? \"That time is not available. Please pick one of the listed slots.\" : \"That time was just booked by someone else. Please pick another slot.\" } }}",
         "options": {}
       },
       "id": "gb-respond-taken",
@@ -893,7 +921,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -916,7 +945,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -988,7 +1018,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT a.id AS activity_id, a.opportunity_id, c.id AS contact_id, c.first_name\nFROM activities a\nJOIN contacts c ON c.id = a.contact_id\nWHERE a.id = $1 AND c.unsubscribe_token = $2 AND c.is_archived = false;",
+        "query": "SELECT a.id AS activity_id, a.opportunity_id, c.id AS contact_id, c.first_name\nFROM activities a\nJOIN contacts c ON c.id = a.contact_id\nWHERE a.id::text = $1 AND a.type = 'meeting' AND c.unsubscribe_token = $2 AND c.is_archived = false;",
         "options": {
           "queryReplacement": "={{ [ $('Webhook: cancel-booking-public').first().json.query.activity_id, $('Webhook: cancel-booking-public').first().json.query.token ] }}"
         }
@@ -1268,7 +1298,8 @@
           "name": "myRag"
         }
       },
-      "notes": "Parity fix: book-inspection-generic already round-robin-assigns an owner when one is missing; the token-based public path previously required an owner to already be set (from earlier contact creation) or rejected the booking outright with a misleading 'invalid link' error. COALESCE never overwrites an existing owner."
+      "notes": "Parity fix: book-inspection-generic already round-robin-assigns an owner when one is missing; the token-based public path previously required an owner to already be set (from earlier contact creation) or rejected the booking outright with a misleading 'invalid link' error. COALESCE never overwrites an existing owner.",
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -1291,7 +1322,8 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -1318,7 +1350,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const NOTIFIER_USER_ID = 1;\nconst ownerId = $('Parse Followup Payload').item.json.owner_id;\nconst dmKey = [NOTIFIER_USER_ID, ownerId].sort((a, b) => a - b).join('-');\nreturn [{ json: { notifierUserId: NOTIFIER_USER_ID, ownerId, dmKey } }];"
+        "jsCode": "// DMs come from user 1 \u2014 unless that user is the recipient (Team Chat never counts your own messages as unread); then from the system sender.\nconst BOT_USER_ID = 9;\nconst ownerId = $('Parse Followup Payload').item.json.owner_id;\nconst NOTIFIER_USER_ID = ownerId === 1 ? BOT_USER_ID : 1;\nconst dmKey = [NOTIFIER_USER_ID, ownerId].sort((a, b) => a - b).join('-');\nreturn [{ json: { notifierUserId: NOTIFIER_USER_ID, ownerId, dmKey } }];"
       },
       "id": "pb-vb2mkcui",
       "name": "Build DM Key (Booking)",
@@ -1400,7 +1432,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const row = $('Parse Followup Payload').item.json;\nconst startIso = $('Parse Followup Payload').item.json.startAt;\nconst tz = row.timezone || 'America/New_York';\nconst display = DateTime.fromISO(startIso, { zone: 'utc' }).setZone(tz).toFormat(\"EEEE, MMM d 'at' h:mm a\");\nconst name = [row.first_name, row.last_name].filter(Boolean).join(' ') || 'A lead';\nreturn [{ json: { text: '\ud83d\udcc5 ' + name + ' just booked their inspection for ' + display + '.' } }];"
+        "jsCode": "const row = $('Parse Followup Payload').item.json;\nconst startIso = $('Parse Followup Payload').item.json.startAt;\nconst tz = row.timezone || $now.zoneName;\nconst display = DateTime.fromISO(startIso, { zone: 'utc' }).setZone(tz).toFormat(\"EEEE, MMM d 'at' h:mm a\");\nconst name = [row.first_name, row.last_name].filter(Boolean).join(' ') || 'A lead';\nreturn [{ json: { text: '\ud83d\udcc5 ' + name + ' just booked their inspection for ' + display + '.' } }];"
       },
       "id": "pb-fyzq2g3d",
       "name": "Prepare DM Text (Booking)",
@@ -1433,6 +1465,335 @@
           "name": "myRag"
         }
       }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ (() => { let m = (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Request failed.\"; m = String(m).replace(/\\s*\\[line \\d+\\]\\s*$/, \"\"); if (/(violates|duplicate key|syntax error|relation \"|column \"|value too long|ECONNREFUSED|timeout)/i.test(m)) m = \"We could not complete your booking. Please check your details and try again.\"; return { success: false, error: m }; })() }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "48f08d12-96d8-4d4f-9e67-d0d16417fff8",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT a.id AS activity_id, a.google_event_id, COALESCE((SELECT calendar_id FROM calendar_integrations WHERE owner_user_id = a.user_id AND is_active = true LIMIT 1), (SELECT calendar_id FROM calendar_integrations WHERE is_active = true ORDER BY id LIMIT 1)) AS calendar_id FROM activities a WHERE a.id = $1 AND a.google_event_id IS NOT NULL;",
+        "options": {
+          "queryReplacement": "={{ [ $('Look Up Booking For Cancel').item.json.activity_id ] }}"
+        }
+      },
+      "id": "59908714-1bd2-4ad2-b373-090c5613607d",
+      "name": "Get Event To Delete (Cancel)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $json.calendar_id }}",
+          "mode": "id"
+        },
+        "eventId": "={{ $json.google_event_id }}",
+        "options": {}
+      },
+      "id": "632350e0-a9e7-48d5-a7db-a1b95dbde6ca",
+      "name": "Delete Google Calendar Event (Cancel)",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "GHh5WnpZKV3DPZJd",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE activities SET google_event_id = NULL WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Get Event To Delete (Cancel)').item.json.activity_id ] }}"
+        }
+      },
+      "id": "dd9bed03-e0e0-4179-8b29-ac5b63678bd7",
+      "name": "Clear Event Id (Cancel)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT a.id AS activity_id, a.google_event_id, COALESCE((SELECT calendar_id FROM calendar_integrations WHERE owner_user_id = a.user_id AND is_active = true LIMIT 1), (SELECT calendar_id FROM calendar_integrations WHERE is_active = true ORDER BY id LIMIT 1)) AS calendar_id FROM activities a WHERE a.opportunity_id = $1 AND a.type = 'meeting' AND a.id <> $2 AND a.is_completed = true AND a.google_event_id IS NOT NULL;",
+        "options": {
+          "queryReplacement": "={{ [ $('Create Inspection Deal (Generic)').item.json.id, $json.id ] }}"
+        }
+      },
+      "id": "8b3d32d1-e29a-4d1d-ac26-90e30c751b5a",
+      "name": "Get Superseded Events (Generic)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $json.calendar_id }}",
+          "mode": "id"
+        },
+        "eventId": "={{ $json.google_event_id }}",
+        "options": {}
+      },
+      "id": "0463cc2e-5aaa-45cb-806c-8b872b3c854f",
+      "name": "Delete Old Google Event (Generic)",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "GHh5WnpZKV3DPZJd",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE activities SET google_event_id = NULL WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Get Superseded Events (Generic)').item.json.activity_id ] }}"
+        }
+      },
+      "id": "5d5564a0-acd8-4352-8cb0-e5f0bf39424e",
+      "name": "Clear Old Event Id (Generic)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT a.id AS activity_id, a.google_event_id, COALESCE((SELECT calendar_id FROM calendar_integrations WHERE owner_user_id = a.user_id AND is_active = true LIMIT 1), (SELECT calendar_id FROM calendar_integrations WHERE is_active = true ORDER BY id LIMIT 1)) AS calendar_id FROM activities a WHERE a.opportunity_id = $1 AND a.type = 'meeting' AND a.id <> $2 AND a.is_completed = true AND a.google_event_id IS NOT NULL;",
+        "options": {
+          "queryReplacement": "={{ [ $('Create Inspection Deal').item.json.id, $json.id ] }}"
+        }
+      },
+      "id": "abcf9d6d-18de-4188-b218-c4495715154b",
+      "name": "Get Superseded Events",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $json.calendar_id }}",
+          "mode": "id"
+        },
+        "eventId": "={{ $json.google_event_id }}",
+        "options": {}
+      },
+      "id": "4ad3fa61-d782-427a-9a9f-7f31843baa36",
+      "name": "Delete Old Google Event",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "GHh5WnpZKV3DPZJd",
+          "name": "n8n072826"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE activities SET google_event_id = NULL WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Get Superseded Events').item.json.activity_id ] }}"
+        }
+      },
+      "id": "91e25002-1384-41b5-85dc-9fe72cfa2fc2",
+      "name": "Clear Old Event Id",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: 'Too many requests. Please try again in a little while.', message: 'Too many requests. Please try again in a little while.' } }}",
+        "options": {
+          "responseCode": 429
+        }
+      },
+      "id": "7954a60e-8d72-4418-a574-367ee8e30471",
+      "name": "Respond - Rate Limited",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        960,
+        1700
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT rate_limit_ok($1, $2, $3::int, interval '1 hour') AND ($4 = '' OR rate_limit_ok($1 || ':email', $4, $5::int, interval '1 hour')) AS ok;",
+        "options": {
+          "queryReplacement": "={{ [ 'book', (($('Webhook: book-inspection-public').first().json.headers || {})['x-forwarded-for'] || '').toString().split(',')[0].trim().slice(0, 64) || 'unknown', 10, ((($('Webhook: book-inspection-public').first().json.body) || {}).email || '').toString().trim().toLowerCase().slice(0, 254), 3 ] }}"
+        }
+      },
+      "id": "3d545380-ef64-4235-8b42-c24c3ec1d58a",
+      "name": "Rate Limit Check: book-inspection-public",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        110,
+        708
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const ok = $input.first().json.ok === true;\nconst body = $('Webhook: book-inspection-public').first().json.body || {};\n// Honeypot fields a real browser never fills (the public forms hide them).\nconst bot = ((body.website || body.website_hp || '').toString().trim()) !== '';\nif (!ok || bot) throw new Error('Too many requests. Please try again in a little while.');\nreturn [{ json: $('Webhook: book-inspection-public').first().json }];"
+      },
+      "id": "e921c6ae-f6bf-46a0-9e0d-aba47964730f",
+      "name": "Rate Limit Gate: book-inspection-public",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        330,
+        708
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT rate_limit_ok($1, $2, $3::int, interval '1 hour') AND ($4 = '' OR rate_limit_ok($1 || ':email', $4, $5::int, interval '1 hour')) AS ok;",
+        "options": {
+          "queryReplacement": "={{ [ 'book', (($('Webhook: book-inspection-generic').first().json.headers || {})['x-forwarded-for'] || '').toString().split(',')[0].trim().slice(0, 64) || 'unknown', 10, ((($('Webhook: book-inspection-generic').first().json.body) || {}).email || '').toString().trim().toLowerCase().slice(0, 254), 3 ] }}"
+        }
+      },
+      "id": "9cd6183f-d9c1-42a5-993d-e0ed06dc3580",
+      "name": "Rate Limit Check: book-inspection-generic",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        110,
+        2660
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const ok = $input.first().json.ok === true;\nconst body = $('Webhook: book-inspection-generic').first().json.body || {};\n// Honeypot fields a real browser never fills (the public forms hide them).\nconst bot = ((body.website || body.website_hp || '').toString().trim()) !== '';\nif (!ok || bot) throw new Error('Too many requests. Please try again in a little while.');\nreturn [{ json: $('Webhook: book-inspection-generic').first().json }];"
+      },
+      "id": "bfa195bd-649c-4c90-9908-d6b7f517b648",
+      "name": "Rate Limit Gate: book-inspection-generic",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        330,
+        2660
+      ],
+      "onError": "continueErrorOutput"
     }
   ],
   "connections": {
@@ -1502,7 +1863,7 @@
       "main": [
         [
           {
-            "node": "Log Workflow Run: Webhook: book-inspection-public",
+            "node": "Rate Limit Check: book-inspection-public",
             "type": "main",
             "index": 0
           }
@@ -1517,6 +1878,13 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -1525,6 +1893,13 @@
         [
           {
             "node": "Has Contact & Owner?: Booking",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
             "type": "main",
             "index": 0
           }
@@ -1554,6 +1929,13 @@
         [
           {
             "node": "Slot Available?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
             "type": "main",
             "index": 0
           }
@@ -1602,6 +1984,13 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -1615,6 +2004,18 @@
           },
           {
             "node": "Prepare Followup Payload",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Superseded Events",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
             "type": "main",
             "index": 0
           }
@@ -1728,7 +2129,7 @@
       "main": [
         [
           {
-            "node": "Log Workflow Run: Webhook: book-inspection-generic",
+            "node": "Rate Limit Check: book-inspection-generic",
             "type": "main",
             "index": 0
           }
@@ -1740,6 +2141,13 @@
         [
           {
             "node": "Spam Guard: Generic",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
             "type": "main",
             "index": 0
           }
@@ -1794,6 +2202,13 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -1802,6 +2217,13 @@
         [
           {
             "node": "Slot Available? (Generic)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
             "type": "main",
             "index": 0
           }
@@ -1834,6 +2256,13 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -1847,6 +2276,18 @@
           },
           {
             "node": "Prepare Followup Payload (Generic)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Superseded Events (Generic)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
             "type": "main",
             "index": 0
           }
@@ -1922,6 +2363,11 @@
             "node": "Respond: Cancelled",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Get Event To Delete (Cancel)",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -1989,6 +2435,13 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -1997,6 +2450,13 @@
         [
           {
             "node": "Check Slot Still Free (Generic)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
             "type": "main",
             "index": 0
           }
@@ -2057,12 +2517,151 @@
           }
         ]
       ]
+    },
+    "Get Event To Delete (Cancel)": {
+      "main": [
+        [
+          {
+            "node": "Delete Google Calendar Event (Cancel)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Google Calendar Event (Cancel)": {
+      "main": [
+        [
+          {
+            "node": "Clear Event Id (Cancel)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Superseded Events (Generic)": {
+      "main": [
+        [
+          {
+            "node": "Delete Old Google Event (Generic)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Old Google Event (Generic)": {
+      "main": [
+        [
+          {
+            "node": "Clear Old Event Id (Generic)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Superseded Events": {
+      "main": [
+        [
+          {
+            "node": "Delete Old Google Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Old Google Event": {
+      "main": [
+        [
+          {
+            "node": "Clear Old Event Id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rate Limit Check: book-inspection-public": {
+      "main": [
+        [
+          {
+            "node": "Rate Limit Gate: book-inspection-public",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Rate Limited",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rate Limit Gate: book-inspection-public": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: Webhook: book-inspection-public",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Rate Limited",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rate Limit Check: book-inspection-generic": {
+      "main": [
+        [
+          {
+            "node": "Rate Limit Gate: book-inspection-generic",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Rate Limited",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rate Limit Gate: book-inspection-generic": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: Webhook: book-inspection-generic",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Rate Limited",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
     "executionOrder": "v1",
     "errorWorkflow": "U7jX0H3oE5a25GrV",
     "callerPolicy": "workflowsFromSameOwner",
-    "availableInMCP": false
+    "availableInMCP": false,
+    "timezone": "Asia/Almaty"
   }
 }

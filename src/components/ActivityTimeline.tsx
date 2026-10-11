@@ -52,6 +52,7 @@ const TAB_FILTERS: Record<ActivityTab, (category: TimelineItem['category']) => b
   Emails: (c) => c === 'email',
   Calls: (c) => c === 'call',
   Meetings: (c) => c === 'meeting',
+  Telegram: (c) => c === 'telegram',
   'System Audit': (c) => c === 'system_audit',
 };
 
@@ -76,7 +77,7 @@ const SUBTYPE_ICONS: Record<string, string> = {
 
 interface TimelineItem {
   key: string;
-  category: 'email' | 'call' | 'meeting' | 'system_audit';
+  category: 'email' | 'call' | 'meeting' | 'system_audit' | 'telegram';
   icon: string;
   iconColor: string;
   cardClass: string;
@@ -86,6 +87,7 @@ interface TimelineItem {
   body?: string;
   timestamp: string;
   unread?: boolean;
+  attachmentCount?: number; // emails with attachments show a paperclip on the card
   onClick?: () => void;
 }
 
@@ -103,6 +105,7 @@ function emailToItem(log: EmailLog, i: number, onClick: (log: EmailLog) => void)
     body: log.message,
     timestamp: log.sent_at || '',
     unread: isUnread,
+    attachmentCount: log.attachments?.length ?? 0,
     onClick: () => onClick(log),
   };
 }
@@ -112,6 +115,30 @@ function activityToItem(
   onClick: ((entry: ActivityLogEntry) => void) | undefined,
   onNavigate: (href: string) => void
 ): TimelineItem {
+  if (entry.category === 'telegram') {
+    // Telegram rows carry the message text in `detail` — show it as the card body
+    // (the Telegram Inbound / Send workflows write inbound, outbound, linked, opted_out).
+    const inbound = entry.subtype === 'inbound';
+    const optedOut = entry.subtype === 'opted_out';
+    const text = typeof entry.detail?.text === 'string' ? entry.detail.text : undefined;
+    // Same convention as received emails: sky blue until opened, light green after.
+    const isUnread = inbound && entry.detail?.is_read !== true;
+    const hasMessage = (inbound || entry.subtype === 'outbound') && !!text;
+    const icons: Record<string, string> = { inbound: 'fa-reply', outbound: 'fa-paper-plane', linked: 'fa-link', opted_out: 'fa-ban' };
+    return {
+      key: `activity-${entry.id}`,
+      category: 'telegram',
+      icon: (entry.subtype && icons[entry.subtype]) || 'fa-paper-plane',
+      iconColor: inbound ? 'text-blue-500' : optedOut ? 'text-rose-500' : 'text-slate-400',
+      cardClass: inbound ? (isUnread ? 'bg-sky-50 border-sky-200' : 'bg-green-50 border-green-200') : optedOut ? 'bg-rose-50 border-rose-200' : 'bg-slate-50 border-slate-100',
+      title: entry.summary,
+      subtitle: inbound ? 'From the contact' : entry.actor_name && entry.actor_name !== 'Telegram' ? `By ${toTitleCase(entry.actor_name)}` : undefined,
+      body: text,
+      timestamp: entry.created_at,
+      unread: isUnread,
+      onClick: hasMessage && onClick ? () => onClick(entry) : undefined,
+    };
+  }
   const category = entry.category === 'call' ? 'call' : entry.category === 'meeting' ? 'meeting' : 'system_audit';
   const icon =
     (entry.subtype && SUBTYPE_ICONS[entry.subtype]) ||
@@ -246,6 +273,11 @@ export default function ActivityTimeline({ emails = [], activity, isLoading, onE
                 <span className="flex items-start gap-1.5 text-slate-700 min-w-0">
                   <i className={`fa-solid ${item.icon} ${item.iconColor} mt-0.5`} />
                   <span className="line-clamp-2 break-words">{item.titleNode ?? item.title}</span>
+                  {!!item.attachmentCount && (
+                    <span className="shrink-0 text-slate-400 text-[10px] font-normal mt-0.5" title={`${item.attachmentCount} attachment${item.attachmentCount === 1 ? '' : 's'}`}>
+                      <i className="fa-solid fa-paperclip" /> {item.attachmentCount}
+                    </span>
+                  )}
                 </span>
                 <span className="text-slate-400 text-[10px] shrink-0">
                   {item.timestamp ? new Date(item.timestamp).toLocaleDateString() : ''}

@@ -43,6 +43,8 @@ interface Props {
   setAddElementOpen: (open: boolean) => void;
   addElementRef: RefObject<HTMLDivElement>;
   onAddElement: (type: AddElementType) => void;
+  // Email templates: no document-only elements (signature fields, page breaks, ...).
+  emailMode?: boolean;
 }
 
 export default function EditorToolbar({
@@ -56,6 +58,7 @@ export default function EditorToolbar({
   setAddElementOpen,
   addElementRef,
   onAddElement,
+  emailMode = false,
 }: Props) {
   const currentFontSize = editor.getAttributes('textStyle').fontSize || '';
 
@@ -76,17 +79,30 @@ export default function EditorToolbar({
     return editor.isActive({ textAlign: align });
   }
 
+  function setLink() {
+    const prev = (editor.getAttributes('link').href as string | undefined) || '';
+    const url = window.prompt('Link address (leave empty to remove the link):', prev || 'https://');
+    if (url === null) return;
+    const chain = editor.chain().focus().extendMarkRange('link');
+    if (!url.trim() || url.trim() === 'https://') chain.unsetLink().run();
+    else chain.setLink({ href: url.trim() }).run();
+  }
+
   if (layout === 'top') {
     const divider = <div className="w-px h-4 bg-slate-200 mx-1" />;
     return (
       <div className="flex flex-wrap items-center gap-0.5 border-b border-slate-200 bg-slate-50 px-1.5 py-1">
-        <div className="relative" ref={addElementRef}>
-          <ToolbarButton layout={layout} title="Add an element" onClick={() => setAddElementOpen(!addElementOpen)}>
-            <i className="fa-solid fa-plus" />
-          </ToolbarButton>
-          {addElementOpen && <AddElementPanel layout={layout} onSelect={onAddElement} onClose={() => setAddElementOpen(false)} />}
-        </div>
-        {divider}
+        {!emailMode && (
+          <>
+            <div className="relative" ref={addElementRef}>
+              <ToolbarButton layout={layout} title="Add an element" onClick={() => setAddElementOpen(!addElementOpen)}>
+                <i className="fa-solid fa-plus" />
+              </ToolbarButton>
+              {addElementOpen && <AddElementPanel layout={layout} onSelect={onAddElement} onClose={() => setAddElementOpen(false)} />}
+            </div>
+            {divider}
+          </>
+        )}
 
         <ToolbarButton layout={layout} title="Bold" active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()}>
           <i className="fa-solid fa-bold" />
@@ -213,6 +229,9 @@ export default function EditorToolbar({
         </ToolbarButton>
         {divider}
 
+        <ToolbarButton layout={layout} title="Link" active={editor.isActive('link')} onClick={setLink}>
+          <i className="fa-solid fa-link" />
+        </ToolbarButton>
         <ToolbarButton layout={layout} title="Insert image" onClick={() => fileInputRef.current?.click()}>
           <i className={`fa-solid ${uploading ? 'fa-spinner fa-spin' : 'fa-image'}`} />
         </ToolbarButton>

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Opportunity, Stage } from '../../types/opportunity';
+import { useCardDisplay } from '../../hooks/useCardDisplay';
 import { toTitleCase } from '../../utils/text';
 import { DEFAULT_USER_COLOR, hexToRgba } from '../../utils/userColor';
 
@@ -16,6 +17,7 @@ function currency(n?: number | null) {
 }
 
 export default function DealWeekView({ weekStart, deals, stagesById, onDealClick }: Props) {
+  const cd = useCardDisplay();
   const days = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(weekStart);
@@ -69,14 +71,16 @@ export default function DealWeekView({ weekStart, deals, stagesById, onDealClick
                           : undefined
                       }
                     >
-                      <div className="font-semibold truncate" style={ownerColor ? { color: ownerColor } : undefined}>
-                        {d.name}
+                      <div style={cd.zoomStyle}>
+                        <div className="font-semibold truncate" style={ownerColor ? { color: ownerColor } : undefined}>
+                          {d.name}
+                        </div>
+                        {cd.show_contact && d.contact_name && <div className="truncate text-[var(--theme-accent-hover)]">{toTitleCase(d.contact_name)}</div>}
+                        <div className="mt-1 inline-block px-1.5 py-0.5 rounded-full bg-white text-[var(--theme-accent-hover)] text-[9px] font-medium truncate">
+                          {stagesById.get(d.stage_id)?.name ?? '--'}
+                        </div>
+                        {cd.show_price && <div className="font-bold text-emerald-700">{currency(d.deal_value)}</div>}
                       </div>
-                      {d.contact_name && <div className="truncate text-[var(--theme-accent-hover)]">{toTitleCase(d.contact_name)}</div>}
-                      <div className="mt-1 inline-block px-1.5 py-0.5 rounded-full bg-white text-[var(--theme-accent-hover)] text-[9px] font-medium truncate">
-                        {stagesById.get(d.stage_id)?.name ?? '--'}
-                      </div>
-                      <div className="font-bold text-emerald-700">{currency(d.deal_value)}</div>
                     </div>
                   );
                 })}

@@ -5,6 +5,7 @@ import { toTitleCase } from '../../utils/text';
 import { DEFAULT_USER_COLOR, hexToRgba } from '../../utils/userColor';
 import { getTagColorClasses } from '../../utils/tagColors';
 import { useTasks } from '../../hooks/useTasks';
+import { useCardDisplay } from '../../hooks/useCardDisplay';
 import OwnerBadge from '../OwnerBadge';
 import DealCardMenu from './DealCardMenu';
 import WinScoreBadge from './WinScoreBadge';
@@ -61,6 +62,7 @@ export default function DealCard({
   isAdmin,
   highlighted,
 }: Props) {
+  const cd = useCardDisplay();
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: opportunity.id,
     data: { opportunity },
@@ -125,6 +127,7 @@ export default function DealCard({
         highlighted ? 'ring-2 ring-[var(--theme-accent)] ring-offset-2 shadow-lg' : ''
       }`}
     >
+      <div style={cd.zoomStyle}>
       {/* Deal Name */}
       <div className="flex items-center gap-1.5">
         <div className="text-xs font-bold text-slate-800 truncate flex-1">
@@ -175,15 +178,19 @@ export default function DealCard({
       </div>
 
       {/* Deal Value */}
-      <div className="text-[11px] font-semibold text-emerald-600 mt-0.5">
-        {currency(opportunity.deal_value)}
-      </div>
+      {cd.show_price && (
+        <div className="text-[11px] font-semibold text-emerald-600 mt-0.5">
+          {currency(opportunity.deal_value)}
+        </div>
+      )}
 
       {/* Contact - Company */}
-      <div className="text-[11px] text-slate-500 truncate mt-0.5">
-        {toTitleCase(opportunity.contact_name) || 'No Contact'}
-        {opportunity.company_name && ` - ${toTitleCase(opportunity.company_name)}`}
-      </div>
+      {cd.show_contact && (
+        <div className="text-[11px] text-slate-500 truncate mt-0.5">
+          {toTitleCase(opportunity.contact_name) || 'No Contact'}
+          {opportunity.company_name && ` - ${toTitleCase(opportunity.company_name)}`}
+        </div>
+      )}
 
       {/* Tags shown here are the linked contact's tags, not the deal's own —
           only the first 2 show, the rest collapse into a "+N" badge so a
@@ -242,6 +249,7 @@ export default function DealCard({
             </span>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

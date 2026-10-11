@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Opportunity } from '../../types/opportunity';
+import { useCardDisplay } from '../../hooks/useCardDisplay';
 import { toTitleCase } from '../../utils/text';
 import { DEFAULT_USER_COLOR, hexToRgba } from '../../utils/userColor';
 
@@ -16,6 +17,7 @@ function isSameDay(a: Date, b: Date) {
 }
 
 export default function DealMonthView({ monthDate, deals, onDealClick }: Props) {
+  const cd = useCardDisplay();
   const cells = useMemo(() => {
     const year = monthDate.getFullYear();
     const month = monthDate.getMonth();
@@ -86,11 +88,12 @@ export default function DealMonthView({ monthDate, deals, onDealClick }: Props) 
                           className={`text-[10px] px-1 py-0.5 rounded truncate cursor-pointer border-l-2 ${
                             ownerColor ? '' : 'bg-[var(--theme-accent-tint)] text-[var(--theme-accent-hover)]'
                           }`}
-                          style={
-                            ownerColor
+                          style={{
+                            ...cd.zoomStyle,
+                            ...(ownerColor
                               ? { backgroundColor: hexToRgba(ownerColor, 0.18), color: ownerColor, borderLeftColor: ownerColor }
-                              : { borderLeftColor: 'transparent' }
-                          }
+                              : { borderLeftColor: 'transparent' }),
+                          }}
                           title={d.name}
                         >
                           {d.name}

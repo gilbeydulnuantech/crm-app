@@ -1,5 +1,6 @@
 import { InvoiceLineItemInput } from '../../api/payments';
 import { useScopeTemplates } from '../../hooks/useScopeTemplates';
+import { useProducts } from '../../hooks/useProducts';
 
 const inputClass =
   'px-2 py-1 text-xs border border-slate-200 rounded focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]';
@@ -40,9 +41,36 @@ interface Props {
 // so both build the exact same shape/computation.
 export default function InvoiceLineItemsEditor({ items, onChange }: Props) {
   const { data: scopeTemplates = [] } = useScopeTemplates();
+  const { data: products = [] } = useProducts();
+  const activeProducts = products.filter((p) => p.is_active);
 
   function updateItem(i: number, patch: Partial<InvoiceLineItemInput>) {
-    onChange(items.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
+    onChange(
+      items.map((it, idx) => {
+        if (idx !== i) return it;
+        const next = { ...it, ...patch };
+        // A catalog line keeps its tax in step with qty/price/discount edits
+        // (unless the rep is typing the tax amount themselves).
+        if (next.tax_rate != null && !('tax' in patch)) {
+          next.tax = Math.round(Math.max(0, next.qty * next.unit_price - (next.discount || 0)) * next.tax_rate) / 100;
+        }
+        return next;
+      })
+    );
+  }
+  function applyProduct(i: number, productId: string) {
+    if (!productId) return;
+    const prod = activeProducts.find((p) => String(p.id) === productId);
+    if (!prod) return;
+    const qty = items[i].qty || 1;
+    updateItem(i, {
+      product: prod.name,
+      qty,
+      unit_price: prod.unit_price,
+      discount: 0,
+      tax_rate: prod.tax_rate || undefined,
+      tax: prod.tax_rate ? Math.round(qty * prod.unit_price * prod.tax_rate) / 100 : 0,
+    });
   }
   function addItem() {
     onChange([...items, { product: '', qty: 1, unit_price: 0, discount: 0, tax: 0 }]);
@@ -84,6 +112,20 @@ export default function InvoiceLineItemsEditor({ items, onChange }: Props) {
                   placeholder="Product or service"
                   className={`${inputClass} w-full`}
                 />
+                {activeProducts.length > 0 && (
+                  <select
+                    value=""
+                    onChange={(e) => applyProduct(i, e.target.value)}
+                    className="mt-1 w-full text-[10px] font-medium border border-slate-200 rounded px-1.5 py-0.5 text-slate-400 bg-white hover:border-slate-300 focus:outline-none"
+                  >
+                    <option value="">Insert from Products...</option>
+                    {activeProducts.map((pr) => (
+                      <option key={pr.id} value={pr.id}>
+                        {pr.name} — ${pr.unit_price.toFixed(2)}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 {scopeTemplates.length > 0 && (
                   <select
                     value=""
@@ -127,7 +169,7 @@ export default function InvoiceLineItemsEditor({ items, onChange }: Props) {
                 <input
                   type="number"
                   value={it.tax || 0}
-                  onChange={(e) => updateItem(i, { tax: Number(e.target.value) })}
+                  onChange={(e) => updateItem(i, { tax: Number(e.target.value), tax_rate: undefined })}
                   className={`${inputClass} w-full`}
                 />
               </td>

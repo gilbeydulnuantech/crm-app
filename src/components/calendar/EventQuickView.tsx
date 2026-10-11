@@ -2,7 +2,9 @@ import { ReactNode, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CalendarEvent } from '../../types/event';
 import { useDeleteEvent } from '../../hooks/useEvents';
+import { formatClockRange } from '../../utils/timeFormat';
 import { toTitleCase } from '../../utils/text';
+import BillingPanel from './BillingPanel';
 import OwnerBadge from '../OwnerBadge';
 import ConfirmDialog from '../ConfirmDialog';
 
@@ -35,10 +37,7 @@ export default function EventQuickView({ event, onClose, onViewFullDetails, onEd
   const canEdit = isAdmin || event.user_id === currentUserId;
 
   const dateLabel = new Date(event.due_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: timezone });
-  const startLabel = new Date(event.due_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZone: timezone });
-  const endLabel = event.end_at
-    ? new Date(event.end_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZone: timezone })
-    : null;
+  const timeRange = formatClockRange(event.due_at, event.end_at, timezone);
 
   function handleDelete() {
     setDeleteConfirmOpen(true);
@@ -91,8 +90,7 @@ export default function EventQuickView({ event, onClose, onViewFullDetails, onEd
 
         <div className="space-y-2.5 text-sm text-slate-700">
           <Row icon="fa-calendar">
-            {dateLabel} · {startLabel}
-            {endLabel ? ` – ${endLabel}` : ''}
+            {dateLabel} · {timeRange}
           </Row>
           {event.contact_name && (
             <Row icon="fa-user">
@@ -129,6 +127,10 @@ export default function EventQuickView({ event, onClose, onViewFullDetails, onEd
             <Row icon="fa-truck">{event.resources.map((r) => r.name).join(', ')}</Row>
           )}
           {event.location && <Row icon="fa-location-dot">{event.location}</Row>}
+        </div>
+
+        <div className="mt-3">
+          <BillingPanel event={event} isAdmin={isAdmin} currentUserId={currentUserId} />
         </div>
 
         <button

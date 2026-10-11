@@ -22,6 +22,10 @@ interface Props {
   onToggleAllResources: () => void;
   onSelectAllUsers: () => void;
   onSelectOnlyMe: () => void;
+  // Rendered before "All Events" (the search box).
+  startExtra?: ReactNode;
+  // Rendered right after the Resources tab (the Events/Pipeline toggle).
+  afterResources?: ReactNode;
   endExtra?: ReactNode;
 }
 
@@ -93,7 +97,7 @@ function AllEventsTab({
                   onChange={(hex) => updateUserColor.mutate({ userId: u.id, color: hex })}
                 />
               }
-              label={`${toTitleCase(u.name)}${u.id === currentUserId ? ' (Me)' : ''}`}
+              label={`${toTitleCase(u.name)}${u.location ? ` · ${u.location}` : ''}${u.id === currentUserId ? ' (Me)' : ''}`}
               checked={checkedUserIds.has(u.id)}
               onToggle={() => onToggleUser(u.id)}
             />
@@ -188,6 +192,8 @@ export default function CalendarTabs({
   onToggleAllResources,
   onSelectAllUsers,
   onSelectOnlyMe,
+  startExtra,
+  afterResources,
   endExtra,
 }: Props) {
   const allChecked = users.length > 0 && users.every((u) => checkedUserIds.has(u.id));
@@ -195,6 +201,7 @@ export default function CalendarTabs({
 
   return (
     <div className="px-4 pt-3 pb-3 flex items-center gap-2 shrink-0 border-b border-slate-200">
+      {startExtra}
       <AllEventsTab
         active={allChecked}
         onSelectAll={onSelectAllUsers}
@@ -219,6 +226,7 @@ export default function CalendarTabs({
         onToggleResource={onToggleResource}
         onToggleAllResources={onToggleAllResources}
       />
+      {afterResources}
       {endExtra && <div className="ml-auto flex items-center gap-2 shrink-0">{endExtra}</div>}
     </div>
   );

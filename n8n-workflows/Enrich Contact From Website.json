@@ -296,7 +296,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nconst body = $('Webhook: enrich-contact').first().json.body || {};\nconst contactId = parseInt(body.contact_id, 10);\nif (!Number.isInteger(contactId)) throw new Error('contact_id is required.');\nreturn [{ json: { contactId } }];"
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nconst body = $('Webhook: enrich-contact').first().json.body || {};\nconst raw = body.contact_id;\nconst contactId = (typeof raw === 'number' || (typeof raw === 'string' && /^\\d+$/.test(raw.trim()))) ? Number(raw) : NaN;\nif (!Number.isInteger(contactId) || contactId <= 0) throw new Error('\"contact_id\" is required.');\nreturn [{ json: { contactId } }];"
       },
       "id": "ecw-validate",
       "name": "Validate Payload",
@@ -311,9 +311,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT c.id AS contact_id, c.first_name, c.last_name, c.email, c.phone, co.id AS company_id, co.name AS company_name, co.website FROM contacts c JOIN companies co ON co.id = c.account_id WHERE c.id = $1 LIMIT 1;",
+        "query": "SELECT c.id AS contact_id, c.first_name, c.last_name, c.email, c.phone, co.id AS company_id, co.name AS company_name, co.website FROM contacts c LEFT JOIN companies co ON co.id = c.account_id WHERE c.id = $1 AND c.is_archived = false AND ($2 = 'admin' OR c.owner_id = $3) LIMIT 1;",
         "options": {
-          "queryReplacement": "={{ [ $json.contactId ] }}"
+          "queryReplacement": "={{ [ $json.contactId, $('Validate Session').first().json.role, $('Validate Session').first().json.id ] }}"
         }
       },
       "id": "ecw-lookup-contact",
@@ -330,11 +330,12 @@
           "id": "OJlr1rmibAS2w3rj",
           "name": "myRag"
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const row = $input.first().json;\nif (!row || !row.contact_id) throw new Error('Contact not found, or has no linked company.');\nif (!row.website) throw new Error('This company has no website on file \u2014 nothing to enrich from.');\nreturn [{ json: row }];"
+        "jsCode": "const row = $input.first().json;\nif (!row || !row.contact_id) throw new Error('Contact not found, or you do not have access to it.');\nif (!row.company_id) throw new Error('This contact is not linked to a company, so there is no website to enrich from.');\nif (!row.website) throw new Error('This company has no website on file, nothing to enrich from.');\nreturn [{ json: row }];"
       },
       "id": "ecw-require-website",
       "name": "Require Website",
@@ -407,7 +408,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const ctx = $('Require Apify Key').first().json;\nconst result = $input.first().json || {};\nconst emails = Array.isArray(result.emails) ? result.emails : [];\nconst phones = ([]).concat(result.phones || [], result.phonesUncertain || []);\n\nlet domain = '';\ntry { domain = new URL(ctx.website).hostname.replace(/^www\\./, ''); } catch {}\n\nconst GENERIC_LOCALPARTS = new Set(['info', 'support', 'contact', 'sales', 'hello', 'admin', 'office', 'help', 'team', 'service', 'noreply', 'no-reply', 'privacy', 'legal', 'careers', 'jobs']);\n\nfunction titleCase(s) {\n  return s.replace(/[-_]/g, ' ').split(' ').filter(Boolean).map((w) => w[0].toUpperCase() + w.slice(1).toLowerCase()).join(' ');\n}\n\n// Prefer an email on the company's own domain whose local part looks like a\n// real person (firstname.lastname / firstname_lastname), over generic\n// mailbox names \u2014 those are far more useful as an actual point of contact.\nconst sameDomainEmails = emails.filter((e) => e.toLowerCase().endsWith('@' + domain));\nconst candidates = (sameDomainEmails.length ? sameDomainEmails : emails);\n\nlet bestEmail = null;\nlet guessedFirstName = null;\nlet guessedLastName = null;\nfor (const e of candidates) {\n  const localPart = e.split('@')[0].toLowerCase();\n  if (GENERIC_LOCALPARTS.has(localPart)) continue;\n  const m = localPart.match(/^([a-z]+)[._-]([a-z]+)$/);\n  bestEmail = e;\n  if (m) {\n    guessedFirstName = titleCase(m[1]);\n    guessedLastName = titleCase(m[2]);\n  }\n  break;\n}\nif (!bestEmail && candidates.length) bestEmail = candidates[0];\n\nconst bestPhone = phones.length ? phones[0] : null;\n\nreturn [{\n  json: {\n    contactId: ctx.contact_id,\n    companyName: ctx.company_name,\n    currentFirstName: ctx.first_name,\n    currentEmail: ctx.email,\n    currentPhone: ctx.phone,\n    foundEmail: bestEmail,\n    foundPhone: bestPhone,\n    guessedFirstName,\n    guessedLastName,\n  },\n}];"
+        "jsCode": "const ctx = $('Require Apify Key').first().json;\nconst result = $input.first().json || {};\nconst emails = Array.isArray(result.emails) ? result.emails : [];\nconst phones = ([]).concat(result.phones || [], result.phonesUncertain || []);\n\nlet domain = '';\ntry { domain = new URL(ctx.website).hostname.replace(/^www\\./, ''); } catch {}\n\nconst GENERIC_LOCALPARTS = new Set(['info', 'support', 'contact', 'sales', 'hello', 'admin', 'office', 'help', 'team', 'service', 'noreply', 'no-reply', 'privacy', 'legal', 'careers', 'jobs']);\n\nfunction titleCase(s) {\n  return s.replace(/[-_]/g, ' ').split(' ').filter(Boolean).map((w) => w[0].toUpperCase() + w.slice(1).toLowerCase()).join(' ');\n}\n\n// Prefer an email on the company's own domain whose local part looks like a\n// real person (firstname.lastname / firstname_lastname), over generic\n// mailbox names \u2014 those are far more useful as an actual point of contact.\nconst sameDomainEmails = emails.filter((e) => e.toLowerCase().endsWith('@' + domain));\n// Only emails on the business's own domain are trusted. Falling back to any email on the scraped pages put another\n// company's address on the contact (the scraper also follows links off-site), and automations then email that company.\nconst candidates = sameDomainEmails;\n\nlet bestEmail = null;\nlet guessedFirstName = null;\nlet guessedLastName = null;\nfor (const e of candidates) {\n  const localPart = e.split('@')[0].toLowerCase();\n  if (GENERIC_LOCALPARTS.has(localPart)) continue;\n  const m = localPart.match(/^([a-z]+)[._-]([a-z]+)$/);\n  bestEmail = e;\n  if (m) {\n    guessedFirstName = titleCase(m[1]);\n    guessedLastName = titleCase(m[2]);\n  }\n  break;\n}\nif (!bestEmail && candidates.length) bestEmail = candidates[0];\n\nconst bestPhone = phones.length ? phones[0] : null;\n\nreturn [{\n  json: {\n    contactId: ctx.contact_id,\n    companyName: ctx.company_name,\n    currentFirstName: ctx.first_name,\n    currentEmail: ctx.email,\n    currentPhone: ctx.phone,\n    foundEmail: bestEmail,\n    foundPhone: bestPhone,\n    guessedFirstName,\n    guessedLastName,\n  },\n}];"
       },
       "id": "ecw-pick-best",
       "name": "Pick Best Contact Info",
@@ -422,9 +423,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE contacts\nSET\n  email = COALESCE($1, email),\n  phone = COALESCE($2, phone),\n  first_name = COALESCE($3, first_name),\n  last_name = COALESCE($4, last_name)\nWHERE id = $5\nRETURNING id, first_name, last_name, email, phone;",
+        "query": "UPDATE contacts c SET\n  email = COALESCE(NULLIF(c.email, ''), $1),\n  phone = COALESCE(NULLIF(c.phone, ''), $2),\n  first_name = CASE WHEN $3::text IS NOT NULL AND lower(c.first_name) = lower($6::text) THEN $3 ELSE c.first_name END,\n  last_name = CASE WHEN $4::text IS NOT NULL AND lower(c.first_name) = lower($6::text) THEN $4 ELSE c.last_name END,\n  updated_at = now()\nWHERE c.id = $5\nRETURNING c.id, c.first_name, c.last_name, c.email, c.phone;",
         "options": {
-          "queryReplacement": "={{ [ $json.foundEmail, $json.foundPhone, $json.guessedFirstName, $json.guessedLastName, $json.contactId ] }}"
+          "queryReplacement": "={{ [ $json.foundEmail, $json.foundPhone, $json.guessedFirstName, $json.guessedLastName, $json.contactId, $json.companyName ] }}"
         }
       },
       "id": "ecw-update-contact",
@@ -445,7 +446,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const updated = $input.first().json;\nconst found = $('Pick Best Contact Info').first().json;\nreturn [{\n  json: {\n    success: true,\n    found_email: !!found.foundEmail,\n    found_phone: !!found.foundPhone,\n    renamed: found.currentFirstName !== updated.first_name,\n    contact: updated,\n  },\n}];"
+        "jsCode": "const updated = $input.first().json;\nconst found = $('Pick Best Contact Info').first().json;\nreturn [{\n  json: {\n    success: true,\n    // true only when the scraped value was actually saved (existing email/phone are never overwritten)\n    found_email: !!found.foundEmail && !found.currentEmail && updated.email === found.foundEmail,\n    found_phone: !!found.foundPhone && !found.currentPhone && updated.phone === found.foundPhone,\n    renamed: found.currentFirstName !== updated.first_name,\n    contact: updated,\n  },\n}];"
       },
       "id": "ecw-build-response",
       "name": "Build Response",
@@ -473,7 +474,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { \"success\": false, \"error\": (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Enrichment failed.\" } }}",
+        "responseBody": "={{ (() => { let m = (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Request failed.\"; m = String(m).replace(/\\s*\\[line \\d+\\]\\s*$/, \"\"); if (/(violates|duplicate key|syntax error|relation \"|column \"|value too long|ECONNREFUSED|timeout)/i.test(m)) m = \"The request could not be completed. Please try again.\"; return { success: false, error: m }; })() }}",
         "options": {
           "responseCode": 400
         }
@@ -584,35 +585,15 @@
             "typeValidation": "strict",
             "version": 2
           },
-          "combinator": "or",
+          "combinator": "and",
           "conditions": [
             {
-              "id": "found-email",
-              "leftValue": "={{ $('Pick Best Contact Info').item.json.foundEmail }}",
+              "id": "found-new",
+              "leftValue": "={{ !!(($('Pick Best Contact Info').item.json.foundEmail && !$('Pick Best Contact Info').item.json.currentEmail) || ($('Pick Best Contact Info').item.json.foundPhone && !$('Pick Best Contact Info').item.json.currentPhone)) }}",
               "rightValue": "",
               "operator": {
-                "type": "string",
-                "operation": "notEmpty",
-                "singleValue": true
-              }
-            },
-            {
-              "id": "found-phone",
-              "leftValue": "={{ $('Pick Best Contact Info').item.json.foundPhone }}",
-              "rightValue": "",
-              "operator": {
-                "type": "string",
-                "operation": "notEmpty",
-                "singleValue": true
-              }
-            },
-            {
-              "id": "found-name",
-              "leftValue": "={{ $('Pick Best Contact Info').item.json.guessedFirstName }}",
-              "rightValue": "",
-              "operator": {
-                "type": "string",
-                "operation": "notEmpty",
+                "type": "boolean",
+                "operation": "true",
                 "singleValue": true
               }
             }
@@ -678,6 +659,7 @@
   "settings": {
     "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner",
-    "availableInMCP": false
+    "availableInMCP": false,
+    "timezone": "Asia/Almaty"
   }
 }

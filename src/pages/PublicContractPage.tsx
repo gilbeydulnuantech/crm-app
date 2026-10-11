@@ -8,6 +8,7 @@ import ChatWidget from '../components/ChatWidget';
 import FillableFieldsRenderer, { FieldValue, FillableFieldsRendererHandle } from '../components/richtext/FillableFieldsRenderer';
 import { fillMergeFields } from '../utils/mergeFields';
 import { toTitleCase } from '../utils/text';
+import { DocBrandHeader, DocBrandFooter } from '../components/DocumentBranding';
 
 function money(n: number) {
   return `$${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -67,8 +68,8 @@ export default function PublicContractPage() {
     onError: (err) => setError(err instanceof Error ? err.message : 'Failed to sign.'),
   });
 
-  const resolvedContentHtml = data
-    ? fillMergeFields(data.content_html, {
+  const contractMergeValues = data
+    ? {
         client_name: `${data.first_name || ''} ${data.last_name || ''}`.trim(),
         first_name: data.first_name,
         last_name: data.last_name,
@@ -77,8 +78,12 @@ export default function PublicContractPage() {
         owner_email: data.owner_email,
         owner_phone: data.owner_phone,
         company_name: data.company_name,
-      })
-    : '';
+        deal_name: data.opportunity_name,
+        deal_value: data.total_amount,
+        down_payment_amount: data.down_payment_amount,
+      }
+    : {};
+  const resolvedContentHtml = data ? fillMergeFields(data.content_html, contractMergeValues) : '';
 
   // No standalone signature pad — signing happens through a `signature`-type
   // fillable field the rep drops into the document itself (Add Element ->
@@ -136,9 +141,11 @@ export default function PublicContractPage() {
             ownerName={data.owner_name}
             signatureName={data.signature_name}
             signedAt={data.signed_at}
+            mergeValues={contractMergeValues}
           />
         ) : (
           <>
+            <DocBrandHeader />
             <div
               ref={contentRef}
               className="rte-content mt-5 bg-slate-50 border border-slate-100 rounded-lg p-4"
@@ -154,6 +161,7 @@ export default function PublicContractPage() {
               viewerSignerRole="client"
               otherPartyName={data.owner_name ? toTitleCase(data.owner_name) : undefined}
             />
+            <DocBrandFooter />
             <p className="text-right text-lg font-bold text-slate-800 mt-3">Total: {money(data.total_amount)}</p>
 
             <div className="mt-8 pt-6 border-t border-slate-100">

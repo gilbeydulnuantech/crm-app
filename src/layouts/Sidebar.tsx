@@ -20,6 +20,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/reports', label: 'Reports', icon: 'fa-solid fa-chart-line' },
   { to: '/team-chat', label: 'Team Chat', icon: 'fa-solid fa-comments' },
   { to: '/tickets', label: 'Tickets', icon: 'fa-solid fa-headset' },
+  { to: '/products', label: 'Products', icon: 'fa-solid fa-box-open' },
 ];
 
 const DOCUMENTS_SUB_ITEMS = [

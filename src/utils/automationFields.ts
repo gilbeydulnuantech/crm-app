@@ -5,7 +5,6 @@ import {
   COMPANY_HEALTH_STATUSES,
   COMPANY_TIERS,
 } from '../types/company';
-import { EVENT_TYPES } from '../types/event';
 
 // 'ticket' is deliberately excluded everywhere below — see the comment on
 // TriggerType in src/api/automations.ts for why (the Engine can evaluate
@@ -31,7 +30,16 @@ export interface FieldDef {
   label: string;
   kind: FieldKind;
   options?: readonly string[];
+  // Display names for options whose stored value is a key (calendar event types).
+  optionLabels?: Record<string, string>;
   group?: string;
+}
+
+// Event types are edited by the customer (Settings > Event types), so the calendar "Type" condition reads them
+// from here. The automation builder keeps this filled from the event types list.
+let eventTypeList: { key: string; name: string }[] = [];
+export function setEventTypeOptions(list: { key: string; name: string }[]) {
+  eventTypeList = list;
 }
 
 // What a trigger/condition can READ. Mirrors getFieldValue() in
@@ -50,6 +58,11 @@ export const TRIGGER_FIELDS: Record<CreatableTriggerType, FieldDef[]> = {
     { key: 'days_since_created', label: 'Lead Age (days)', kind: 'number' },
     { key: 'lead_source', label: 'Lead Source', kind: 'text' },
     { key: 'do_not_contact', label: 'Do Not Contact', kind: 'boolean' },
+    { key: 'dnc_email', label: 'Unsubscribed From Email', kind: 'boolean' },
+    // Birthday rules: true all day on the contact's birthday (company time). The rule repeats every year. "Current Hour"
+    // lets a rule wait until a sensible time of day instead of sending at midnight.
+    { key: 'birthday_today', label: 'Birthday Today', kind: 'boolean' },
+    { key: 'local_hour', label: 'Current Hour (0-23)', kind: 'number' },
     { key: 'email_replied', label: 'Email Replied', kind: 'boolean', group: 'Email' },
     { key: 'email_opened', label: 'Email Opened', kind: 'boolean', group: 'Email' },
   ],
@@ -68,7 +81,17 @@ export const TRIGGER_FIELDS: Record<CreatableTriggerType, FieldDef[]> = {
     { key: 'overdue', label: 'Overdue', kind: 'boolean' },
   ],
   calendar: [
-    { key: 'type', label: 'Type', kind: 'select', options: EVENT_TYPES },
+    {
+      key: 'type',
+      label: 'Type',
+      kind: 'select',
+      get options() {
+        return eventTypeList.map((t) => t.key);
+      },
+      get optionLabels() {
+        return Object.fromEntries(eventTypeList.map((t) => [t.key, t.name]));
+      },
+    },
     { key: 'due_at', label: 'Due Date', kind: 'date' },
     { key: 'is_completed', label: 'Complete', kind: 'boolean' },
     // Set true only when a new booking supersedes a prior open meeting on
@@ -76,6 +99,14 @@ export const TRIGGER_FIELDS: Record<CreatableTriggerType, FieldDef[]> = {
     // (Generic)) — lets a rule fire specifically on a rescheduled
     // appointment, distinct from the original booking.
     { key: 'is_reschedule', label: 'Is Reschedule', kind: 'boolean' },
+    // Confirmation-email rules: only brand-new events (age in minutes), only upcoming ones, and only when the rep ticked "Send confirmation to contact".
+    { key: 'minutes_since_created', label: 'Event Age (minutes)', kind: 'number' },
+    { key: 'is_upcoming', label: 'Is Upcoming', kind: 'boolean' },
+    { key: 'notify_contact', label: 'Confirmation Requested', kind: 'boolean' },
+    // Set from the card's ⋮ menu: Cancelled or No-show. Lets a rule send a rebooking message.
+    { key: 'outcome', label: 'Outcome', kind: 'select', options: ['cancelled', 'no_show'], optionLabels: { cancelled: 'Cancelled', no_show: 'No-show' } },
+    { key: 'do_not_contact', label: 'Contact: Do Not Contact', kind: 'boolean' },
+    { key: 'dnc_email', label: 'Contact: Unsubscribed From Email', kind: 'boolean' },
   ],
   pipeline: [
     { key: 'pipeline_id', label: 'Pipeline', kind: 'select' },
@@ -130,7 +161,7 @@ export const OPERATORS_BY_KIND: Record<FieldKind, { value: ConditionOperator; la
 // -> Is Team Notification? -> Is Update Field? -> Is Send Email? -> Log
 // Unsupported). Deliberately narrower than the full ActionType union so
 // the creation form can never build a rule that silently does nothing.
-export const SUPPORTED_ACTION_TYPES = ['add_tag', 'remove_tag', 'send_email', 'send_team_notification', 'update_field', 'wait', 'mark_closed_won', 'mark_closed_lost', 'create_task', 'send_dm', 'send_sms'] as const satisfies readonly ActionType[];
+export const SUPPORTED_ACTION_TYPES = ['add_tag', 'remove_tag', 'send_email', 'send_team_notification', 'update_field', 'wait', 'mark_closed_won', 'mark_closed_lost', 'create_task', 'send_dm', 'send_sms', 'send_telegram', 'ai_triage'] as const satisfies readonly ActionType[];
 
 export type SupportedActionType = (typeof SUPPORTED_ACTION_TYPES)[number];
 
@@ -146,6 +177,8 @@ export const ACTION_TYPE_META: Record<SupportedActionType, { label: string; icon
   create_task: { label: 'Create task', icon: 'fa-list-check' },
   send_dm: { label: 'Message owner (DM)', icon: 'fa-comment' },
   send_sms: { label: 'Send SMS', icon: 'fa-comment-sms' },
+  send_telegram: { label: 'Send Telegram', icon: 'fa-paper-plane' },
+  ai_triage: { label: 'AI triage (email to ticket)', icon: 'fa-wand-magic-sparkles' },
 };
 
 // mark_closed_won/lost only make sense for a deal — the Engine's
@@ -271,6 +304,8 @@ export function actionSubtitle(a: ActionStepDraft): string {
     case 'send_dm':
       return a.actionConfig.message ? String(a.actionConfig.message) : 'No message set';
     case 'send_sms':
+      return a.actionConfig.message ? String(a.actionConfig.message) : 'No message set';
+    case 'send_telegram':
       return a.actionConfig.message ? String(a.actionConfig.message) : 'No message set';
     default:
       return '';

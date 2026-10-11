@@ -105,6 +105,11 @@ export default function CreateInvoicePage() {
     }
     if (!isBlank(items) && !itemsAutoFilled) return;
     const proposal = dealProposals[0];
+    if (proposal.line_items && proposal.line_items.length > 0) {
+      setItems(proposal.line_items.map((it) => ({ ...it })));
+      setItemsAutoFilled(true);
+      return;
+    }
     setItems([{ product: proposal.title, qty: 1, unit_price: Number(proposal.total_amount) || 0, discount: 0, tax: 0 }]);
     setItemsAutoFilled(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps

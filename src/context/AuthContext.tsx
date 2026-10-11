@@ -20,8 +20,9 @@ interface AuthContextValue {
   user: CurrentUser | null;
   isAdmin: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  signUp: (name: string, email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
+  // Resolves to a message when the account was created but still needs admin approval (no session is started).
+  signUp: (name: string, email: string, password: string) => Promise<string | void>;
   logout: () => void;
   // Merges a partial update (e.g. freshly-saved theme colors) into the
   // signed-in user without a round trip — the backend is already the
@@ -65,8 +66,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setIsLoading(false));
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const data = await apiLogin(email, password);
+  // apiFetch fires this when the backend rejects the session (it expires after
+  // 24h) — without it the page keeps showing a signed-in user whose token is gone.
+  useEffect(() => {
+    const onExpired = () => setUser(null);
+    window.addEventListener('auth:expired', onExpired);
+    return () => window.removeEventListener('auth:expired', onExpired);
+  }, []);
+
+  const login = useCallback(async (email: string, password: string, rememberMe = false) => {
+    const data = await apiLogin(email, password, rememberMe);
     if (!data.token) {
       throw new Error(data.message || 'Invalid email or password.');
     }
@@ -79,6 +88,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = useCallback(async (name: string, email: string, password: string) => {
     const data = await apiSignUp(name, email, password);
+
+    if (data.success && data.pending) {
+      return data.message || 'Account created. An administrator needs to approve it before you can sign in.';
+    }
 
     if (data.token) {
       setAuthToken(data.token);

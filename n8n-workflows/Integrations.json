@@ -438,7 +438,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Save Integration').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst provider = (body.provider || '').toString().trim().toLowerCase();\nif (!['vapi', 'retell', 'apify'].includes(provider)) throw new Error('\"provider\" must be \"vapi\", \"retell\", or \"apify\".');\n\nconst label = (body.label || '').toString().trim() || null;\nconst apiKey = (body.api_key || '').toString().trim() || null;\nconst config = body.config && typeof body.config === 'object' ? JSON.stringify(body.config) : '{}';\nconst requesterId = requester.id;\n\nreturn [{ json: { provider, label, apiKey, config, requesterId } }];"
+        "jsCode": "const requester = $input.first().json;\nconst body = $('Webhook - Save Integration').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Admin access required.');\n\nconst provider = (body.provider || '').toString().trim().toLowerCase();\nif (!['vapi', 'retell', 'apify', 'telegram'].includes(provider)) throw new Error('\"provider\" must be \"vapi\", \"retell\", \"apify\", or \"telegram\".');\n\nconst label = (body.label || '').toString().trim() || null;\nconst apiKey = (body.api_key || '').toString().trim() || null;\nconst config = body.config && typeof body.config === 'object' ? JSON.stringify(body.config) : '{}';\nconst requesterId = requester.id;\n\nreturn [{ json: { provider, label, apiKey, config, requesterId } }];"
       },
       "id": "ia1b0010-1010-4a5a-9b1a-intgrt0000010",
       "name": "Validate Admin & Payload (Save)",
@@ -784,6 +784,7 @@
     "availableInMCP": false,
     "timeSavedMode": "fixed",
     "errorWorkflow": "U7jX0H3oE5a25GrV",
-    "callerPolicy": "workflowsFromSameOwner"
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "Asia/Almaty"
   }
 }

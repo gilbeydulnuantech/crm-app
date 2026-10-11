@@ -160,7 +160,8 @@
   },
   "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "timezone": "Asia/Almaty"
   },
   "id": "resourcesWorkflow001",
   "tags": [],

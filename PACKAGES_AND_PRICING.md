@@ -191,9 +191,11 @@ pricing pages before quoting any number to a prospect.
 
 - Merge Contacts is active in n8n as of 2026-10-04 (the older reference doc
   said inactive). Task Reminders was also listed as inactive; not verified.
-- No general SMS workflow was confirmed in the workflow files (only the
-  Retell/Vapi voice paths). This blocks missed-call text-back, rebook
-  nudges and speed-to-lead SMS.
+- SMS exists: the Automation Engine has a `send_sms` action that sends
+  through Twilio (credentials in `integration_secrets`) and respects the
+  contact's `dnc_sms` flag; contacts-email-reply can also reply by SMS. What
+  is still missing is a missed-call text-back flow, a dedicated rebook
+  nudge, and inbound SMS handling. WhatsApp and Telegram are not built yet.
 - No automated review-request workflow was confirmed.
 - Document Triage runs on a small local model (hermes3:3b). Extraction of
   parties and amounts needs human review on anything important until a

@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
-import { CalendarEvent, EVENT_TYPE_META } from '../../types/event';
+import { CalendarEvent } from '../../types/event';
+import { typeCardStyle, useEventTypeLookup } from '../../utils/eventTypes';
+import { useCardDisplay } from '../../hooks/useCardDisplay';
 import { matchedResourceColor } from '../../utils/calendarHighlight';
 
 interface Props {
@@ -27,6 +29,8 @@ export default function MonthView({
   onDayClick,
   highlightEventId,
 }: Props) {
+  const typeOf = useEventTypeLookup();
+  const cd = useCardDisplay();
   const cells = useMemo(() => {
     const year = monthDate.getFullYear();
     const month = monthDate.getMonth();
@@ -107,10 +111,10 @@ export default function MonthView({
                               ev.stopPropagation();
                               onEventClick(e);
                             }}
-                            className={`text-[10px] px-1 py-0.5 rounded truncate ${EVENT_TYPE_META[e.type]?.color ?? 'bg-slate-100 text-slate-700'} ${
+                            className={`text-[10px] px-1 py-0.5 rounded truncate ${e.outcome ? 'opacity-50 line-through ' : ''}${
                               isHighlighted ? 'ring-2 ring-[var(--theme-accent)] ring-offset-1' : ''
                             }`}
-                            style={highlight ? { boxShadow: `inset 0 0 0 1.5px ${highlight}` } : undefined}
+                            style={{ ...typeCardStyle(typeOf(e.type).color), ...cd.zoomStyle, fontWeight: cd.titleWeight, ...(highlight ? { boxShadow: `inset 0 0 0 1.5px ${highlight}` } : {}) }}
                             title={e.subject}
                           >
                             {e.subject}

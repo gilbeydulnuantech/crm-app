@@ -309,7 +309,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE contacts p\nSET job_title = CASE WHEN COALESCE(p.job_title, '') = '' THEN d.job_title ELSE p.job_title END,\n    account_id = COALESCE(p.account_id, d.account_id),\n    email = CASE WHEN COALESCE(p.email, '') = '' THEN d.email ELSE p.email END,\n    secondary_email = CASE WHEN COALESCE(p.secondary_email, '') = '' THEN d.secondary_email ELSE p.secondary_email END,\n    phone = CASE WHEN COALESCE(p.phone, '') = '' THEN d.phone ELSE p.phone END,\n    secondary_phone = CASE WHEN COALESCE(p.secondary_phone, '') = '' THEN d.secondary_phone ELSE p.secondary_phone END,\n    linkedin_url = CASE WHEN COALESCE(p.linkedin_url, '') = '' THEN d.linkedin_url ELSE p.linkedin_url END,\n    city = CASE WHEN COALESCE(p.city, '') = '' THEN d.city ELSE p.city END,\n    state = CASE WHEN COALESCE(p.state, '') = '' THEN d.state ELSE p.state END,\n    zip_code = CASE WHEN COALESCE(p.zip_code, '') = '' THEN d.zip_code ELSE p.zip_code END,\n    country = CASE WHEN COALESCE(p.country, '') = '' THEN d.country ELSE p.country END,\n    lead_source = CASE WHEN COALESCE(p.lead_source, '') = '' THEN d.lead_source ELSE p.lead_source END,\n    timezone = CASE WHEN COALESCE(p.timezone, '') = '' THEN d.timezone ELSE p.timezone END,\n    do_not_contact = p.do_not_contact OR d.do_not_contact,\n    dnc_email = p.dnc_email OR d.dnc_email,\n    dnc_call = p.dnc_call OR d.dnc_call,\n    dnc_sms = p.dnc_sms OR d.dnc_sms,\n    updated_at = NOW()\nFROM contacts d\nWHERE p.id = $1 AND d.id = $2;",
+        "query": "UPDATE contacts p\nSET job_title = CASE WHEN COALESCE(p.job_title, '') = '' THEN d.job_title ELSE p.job_title END,\n    account_id = COALESCE(p.account_id, d.account_id),\n    email = CASE WHEN COALESCE(p.email, '') = '' THEN d.email ELSE p.email END,\n    secondary_email = CASE WHEN COALESCE(p.secondary_email, '') = '' THEN d.secondary_email ELSE p.secondary_email END,\n    phone = CASE WHEN COALESCE(p.phone, '') = '' THEN d.phone ELSE p.phone END,\n    secondary_phone = CASE WHEN COALESCE(p.secondary_phone, '') = '' THEN d.secondary_phone ELSE p.secondary_phone END,\n    linkedin_url = CASE WHEN COALESCE(p.linkedin_url, '') = '' THEN d.linkedin_url ELSE p.linkedin_url END,\n    city = CASE WHEN COALESCE(p.city, '') = '' THEN d.city ELSE p.city END,\n    state = CASE WHEN COALESCE(p.state, '') = '' THEN d.state ELSE p.state END,\n    zip_code = CASE WHEN COALESCE(p.zip_code, '') = '' THEN d.zip_code ELSE p.zip_code END,\n    country = CASE WHEN COALESCE(p.country, '') = '' THEN d.country ELSE p.country END,\n    lead_source = CASE WHEN COALESCE(p.lead_source, '') = '' THEN d.lead_source ELSE p.lead_source END,\n    timezone = CASE WHEN COALESCE(p.timezone, '') = '' THEN d.timezone ELSE p.timezone END,\n    do_not_contact = p.do_not_contact OR d.do_not_contact,\n    dnc_email = p.dnc_email OR d.dnc_email,\n    dnc_call = p.dnc_call OR d.dnc_call,\n    dnc_sms = p.dnc_sms OR d.dnc_sms,\n    dnc_telegram = p.dnc_telegram OR d.dnc_telegram,\n    telegram_chat_id = COALESCE(p.telegram_chat_id, d.telegram_chat_id),\n    telegram_linked_at = COALESCE(p.telegram_linked_at, d.telegram_linked_at),\n    updated_at = NOW()\nFROM contacts d\nWHERE p.id = $1 AND d.id = $2;",
         "options": {
           "queryReplacement": "={{ [ $('Validate Session').first().json.primaryId, $('Validate Session').first().json.duplicateId ] }}"
         }
@@ -716,7 +716,8 @@
   },
   "active": false,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "timezone": "Asia/Almaty"
   },
   "versionId": "33234e64-d142-4bba-8a94-0325542a1f62",
   "meta": {},

@@ -1,13 +1,11 @@
 import { useMemo } from 'react';
 import { CalendarEvent } from '../../types/event';
 
-export type CalendarStatFilter = 'today' | 'week' | 'inspections' | 'meetings' | 'overdue';
+export type CalendarStatFilter = 'today' | 'week' | 'overdue';
 
 export const STAT_FILTER_LABELS: Record<CalendarStatFilter, string> = {
   today: 'Today',
   week: 'This Week',
-  inspections: 'Inspections',
-  meetings: 'Meetings',
   overdue: 'Overdue',
 };
 
@@ -33,15 +31,11 @@ export default function CalendarStatsBar({ events, weekStart, activeFilter, onSe
       const d = new Date(e.due_at);
       return d >= weekStart && d < weekEnd;
     });
-    const inspections = events.filter((e) => e.type === 'inspection').length;
-    const meetings = events.filter((e) => e.type === 'meeting').length;
     const overdue = events.filter((e) => !e.is_completed && new Date(e.due_at) < now).length;
 
     return {
       today: eventsToday.length,
       thisWeek: thisWeek.length,
-      inspections,
-      meetings,
       overdue,
     };
   }, [events, weekStart]);
@@ -49,8 +43,6 @@ export default function CalendarStatsBar({ events, weekStart, activeFilter, onSe
   const cards: { filter: CalendarStatFilter; label: string; value: number; tone?: string }[] = [
     { filter: 'today', label: 'Events Today', value: stats.today },
     { filter: 'week', label: 'This Week', value: stats.thisWeek },
-    { filter: 'inspections', label: 'Inspections', value: stats.inspections },
-    { filter: 'meetings', label: 'Meetings', value: stats.meetings },
     { filter: 'overdue', label: 'Overdue', value: stats.overdue, tone: 'text-rose-600' },
   ];
 

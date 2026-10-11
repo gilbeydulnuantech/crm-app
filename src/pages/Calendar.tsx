@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { CalendarEvent, CalendarViewMode, EVENT_TYPES, EventType } from '../types/event';
+import { CalendarEvent, CalendarViewMode } from '../types/event';
+import { useEventTypeLookup } from '../utils/eventTypes';
+import CardDisplayPanel from '../components/CardDisplayPanel';
 import { Opportunity } from '../types/opportunity';
 import { useEvents } from '../hooks/useEvents';
 import { useAllOpportunities, useAllStages, usePipelines, useUpdateOpportunity } from '../hooks/useOpportunities';
@@ -13,9 +15,9 @@ import { useResources } from '../hooks/useResources';
 import { useAuth } from '../context/AuthContext';
 import CalendarTabs from '../components/calendar/CalendarTabs';
 import CalendarStatsBar, { CalendarStatFilter, STAT_FILTER_LABELS } from '../components/calendar/CalendarStatsBar';
-import CalendarLegend from '../components/calendar/CalendarLegend';
 import MonthView from '../components/calendar/MonthView';
 import WeekView from '../components/calendar/WeekView';
+import DayView from '../components/calendar/DayView';
 import { EventListView } from '../components/calendar/EventListView';
 import DealMonthView from '../components/calendar/DealMonthView';
 import DealWeekView from '../components/calendar/DealWeekView';
@@ -27,7 +29,6 @@ import DealQuickView from '../components/pipeline/DealQuickView';
 import DealDetailModal from '../components/pipeline/DealDetailModal';
 import DealFormModal from '../components/pipeline/DealFormModal';
 import MarkLostModal, { MarkLostResult } from '../components/pipeline/MarkLostModal';
-import SearchToolbar from '../components/SearchToolbar';
 
 const CLOSED_LOST_STAGE = /lost/i;
 
@@ -49,11 +50,30 @@ function startOfWeek(d: Date) {
   copy.setHours(0, 0, 0, 0);
   return copy;
 }
+// The search box also stands in for the old type filter: "inspection", "phone call" or
+// "meeting" match the event's type, as well as its title, contact and company.
+function eventMatchesSearch(e: CalendarEvent, q: string, typeLabel: string) {
+  return (
+    e.subject.toLowerCase().includes(q) ||
+    e.contact_name?.toLowerCase().includes(q) ||
+    e.company_name?.toLowerCase().includes(q) ||
+    e.staff_name?.toLowerCase().includes(q) ||
+    typeLabel.toLowerCase().includes(q) ||
+    e.type.replace(/_/g, ' ').includes(q)
+  );
+}
 function toISODate(d: Date) {
   return d.toISOString().slice(0, 10);
 }
 
 const DEFAULT_RESOURCE_COLOR = '#CBD5E1';
+
+const VIEW_ICONS: { view: CalendarViewMode; icon: string; label: string }[] = [
+  { view: 'month', icon: 'fa-calendar', label: 'Month' },
+  { view: 'week', icon: 'fa-calendar-week', label: 'Week' },
+  { view: 'day', icon: 'fa-calendar-day', label: 'Day' },
+  { view: 'agenda', icon: 'fa-list', label: 'Agenda' },
+];
 
 export default function Calendar() {
   const navigate = useNavigate();
@@ -68,7 +88,12 @@ export default function Calendar() {
   const [activeEvent, setActiveEvent] = useState<CalendarEvent | null>(null);
   const [quickViewEvent, setQuickViewEvent] = useState<CalendarEvent | null>(null);
   const [addDefaultDate, setAddDefaultDate] = useState<Date | null>(null);
+  const [addSlot, setAddSlot] = useState<{ time?: string; userId?: number; resourceId?: number }>({});
   const [highlightEventId, setHighlightEventId] = useState<number | null>(null);
+  const [fullScreen, setFullScreen] = useState(false);
+  const [dayColumnsOpen, setDayColumnsOpen] = useState(false);
+  const [cardDisplayOpen, setCardDisplayOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   const [quickViewDeal, setQuickViewDeal] = useState<Opportunity | null>(null);
   const [detailDeal, setDetailDeal] = useState<Opportunity | null>(null);
@@ -81,9 +106,9 @@ export default function Calendar() {
   // opt-in overlay rather than everyone being shown at once.
   const [checkedUserIds, setCheckedUserIds] = useState<Set<number>>(() => new Set(user ? [user.id] : []));
   const [checkedResourceIds, setCheckedResourceIds] = useState<Set<number>>(new Set());
-  const [visibleTypes, setVisibleTypes] = useState<EventType[]>([...EVENT_TYPES]);
   const [statFilter, setStatFilter] = useState<CalendarStatFilter | null>(null);
 
+  const typeOf = useEventTypeLookup();
   const { data: users = [] } = useUsers();
   const { data: companyProfile } = useCompanyProfile();
   const crmTimezone = companyProfile?.timezone || undefined;
@@ -97,7 +122,9 @@ export default function Calendar() {
   // query cache simple and lets Week/Day/Agenda reuse the same fetched set.
   const rangeStart = startOfMonth(cursorDate);
   const rangeEnd = endOfMonth(cursorDate);
-  const { data: allEvents = [], isLoading: eventsLoading } = useEvents(toISODate(rangeStart), toISODate(rangeEnd));
+  const { data: fetchedEvents = [], isLoading: eventsLoading } = useEvents(toISODate(rangeStart), toISODate(rangeEnd));
+  // Tasks are activities with a due date too, but they live on the Tasks page, not the calendar.
+  const allEvents = useMemo(() => fetchedEvents.filter((e) => e.type !== 'task'), [fetchedEvents]);
 
   // activeEvent is a snapshot passed to EventDetailModal — without this, a
   // mutation made inside the modal (Complete, Reschedule) invalidates and
@@ -193,10 +220,6 @@ export default function Calendar() {
     );
   }
 
-  function toggleType(type: EventType) {
-    setVisibleTypes((prev) => (prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]));
-  }
-
   function selectStatFilter(filter: CalendarStatFilter) {
     if (statFilter === filter) {
       setStatFilter(null);
@@ -219,25 +242,19 @@ export default function Calendar() {
   // everything on screen stays consistent with what's actually overlaid.
   const overlayFilteredEvents = useMemo(() => {
     return allEvents.filter((e) => {
-      if (!visibleTypes.includes(e.type)) return false;
       if (e.user_id == null) return true; // unassigned — nobody to toggle it under
       const byUser = checkedUserIds.has(e.user_id);
       const byResource = (e.resources ?? []).some((r) => checkedResourceIds.has(r.id));
       return byUser || byResource;
     });
-  }, [allEvents, visibleTypes, checkedUserIds, checkedResourceIds]);
+  }, [allEvents, checkedUserIds, checkedResourceIds]);
 
   const visibleEvents = useMemo(() => {
     let list = overlayFilteredEvents;
 
     if (search.trim()) {
       const q = search.trim().toLowerCase();
-      list = list.filter(
-        (e) =>
-          e.subject.toLowerCase().includes(q) ||
-          e.contact_name?.toLowerCase().includes(q) ||
-          e.company_name?.toLowerCase().includes(q)
-      );
+      list = list.filter((e) => eventMatchesSearch(e, q, typeOf(e.type).label));
     }
 
     if (statFilter) {
@@ -255,10 +272,6 @@ export default function Calendar() {
           const d = new Date(e.due_at);
           return d >= weekStart && d < weekEnd;
         });
-      } else if (statFilter === 'inspections') {
-        list = list.filter((e) => e.type === 'inspection');
-      } else if (statFilter === 'meetings') {
-        list = list.filter((e) => e.type === 'meeting');
       } else if (statFilter === 'overdue') {
         list = list.filter((e) => !e.is_completed && new Date(e.due_at) < now);
       }
@@ -321,10 +334,17 @@ export default function Calendar() {
     });
   }, [visibleEvents, cursorDate]);
 
-  const dayEvents = useMemo(
-    () => visibleEvents.filter((e) => new Date(e.due_at).toDateString() === cursorDate.toDateString()),
-    [visibleEvents, cursorDate]
-  );
+  // The Day view has its own Columns dialog, but unchecking a team member in the "All Events" dropdown still hides
+  // that person's events (and their column), same as in the other views. Search applies on top.
+  const dayColumnEvents = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return overlayFilteredEvents.filter((e) => {
+      if (new Date(e.due_at).toDateString() !== cursorDate.toDateString()) return false;
+      if (!q) return true;
+      return eventMatchesSearch(e, q, typeOf(e.type).label);
+    });
+  }, [overlayFilteredEvents, cursorDate, search]);
+
 
   // Same opt-in overlay as Events — a deal only shows once its owner
   // (assigned_user) is checked under Team Members in the sidebar.
@@ -361,9 +381,10 @@ export default function Calendar() {
     [visibleDeals, cursorDate]
   );
 
-  function openAddModal(date?: Date) {
+  function openAddModal(date?: Date, slot?: { time?: string; userId?: number; resourceId?: number }) {
     setEditingEvent(null);
     setAddDefaultDate(date ?? cursorDate);
+    setAddSlot(slot ?? {});
     setFormOpen(true);
   }
 
@@ -424,6 +445,36 @@ export default function Calendar() {
     setLostDeal(null);
   }
 
+  // Real browser full screen where available; if the browser refuses (or lacks
+  // the API) the fixed overlay class below still fills the window, with the
+  // same button to leave it.
+  useEffect(() => {
+    function onChange() {
+      if (!document.fullscreenElement) setFullScreen(false);
+    }
+    document.addEventListener('fullscreenchange', onChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', onChange);
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => undefined);
+    };
+  }, []);
+
+  async function toggleFullScreen() {
+    if (fullScreen) {
+      if (document.fullscreenElement) await document.exitFullscreen().catch(() => undefined);
+      setFullScreen(false);
+      return;
+    }
+    setFullScreen(true);
+    try {
+      await rootRef.current?.requestFullscreen?.();
+    } catch {
+      // overlay fallback already applied
+    }
+  }
+
+  const isViewingToday = cursorDate.toDateString() === new Date().toDateString();
+
   function goToday() {
     setCursorDate(new Date());
   }
@@ -447,14 +498,17 @@ export default function Calendar() {
   const defaultPipelineId = pipelines.find((p) => p.is_default)?.id ?? pipelines[0]?.id;
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+    <div
+      ref={rootRef}
+      className={`flex-1 flex flex-col min-h-0 overflow-hidden ${fullScreen ? 'fixed inset-0 z-[60] bg-white' : ''}`}
+    >
       {/* Header: title + month/year + stats, then nav + add button */}
-      <div className="px-4 py-3 flex items-center gap-4 shrink-0 border-b border-slate-200">
+      <div className="px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-2 shrink-0 border-b border-slate-200">
         <div className="flex items-center gap-3 min-w-0">
           <h1 className="text-lg font-bold text-slate-800 shrink-0">Calendar</h1>
           <span className="text-slate-300 shrink-0">|</span>
           <h2 className="text-sm font-semibold text-slate-700 shrink-0">
-            {cursorDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+            {cursorDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
           </h2>
           {mode === 'events' && (
             <CalendarStatsBar
@@ -464,8 +518,50 @@ export default function Calendar() {
               onSelect={selectStatFilter}
             />
           )}
+          <div className="flex items-center gap-1 border border-slate-200 rounded-md p-0.5 bg-slate-50 shrink-0">
+            {VIEW_ICONS.map(({ view, icon, label }) => (
+              <button
+                key={view}
+                onClick={() => setViewMode(view)}
+                title={label}
+                aria-label={label}
+                aria-pressed={viewMode === view}
+                className={`w-7 h-6 flex items-center justify-center rounded ${
+                  viewMode === view ? 'bg-white shadow-sm text-slate-700' : 'text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                <i className={`fa-solid ${icon} text-xs`} />
+              </button>
+            ))}
+          </div>
         </div>
         <div className="flex-1" />
+        <div className="relative shrink-0">
+          <button
+            onClick={() => setCardDisplayOpen((v) => !v)}
+            title="Card display (text size)"
+            aria-label="Card display"
+            className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 text-xs font-bold"
+          >
+            Aa
+          </button>
+          {cardDisplayOpen && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setCardDisplayOpen(false)} />
+              <div className="absolute right-0 top-full mt-1 z-20 w-64 bg-white border border-slate-200 rounded-xl shadow-lg p-4">
+                <CardDisplayPanel />
+              </div>
+            </>
+          )}
+        </div>
+        <button
+          onClick={toggleFullScreen}
+          title={fullScreen ? 'Exit full screen' : 'Full screen'}
+          aria-label={fullScreen ? 'Exit full screen' : 'Full screen'}
+          className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 shrink-0"
+        >
+          <i className={`fa-solid ${fullScreen ? 'fa-compress' : 'fa-expand'} text-xs`} />
+        </button>
         <button
           onClick={() => (mode === 'events' ? openAddModal() : openAddDeal())}
           className="bg-[var(--theme-accent)] hover:bg-[var(--theme-accent-hover)] text-white text-sm font-medium px-3 py-1.5 rounded-lg flex items-center space-x-2 shadow-sm transition-all shrink-0"
@@ -488,69 +584,82 @@ export default function Calendar() {
         onToggleAllResources={toggleAllResources}
         onSelectAllUsers={selectAllUsers}
         onSelectOnlyMe={selectOnlyMe}
+        startExtra={
+          <div className="relative w-56 shrink-0">
+            <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={mode === 'events' ? 'Search events...' : 'Search deals...'}
+              className="w-full pl-8 pr-8 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                title="Clear search"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500"
+              >
+                <i className="fa-solid fa-xmark text-xs" />
+              </button>
+            )}
+          </div>
+        }
+        afterResources={
+          <div className="flex items-center gap-1 border border-slate-200 rounded-md p-0.5 bg-slate-50">
+            {(['events', 'deals'] as CalendarMode[]).map((m) => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                className={`px-2.5 py-1 text-xs font-semibold rounded ${
+                  mode === m ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500'
+                }`}
+              >
+                {MODE_LABELS[m]}
+              </button>
+            ))}
+          </div>
+        }
         endExtra={
           <>
+            {statFilter && (
+              <span className="flex items-center gap-1.5 text-xs font-medium text-[var(--theme-accent-hover)] bg-[var(--theme-accent-tint)] border border-[var(--theme-accent-tint)] rounded-full px-2.5 py-1">
+                Filter: {STAT_FILTER_LABELS[statFilter]}
+                <button onClick={() => setStatFilter(null)} className="hover:text-[var(--theme-accent-hover)]">
+                  <i className="fa-solid fa-xmark text-[10px]" />
+                </button>
+              </span>
+            )}
             <button onClick={goPrev} className="text-xs font-medium text-slate-600 hover:bg-slate-100 px-2 py-1 rounded">
               &#9664; Previous
             </button>
-            <button onClick={goToday} className="text-xs font-medium text-slate-600 hover:bg-slate-100 px-2 py-1 rounded">
-              Today
+            <button
+              onClick={goToday}
+              title={isViewingToday ? 'Today' : 'Back to today'}
+              className={`px-2 py-1 rounded min-w-[3rem] hover:bg-slate-100 ${
+                isViewingToday ? 'text-xs font-medium text-slate-600' : 'text-base font-bold text-slate-800 leading-none'
+              }`}
+            >
+              {/* "Today" while you are on today; once you move, it shows the day of the month you are on (12, 13...). */}
+              {isViewingToday ? 'Today' : cursorDate.getDate()}
             </button>
             <button onClick={goNext} className="text-xs font-medium text-slate-600 hover:bg-slate-100 px-2 py-1 rounded">
               Next &#9654;
             </button>
+            {mode === 'events' && viewMode === 'day' && (
+              <button
+                onClick={() => setDayColumnsOpen(true)}
+                title="Day view columns"
+                aria-label="Day view columns"
+                className="w-7 h-7 flex items-center justify-center rounded text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+              >
+                <i className="fa-solid fa-table-columns text-xs" />
+              </button>
+            )}
           </>
         }
       />
-
-      {/* Events/Deals toggle + view toggle + search */}
-      <SearchToolbar
-        search={search}
-        onSearchChange={setSearch}
-        placeholder={mode === 'events' ? 'Search events...' : 'Search deals...'}
-        rightExtra={
-          statFilter && (
-            <span className="flex items-center gap-1.5 text-xs font-medium text-[var(--theme-accent-hover)] bg-[var(--theme-accent-tint)] border border-[var(--theme-accent-tint)] rounded-full px-2.5 py-1">
-              Filter: {STAT_FILTER_LABELS[statFilter]}
-              <button onClick={() => setStatFilter(null)} className="hover:text-[var(--theme-accent-hover)]">
-                <i className="fa-solid fa-xmark text-[10px]" />
-              </button>
-            </span>
-          )
-        }
-        endExtra={
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 border border-slate-200 rounded-md p-0.5 bg-slate-50">
-              {(['events', 'deals'] as CalendarMode[]).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setMode(m)}
-                  className={`px-2.5 py-1 text-xs font-semibold rounded ${
-                    mode === m ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500'
-                  }`}
-                >
-                  {MODE_LABELS[m]}
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-1 border border-slate-200 rounded-md p-0.5 bg-slate-50">
-              {(['month', 'week', 'day', 'agenda'] as CalendarViewMode[]).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setViewMode(m)}
-                  className={`px-2.5 py-1 text-xs font-semibold rounded capitalize ${
-                    viewMode === m ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500'
-                  }`}
-                >
-                  {m}
-                </button>
-              ))}
-            </div>
-          </div>
-        }
-      />
-
-      {mode === 'events' && <CalendarLegend visibleTypes={visibleTypes} onToggle={toggleType} />}
 
       {isLoading ? (
         <div className="flex-1 flex items-center justify-center text-sm text-slate-400">
@@ -580,13 +689,18 @@ export default function Calendar() {
             />
           )}
           {viewMode === 'day' && (
-            <EventListView
-              events={dayEvents}
+            <DayView
+              day={cursorDate}
+              events={dayColumnEvents}
+              users={users}
+              visibleUserIds={checkedUserIds}
+              resources={resources}
               checkedResourceIds={checkedResourceIds}
               resourceColorById={resourceColorById}
               onEventClick={setQuickViewEvent}
-              emptyLabel="No events on this day."
               timezone={crmTimezone}
+              columnsOpen={dayColumnsOpen}
+              onColumnsOpenChange={setDayColumnsOpen}
             />
           )}
           {viewMode === 'agenda' && (
@@ -636,6 +750,9 @@ export default function Calendar() {
         open={formOpen}
         event={editingEvent}
         defaultDate={addDefaultDate}
+        defaultStartTime={addSlot.time}
+        defaultUserId={addSlot.userId}
+        defaultResourceId={addSlot.resourceId}
         onClose={() => setFormOpen(false)}
       />
 

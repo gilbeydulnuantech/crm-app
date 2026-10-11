@@ -9,6 +9,7 @@ import ChatWidget from '../components/ChatWidget';
 import FillableFieldsRenderer, { FieldValue, FillableFieldsRendererHandle } from '../components/richtext/FillableFieldsRenderer';
 import { fillMergeFields } from '../utils/mergeFields';
 import { toTitleCase } from '../utils/text';
+import { DocBrandHeader, DocBrandFooter } from '../components/DocumentBranding';
 
 function money(n: number) {
   return `$${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -128,6 +129,7 @@ export default function PublicProposalPage() {
         down_payment_paid_at: data.down_payment_paid_at,
         balance_amount: data.balance_amount,
         balance_paid_at: data.balance_paid_at,
+        line_items: data.line_items,
       }
     : {};
   const resolvedProposalHtml = data ? fillMergeFields(data.content_html, mergeValues) : '';
@@ -206,6 +208,7 @@ export default function PublicProposalPage() {
             ownerName={data.owner_name}
             signatureName={contract.signature_name}
             signedAt={contract.signed_at}
+            mergeValues={mergeValues}
           />
         ) : (
           <>
@@ -216,6 +219,7 @@ export default function PublicProposalPage() {
                 what they wrote instead of layering an auto header on top
                 of it. */}
 
+            <DocBrandHeader />
             <div ref={proposalContentRef} className="rte-content" dangerouslySetInnerHTML={{ __html: resolvedProposalHtml }} />
             <FillableFieldsRenderer
               ref={proposalFieldsRef}
@@ -225,6 +229,7 @@ export default function PublicProposalPage() {
               onChange={(fieldId, value) => setProposalFieldValues((v) => ({ ...v, [fieldId]: value }))}
               readOnly={data.status === 'approved'}
             />
+            <DocBrandFooter />
             <p className="text-right text-lg font-bold text-slate-800 mt-3">Total: {money(data.total_amount)}</p>
 
             <div className="mt-8 pt-6 border-t border-slate-100">

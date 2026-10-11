@@ -1,0 +1,852 @@
+{
+  "name": "Industry Settings",
+  "nodes": [
+    {
+      "id": "79d57fc7-a18d-43c5-9dd2-a825f6091124",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1500,
+        700
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ (() => { let m = (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Request failed.\"; m = String(m).replace(/\\s*\\[line \\d+\\]\\s*$/, \"\"); if (/event_types_name_lower|duplicate key/i.test(m)) m = \"There is already an event type with that name.\"; else if (/violates foreign key/i.test(m)) m = \"That event type does not exist.\"; else if (/(violates|syntax error|relation \\\"|column \\\"|ECONNREFUSED|timeout)/i.test(m)) m = \"Could not save this. Please try again.\"; return { success: false, error: m }; })() }}",
+        "options": {
+          "responseCode": 400
+        }
+      }
+    },
+    {
+      "id": "6cda3089-e76e-4132-9ff2-330f7963c81e",
+      "name": "Webhook: get-industry-settings",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-industry-settings",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "http://localhost:5173"
+        }
+      },
+      "webhookId": "11f678a7-f42f-4972-834a-012a6b6c3924"
+    },
+    {
+      "id": "0e094c8d-99ae-4565-b493-5f9c222c1729",
+      "name": "Log Workflow Run: get-industry-settings",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Industry Settings\" }}",
+            "workflow_id": "={{ \"c0xI72NWt9UJsRl3\" }}",
+            "entity_type": "={{ \"users\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "4ec4d613-02d5-4a48-9fb1-55fa97925cdb",
+      "name": "Extract Bearer Token (get)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: get-industry-settings').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "b7aed0fc-517e-40e3-bcfb-874b5b760b40",
+      "name": "Execute Workflow: Verify Session (get)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "85e3c2ac-a799-4af3-b9b6-85bea2f3186b",
+      "name": "Validate Session (get)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "7fd32daa-346f-4aab-9905-3faf1319fc2d",
+      "name": "Check Payload (get)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Only an admin can change industry and features.');\nconst PRESETS = {\n  roofing: { name: 'Roofing / home services', description: 'Inspections, estimates and site visits. Staff and online provider choice are off.', staff_enabled: false, staff_label: 'Technician', appointment_name: 'Meeting',\n    booking: { start: 9, end: 17, days: [1,2,3,4,5], slot_minutes: 60 },\n    types: [['inspection','Inspection','#10B981'],['call','Phone Call','#3B82F6'],['proposal','Proposal','#A855F7'],['material_delivery','Material Delivery','#F97316'],['site_visit','Site Visit','#F43F5E'],['personal','Personal','#64748B']] },\n  spa_salon: { name: 'Spa / salon', description: 'Treatments performed by therapists. Turns Staff on and adds Massage, Facial and similar event types.', staff_enabled: true, staff_label: 'Therapist', appointment_name: 'Appointment',\n    booking: { start: 10, end: 20, days: [1,2,3,4,5,6], slot_minutes: 60, step_minutes: 30, buffer_minutes: 30 },\n    types: [['massage','Massage','#8B5CF6'],['facial','Facial','#EC4899'],['body_treatment','Body Treatment','#14B8A6'],['hair','Hair','#F59E0B'],['nails','Nails','#F43F5E'],['consultation','Consultation','#3B82F6']] },\n  dental: { name: 'Dental clinic', description: 'Patient appointments with dentists and hygienists. Turns Staff on and adds Check-up, Cleaning and similar types.', staff_enabled: true, staff_label: 'Provider', appointment_name: 'Appointment',\n    booking: { start: 8, end: 17, days: [1,2,3,4,5], slot_minutes: 30 },\n    types: [['check_up','Check-up','#10B981'],['cleaning','Cleaning','#3B82F6'],['filling','Filling','#F59E0B'],['whitening','Whitening','#A855F7'],['consultation','Consultation','#14B8A6'],['emergency','Emergency','#F43F5E']] },\n  generic: { name: 'Generic business', description: 'A neutral starting point: appointments, calls and follow-ups. Staff is off.', staff_enabled: false, staff_label: 'Staff member', appointment_name: 'Appointment',\n    booking: { start: 9, end: 17, days: [1,2,3,4,5], slot_minutes: 60 },\n    types: [['call','Phone Call','#3B82F6'],['follow_up','Follow-up','#F59E0B'],['consultation','Consultation','#14B8A6']] },\n};\nreturn [{ json: { presets: Object.entries(PRESETS).map(([key, p]) => ({ key, name: p.name, description: p.description, staff_label: p.staff_label, staff_enabled: p.staff_enabled, booking: p.booking, event_types: p.types.map((t) => t[1]), appointment_name: p.appointment_name })) } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "354ada59-6cf5-4f1c-b0e9-a869c9b1dfc6",
+      "name": "Query (get)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1440,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT industry, staff_enabled, online_provider_choice, staff_label, booking_hours FROM company_profile WHERE id = 1;",
+        "options": {
+          "queryBatching": "independently"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "id": "e0fbf7a2-8d59-4e7c-9bfe-3f1b16c7a723",
+      "name": "Respond (get)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1680,
+        -60
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, ...$input.first().json, presets: $('Check Payload (get)').first().json.presets } }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "c05cc966-3594-47aa-b196-7c7659af23a5",
+      "name": "Webhook: apply-industry-preset",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        200
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "apply-industry-preset",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "http://localhost:5173"
+        }
+      },
+      "webhookId": "5aba6e60-9e87-4b66-964a-c718b55cfea0"
+    },
+    {
+      "id": "e79d76d6-9eec-4a81-a9c9-84551a224989",
+      "name": "Log Workflow Run: apply-industry-preset",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        200
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Industry Settings\" }}",
+            "workflow_id": "={{ \"c0xI72NWt9UJsRl3\" }}",
+            "entity_type": "={{ \"users\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "788cc68d-7324-4578-a013-7a2b21df0d34",
+      "name": "Extract Bearer Token (apply)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        200
+      ],
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: apply-industry-preset').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "f0edb175-79fd-4f26-9f09-813a317025b9",
+      "name": "Execute Workflow: Verify Session (apply)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        200
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "15968d19-0b8a-4e10-a387-e0c7a24b40fe",
+      "name": "Validate Session (apply)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        200
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "19757446-8fba-4f40-b350-8db837ea178b",
+      "name": "Check Payload (apply)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        200
+      ],
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Only an admin can change industry and features.');\nconst PRESETS = {\n  roofing: { name: 'Roofing / home services', description: 'Inspections, estimates and site visits. Staff and online provider choice are off.', staff_enabled: false, staff_label: 'Technician', appointment_name: 'Meeting',\n    booking: { start: 9, end: 17, days: [1,2,3,4,5], slot_minutes: 60 },\n    types: [['inspection','Inspection','#10B981'],['call','Phone Call','#3B82F6'],['proposal','Proposal','#A855F7'],['material_delivery','Material Delivery','#F97316'],['site_visit','Site Visit','#F43F5E'],['personal','Personal','#64748B']] },\n  spa_salon: { name: 'Spa / salon', description: 'Treatments performed by therapists. Turns Staff on and adds Massage, Facial and similar event types.', staff_enabled: true, staff_label: 'Therapist', appointment_name: 'Appointment',\n    booking: { start: 10, end: 20, days: [1,2,3,4,5,6], slot_minutes: 60, step_minutes: 30, buffer_minutes: 30 },\n    types: [['massage','Massage','#8B5CF6'],['facial','Facial','#EC4899'],['body_treatment','Body Treatment','#14B8A6'],['hair','Hair','#F59E0B'],['nails','Nails','#F43F5E'],['consultation','Consultation','#3B82F6']] },\n  dental: { name: 'Dental clinic', description: 'Patient appointments with dentists and hygienists. Turns Staff on and adds Check-up, Cleaning and similar types.', staff_enabled: true, staff_label: 'Provider', appointment_name: 'Appointment',\n    booking: { start: 8, end: 17, days: [1,2,3,4,5], slot_minutes: 30 },\n    types: [['check_up','Check-up','#10B981'],['cleaning','Cleaning','#3B82F6'],['filling','Filling','#F59E0B'],['whitening','Whitening','#A855F7'],['consultation','Consultation','#14B8A6'],['emergency','Emergency','#F43F5E']] },\n  generic: { name: 'Generic business', description: 'A neutral starting point: appointments, calls and follow-ups. Staff is off.', staff_enabled: false, staff_label: 'Staff member', appointment_name: 'Appointment',\n    booking: { start: 9, end: 17, days: [1,2,3,4,5], slot_minutes: 60 },\n    types: [['call','Phone Call','#3B82F6'],['follow_up','Follow-up','#F59E0B'],['consultation','Consultation','#14B8A6']] },\n};const body = $('Webhook: apply-industry-preset').first().json.body || {};\nconst key = String(body.industry || '');\nconst p = PRESETS[key];\nif (!p) throw new Error('Choose one of the listed industries.');\nconst types = p.types.map(([k, name, color]) => ({ key: k, name, color }));\nreturn [{ json: { industry: key, staffEnabled: p.staff_enabled, staffLabel: p.staff_label, booking: JSON.stringify({ ...p.booking, lead_hours: 2, window_days: 14 }), types: JSON.stringify(types), appointmentName: p.appointment_name } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "b2d3454c-dd72-40b3-9236-dd6a12bc977e",
+      "name": "Query (apply)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1440,
+        200
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH cp AS (\n  UPDATE company_profile SET industry = $1, staff_enabled = $2::boolean, staff_label = $3, booking_hours = $4::jsonb, updated_at = now() WHERE id = 1 RETURNING id\n), added AS (\n  INSERT INTO event_types (key, name, color, sort_order)\n  SELECT x.t->>'key', x.t->>'name', x.t->>'color', (SELECT COALESCE(max(sort_order), 0) FROM event_types) + x.ord::int\n  FROM jsonb_array_elements($5::jsonb) WITH ORDINALITY AS x(t, ord)\n  ON CONFLICT DO NOTHING RETURNING id\n), ren AS (\n  -- Only the untouched default name is replaced; a name the customer chose is never overwritten.\n  UPDATE event_types SET name = $6 WHERE key = 'meeting' AND name = 'Meeting' AND $6 <> 'Meeting'\n    AND NOT EXISTS (SELECT 1 FROM event_types e2 WHERE lower(e2.name) = lower($6)) RETURNING id\n)\nSELECT (SELECT count(*) FROM cp)::int AS updated, (SELECT count(*) FROM added)::int AS types_added, (SELECT count(*) FROM ren)::int AS renamed;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [ $json.industry, $json.staffEnabled, $json.staffLabel, $json.booking, $json.types, $json.appointmentName ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "alwaysOutputData": false
+    },
+    {
+      "id": "c98f3a19-e4c8-4611-af67-fad39ddfd02a",
+      "name": "Respond (apply)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1680,
+        140
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: Number($input.first().json.updated) === 1, types_added: Number($input.first().json.types_added), renamed: Number($input.first().json.renamed) } }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "c08e7895-6328-4f64-b304-7a48e7e091d5",
+      "name": "Webhook: save-industry-features",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        400
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "save-industry-features",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "http://localhost:5173"
+        }
+      },
+      "webhookId": "832c2539-eb8e-4a02-9b5c-51d1f2f2d325"
+    },
+    {
+      "id": "5d0117ac-0c85-4088-9731-9f1bc7abdc0d",
+      "name": "Log Workflow Run: save-industry-features",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        400
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Industry Settings\" }}",
+            "workflow_id": "={{ \"c0xI72NWt9UJsRl3\" }}",
+            "entity_type": "={{ \"users\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "dd186421-b0a7-4b89-b3ff-a489f4263f6d",
+      "name": "Extract Bearer Token (features)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: save-industry-features').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "e299220c-ebbc-4778-85a8-59affd14b327",
+      "name": "Execute Workflow: Verify Session (features)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        400
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "18d25ea2-eaa8-4752-90c7-45384e47a1ec",
+      "name": "Validate Session (features)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "639e5a09-121a-45d7-b0d0-0fb050051db9",
+      "name": "Check Payload (features)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Only an admin can change industry and features.');\nconst body = $('Webhook: save-industry-features').first().json.body || {};\nconst bool = (v) => (v === true || v === 'true' ? true : v === false || v === 'false' ? false : null);\nconst staffEnabled = bool(body.staff_enabled);\nconst onlineChoice = bool(body.online_provider_choice);\nlet staffLabel = typeof body.staff_label === 'string' ? body.staff_label.replace(/[\\u0000-\\u001f\\u007f]/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, 30) : null;\nif (staffLabel === '') staffLabel = null;\nlet hours = null;\nif (body.booking_hours && typeof body.booking_hours === 'object') {\n  const h = body.booking_hours;\n  const start = parseInt(h.start, 10), end = parseInt(h.end, 10), slot = parseInt(h.slot_minutes, 10);\n  const step = h.step_minutes === undefined || h.step_minutes === null || h.step_minutes === '' ? slot : parseInt(h.step_minutes, 10);\n  const buffer = h.buffer_minutes === undefined || h.buffer_minutes === null || h.buffer_minutes === '' ? 0 : parseInt(h.buffer_minutes, 10);\n  const days = Array.isArray(h.days) ? [...new Set(h.days.map((d) => parseInt(d, 10)).filter((d) => d >= 0 && d <= 6))].sort() : null;\n  if (!(start >= 0 && start <= 23 && end >= 1 && end <= 24 && end > start)) throw new Error('Closing time must be after opening time.');\n  if (![15, 20, 30, 45, 60, 90, 120].includes(slot)) throw new Error('Choose a slot length from the list.');\n  if (![15, 20, 30, 45, 60, 90, 120].includes(step)) throw new Error('Choose a start-time step from the list.');\n  if (![0, 5, 10, 15, 30, 45, 60].includes(buffer)) throw new Error('Choose a gap from the list.');\n  if (!days || days.length === 0) throw new Error('Choose at least one open day.');\n  hours = JSON.stringify({ start, end, days, slot_minutes: slot, step_minutes: step, buffer_minutes: buffer, lead_hours: Math.min(72, Math.max(0, parseInt(h.lead_hours, 10) || 2)), window_days: Math.min(60, Math.max(1, parseInt(h.window_days, 10) || 14)) });\n}\nreturn [{ json: { staffEnabled, onlineChoice, staffLabel, hours } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "285a862a-ba44-4740-95f4-abafee4e61f4",
+      "name": "Query (features)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1440,
+        400
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE company_profile SET staff_enabled = COALESCE($1::boolean, staff_enabled), online_provider_choice = COALESCE($2::boolean, online_provider_choice),\n  staff_label = COALESCE($3, staff_label), booking_hours = COALESCE($4::jsonb, booking_hours), updated_at = now() WHERE id = 1 RETURNING id;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [ $json.staffEnabled, $json.onlineChoice, $json.staffLabel, $json.hours ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "alwaysOutputData": false
+    },
+    {
+      "id": "def8a89e-f3ed-4475-aea3-95d19c303b55",
+      "name": "Respond (features)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1680,
+        340
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: $input.all().length > 0 && !!$input.first().json.id } }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Webhook: get-industry-settings": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: get-industry-settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: get-industry-settings": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token (get)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (get)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (get)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (get)": {
+      "main": [
+        [
+          {
+            "node": "Check Payload (get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload (get)": {
+      "main": [
+        [
+          {
+            "node": "Query (get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query (get)": {
+      "main": [
+        [
+          {
+            "node": "Respond (get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: apply-industry-preset": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: apply-industry-preset",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: apply-industry-preset": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token (apply)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (apply)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (apply)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (apply)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (apply)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (apply)": {
+      "main": [
+        [
+          {
+            "node": "Check Payload (apply)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload (apply)": {
+      "main": [
+        [
+          {
+            "node": "Query (apply)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query (apply)": {
+      "main": [
+        [
+          {
+            "node": "Respond (apply)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: save-industry-features": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: save-industry-features",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: save-industry-features": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token (features)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (features)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (features)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (features)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (features)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (features)": {
+      "main": [
+        [
+          {
+            "node": "Check Payload (features)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload (features)": {
+      "main": [
+        [
+          {
+            "node": "Query (features)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query (features)": {
+      "main": [
+        [
+          {
+            "node": "Respond (features)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "Asia/Almaty",
+    "availableInMCP": false
+  }
+}

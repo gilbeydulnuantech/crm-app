@@ -1,6 +1,6 @@
 import { ChangeEvent, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { useUsers, useUpdateUserColor, useUpdateUserPhone, useUploadAvatar } from '../../hooks/useContacts';
+import { useUsers, useUpdateUserColor, useUpdateUserPhone, useUpdateUserSignature, useUploadAvatar } from '../../hooks/useContacts';
 import { toTitleCase } from '../../utils/text';
 import { DEFAULT_USER_COLOR } from '../../utils/userColor';
 import Avatar from '../Avatar';
@@ -20,6 +20,7 @@ export default function MyProfileModal({ open, onClose }: Props) {
   const { data: users = [] } = useUsers();
   const updateUserColor = useUpdateUserColor();
   const updateUserPhone = useUpdateUserPhone();
+  const updateSignature = useUpdateUserSignature();
   const uploadAvatar = useUploadAvatar();
   const currentUser = users.find((u) => u.id === user?.id);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -27,16 +28,28 @@ export default function MyProfileModal({ open, onClose }: Props) {
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [phone, setPhone] = useState('');
+  const [signature, setSignature] = useState('');
+  const [signatureSaved, setSignatureSaved] = useState(false);
 
   useEffect(() => {
     setPhone(currentUser?.phone || '');
   }, [currentUser?.phone]);
+
+  useEffect(() => {
+    setSignature(currentUser?.email_signature || '');
+  }, [currentUser?.email_signature]);
 
   if (!open) return null;
 
   function handlePhoneBlur() {
     if (!user || phone.trim() === (currentUser?.phone || '')) return;
     updateUserPhone.mutate({ userId: user.id, phone: phone.trim() });
+  }
+
+  function handleSignatureBlur() {
+    if (!user || signature.trim() === (currentUser?.email_signature || '').trim()) return;
+    setSignatureSaved(false);
+    updateSignature.mutate({ userId: user.id, signature: signature.trim() }, { onSuccess: () => setSignatureSaved(true) });
   }
 
   const fullName = user?.name ? toTitleCase(user.name) : '--';
@@ -140,6 +153,26 @@ export default function MyProfileModal({ open, onClose }: Props) {
             className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
           />
           <p className="text-[11px] text-slate-400 mt-1">Shown as the deal owner's phone when creating proposals.</p>
+        </div>
+
+        <div className="pt-4 mt-4 border-t border-slate-100">
+          <label className="block text-xs font-medium text-slate-500 mb-1">Email signature</label>
+          <textarea
+            value={signature}
+            onChange={(e) => {
+              setSignature(e.target.value);
+              setSignatureSaved(false);
+            }}
+            onBlur={handleSignatureBlur}
+            rows={4}
+            maxLength={1000}
+            placeholder={'Your name\nYour title · phone number'}
+            className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
+          />
+          <p className="text-[11px] text-slate-400 mt-1">
+            Added at the bottom of emails you send, once an admin turns on email branding in Company Profile.
+            {signatureSaved && <span className="text-emerald-600 font-medium"> Saved.</span>}
+          </p>
         </div>
 
         <div className="pt-4 mt-4 border-t border-slate-100">

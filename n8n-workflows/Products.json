@@ -1,0 +1,851 @@
+{
+  "name": "Products",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-products",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "ce11ee49-3968-472c-afe3-62fd4867f304",
+      "name": "Webhook - Get Products",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        400
+      ],
+      "onError": "continueErrorOutput",
+      "webhookId": "94a5e1ec-72f6-4eff-bf14-30b6b75ab609"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nreturn [{ json: {} }];"
+      },
+      "id": "90b42410-fa09-48bc-9c0d-1ba047c8e348",
+      "name": "Validate (Get)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        400
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT p.id, p.name, p.slug, p.description_html, p.sku, p.category, p.unit, p.unit_price::float AS unit_price, p.tax_rate::float AS tax_rate, p.is_active, p.created_by, u.name AS created_by_name, p.created_at, p.updated_at,\n  p.bookable_online, p.durations, p.event_type_id, et.key AS event_type_key, et.name AS event_type_name, et.color AS event_type_color\nFROM products p\nLEFT JOIN users u ON u.id = p.created_by\nLEFT JOIN event_types et ON et.id = p.event_type_id\nORDER BY p.name ASC;",
+        "options": {}
+      },
+      "id": "f1b0d07d-8f3e-4f8f-8db3-2a9240e4ec78",
+      "name": "Select Products",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1856,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().filter(i => i.json.id != null).map(i => i.json) }}",
+        "options": {}
+      },
+      "id": "f2506a7b-4b70-46d1-8116-051c3ad78fd2",
+      "name": "Respond - Get Products",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2080,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "save-product",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "699564eb-cfe7-4b51-ac8f-cf4333462236",
+      "name": "Webhook - Save Product",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        624
+      ],
+      "onError": "continueErrorOutput",
+      "webhookId": "efba3d33-2094-424c-94eb-990b1f90ace5"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT p.created_by\nFROM (SELECT $1::int AS pid) dummy\nLEFT JOIN products p ON p.id = dummy.pid;",
+        "options": {
+          "queryReplacement": "={{ [ $('Webhook - Save Product').first().json.body.id || null ] }}"
+        }
+      },
+      "id": "e712b667-1673-4994-9483-f4cce24e835d",
+      "name": "Look Up Existing Product (Save)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1632,
+        624
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const existing = $input.item.json;\nconst requester = $('Validate Session (Save)').first().json;\nconst body = $('Webhook - Save Product').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst id = body.id ? parseInt(body.id, 10) : null;\nif (body.id && !Number.isInteger(id)) throw new Error('\"id\" must be an integer.');\nif (id && existing.created_by != null && requester.role !== 'admin' && existing.created_by !== requester.id) {\n  throw new Error('Only an admin or the product\\'s creator can edit it.');\n}\n\nconst clean = (v, max) => (v == null ? '' : String(v)).trim().slice(0, max);\nconst name = clean(body.name, 200);\nif (!name) throw new Error('Give this product a name.');\nconst descriptionHtml = body.description_html == null ? '' : String(body.description_html).slice(0, 20000);\nconst sku = clean(body.sku, 80) || null;\nconst category = clean(body.category, 80) || null;\nconst unit = clean(body.unit, 30) || 'each';\n\nconst unitPrice = body.unit_price === '' || body.unit_price == null ? 0 : Number(body.unit_price);\nif (!Number.isFinite(unitPrice) || unitPrice < 0 || unitPrice > 100000000) throw new Error('Price must be a number between 0 and 100,000,000.');\nconst taxRate = body.tax_rate === '' || body.tax_rate == null ? 0 : Number(body.tax_rate);\nif (!Number.isFinite(taxRate) || taxRate < 0 || taxRate > 100) throw new Error('Tax rate must be between 0 and 100.');\nconst isActive = body.is_active === false || body.is_active === 'false' ? false : true;\n\n// Event type (calendar): absent = leave the product's type as it is; null/'' = clear it.\nconst hasEventType = Object.prototype.hasOwnProperty.call(body, 'event_type_id');\nlet eventTypeId = null;\nif (hasEventType && body.event_type_id !== null && body.event_type_id !== '') {\n  eventTypeId = parseInt(body.event_type_id, 10);\n  if (!Number.isInteger(eventTypeId) || eventTypeId < 1) throw new Error('\"event_type_id\" must be an integer.');\n}\n\n// Lengths a client can choose online, each with its own price: absent = leave as is; [] = single-length service.\nlet durations = null;\nif (Array.isArray(body.durations)) {\n  const seen = new Set();\n  durations = body.durations.map((d) => {\n    const minutes = parseInt(d && d.minutes, 10);\n    const price = Number(d && d.price);\n    if (!Number.isInteger(minutes) || minutes < 10 || minutes > 480) throw new Error('A length must be between 10 and 480 minutes.');\n    if (!Number.isFinite(price) || price < 0 || price > 100000000) throw new Error('Each length needs a price of 0 or more.');\n    if (seen.has(minutes)) throw new Error('Each length can only be listed once.');\n    seen.add(minutes);\n    return { minutes, price: Math.round(price * 100) / 100 };\n  }).sort((a, b) => a.minutes - b.minutes);\n  if (durations.length > 8) throw new Error('Add at most 8 lengths.');\n}\n\nconst hasBookable = typeof body.bookable_online === 'boolean';\nconst bookableOnline = hasBookable ? body.bookable_online : null;\nreturn [{ json: { id, name, descriptionHtml, sku, category, unit, unitPrice: Math.round(unitPrice * 100) / 100, taxRate: Math.round(taxRate * 100) / 100, isActive, eventTypeId, hasEventType, bookableOnline, durations: durations === null ? null : JSON.stringify(durations), requesterId: requester.id } }];"
+      },
+      "id": "26f4dc0c-1216-43d2-ac37-df3816155ef5",
+      "name": "Validate & Payload (Save)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1856,
+        624
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH nid AS (SELECT COALESCE($1::int, nextval(pg_get_serial_sequence('products', 'id')))::int AS id)\nINSERT INTO products (id, name, description_html, slug, sku, category, unit, unit_price, tax_rate, is_active, created_by, created_at, updated_at, event_type_id, bookable_online, durations)\nSELECT nid.id, $2, $3,\n  -- the token slug is fixed at creation so renaming a product never breaks documents that already use it\n  product_slug($2) || CASE WHEN EXISTS (SELECT 1 FROM products x WHERE x.slug = product_slug($2)) THEN '_' || nid.id ELSE '' END,\n  $4, $5, $6, $7, $8, $9, $10, now(), now(), $11::int, COALESCE($13::boolean, true), COALESCE($14::jsonb, '[]'::jsonb)\nFROM nid\nON CONFLICT (id) DO UPDATE SET\n  name = EXCLUDED.name,\n  description_html = EXCLUDED.description_html,\n  sku = EXCLUDED.sku,\n  category = EXCLUDED.category,\n  unit = EXCLUDED.unit,\n  unit_price = EXCLUDED.unit_price,\n  tax_rate = EXCLUDED.tax_rate,\n  is_active = EXCLUDED.is_active,\n  event_type_id = CASE WHEN $12::boolean THEN EXCLUDED.event_type_id ELSE products.event_type_id END,\n  bookable_online = COALESCE($13::boolean, products.bookable_online),\n  durations = COALESCE($14::jsonb, products.durations),\n  updated_at = now()\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id, $json.name, $json.descriptionHtml, $json.sku, $json.category, $json.unit, $json.unitPrice, $json.taxRate, $json.isActive, $json.requesterId, $json.eventTypeId, $json.hasEventType, $json.bookableOnline, $json.durations ] }}"
+        }
+      },
+      "id": "e3136bbe-bcae-43eb-8e6b-b343715a6789",
+      "name": "Upsert Product",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2080,
+        624
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, id: $json.id } }}",
+        "options": {}
+      },
+      "id": "2eed36ca-e3f8-407a-9e91-ca65d8e941f1",
+      "name": "Respond - Save Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2304,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "delete-product",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "9d276e64-f0ad-4c0f-9cbe-b72ba67f57b3",
+      "name": "Webhook - Delete Product",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        960,
+        848
+      ],
+      "onError": "continueErrorOutput",
+      "webhookId": "a4f47d89-e4f8-460f-8fde-701a3efc2027"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT p.created_by\nFROM (SELECT $1::int AS pid) dummy\nLEFT JOIN products p ON p.id = dummy.pid;",
+        "options": {
+          "queryReplacement": "={{ [ $('Webhook - Delete Product').first().json.body.id ] }}"
+        }
+      },
+      "id": "8ba49cda-5375-4992-99e8-838c373c580c",
+      "name": "Look Up Existing Product (Delete)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1632,
+        848
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const existing = $input.item.json;\nconst requester = $('Validate Session (Delete)').first().json;\nconst body = $('Webhook - Delete Product').first().json.body || {};\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst id = parseInt(body.id, 10);\nif (!Number.isInteger(id)) throw new Error('\"id\" must be an integer.');\nif (existing.created_by != null && requester.role !== 'admin' && existing.created_by !== requester.id) {\n  throw new Error('Only an admin or the product\\'s creator can delete it.');\n}\n\nreturn [{ json: { id } }];"
+      },
+      "id": "33d91fa8-ff5e-4fdc-b8ea-97f6a3d25c98",
+      "name": "Validate & Payload (Delete)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1856,
+        848
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM products WHERE id = $1 RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.id ] }}"
+        }
+      },
+      "id": "f31bc4a2-83fa-4570-8712-413fa21efb93",
+      "name": "Delete Product",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2080,
+        848
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nif (!result || !result.json || !result.json.id) throw new Error('Product not found.');\nreturn [{ json: { success: true } }];"
+      },
+      "id": "05536c50-b73f-4d24-86e8-e7e61c9bf9bb",
+      "name": "Check Delete Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2304,
+        848
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "071e3fa4-eaec-451c-aa41-48731b84ab36",
+      "name": "Respond - Delete Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2528,
+        848
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Request failed.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "95298f36-fbcc-4893-b302-bab253dbbc10",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1408,
+        1072
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        400
+      ],
+      "id": "a1b776e2-043d-431d-8bbc-c1b905a6737c",
+      "name": "Extract Bearer Token (Get)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "a9f4c5ac-dd19-487e-85c8-6a757cfe1d44",
+      "name": "Execute Workflow: Verify Session (Get)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1214,
+        415
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        400
+      ],
+      "id": "82aeaccc-afb0-4f08-bbbc-1cc48a9cb594",
+      "name": "Validate Session (Get)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        624
+      ],
+      "id": "ceb2ca2e-d416-4af4-9bdb-eb7af11579f8",
+      "name": "Extract Bearer Token (Save)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "a44858e4-b8e2-417f-8dfd-9e145089de1e",
+      "name": "Execute Workflow: Verify Session (Save)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1214,
+        639
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        624
+      ],
+      "id": "91f87939-e917-48d1-9e79-0d6b0832c4a3",
+      "name": "Validate Session (Save)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        848
+      ],
+      "id": "90c6e15a-ec1c-41ef-b6e2-c97d5bf5514a",
+      "name": "Extract Bearer Token (Delete)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "96e56689-a285-45bf-b368-1e0ff361c0b8",
+      "name": "Execute Workflow: Verify Session (Delete)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1214,
+        863
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        848
+      ],
+      "id": "b33ddd9e-e2d2-4889-b574-60f0910d7e23",
+      "name": "Validate Session (Delete)",
+      "onError": "continueErrorOutput"
+    }
+  ],
+  "connections": {
+    "Webhook - Get Products": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate (Get)": {
+      "main": [
+        [
+          {
+            "node": "Select Products",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Products": {
+      "main": [
+        [
+          {
+            "node": "Respond - Get Products",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Save Product": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Existing Product (Save)": {
+      "main": [
+        [
+          {
+            "node": "Validate & Payload (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Payload (Save)": {
+      "main": [
+        [
+          {
+            "node": "Upsert Product",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Product": {
+      "main": [
+        [
+          {
+            "node": "Respond - Save Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Delete Product": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Existing Product (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Validate & Payload (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Payload (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Delete Product",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Product": {
+      "main": [
+        [
+          {
+            "node": "Check Delete Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Delete Result": {
+      "main": [
+        [
+          {
+            "node": "Respond - Delete Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (Get)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Get)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (Get)": {
+      "main": [
+        [
+          {
+            "node": "Validate (Get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (Save)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Save)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (Save)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Existing Product (Save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (Delete)": {
+      "main": [
+        [
+          {
+            "node": "Look Up Existing Product (Delete)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "timezone": "Asia/Almaty"
+  }
+}

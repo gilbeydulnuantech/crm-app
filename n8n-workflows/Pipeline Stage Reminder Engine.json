@@ -45,7 +45,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// offset_hours > 0 = reminder fires that many hours BEFORE the appointment\n// (e.g. 24 = day-before, 2 = hours-before). offset_hours <= 0 = fires\n// |offset_hours| AFTER the appointment time (no-show follow-up).\nconst row = $input.item.json;\nconst dueAt = new Date(row.due_at).getTime() - row.offset_hours * 3600000;\nconst now = Date.now();\nconst catchWindowMs = 6 * 3600000; // tolerate up to 6h of engine downtime without skipping a reminder\nconst due = now >= dueAt && now < dueAt + catchWindowMs;\n\nfunction fill(template) {\n  const apptDateObj = new Date(row.due_at);\n  const apptDate = apptDateObj.toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' });\n  return (template || '')\n    .replace(/{{\\s*user\\.company_name\\s*}}/gi, row.our_company_name || '')\n    .replace(/{{\\s*contact\\.first_name\\s*}}/gi, row.first_name || 'there')\n    .replace(/{{\\s*contact\\.last_name\\s*}}/gi, row.last_name || '')\n    .replace(/{{\\s*contact\\.email\\s*}}/gi, row.email || '')\n    .replace(/{{\\s*contact\\.phone\\s*}}/gi, row.phone || '')\n    .replace(/{{\\s*contact\\.address\\s*}}/gi, [row.city, row.state].filter(Boolean).join(', '))\n    .replace(/{{\\s*company\\.name\\s*}}/gi, row.client_company_name || '')\n    .replace(/{{\\s*user\\.full_name\\s*}}/gi, row.owner_name || 'your account team')\n    .replace(/{{\\s*user\\.email\\s*}}/gi, row.owner_email || '')\n    .replace(/{{\\s*user\\.phone\\s*}}/gi, row.owner_phone || '')\n    .replace(/{{\\s*opportunity\\.name\\s*}}/gi, row.opportunity_name || '')\n    .replace(/{{\\s*appointment\\.start_time\\s*}}/gi, apptDate);\n}\n\nlet base = '';\ntry { base = $env.FRONTEND_BASE_URL || ''; } catch (e) { base = ''; }\nconst unsubUrl = base + '/unsubscribe/' + (row.unsubscribe_token || '');\nconst body = fill(row.email_body) + `\n\nDon't want these emails? Unsubscribe: ${unsubUrl}`;\n\nreturn [{\n  json: {\n    due,\n    stepId: row.step_id,\n    opportunityId: row.opportunity_id,\n    activityId: row.activity_id,\n    contactId: row.contact_id,\n    to: row.email,\n    subject: fill(row.email_subject),\n    body,\n  },\n}];"
+        "jsCode": "// Title Case for merged names/places (keeps LLC, HVAC, USA... upper-case).\nfunction __tcName(s) { return (s == null ? '' : String(s)).toLowerCase().split(' ').map((w) => (w ? (/^(llc|llp|pllc|lp|usa|us|uk|hvac)$/.test(w) ? w.toUpperCase() : w[0].toUpperCase() + w.slice(1)) : w)).join(' '); }\n// offset_hours > 0 = reminder fires that many hours BEFORE the appointment\n// (e.g. 24 = day-before, 2 = hours-before). offset_hours <= 0 = fires\n// |offset_hours| AFTER the appointment time (no-show follow-up).\nconst row = $input.item.json;\nconst dueAt = new Date(row.due_at).getTime() - row.offset_hours * 3600000;\nconst now = Date.now();\nconst catchWindowMs = 6 * 3600000; // tolerate up to 6h of engine downtime without skipping a reminder\nconst due = now >= dueAt && now < dueAt + catchWindowMs;\n\nfunction fill(template) {\n  const apptDateObj = new Date(row.due_at);\n  const apptDate = apptDateObj.toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' });\n  return (template || '')\n    .replace(/{{\\s*user\\.company_name\\s*}}/gi, row.our_company_name || '')\n    .replace(/{{\\s*contact\\.first_name\\s*}}/gi, row.first_name || 'there')\n    .replace(/{{\\s*contact\\.last_name\\s*}}/gi, row.last_name || '')\n    .replace(/{{\\s*contact\\.email\\s*}}/gi, row.email || '')\n    .replace(/{{\\s*contact\\.phone\\s*}}/gi, row.phone || '')\n    .replace(/{{\\s*contact\\.address\\s*}}/gi, [row.city, row.state].filter(Boolean).join(', '))\n    .replace(/{{\\s*company\\.name\\s*}}/gi, __tcName(row.client_company_name))\n    .replace(/{{\\s*user\\.full_name\\s*}}/gi, row.owner_name || 'your account team')\n    .replace(/{{\\s*user\\.email\\s*}}/gi, row.owner_email || '')\n    .replace(/{{\\s*user\\.phone\\s*}}/gi, row.owner_phone || '')\n    .replace(/{{\\s*opportunity\\.name\\s*}}/gi, row.opportunity_name || '')\n    .replace(/{{\\s*appointment\\.start_time\\s*}}/gi, apptDate);\n}\n\nlet base = '';\ntry { base = $env.FRONTEND_BASE_URL || ''; } catch (e) { base = ''; }\nconst unsubUrl = base + '/unsubscribe/' + (row.unsubscribe_token || '');\nconst body = fill(row.email_body) + `\n\nDon't want these emails? Unsubscribe: ${unsubUrl}`;\n\nreturn [{\n  json: {\n    due,\n    stepId: row.step_id,\n    opportunityId: row.opportunity_id,\n    activityId: row.activity_id,\n    contactId: row.contact_id,\n    to: row.email,\n    subject: fill(row.email_subject),\n    body,\n  },\n}];"
       },
       "id": "psreng0003-3333-4a5a-9b1a-pstreng000003",
       "name": "Check Due & Personalize",
@@ -90,37 +90,39 @@
       ]
     },
     {
-      "parameters": {
-        "sendTo": "={{ $json.to }}",
-        "subject": "={{ $json.subject }}",
-        "emailType": "text",
-        "message": "={{ $json.body }}",
-        "options": {
-          "appendAttribution": false
-        }
-      },
       "id": "psreng0005-5555-4a5a-9b1a-pstreng000005",
       "name": "Send Reminder Email",
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
       "position": [
         1136,
         336
       ],
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "YE9RFYruaRVVZ6H4",
-          "name": "CRMapp"
-        }
+      "onError": "continueErrorOutput",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "parameters": {
+        "fromEmail": "gilbeydulnuan@gmail.com",
+        "toEmail": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailFormat": "both",
+        "text": "={{ $json.body }}",
+        "options": {
+          "appendAttribution": false
+        },
+        "html": "={{ (() => { const t = String($json.body); const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); const h = esc(t).replace(/\\n/g, '<br>').replace(/(https?:\\/\\/[^\\s<]+)/g, '<a href=\"$1\">$1</a>'); return ($json.__brandHeader || '') + h + ($json.__brandFooter || ''); })() }}"
       },
-      "onError": "continueErrorOutput"
+      "credentials": {
+        "smtp": {
+          "id": "A3AoUIlP8cbZ5VlF",
+          "name": "Gmail SMTP (gilbeydulnuan)"
+        }
+      }
     },
     {
       "parameters": {
         "operation": "executeQuery",
         "query": "WITH inserted AS (\n  INSERT INTO pipeline_stage_reminder_sends (step_id, opportunity_id, activity_id, sent_at)\n  VALUES ($1, $2, $3, now())\n  ON CONFLICT (step_id, opportunity_id, activity_id) DO NOTHING\n  RETURNING id\n)\nINSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nSELECT 'opportunity', $2, 'system_audit', 'created', 'Stage reminder sent: \"' || $4 || '\"', NULL::jsonb, NULL, 'Automation'\nWHERE EXISTS (SELECT 1 FROM inserted)\nRETURNING id;",
         "options": {
-          "queryReplacement": "={{ [ $json.stepId, $json.opportunityId, $json.activityId, $json.subject ] }}"
+          "queryReplacement": "={{ [ $('Check Due & Personalize').item.json.stepId, $('Check Due & Personalize').item.json.opportunityId, $('Check Due & Personalize').item.json.activityId, $('Check Due & Personalize').item.json.subject ] }}"
         }
       },
       "id": "psreng0006-6666-4a5a-9b1a-pstreng000006",
@@ -208,30 +210,32 @@
       ]
     },
     {
-      "parameters": {
-        "sendTo": "={{ $json.to }}",
-        "subject": "={{ $json.subject }}",
-        "emailType": "text",
-        "message": "={{ $json.body }}",
-        "options": {
-          "appendAttribution": false
-        }
-      },
       "id": "psreng0010-1010-4a5a-9b1a-pstreng000010",
       "name": "Send Completion Email",
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
       "position": [
         1136,
         528
       ],
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "YE9RFYruaRVVZ6H4",
-          "name": "CRMapp"
-        }
+      "onError": "continueErrorOutput",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "parameters": {
+        "fromEmail": "gilbeydulnuan@gmail.com",
+        "toEmail": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailFormat": "both",
+        "text": "={{ $json.body }}",
+        "options": {
+          "appendAttribution": false
+        },
+        "html": "={{ (() => { const t = String($json.body); const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); const h = esc(t).replace(/\\n/g, '<br>').replace(/(https?:\\/\\/[^\\s<]+)/g, '<a href=\"$1\">$1</a>'); return ($json.__brandHeader || '') + h + ($json.__brandFooter || ''); })() }}"
       },
-      "onError": "continueErrorOutput"
+      "credentials": {
+        "smtp": {
+          "id": "A3AoUIlP8cbZ5VlF",
+          "name": "Gmail SMTP (gilbeydulnuan)"
+        }
+      }
     },
     {
       "parameters": {
@@ -335,6 +339,36 @@
         }
       },
       "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Company branding + rep signature for outgoing HTML emails. Everything is off until an admin switches on\n// \"Add company branding and signatures to emails\" in Settings > Company Profile (company_profile.email_branding_enabled).\nfunction buildBrandParts(branding, signatureText, companyName) {\n  const b = branding || {};\n  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\n  const on = b.email_branding_enabled === true;\n  if (!on) return { on: false, header: '', footer: '', sig: '', sigText: '' };\n  const color = /^#[0-9a-fA-F]{6}$/.test(b.brand_color || '') ? b.brand_color : '#2563EB';\n  const logo = /^https?:\\/\\//i.test(b.logo_url || '')\n    ? '<img src=\"' + esc(b.logo_url) + '\" alt=\"' + esc(companyName) + '\" style=\"max-height:56px;max-width:200px;display:block;margin-bottom:6px\">' : '';\n  const name = companyName ? '<div style=\"font-size:18px;font-weight:bold;color:' + color + '\">' + esc(companyName) + '</div>' : '';\n  const header = (logo || name) ? '<div style=\"padding-bottom:12px;margin-bottom:16px;border-bottom:3px solid ' + color + '\">' + logo + name + '</div>' : '';\n  const lines = [b.address, b.phone, b.website, b.email].filter(Boolean).map(esc);\n  const note = b.email_footer_note ? '<div style=\"margin-top:6px\">' + esc(b.email_footer_note).replace(/\\n/g, '<br>') + '</div>' : '';\n  const footer = (lines.length || note)\n    ? '<div style=\"margin-top:24px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b\">' + (lines.length ? '<div>' + lines.join(' &middot; ') + '</div>' : '') + note + '</div>' : '';\n  const sigText = signatureText && String(signatureText).trim() ? String(signatureText).trim() : '';\n  const sig = sigText ? '<div style=\"margin-top:16px\">' + esc(sigText).replace(/\\n/g, '<br>') + '</div>' : '';\n  return { on: true, header, footer, sig, sigText };\n}\n\n// Apply Branding \u2014 works out this email's company header and footer and adds them to the item as __brandHeader and\n// __brandFooter; the Send node then wraps its own HTML with them. Strictly additive and fail-safe: if branding is\n// switched off or anything at all goes wrong, the item passes through untouched and the email goes out exactly as before.\nconst item = $input.item;\ntry {\n  const sd = $getWorkflowStaticData('global');\n  const now = Date.now();\n  let b = sd.__brandCache && now - sd.__brandCache.t < 60000 ? sd.__brandCache.data : null;\n  if (!b) {\n    let base = 'http://localhost:5678';\n    try { if ($env.N8N_INTERNAL_URL) base = $env.N8N_INTERNAL_URL; } catch (e) { /* env access blocked */ }\n    const r = await this.helpers.httpRequest({ url: base.replace(/\\/$/, '') + '/webhook/get-email-branding', method: 'GET', json: true, timeout: 5000 });\n    b = r && typeof r === 'object' ? r : {};\n    sd.__brandCache = { t: now, data: b };\n  }\n  if (b.email_branding_enabled === true) {\n    const parts = buildBrandParts(b, '', b.company_name || '');\n    return { json: { ...item.json, __brandHeader: parts.header, __brandFooter: parts.footer }, binary: item.binary };\n  }\n} catch (e) { /* branding is optional */ }\nreturn item;\n"
+      },
+      "id": "758c3e99-16b1-42d4-b4d0-adb02962b596",
+      "name": "Apply Branding: Send Reminder Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        956,
+        336
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Company branding + rep signature for outgoing HTML emails. Everything is off until an admin switches on\n// \"Add company branding and signatures to emails\" in Settings > Company Profile (company_profile.email_branding_enabled).\nfunction buildBrandParts(branding, signatureText, companyName) {\n  const b = branding || {};\n  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\n  const on = b.email_branding_enabled === true;\n  if (!on) return { on: false, header: '', footer: '', sig: '', sigText: '' };\n  const color = /^#[0-9a-fA-F]{6}$/.test(b.brand_color || '') ? b.brand_color : '#2563EB';\n  const logo = /^https?:\\/\\//i.test(b.logo_url || '')\n    ? '<img src=\"' + esc(b.logo_url) + '\" alt=\"' + esc(companyName) + '\" style=\"max-height:56px;max-width:200px;display:block;margin-bottom:6px\">' : '';\n  const name = companyName ? '<div style=\"font-size:18px;font-weight:bold;color:' + color + '\">' + esc(companyName) + '</div>' : '';\n  const header = (logo || name) ? '<div style=\"padding-bottom:12px;margin-bottom:16px;border-bottom:3px solid ' + color + '\">' + logo + name + '</div>' : '';\n  const lines = [b.address, b.phone, b.website, b.email].filter(Boolean).map(esc);\n  const note = b.email_footer_note ? '<div style=\"margin-top:6px\">' + esc(b.email_footer_note).replace(/\\n/g, '<br>') + '</div>' : '';\n  const footer = (lines.length || note)\n    ? '<div style=\"margin-top:24px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b\">' + (lines.length ? '<div>' + lines.join(' &middot; ') + '</div>' : '') + note + '</div>' : '';\n  const sigText = signatureText && String(signatureText).trim() ? String(signatureText).trim() : '';\n  const sig = sigText ? '<div style=\"margin-top:16px\">' + esc(sigText).replace(/\\n/g, '<br>') + '</div>' : '';\n  return { on: true, header, footer, sig, sigText };\n}\n\n// Apply Branding \u2014 works out this email's company header and footer and adds them to the item as __brandHeader and\n// __brandFooter; the Send node then wraps its own HTML with them. Strictly additive and fail-safe: if branding is\n// switched off or anything at all goes wrong, the item passes through untouched and the email goes out exactly as before.\nconst item = $input.item;\ntry {\n  const sd = $getWorkflowStaticData('global');\n  const now = Date.now();\n  let b = sd.__brandCache && now - sd.__brandCache.t < 60000 ? sd.__brandCache.data : null;\n  if (!b) {\n    let base = 'http://localhost:5678';\n    try { if ($env.N8N_INTERNAL_URL) base = $env.N8N_INTERNAL_URL; } catch (e) { /* env access blocked */ }\n    const r = await this.helpers.httpRequest({ url: base.replace(/\\/$/, '') + '/webhook/get-email-branding', method: 'GET', json: true, timeout: 5000 });\n    b = r && typeof r === 'object' ? r : {};\n    sd.__brandCache = { t: now, data: b };\n  }\n  if (b.email_branding_enabled === true) {\n    const parts = buildBrandParts(b, '', b.company_name || '');\n    return { json: { ...item.json, __brandHeader: parts.header, __brandFooter: parts.footer }, binary: item.binary };\n  }\n} catch (e) { /* branding is optional */ }\nreturn item;\n"
+      },
+      "id": "46a2729e-0c03-4235-8549-92eb4f87673a",
+      "name": "Apply Branding: Send Completion Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        956,
+        528
+      ],
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
@@ -375,7 +409,7 @@
       "main": [
         [
           {
-            "node": "Send Reminder Email",
+            "node": "Apply Branding: Send Reminder Email",
             "type": "main",
             "index": 0
           }
@@ -421,7 +455,7 @@
       "main": [
         [
           {
-            "node": "Send Completion Email",
+            "node": "Apply Branding: Send Completion Email",
             "type": "main",
             "index": 0
           }
@@ -484,6 +518,28 @@
           }
         ]
       ]
+    },
+    "Apply Branding: Send Reminder Email": {
+      "main": [
+        [
+          {
+            "node": "Send Reminder Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply Branding: Send Completion Email": {
+      "main": [
+        [
+          {
+            "node": "Send Completion Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "pinData": {},
@@ -492,6 +548,7 @@
     "executionOrder": "v1",
     "availableInMCP": false,
     "timeSavedMode": "fixed",
-    "callerPolicy": "workflowsFromSameOwner"
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "Asia/Almaty"
   }
 }

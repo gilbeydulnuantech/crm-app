@@ -1,0 +1,574 @@
+{
+  "name": "Public Booking Providers",
+  "nodes": [
+    {
+      "id": "9ab22d80-cd72-410c-9cbd-4ca367620825",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1700,
+        800
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: (typeof $json.error === \"string\" ? $json.error : ($json.error?.message || $json.error?.description)) ? String((typeof $json.error === \"string\" ? $json.error : ($json.error?.message || $json.error?.description))).replace(/\\s*\\[line \\d+\\]\\s*$/, \"\").replace(/^.*(violates|syntax error|relation \\\"|column \\\"|ECONNREFUSED|timeout).*$/i, \"Something went wrong. Please try again.\") : \"Something went wrong. Please try again.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      }
+    },
+    {
+      "id": "6105ffae-2795-46e5-956e-84bd205a5ca0",
+      "name": "Webhook: get-booking-options-public",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-booking-options-public",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "webhookId": "5f02eb33-efd3-4cdc-a21a-c4632a8d6e5b"
+    },
+    {
+      "id": "ca0a36f9-b231-4782-b22b-37a7016db010",
+      "name": "Load Booking Options",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        260,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT cp.online_provider_choice AS enabled, cp.industry, cp.staff_label, cp.timezone, cp.company_name,\n  COALESCE((SELECT json_agg(json_build_object('id', p.id, 'name', p.name, 'price', p.unit_price::float, 'durations', p.durations) ORDER BY lower(p.name))\n            FROM products p WHERE p.is_active AND p.bookable_online), '[]'::json) AS services,\n  COALESCE((SELECT json_agg(json_build_object('id', sm.id, 'name', sm.name) ORDER BY lower(sm.name))\n            FROM staff_members sm JOIN users u ON u.id = sm.owner_user_id AND u.active WHERE sm.is_active AND sm.bookable_online), '[]'::json) AS providers\nFROM company_profile cp WHERE cp.id = 1;",
+        "options": {
+          "queryBatching": "independently"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "d2e09bf4-e4a3-41ff-b0ff-ef94fda6af24",
+      "name": "Respond: options",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        520,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ (() => { const r = $input.first().json; const providers = r.providers || []; return { success: true, enabled: r.enabled === true && providers.length > 0, staff_label: r.staff_label || 'Therapist', timezone: r.timezone || '', company_name: r.company_name || '', industry: r.industry || null, services: r.services || [], providers }; })() }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "cb8da6ee-a42d-474e-9f64-037b1a2c77b1",
+      "name": "Webhook: get-availability-provider",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        200
+      ],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-availability-provider",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "webhookId": "18ad983e-51dd-45b7-ad56-2588d3f2d01b"
+    },
+    {
+      "id": "43e4c57b-d68f-41e9-8279-709753670a46",
+      "name": "Parse Availability Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        200
+      ],
+      "parameters": {
+        "jsCode": "const q = $('Webhook: get-availability-provider').first().json.query || {};\nconst raw = String(q.staff_id || 'any').trim();\nif (raw !== 'any' && !/^\\d{1,9}$/.test(raw)) throw new Error('Choose a valid provider.');\nconst dur = q.duration === undefined || q.duration === '' ? 0 : parseInt(q.duration, 10);\nif (dur && !(dur >= 10 && dur <= 480)) throw new Error('Choose a valid length.');\nreturn [{ json: { staff: raw, duration: dur } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "500e0642-ae6b-45bb-a7f6-09bf785b9ed5",
+      "name": "Load Availability Data",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        520,
+        200
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH cfg AS (SELECT timezone, booking_hours, online_provider_choice, time_format FROM company_profile WHERE id = 1),\nprov AS (\n  SELECT sm.id FROM staff_members sm JOIN users u ON u.id = sm.owner_user_id AND u.active\n  WHERE sm.is_active AND sm.bookable_online AND ($1 = 'any' OR sm.id::text = $1)\n), busy AS (\n  SELECT a.staff_id, a.due_at, COALESCE(a.end_at, a.due_at + interval '30 minutes') AS end_at\n  FROM activities a\n  WHERE a.staff_id IN (SELECT id FROM prov) AND a.is_completed = false AND a.outcome IS NULL\n    AND a.due_at > now() - interval '1 day' AND a.due_at < now() + interval '75 days'\n)\nSELECT (SELECT row_to_json(cfg) FROM cfg) AS cfg,\n  COALESCE((SELECT json_agg(id) FROM prov), '[]'::json) AS providers,\n  COALESCE((SELECT json_agg(row_to_json(busy)) FROM busy), '[]'::json) AS busy;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [ $json.staff ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "a7453ca0-69f9-4da1-94ac-92ddb09f5860",
+      "name": "Compute Provider Slots",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        200
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nconst cfg = r.cfg || {};\nif (!cfg.online_provider_choice) return [{ json: { success: false, error: 'Online booking is not available right now.' } }];\nconst providers = (r.providers || []).map(Number);\nif (providers.length === 0) return [{ json: { success: true, timezone: cfg.timezone, days: [] } }];\nconst h = cfg.booking_hours || {};\nconst tz = cfg.timezone || $now.zoneName;\nconst reqDur = Number($('Parse Availability Request').first().json.duration) || 0;\nconst slotMin = reqDur > 0 ? reqDur : Number(h.slot_minutes) || 60, stepMin = Number(h.step_minutes) || slotMin, bufMin = Number(h.buffer_minutes) || 0, startH = Number(h.start), endH = Number(h.end);\nconst openDays = (h.days || []).map(Number);\nconst leadH = h.lead_hours == null ? 2 : Number(h.lead_hours), winDays = Number(h.window_days) || 14;\nconst is24 = cfg.time_format === '24h';\nconst busy = (r.busy || []).map((b) => ({ id: Number(b.staff_id), s: new Date(b.due_at).getTime(), e: new Date(b.end_at).getTime() }));\nconst earliest = Date.now() + leadH * 3600000;\nconst today = DateTime.now().setZone(tz).startOf('day');\nconst days = [];\nfor (let i = 0; i <= winDays; i++) {\n  const day = today.plus({ days: i });\n  if (!openDays.includes(day.weekday % 7)) continue;\n  const slots = [];\n  for (let m = startH * 60; m + slotMin <= endH * 60; m += stepMin) {\n    const st = day.plus({ minutes: m });\n    const a = st.toMillis(), b = a + slotMin * 60000;\n    if (a < earliest) continue;\n    const free = providers.some((id) => !busy.some((x) => x.id === id && x.s < b + bufMin * 60000 && x.e + bufMin * 60000 > a));\n    if (free) slots.push({ start_at: st.toUTC().toISO(), label: st.toFormat(is24 ? 'HH:mm' : 'h:mm a') });\n  }\n  if (slots.length) days.push({ date: day.toISODate(), label: day.toFormat('cccc, LLL d'), slots });\n}\nreturn [{ json: { success: true, timezone: tz, days } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "1ab2e490-7fda-4759-a8f5-074d0c6aba91",
+      "name": "Respond: availability",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1040,
+        200
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "58c4925e-7d64-47ea-81fe-0d324abfa5ed",
+      "name": "Webhook: book-provider-public",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        420
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "book-provider-public",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "webhookId": "cb62fdcc-238a-4785-8ef0-f654ac80cc1f"
+    },
+    {
+      "id": "95c0ba5d-1788-44fa-8303-9c9449cb15b3",
+      "name": "Rate Limit Check: book-provider",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        260,
+        420
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT rate_limit_ok($1, $2, $3::int, interval '1 hour') AND ($4 = '' OR rate_limit_ok($1 || ':email', $4, $5::int, interval '1 hour')) AS ok;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [ 'book-provider', (($('Webhook: book-provider-public').first().json.headers || {})['x-forwarded-for'] || '').toString().split(',')[0].trim().slice(0, 64) || 'unknown', 10, ((($('Webhook: book-provider-public').first().json.body) || {}).email || '').toString().trim().toLowerCase().slice(0, 254), 3 ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "42f73065-c53e-44f5-b79f-c789e3dddaf3",
+      "name": "Rate Limit Gate: book-provider",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        420
+      ],
+      "parameters": {
+        "jsCode": "const ok = $input.first().json.ok === true;\nconst body = $('Webhook: book-provider-public').first().json.body || {};\n// Hidden field a real browser never fills; a bot filling every field trips it.\nconst bot = ((body.website || body.website_hp || '').toString().trim()) !== '';\nif (bot) return [{ json: { spam: true } }];\nif (!ok) throw new Error('Too many requests. Please try again in a little while.');\nreturn [{ json: { spam: false } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "a0c28b5f-3a5c-42f6-b52b-379f3a2c9b34",
+      "name": "Spam?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        780,
+        420
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cd006651-b816-4f10-8026-40ca17579663",
+              "leftValue": "={{ $json.spam }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "2b9e44f8-21a2-48c0-8a8d-93327038d73e",
+      "name": "Respond: book spam (fake success)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1040,
+        330
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true } }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "fa2daa81-e604-4f3c-9cb0-af53f5906035",
+      "name": "Log Workflow Run: Webhook: book-provider-public",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1040,
+        420
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Public Booking Providers\" }}",
+            "workflow_id": "={{ \"uIEREtfcamDQgwtM\" }}",
+            "entity_type": "={{ \"activities,contacts\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "e3fe8f99-c618-4797-b2ca-e38305a11ff1",
+      "name": "Parse Booking Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        420
+      ],
+      "parameters": {
+        "jsCode": "const b = $('Webhook: book-provider-public').first().json.body || {};\nconst clean = (v, max) => (typeof v === 'string' || typeof v === 'number' ? String(v) : '').replace(/[\\u0000-\\u001f\\u007f]/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, max);\nconst first = clean(b.first_name, 100);\nif (!first) throw new Error('Please enter your first name.');\nconst last = clean(b.last_name, 100);\nconst email = clean(b.email, 254).toLowerCase();\nif (!/^[^\\s@<>]+@[^\\s@<>]+\\.[^\\s@<>]{2,}$/.test(email)) throw new Error('Please enter a valid email address.');\nconst phone = clean(b.phone, 50);\nconst staff = String(b.staff_id == null || b.staff_id === '' ? 'any' : b.staff_id).trim();\nif (staff !== 'any' && !/^\\d{1,9}$/.test(staff)) throw new Error('Choose a valid provider.');\nconst service = b.service_id == null || b.service_id === '' ? null : parseInt(b.service_id, 10);\nif (service !== null && !(service > 0)) throw new Error('Choose a valid service.');\nconst duration = b.duration === undefined || b.duration === null || b.duration === '' ? null : parseInt(b.duration, 10);\nif (duration !== null && !(duration >= 10 && duration <= 480)) throw new Error('Choose a valid length.');\nconst start = String(b.start_at || '');\nif (!/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}.*(Z|[+-]\\d{2}:?\\d{2})$/.test(start) || isNaN(Date.parse(start))) throw new Error('Please pick a time from the list.');\nreturn [{ json: { staff, start, service, first, last, email, phone, duration } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "683740bf-c724-4fc5-9afe-b8035b6ddbec",
+      "name": "Book Slot",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1560,
+        420
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT public_book_provider($1, $2::timestamptz, $3::int, $4, $5, $6, $7, $8::int) AS result;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [ $json.staff, $json.start, $json.service, $json.first, $json.last, $json.email, $json.phone, $json.duration ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "9fc4ac83-d6b1-4b6d-82a4-863a859b1d21",
+      "name": "Respond: booked",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1820,
+        420
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ (() => { const r = $input.first().json.result || {}; if (r.status === 'booked') return { success: true, provider: r.provider }; if (r.status === 'taken') return { success: false, error: 'That time was just booked. Please pick another.' }; if (r.status === 'disabled') return { success: false, error: 'Online booking is not available right now.' }; return { success: false, error: 'That time is not available. Please pick another.' }; })() }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Webhook: get-booking-options-public": {
+      "main": [
+        [
+          {
+            "node": "Load Booking Options",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Booking Options": {
+      "main": [
+        [
+          {
+            "node": "Respond: options",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: get-availability-provider": {
+      "main": [
+        [
+          {
+            "node": "Parse Availability Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Availability Request": {
+      "main": [
+        [
+          {
+            "node": "Load Availability Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Availability Data": {
+      "main": [
+        [
+          {
+            "node": "Compute Provider Slots",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Provider Slots": {
+      "main": [
+        [
+          {
+            "node": "Respond: availability",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: book-provider-public": {
+      "main": [
+        [
+          {
+            "node": "Rate Limit Check: book-provider",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rate Limit Check: book-provider": {
+      "main": [
+        [
+          {
+            "node": "Rate Limit Gate: book-provider",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rate Limit Gate: book-provider": {
+      "main": [
+        [
+          {
+            "node": "Spam?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Spam?": {
+      "main": [
+        [
+          {
+            "node": "Respond: book spam (fake success)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Workflow Run: Webhook: book-provider-public",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook: book-provider-public": {
+      "main": [
+        [
+          {
+            "node": "Parse Booking Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Booking Request": {
+      "main": [
+        [
+          {
+            "node": "Book Slot",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Book Slot": {
+      "main": [
+        [
+          {
+            "node": "Respond: booked",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "Asia/Almaty",
+    "availableInMCP": false
+  }
+}

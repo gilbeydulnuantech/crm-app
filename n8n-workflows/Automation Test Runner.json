@@ -1,0 +1,508 @@
+{
+  "name": "Automation Test Runner",
+  "nodes": [
+    {
+      "id": "tr-webhook",
+      "name": "Webhook: run-automation-test",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "webhookId": "91c4f940-cb2d-42aa-8b79-c06e50b8ce83",
+      "position": [
+        200,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "run-automation-test",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "tr-parse",
+      "name": "Parse Token & Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nconst body = $input.first().json.body || {};\nconst workflowId = (typeof body.workflow_id === 'string' || typeof body.workflow_id === 'number') ? String(body.workflow_id).trim() : '';\nif (!workflowId) throw new Error('\"workflow_id\" is required.');\nif (workflowId.length > 64) throw new Error('\"workflow_id\" is not valid.');\n// The token is only a lookup key; who the caller is comes from the sessions table (Verify Session).\nreturn [{ json: { token, workflowId } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "tr-lookup",
+      "name": "Look Up Requester",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        640,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $json.userId ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      }
+    },
+    {
+      "id": "tr-check-admin",
+      "name": "Check Admin",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        860,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "tr-admin-cond",
+              "leftValue": "={{ $json.role }}",
+              "rightValue": "admin",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "tr-active-cond",
+              "leftValue": "={{ $json.active }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "tr-respond-unauth",
+      "name": "Respond: Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1080,
+        460
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: \"Only admins can run automation tests.\" } }}",
+        "options": {
+          "responseCode": 403
+        }
+      }
+    },
+    {
+      "id": "tr-fire",
+      "name": "Fire Target Webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1080,
+        220
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://localhost:5678/webhook/manual-test-' + $('Parse Token & Payload').item.json.workflowId }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "tr-wait",
+      "name": "Wait For Execution",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1300,
+        220
+      ],
+      "parameters": {
+        "amount": 5
+      }
+    },
+    {
+      "id": "tr-get-latest",
+      "name": "Get Latest Execution",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1520,
+        220
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'http://localhost:5678/api/v1/executions?workflowId=' + $('Parse Token & Payload').item.json.workflowId + '&limit=1' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "B0VgzEN9rCbJfVux",
+          "name": "n8n Self API Key"
+        }
+      }
+    },
+    {
+      "id": "tr-get-detail",
+      "name": "Get Execution Detail",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1740,
+        220
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'http://localhost:5678/api/v1/executions/' + $json.data[0].id + '?includeData=true' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "B0VgzEN9rCbJfVux",
+          "name": "n8n Self API Key"
+        }
+      }
+    },
+    {
+      "id": "tr-parse-results",
+      "name": "Parse Node Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1960,
+        220
+      ],
+      "parameters": {
+        "jsCode": "const exec = $json;\nconst runData = (exec.data && exec.data.resultData && exec.data.resultData.runData) || {};\nconst nodes = Object.entries(runData).map(([name, runs]) => {\n  const run = runs[runs.length - 1];\n  const failed = !!run.error;\n  return {\n    name,\n    status: failed ? 'error' : 'success',\n    error: failed ? (run.error.message || run.error.description || JSON.stringify(run.error).slice(0, 500)) : null,\n    itemCount: !failed && run.data && run.data.main && run.data.main[0] ? run.data.main[0].length : null,\n  };\n});\nconst overallStatus = exec.status || (nodes.some(n => n.status === 'error') ? 'error' : 'success');\nreturn [{ json: { success: true, executionId: exec.id, overallStatus, startedAt: exec.startedAt, stoppedAt: exec.stoppedAt, nodes } }];"
+      }
+    },
+    {
+      "id": "tr-respond-ok",
+      "name": "Respond: Test Result",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2180,
+        220
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "tr-check-fired",
+      "name": "Fired Successfully?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1080,
+        30
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "tr-fired-cond",
+              "leftValue": "={{ !$json.error }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "tr-respond-not-testable",
+      "name": "Respond: Not Testable",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1300,
+        -50
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: \"This automation isn't triggered by a schedule, so it can't be manually test-run yet \u2014 it fires on real events (like an inbound email or calendar booking) instead.\" } }}",
+        "options": {}
+      }
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "3be0b6e2-6d31-48c1-abe1-02cf774def1e",
+      "name": "Verify Session",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid || !r.active) throw new Error('Invalid session.');\nreturn [{ json: { userId: r.userId, workflowId: $('Parse Token & Payload').first().json.workflowId } }];"
+      },
+      "id": "22537095-31c7-4e3e-a0e6-450615573f25",
+      "name": "Resolve Session",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ (() => { let m = (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Request failed.\"; m = String(m).replace(/\\s*\\[line \\d+\\]\\s*$/, \"\"); if (/(violates|duplicate key|syntax error|relation \"|column \"|value too long|ECONNREFUSED|timeout)/i.test(m)) m = \"The request could not be completed. Please try again.\"; return { success: false, error: m }; })() }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "0b354a60-566e-4608-945f-1c11d07ff31f",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook: run-automation-test": {
+      "main": [
+        [
+          {
+            "node": "Parse Token & Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Token & Payload": {
+      "main": [
+        [
+          {
+            "node": "Verify Session",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Requester": {
+      "main": [
+        [
+          {
+            "node": "Check Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Admin": {
+      "main": [
+        [
+          {
+            "node": "Fire Target Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond: Unauthorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fire Target Webhook": {
+      "main": [
+        [
+          {
+            "node": "Fired Successfully?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait For Execution": {
+      "main": [
+        [
+          {
+            "node": "Get Latest Execution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Latest Execution": {
+      "main": [
+        [
+          {
+            "node": "Get Execution Detail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Execution Detail": {
+      "main": [
+        [
+          {
+            "node": "Parse Node Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Node Results": {
+      "main": [
+        [
+          {
+            "node": "Respond: Test Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fired Successfully?": {
+      "main": [
+        [
+          {
+            "node": "Wait For Execution",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond: Not Testable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Session": {
+      "main": [
+        [
+          {
+            "node": "Resolve Session",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Session": {
+      "main": [
+        [
+          {
+            "node": "Look Up Requester",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "timezone": "Asia/Almaty"
+  },
+  "pinData": {},
+  "active": true
+}

@@ -23,6 +23,9 @@ export interface InvoiceLineItemInput {
   unit_price: number;
   discount?: number;
   tax?: number;
+  // Client-only: set when the line came from the Products catalog so the tax
+  // amount follows qty/price edits. The server only stores the fields above.
+  tax_rate?: number;
 }
 
 export interface CreateInvoicePayload {

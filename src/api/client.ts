@@ -87,10 +87,16 @@ export async function apiFetch<T = unknown>(
       // response wasn't JSON — keep the generic message
     }
 
-    // Session/token errors should force a re-login, same as the old
-    // fetchContactsFromN8n.js behavior.
-    if (/session|token|invalid/i.test(message)) {
+    // A rejected or expired login session should force a re-login, same as the
+    // old fetchContactsFromN8n.js behavior. Only the backend's real session
+    // errors count ("Invalid session.", "Invalid or missing session token.") —
+    // matching any message with "token" or "invalid" in it also logged people
+    // out over unrelated validation errors. The event lets AuthContext drop the
+    // in-memory user too, so the app goes to the login screen instead of
+    // staying on a signed-in-looking page where every request now fails.
+    if (/(invalid|expired|missing)[^.]*session/i.test(message)) {
       clearAuthToken();
+      window.dispatchEvent(new Event('auth:expired'));
     }
 
     throw new Error(message);

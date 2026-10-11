@@ -31,6 +31,15 @@ export function fetchGlobalAuditLog(filters: GlobalAuditLogFilters) {
   return apiFetch<GlobalAuditLogEntry[]>(`/webhook/get-global-audit-log?${params.toString()}`);
 }
 
+// Flags a received Telegram message as opened (same idea as marking an email
+// read) — the timeline card turns green once it has been.
+export function markTelegramRead(entryId: number) {
+  return apiFetch<{ success: boolean; error?: string }>('/webhook/mark-telegram-read', {
+    method: 'POST',
+    body: JSON.stringify({ entry_id: entryId }),
+  });
+}
+
 // Currently only 'call' is accepted server-side — meeting/system_audit rows
 // are written internally by other n8n workflows, not by clients.
 export function logCallActivity(

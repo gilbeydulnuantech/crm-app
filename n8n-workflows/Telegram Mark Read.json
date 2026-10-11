@@ -1,0 +1,200 @@
+{
+  "name": "Telegram Mark Read",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mark-telegram-read",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "2a4e856f-6882-4062-861f-ee46d98d3e43",
+      "name": "Webhook: mark-telegram-read",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "2a6afc4e-80d4-4f63-8f68-92103d8809d1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "id": "5d36711e-f201-4230-a685-24b8b1cb6f18",
+      "name": "Extract Bearer Token: mark-telegram-read",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "f9224caf-17a9-40bd-9dfa-e48405da66d3",
+      "name": "Execute Workflow: Verify Session: mark-telegram-read",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid || !r.active) throw new Error('Invalid session.');\nconst body = $('Webhook: mark-telegram-read').first().json.body || {};\nconst entryId = parseInt(body.entry_id, 10);\nif (!Number.isInteger(entryId)) throw new Error('\"entry_id\" is required.');\nreturn [{ json: { entryId, userId: r.userId, role: r.role } }];"
+      },
+      "id": "f81c9484-fae4-4e7c-af4c-062801fc74d6",
+      "name": "Validate Session & Payload: mark-telegram-read",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE entity_activity_log l\nSET detail = COALESCE(l.detail, '{}'::jsonb) || '{\"is_read\": true}'::jsonb\nFROM contacts c\nWHERE l.id = $1 AND l.category = 'telegram' AND l.entity_type = 'contact'\n  AND c.id = l.entity_id AND ($2 = 'admin' OR c.owner_id = $3)\nRETURNING l.id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.entryId, $json.role, $json.userId ] }}"
+        }
+      },
+      "id": "a5e4e3c7-e5bb-4b4d-91a3-a3ce19a61fec",
+      "name": "Mark Telegram Read",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        880,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nreturn [{ json: r && r.id ? { success: true } : { success: false, error: 'Message not found, or you do not have access to it.' } }];"
+      },
+      "id": "1e849bf7-0cb9-4758-a2e4-bf1212199521",
+      "name": "Build Mark Read Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "54cfe4e4-53df-40e1-a3aa-404cc51d201f",
+      "name": "Respond: mark-telegram-read",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1320,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook: mark-telegram-read": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token: mark-telegram-read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: mark-telegram-read": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: mark-telegram-read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: mark-telegram-read": {
+      "main": [
+        [
+          {
+            "node": "Validate Session & Payload: mark-telegram-read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session & Payload: mark-telegram-read": {
+      "main": [
+        [
+          {
+            "node": "Mark Telegram Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Telegram Read": {
+      "main": [
+        [
+          {
+            "node": "Build Mark Read Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Mark Read Result": {
+      "main": [
+        [
+          {
+            "node": "Respond: mark-telegram-read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "timezone": "Asia/Almaty"
+  }
+}

@@ -1,0 +1,2770 @@
+{
+  "name": "Packages & Memberships",
+  "nodes": [
+    {
+      "id": "6f56df77-622d-451d-80b2-ffeb0e8690ec",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1700,
+        1000
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ (() => { let m = (typeof $json.error === \"string\" ? $json.error : ($json.error?.message || $json.error?.description)) || $json.message || \"Request failed.\"; m = String(m).replace(/\\s*\\[line \\d+\\]\\s*$/, \"\"); if (/already exists|_name_lower|duplicate key/i.test(m)) m = \"There is already one with that name.\"; else if (/(violates|syntax error|relation \"|column \"|ECONNREFUSED|timeout)/i.test(m)) m = \"Could not save this. Please try again.\"; return { success: false, error: m }; })() }}",
+        "options": {
+          "responseCode": 400
+        }
+      }
+    },
+    {
+      "id": "45f11f38-6364-46af-a659-bf6ad6f2a0e5",
+      "name": "Webhook: get-benefit-catalog",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-benefit-catalog",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "http://localhost:5173"
+        }
+      },
+      "webhookId": "65eb9480-ed02-4933-80b9-449937533d47"
+    },
+    {
+      "id": "6f30001e-9f40-4747-bd76-5a5a503cb10b",
+      "name": "Log Workflow Run: get-benefit-catalog",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Packages & Memberships\" }}",
+            "workflow_id": "={{ \"jGnQngePQKDpWp6y\" }}",
+            "entity_type": "={{ \"client_packages\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "e642b62a-c590-4e61-808a-cb0aaedf2b54",
+      "name": "Extract Bearer Token (catalog)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: get-benefit-catalog').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "5fa68812-61f6-4796-8f50-496b27d6eaa4",
+      "name": "Execute Workflow: Verify Session (catalog)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "7480ea66-020a-40d0-964a-82086561d84b",
+      "name": "Validate Session (catalog)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "bb39dd61-8c6f-4fe1-906d-3fb515d9a33f",
+      "name": "Check Payload (catalog)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nreturn [{ json: { ok: true } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "3a0387ee-f571-4af0-8d07-0238c8105536",
+      "name": "Query (catalog)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1440,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n COALESCE((SELECT json_agg(p ORDER BY lower(p.name)) FROM (SELECT pk.id, pk.name, pk.sessions, pk.price::float AS price, pk.valid_days, pk.product_id, pr.name AS product_name, pk.is_active,\n    (SELECT count(*)::int FROM client_packages cp WHERE cp.package_id = pk.id) AS sold FROM packages pk LEFT JOIN products pr ON pr.id = pk.product_id) p), '[]'::json) AS packages,\n COALESCE((SELECT json_agg(m ORDER BY lower(m.name)) FROM (SELECT mp.id, mp.name, mp.price::float AS price, mp.period_days, mp.discount_percent::float AS discount_percent, mp.included_sessions, mp.is_active,\n    (SELECT count(*)::int FROM client_memberships cm WHERE cm.plan_id = mp.id) AS sold FROM membership_plans mp) m), '[]'::json) AS plans;",
+        "options": {
+          "queryBatching": "independently"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "id": "97abe035-ab64-490e-82f8-0d7c72de71ef",
+      "name": "Respond (catalog)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1680,
+        -60
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, packages: $input.first().json.packages || [], plans: $input.first().json.plans || [] } }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "0143a7fe-5575-4243-ba95-3efb74008819",
+      "name": "Webhook: save-package",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        200
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "save-package",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "http://localhost:5173"
+        }
+      },
+      "webhookId": "c136dc7e-9ae0-492c-908b-8781a5c51893"
+    },
+    {
+      "id": "3cdc7ad2-b977-4cec-a772-4f3fe9c634c6",
+      "name": "Log Workflow Run: save-package",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        200
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Packages & Memberships\" }}",
+            "workflow_id": "={{ \"jGnQngePQKDpWp6y\" }}",
+            "entity_type": "={{ \"client_packages\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "3546fb01-41be-4c68-ad85-f25777386e0c",
+      "name": "Extract Bearer Token (savepkg)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        200
+      ],
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: save-package').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "ed9d069c-869a-4cd0-915f-34e1a70904e1",
+      "name": "Execute Workflow: Verify Session (savepkg)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        200
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "3c23025d-8c29-4a7e-9145-a438c81bb73c",
+      "name": "Validate Session (savepkg)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        200
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "7a46cdb3-9ccb-481c-b527-fb6d0d84b39c",
+      "name": "Check Payload (savepkg)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        200
+      ],
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Only an admin can change packages and memberships.');\nconst clean = (v, max) => (typeof v === 'string' ? v : '').replace(/[\\u0000-\\u001f\\u007f]/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, max);\nconst num = (v, name, min, max) => { const n = Number(v); if (!Number.isFinite(n) || n < min || n > max) throw new Error(name + ' must be between ' + min + ' and ' + max + '.'); return n; };\nconst bool = (v) => !(v === false || v === 'false');\nconst idOf = (v) => { if (v === null || v === undefined || v === '') return null; const n = parseInt(v, 10); if (!Number.isInteger(n) || n < 1) throw new Error('Invalid id.'); return n; };\nconst b = $('Webhook: save-package').first().json.body || {};\nconst name = clean(b.name, 80); if (!name) throw new Error('Give the package a name.');\nreturn [{ json: { id: idOf(b.id), name, sessions: Math.round(num(b.sessions, 'Sessions', 1, 500)), price: Math.round(num(b.price, 'Price', 0, 100000000) * 100) / 100, validDays: Math.round(num(b.valid_days, 'Valid days', 1, 3650)), productId: idOf(b.product_id), isActive: bool(b.is_active) } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "c7b2ce9f-21b8-4984-acb0-f45c2882a774",
+      "name": "Query (savepkg)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1440,
+        200
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH upd AS (UPDATE packages SET name = $2, sessions = $3::int, price = $4::numeric, valid_days = $5::int, product_id = $6::int, is_active = $7::boolean WHERE id = $1::int RETURNING id),\nins AS (INSERT INTO packages (name, sessions, price, valid_days, product_id, is_active) SELECT $2, $3::int, $4::numeric, $5::int, $6::int, $7::boolean WHERE $1::int IS NULL RETURNING id)\nSELECT id FROM upd UNION ALL SELECT id FROM ins;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [ $json.id, $json.name, $json.sessions, $json.price, $json.validDays, $json.productId, $json.isActive ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "alwaysOutputData": false
+    },
+    {
+      "id": "bb0754c9-2c74-4410-b345-7cb133724a7d",
+      "name": "Respond (savepkg)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1680,
+        140
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().length && $input.first().json.id ? { success: true, id: $input.first().json.id } : { success: false, error: 'That package was not found.' } }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "13276727-9172-4db2-806e-444bf6aae4ec",
+      "name": "Webhook: delete-package",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        400
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "delete-package",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "http://localhost:5173"
+        }
+      },
+      "webhookId": "b33ba5de-fc33-4240-804a-b6023255833f"
+    },
+    {
+      "id": "dd3159fd-66c7-4406-951d-19b67f36c461",
+      "name": "Log Workflow Run: delete-package",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        400
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Packages & Memberships\" }}",
+            "workflow_id": "={{ \"jGnQngePQKDpWp6y\" }}",
+            "entity_type": "={{ \"client_packages\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "74088e56-8d22-4a4b-a8e9-44eedafb0c21",
+      "name": "Extract Bearer Token (delpkg)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: delete-package').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "5df9a182-9bbd-4cdc-9bc9-53d4f8cae6bc",
+      "name": "Execute Workflow: Verify Session (delpkg)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        400
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "fa72c777-530c-4833-bf1c-46fce825e415",
+      "name": "Validate Session (delpkg)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "7270b87d-c4da-4e6e-a0c0-5652181285c9",
+      "name": "Check Payload (delpkg)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Only an admin can change packages and memberships.');\nconst clean = (v, max) => (typeof v === 'string' ? v : '').replace(/[\\u0000-\\u001f\\u007f]/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, max);\nconst num = (v, name, min, max) => { const n = Number(v); if (!Number.isFinite(n) || n < min || n > max) throw new Error(name + ' must be between ' + min + ' and ' + max + '.'); return n; };\nconst bool = (v) => !(v === false || v === 'false');\nconst idOf = (v) => { if (v === null || v === undefined || v === '') return null; const n = parseInt(v, 10); if (!Number.isInteger(n) || n < 1) throw new Error('Invalid id.'); return n; };\nconst b = $('Webhook: delete-package').first().json.body || {};\nconst id = idOf(b.id); if (!id) throw new Error('\"id\" is required.');\nreturn [{ json: { id } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "3234b1fe-1583-47b5-8886-9c48dfaee9c6",
+      "name": "Query (delpkg)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1440,
+        400
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM packages WHERE id = $1::int RETURNING id;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [ $json.id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "alwaysOutputData": false
+    },
+    {
+      "id": "8d5bdead-1159-4f4d-a266-2317a39f46f1",
+      "name": "Respond (delpkg)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1680,
+        340
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().length && $input.first().json.id ? { success: true } : { success: false, error: 'That package was not found.' } }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "d9814d78-f64f-4b34-8b8a-97b4f683d3e4",
+      "name": "Webhook: save-membership-plan",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        600
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "save-membership-plan",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "http://localhost:5173"
+        }
+      },
+      "webhookId": "1081f45e-efa0-4511-bec5-0017928c33c9"
+    },
+    {
+      "id": "6f4a9e8e-32d4-4384-b194-a7c0f7442b1b",
+      "name": "Log Workflow Run: save-membership-plan",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        600
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Packages & Memberships\" }}",
+            "workflow_id": "={{ \"jGnQngePQKDpWp6y\" }}",
+            "entity_type": "={{ \"client_packages\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "c6fe9387-8601-4d93-b411-519685756e1b",
+      "name": "Extract Bearer Token (saveplan)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        600
+      ],
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: save-membership-plan').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "015a9dac-a896-4fc6-8656-86b1431fe43a",
+      "name": "Execute Workflow: Verify Session (saveplan)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        600
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "30c0e70c-5bae-4d1c-a3bc-85946521212e",
+      "name": "Validate Session (saveplan)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        600
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "f4edce9f-fecd-4cd7-8879-1b2da28dca8a",
+      "name": "Check Payload (saveplan)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        600
+      ],
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Only an admin can change packages and memberships.');\nconst clean = (v, max) => (typeof v === 'string' ? v : '').replace(/[\\u0000-\\u001f\\u007f]/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, max);\nconst num = (v, name, min, max) => { const n = Number(v); if (!Number.isFinite(n) || n < min || n > max) throw new Error(name + ' must be between ' + min + ' and ' + max + '.'); return n; };\nconst bool = (v) => !(v === false || v === 'false');\nconst idOf = (v) => { if (v === null || v === undefined || v === '') return null; const n = parseInt(v, 10); if (!Number.isInteger(n) || n < 1) throw new Error('Invalid id.'); return n; };\nconst b = $('Webhook: save-membership-plan').first().json.body || {};\nconst name = clean(b.name, 80); if (!name) throw new Error('Give the membership a name.');\nconst included = Math.round(num(b.included_sessions === undefined || b.included_sessions === '' ? 0 : b.included_sessions, 'Included sessions', 0, 200));\nconst disc = Math.round(num(b.discount_percent === undefined || b.discount_percent === '' ? 0 : b.discount_percent, 'Discount', 0, 100) * 100) / 100;\nreturn [{ json: { id: idOf(b.id), name, price: Math.round(num(b.price, 'Price', 0, 100000000) * 100) / 100, periodDays: Math.round(num(b.period_days === undefined || b.period_days === '' ? 30 : b.period_days, 'Period days', 1, 366)), discount: disc, included, isActive: bool(b.is_active) } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "f3af9738-8342-491e-b774-16d6e797f0c4",
+      "name": "Query (saveplan)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1440,
+        600
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH upd AS (UPDATE membership_plans SET name = $2, price = $3::numeric, period_days = $4::int, discount_percent = $5::numeric, included_sessions = $6::int, is_active = $7::boolean WHERE id = $1::int RETURNING id),\nins AS (INSERT INTO membership_plans (name, price, period_days, discount_percent, included_sessions, is_active) SELECT $2, $3::numeric, $4::int, $5::numeric, $6::int, $7::boolean WHERE $1::int IS NULL RETURNING id)\nSELECT id FROM upd UNION ALL SELECT id FROM ins;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [ $json.id, $json.name, $json.price, $json.periodDays, $json.discount, $json.included, $json.isActive ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "alwaysOutputData": false
+    },
+    {
+      "id": "6cbb9d59-35d2-46c9-b700-f2ad16551428",
+      "name": "Respond (saveplan)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1680,
+        540
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().length && $input.first().json.id ? { success: true, id: $input.first().json.id } : { success: false, error: 'That membership was not found.' } }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "4d5f0240-613a-4111-9923-231104232f84",
+      "name": "Webhook: delete-membership-plan",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        800
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "delete-membership-plan",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "http://localhost:5173"
+        }
+      },
+      "webhookId": "9d14c051-02ad-4c89-8990-3291c72a0501"
+    },
+    {
+      "id": "46fd6430-a119-49a4-adf8-b3158df27bf5",
+      "name": "Log Workflow Run: delete-membership-plan",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        800
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Packages & Memberships\" }}",
+            "workflow_id": "={{ \"jGnQngePQKDpWp6y\" }}",
+            "entity_type": "={{ \"client_packages\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "1f7894cf-7dd5-4a5c-81ab-e63cd24c046c",
+      "name": "Extract Bearer Token (delplan)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        800
+      ],
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: delete-membership-plan').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "c7d81965-bf27-428f-ae09-e601643acc1a",
+      "name": "Execute Workflow: Verify Session (delplan)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        800
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "58b30619-85bc-4566-8593-6fbce812cc22",
+      "name": "Validate Session (delplan)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        800
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "f0ca48ae-901d-4092-a3a4-b5e698138a3b",
+      "name": "Check Payload (delplan)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        800
+      ],
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Only an admin can change packages and memberships.');\nconst clean = (v, max) => (typeof v === 'string' ? v : '').replace(/[\\u0000-\\u001f\\u007f]/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, max);\nconst num = (v, name, min, max) => { const n = Number(v); if (!Number.isFinite(n) || n < min || n > max) throw new Error(name + ' must be between ' + min + ' and ' + max + '.'); return n; };\nconst bool = (v) => !(v === false || v === 'false');\nconst idOf = (v) => { if (v === null || v === undefined || v === '') return null; const n = parseInt(v, 10); if (!Number.isInteger(n) || n < 1) throw new Error('Invalid id.'); return n; };\nconst b = $('Webhook: delete-membership-plan').first().json.body || {};\nconst id = idOf(b.id); if (!id) throw new Error('\"id\" is required.');\nreturn [{ json: { id } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "99aa297b-73ae-4693-b21d-c717bf519ca7",
+      "name": "Query (delplan)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1440,
+        800
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM membership_plans WHERE id = $1::int RETURNING id;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [ $json.id ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "alwaysOutputData": false
+    },
+    {
+      "id": "a42e0bd6-7597-492d-8ebb-5332a70604e2",
+      "name": "Respond (delplan)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1680,
+        740
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().length && $input.first().json.id ? { success: true } : { success: false, error: 'That membership was not found.' } }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "968edac4-590d-43da-be60-183c40ecb4fa",
+      "name": "Webhook: sell-package",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        1000
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sell-package",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "http://localhost:5173"
+        }
+      },
+      "webhookId": "ccc12ee1-3a82-48d3-9d20-8e27df7012cd"
+    },
+    {
+      "id": "15658236-818e-44ff-a436-83d51488a604",
+      "name": "Log Workflow Run: sell-package",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        1000
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Packages & Memberships\" }}",
+            "workflow_id": "={{ \"jGnQngePQKDpWp6y\" }}",
+            "entity_type": "={{ \"client_packages\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "31abedab-f3c1-429c-ad93-35559a344882",
+      "name": "Extract Bearer Token (sellpkg)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        1000
+      ],
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: sell-package').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "a62f880e-1326-464e-b5b3-7556637d1706",
+      "name": "Execute Workflow: Verify Session (sellpkg)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        1000
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "82302512-c487-4e58-b66e-482c0d97cd9d",
+      "name": "Validate Session (sellpkg)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        1000
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "95f1456b-81bd-4ba2-bd9e-a379f1b7ad1f",
+      "name": "Check Payload (sellpkg)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        1000
+      ],
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nconst clean = (v, max) => (typeof v === 'string' ? v : '').replace(/[\\u0000-\\u001f\\u007f]/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, max);\nconst num = (v, name, min, max) => { const n = Number(v); if (!Number.isFinite(n) || n < min || n > max) throw new Error(name + ' must be between ' + min + ' and ' + max + '.'); return n; };\nconst bool = (v) => !(v === false || v === 'false');\nconst idOf = (v) => { if (v === null || v === undefined || v === '') return null; const n = parseInt(v, 10); if (!Number.isInteger(n) || n < 1) throw new Error('Invalid id.'); return n; };\nconst b = $('Webhook: sell-package').first().json.body || {};\nconst contact = idOf(b.contact_id); const item = idOf(b.item_id);\nif (!contact || !item) throw new Error('Choose a client and an item to sell.');\nconst method = typeof b.payment_method === 'string' ? b.payment_method : '';\nreturn [{ json: { contact, item, method, userId: requester.id, isAdmin: requester.role === 'admin' } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "544f49a8-2dca-42ca-8d81-35ae0f6da8aa",
+      "name": "Query (sellpkg)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1440,
+        1000
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT sell_package($1::int, $2::int, $3::text, $4::int, $5::boolean) AS result;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [ $json.contact, $json.item, $json.method, $json.userId, $json.isAdmin ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "alwaysOutputData": false
+    },
+    {
+      "id": "35d7d290-8d0e-4d49-8e12-ddff456dd500",
+      "name": "Respond (sellpkg)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1680,
+        940
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ (() => { const r = $input.first().json.result || {}; const msg = { not_found: 'That client was not found.', forbidden: 'Only the client\\'s owner or an admin can do this.', invalid_method: 'Choose cash, Kaspi or card.', invalid_package: 'That package is not available.', invalid_plan: 'That membership is not available.', already_active: 'This client already has that membership. Renew it instead.', cancelled: 'This membership was cancelled.' }; return r.status === 'ok' ? { success: true, id: r.id } : { success: false, error: msg[r.status] || 'Could not sell this package.' }; })() }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "7f234c8a-177e-47da-94f0-aa9e808b4a18",
+      "name": "Webhook: sell-membership",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        1200
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sell-membership",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "http://localhost:5173"
+        }
+      },
+      "webhookId": "9d9384e2-115a-430d-89c6-061b06eaa045"
+    },
+    {
+      "id": "42fa584a-a8f5-4d3d-8001-d312e2649a2f",
+      "name": "Log Workflow Run: sell-membership",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        1200
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Packages & Memberships\" }}",
+            "workflow_id": "={{ \"jGnQngePQKDpWp6y\" }}",
+            "entity_type": "={{ \"client_packages\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "4b82cff0-4843-43a7-bf6a-18384110d210",
+      "name": "Extract Bearer Token (sellmem)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        1200
+      ],
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: sell-membership').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "9f9d089c-f732-4215-982f-e652ff057d5e",
+      "name": "Execute Workflow: Verify Session (sellmem)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        1200
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "cab95aaa-4711-42e3-b6a3-6bfc637c97cb",
+      "name": "Validate Session (sellmem)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        1200
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "0a24be02-f301-4b0d-9f91-5c94e19c72a2",
+      "name": "Check Payload (sellmem)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        1200
+      ],
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nconst clean = (v, max) => (typeof v === 'string' ? v : '').replace(/[\\u0000-\\u001f\\u007f]/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, max);\nconst num = (v, name, min, max) => { const n = Number(v); if (!Number.isFinite(n) || n < min || n > max) throw new Error(name + ' must be between ' + min + ' and ' + max + '.'); return n; };\nconst bool = (v) => !(v === false || v === 'false');\nconst idOf = (v) => { if (v === null || v === undefined || v === '') return null; const n = parseInt(v, 10); if (!Number.isInteger(n) || n < 1) throw new Error('Invalid id.'); return n; };\nconst b = $('Webhook: sell-membership').first().json.body || {};\nconst contact = idOf(b.contact_id); const item = idOf(b.item_id);\nif (!contact || !item) throw new Error('Choose a client and an item to sell.');\nconst method = typeof b.payment_method === 'string' ? b.payment_method : '';\nreturn [{ json: { contact, item, method, userId: requester.id, isAdmin: requester.role === 'admin' } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "9a7314b9-9357-45d3-8de2-cf1169497b31",
+      "name": "Query (sellmem)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1440,
+        1200
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT sell_membership($1::int, $2::int, $3::text, $4::int, $5::boolean) AS result;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [ $json.contact, $json.item, $json.method, $json.userId, $json.isAdmin ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "alwaysOutputData": false
+    },
+    {
+      "id": "669b1a17-20fb-48bd-944f-f632b5fd9980",
+      "name": "Respond (sellmem)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1680,
+        1140
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ (() => { const r = $input.first().json.result || {}; const msg = { not_found: 'That client was not found.', forbidden: 'Only the client\\'s owner or an admin can do this.', invalid_method: 'Choose cash, Kaspi or card.', invalid_package: 'That package is not available.', invalid_plan: 'That membership is not available.', already_active: 'This client already has that membership. Renew it instead.', cancelled: 'This membership was cancelled.' }; return r.status === 'ok' ? { success: true, id: r.id } : { success: false, error: msg[r.status] || 'Could not sell this membership.' }; })() }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "91f50017-4dad-4adf-b1f1-6a546ca659c7",
+      "name": "Webhook: renew-membership",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        1400
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "renew-membership",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "http://localhost:5173"
+        }
+      },
+      "webhookId": "3afaf454-67aa-4ec9-821d-617c12467021"
+    },
+    {
+      "id": "2c50b4e3-1d29-41e3-ab18-c5f98f033428",
+      "name": "Log Workflow Run: renew-membership",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        1400
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Packages & Memberships\" }}",
+            "workflow_id": "={{ \"jGnQngePQKDpWp6y\" }}",
+            "entity_type": "={{ \"client_packages\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "3d2e7c10-a8ae-4850-800f-55c8a7ea2db3",
+      "name": "Extract Bearer Token (renew)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        1400
+      ],
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: renew-membership').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "35657dea-8bb3-4857-8ded-43cba585d182",
+      "name": "Execute Workflow: Verify Session (renew)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        1400
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "d4791fb4-44d7-41fe-9a84-caedf104ee9b",
+      "name": "Validate Session (renew)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        1400
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "0a114231-c709-4c81-9f9b-1c70b644c621",
+      "name": "Check Payload (renew)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        1400
+      ],
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nconst clean = (v, max) => (typeof v === 'string' ? v : '').replace(/[\\u0000-\\u001f\\u007f]/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, max);\nconst num = (v, name, min, max) => { const n = Number(v); if (!Number.isFinite(n) || n < min || n > max) throw new Error(name + ' must be between ' + min + ' and ' + max + '.'); return n; };\nconst bool = (v) => !(v === false || v === 'false');\nconst idOf = (v) => { if (v === null || v === undefined || v === '') return null; const n = parseInt(v, 10); if (!Number.isInteger(n) || n < 1) throw new Error('Invalid id.'); return n; };\nconst b = $('Webhook: renew-membership').first().json.body || {};\nconst id = idOf(b.membership_id); if (!id) throw new Error('\"membership_id\" is required.');\nconst method = typeof b.payment_method === 'string' ? b.payment_method : '';\nreturn [{ json: { id, method, userId: requester.id, isAdmin: requester.role === 'admin' } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "ec066620-87b1-4323-a7aa-f7e0d1233d9d",
+      "name": "Query (renew)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1440,
+        1400
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT renew_membership($1::int, $2::text, $3::int, $4::boolean) AS result;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [ $json.id, $json.method, $json.userId, $json.isAdmin ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "alwaysOutputData": false
+    },
+    {
+      "id": "ee4e7f46-2c9e-4e6f-9c4c-35f7accaa425",
+      "name": "Respond (renew)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1680,
+        1340
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ (() => { const r = $input.first().json.result || {}; const msg = { not_found: 'That client was not found.', forbidden: 'Only the client\\'s owner or an admin can do this.', invalid_method: 'Choose cash, Kaspi or card.', invalid_package: 'That package is not available.', invalid_plan: 'That membership is not available.', already_active: 'This client already has that membership. Renew it instead.', cancelled: 'This membership was cancelled.' }; return r.status === 'ok' ? { success: true } : { success: false, error: msg[r.status] || 'Could not renew.' }; })() }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "1f7a8fe8-a6a4-4b19-97a4-9293d93633b9",
+      "name": "Webhook: get-client-benefits",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        1600
+      ],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-client-benefits",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "http://localhost:5173"
+        }
+      },
+      "webhookId": "d3bb9f6c-1744-4725-9bf4-70a09e3a880f"
+    },
+    {
+      "id": "0c7138d7-a628-4257-8ed5-45385a93f70a",
+      "name": "Log Workflow Run: get-client-benefits",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        1600
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Packages & Memberships\" }}",
+            "workflow_id": "={{ \"jGnQngePQKDpWp6y\" }}",
+            "entity_type": "={{ \"client_packages\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "13845ca6-bad6-40ef-ae46-0c6ee3b8dcda",
+      "name": "Extract Bearer Token (benefits)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        1600
+      ],
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: get-client-benefits').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "dd465097-2ff9-44c0-bd91-e40907817d3c",
+      "name": "Execute Workflow: Verify Session (benefits)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        1600
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "ea90343c-5825-43e1-a773-665ebbf74139",
+      "name": "Validate Session (benefits)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        1600
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "3be66c05-3ab1-4782-b748-aba72778fd2b",
+      "name": "Check Payload (benefits)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        1600
+      ],
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nconst clean = (v, max) => (typeof v === 'string' ? v : '').replace(/[\\u0000-\\u001f\\u007f]/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, max);\nconst num = (v, name, min, max) => { const n = Number(v); if (!Number.isFinite(n) || n < min || n > max) throw new Error(name + ' must be between ' + min + ' and ' + max + '.'); return n; };\nconst bool = (v) => !(v === false || v === 'false');\nconst idOf = (v) => { if (v === null || v === undefined || v === '') return null; const n = parseInt(v, 10); if (!Number.isInteger(n) || n < 1) throw new Error('Invalid id.'); return n; };\nconst q = $('Webhook: get-client-benefits').first().json.query || {};\nconst contact = idOf(q.contact_id); if (!contact) throw new Error('\"contact_id\" is required.');\nreturn [{ json: { contact } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "f9d48972-4bac-4b1e-ba59-3a8984d452c9",
+      "name": "Query (benefits)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1440,
+        1600
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n COALESCE((SELECT json_agg(x ORDER BY x.expires_at DESC) FROM (SELECT cp.id, cp.name, cp.sessions_total, package_remaining(cp.id) AS remaining, cp.price_paid::float AS price_paid, cp.session_value::float AS session_value,\n    cp.product_id, pr.name AS product_name, cp.purchased_at, cp.expires_at, cp.status, (cp.status = 'active' AND cp.expires_at >= now()) AS usable\n    FROM client_packages cp LEFT JOIN products pr ON pr.id = cp.product_id WHERE cp.contact_id = $1::int) x), '[]'::json) AS packages,\n COALESCE((SELECT json_agg(y ORDER BY y.renews_at DESC) FROM (SELECT cm.id, cm.name, cm.price::float AS price, cm.discount_percent::float AS discount_percent, cm.included_sessions, membership_remaining(cm.id) AS remaining,\n    cm.session_value::float AS session_value, cm.period_start, cm.renews_at, cm.status, (cm.status = 'active' AND cm.renews_at >= now()) AS usable\n    FROM client_memberships cm WHERE cm.contact_id = $1::int) y), '[]'::json) AS memberships;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [ $json.contact ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "id": "c96e1469-f025-427d-ab8e-e5f102e24016",
+      "name": "Respond (benefits)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1680,
+        1540
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, packages: $input.first().json.packages || [], memberships: $input.first().json.memberships || [] } }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "f29c4369-7eed-48b8-b894-48c5d0dd66df",
+      "name": "Webhook: cancel-client-benefit",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        1800
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cancel-client-benefit",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "http://localhost:5173"
+        }
+      },
+      "webhookId": "db710e42-aab9-4e78-8bec-16040cdb60c1"
+    },
+    {
+      "id": "36cc9fd2-91f3-4c8a-ad46-2ed141ca3ed3",
+      "name": "Log Workflow Run: cancel-client-benefit",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        1800
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Packages & Memberships\" }}",
+            "workflow_id": "={{ \"jGnQngePQKDpWp6y\" }}",
+            "entity_type": "={{ \"client_packages\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "19c664cc-ea04-4030-a74a-2e6443ad0393",
+      "name": "Extract Bearer Token (cancel)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        1800
+      ],
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: cancel-client-benefit').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "974255fc-e90f-4a26-8d10-365f7bd8f094",
+      "name": "Execute Workflow: Verify Session (cancel)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        1800
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "f9af61e7-a7bc-4224-a882-597891a1e899",
+      "name": "Validate Session (cancel)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        1800
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "a358ef7a-5b76-43d4-b8eb-eb1115d116fc",
+      "name": "Check Payload (cancel)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        1800
+      ],
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Only an admin can change packages and memberships.');\nconst clean = (v, max) => (typeof v === 'string' ? v : '').replace(/[\\u0000-\\u001f\\u007f]/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, max);\nconst num = (v, name, min, max) => { const n = Number(v); if (!Number.isFinite(n) || n < min || n > max) throw new Error(name + ' must be between ' + min + ' and ' + max + '.'); return n; };\nconst bool = (v) => !(v === false || v === 'false');\nconst idOf = (v) => { if (v === null || v === undefined || v === '') return null; const n = parseInt(v, 10); if (!Number.isInteger(n) || n < 1) throw new Error('Invalid id.'); return n; };\nconst b = $('Webhook: cancel-client-benefit').first().json.body || {};\nconst id = idOf(b.id); if (!id) throw new Error('\"id\" is required.');\nconst kind = b.kind === 'package' ? 'package' : b.kind === 'membership' ? 'membership' : null;\nif (!kind) throw new Error('\"kind\" must be package or membership.');\nreturn [{ json: { id, kind } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "d087f507-20b7-405d-8a8a-d95627025bf0",
+      "name": "Query (cancel)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1440,
+        1800
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH p AS (UPDATE client_packages SET status = 'cancelled' WHERE $2 = 'package' AND id = $1::int RETURNING id),\nm AS (UPDATE client_memberships SET status = 'cancelled' WHERE $2 = 'membership' AND id = $1::int RETURNING id)\nSELECT id FROM p UNION ALL SELECT id FROM m;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [ $json.id, $json.kind ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "alwaysOutputData": false
+    },
+    {
+      "id": "b8de9f5e-00fb-4a66-966a-260db7cf4047",
+      "name": "Respond (cancel)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1680,
+        1740
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().length && $input.first().json.id ? { success: true } : { success: false, error: 'Not found.' } }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Webhook: get-benefit-catalog": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: get-benefit-catalog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: get-benefit-catalog": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token (catalog)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (catalog)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (catalog)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (catalog)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (catalog)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (catalog)": {
+      "main": [
+        [
+          {
+            "node": "Check Payload (catalog)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload (catalog)": {
+      "main": [
+        [
+          {
+            "node": "Query (catalog)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query (catalog)": {
+      "main": [
+        [
+          {
+            "node": "Respond (catalog)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: save-package": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: save-package",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: save-package": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token (savepkg)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (savepkg)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (savepkg)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (savepkg)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (savepkg)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (savepkg)": {
+      "main": [
+        [
+          {
+            "node": "Check Payload (savepkg)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload (savepkg)": {
+      "main": [
+        [
+          {
+            "node": "Query (savepkg)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query (savepkg)": {
+      "main": [
+        [
+          {
+            "node": "Respond (savepkg)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: delete-package": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: delete-package",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: delete-package": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token (delpkg)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (delpkg)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (delpkg)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (delpkg)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (delpkg)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (delpkg)": {
+      "main": [
+        [
+          {
+            "node": "Check Payload (delpkg)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload (delpkg)": {
+      "main": [
+        [
+          {
+            "node": "Query (delpkg)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query (delpkg)": {
+      "main": [
+        [
+          {
+            "node": "Respond (delpkg)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: save-membership-plan": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: save-membership-plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: save-membership-plan": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token (saveplan)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (saveplan)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (saveplan)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (saveplan)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (saveplan)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (saveplan)": {
+      "main": [
+        [
+          {
+            "node": "Check Payload (saveplan)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload (saveplan)": {
+      "main": [
+        [
+          {
+            "node": "Query (saveplan)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query (saveplan)": {
+      "main": [
+        [
+          {
+            "node": "Respond (saveplan)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: delete-membership-plan": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: delete-membership-plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: delete-membership-plan": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token (delplan)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (delplan)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (delplan)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (delplan)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (delplan)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (delplan)": {
+      "main": [
+        [
+          {
+            "node": "Check Payload (delplan)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload (delplan)": {
+      "main": [
+        [
+          {
+            "node": "Query (delplan)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query (delplan)": {
+      "main": [
+        [
+          {
+            "node": "Respond (delplan)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: sell-package": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: sell-package",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: sell-package": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token (sellpkg)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (sellpkg)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (sellpkg)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (sellpkg)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (sellpkg)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (sellpkg)": {
+      "main": [
+        [
+          {
+            "node": "Check Payload (sellpkg)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload (sellpkg)": {
+      "main": [
+        [
+          {
+            "node": "Query (sellpkg)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query (sellpkg)": {
+      "main": [
+        [
+          {
+            "node": "Respond (sellpkg)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: sell-membership": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: sell-membership",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: sell-membership": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token (sellmem)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (sellmem)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (sellmem)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (sellmem)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (sellmem)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (sellmem)": {
+      "main": [
+        [
+          {
+            "node": "Check Payload (sellmem)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload (sellmem)": {
+      "main": [
+        [
+          {
+            "node": "Query (sellmem)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query (sellmem)": {
+      "main": [
+        [
+          {
+            "node": "Respond (sellmem)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: renew-membership": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: renew-membership",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: renew-membership": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token (renew)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (renew)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (renew)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (renew)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (renew)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (renew)": {
+      "main": [
+        [
+          {
+            "node": "Check Payload (renew)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload (renew)": {
+      "main": [
+        [
+          {
+            "node": "Query (renew)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query (renew)": {
+      "main": [
+        [
+          {
+            "node": "Respond (renew)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: get-client-benefits": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: get-client-benefits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: get-client-benefits": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token (benefits)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (benefits)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (benefits)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (benefits)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (benefits)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (benefits)": {
+      "main": [
+        [
+          {
+            "node": "Check Payload (benefits)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload (benefits)": {
+      "main": [
+        [
+          {
+            "node": "Query (benefits)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query (benefits)": {
+      "main": [
+        [
+          {
+            "node": "Respond (benefits)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: cancel-client-benefit": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: cancel-client-benefit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: cancel-client-benefit": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token (cancel)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (cancel)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (cancel)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (cancel)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (cancel)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (cancel)": {
+      "main": [
+        [
+          {
+            "node": "Check Payload (cancel)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload (cancel)": {
+      "main": [
+        [
+          {
+            "node": "Query (cancel)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query (cancel)": {
+      "main": [
+        [
+          {
+            "node": "Respond (cancel)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "Asia/Almaty",
+    "availableInMCP": false
+  }
+}

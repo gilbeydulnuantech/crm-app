@@ -5,6 +5,7 @@ import { useEmailTemplates } from '../hooks/useEmailTemplates';
 import { useStageReminders, useSaveStageReminder } from '../hooks/usePipelineStageReminders';
 import { StageReminderStepDraft } from '../api/pipelineStageReminders';
 import DynamicFieldDropdown, { AUTOMATION_DYNAMIC_FIELDS, insertAtCursor } from '../components/DynamicFieldDropdown';
+import { templatePlainBody } from '../utils/emailHtml';
 
 const inputClass =
   'w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]';
@@ -122,9 +123,9 @@ export default function StageReminderEditorPage() {
     if (!t || !focusTarget) return;
     if (focusTarget.key === 'oncomplete') {
       setOnCompleteSubject(t.subject);
-      setOnCompleteBody(t.body);
+      setOnCompleteBody(templatePlainBody(t));
     } else {
-      updateStep(focusTarget.key, { email_subject: t.subject, email_body: t.body });
+      updateStep(focusTarget.key, { email_subject: t.subject, email_body: templatePlainBody(t) });
     }
   }
 

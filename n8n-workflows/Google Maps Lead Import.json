@@ -1,5 +1,463 @@
 {
-  "active": true,
+  "name": "Lead Generation & Enrichement",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "import-maps-leads",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "mli-webhook-1",
+      "name": "Webhook: import-maps-leads",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        720
+      ],
+      "webhookId": "mli-import-maps-leads-0001"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\n// The token is only a lookup key. Who the caller is comes from the sessions table (Verify Session) \u2014 never from\n// the token's own text (the old token_<id>_<n> format could be forged to impersonate any user).\nreturn [{ json: { token, authHeader: 'Bearer ' + token } }];"
+      },
+      "id": "mli-parse-token",
+      "name": "Parse Token",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        720
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n// The import can add hundreds of contacts and sends outreach email, so it is admin-only.\nif (requester.role !== 'admin') throw new Error('Admin access required to import leads.');\n\nconst body = $('Webhook: import-maps-leads').first().json.body || {};\nconst clean = (v) => (typeof v === 'string' || typeof v === 'number' ? String(v) : '').replace(/[\\u0000-\\u001f\\u007f]/g, ' ').trim();\nconst searchQuery = clean(body.search_query);\nconst location = clean(body.location);\nif (!searchQuery) throw new Error('search_query is required (for example roofing contractors).');\nif (!location) throw new Error('location is required (for example Austin, TX).');\nif (searchQuery.length > 200 || location.length > 200) throw new Error('search_query and location must be 200 characters or fewer.');\n\nlet maxResults = parseInt(body.max_results, 10);\nif (!Number.isInteger(maxResults) || maxResults <= 0) maxResults = 30;\nmaxResults = Math.min(maxResults, 100);\n\nreturn [{ json: { requesterId: requester.id, searchQuery, location, maxResults } }];"
+      },
+      "id": "mli-validate",
+      "name": "Validate Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        576
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.apify.com/v2/acts/compass~crawler-google-places/run-sync-get-dataset-items?token={{ $json.apifyKey }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ searchStringsArray: [$json.searchQuery], locationQuery: $json.location, maxCrawledPlacesPerSearch: $json.maxResults, language: 'en' }) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "mli-apify-call",
+      "name": "Search Google Maps via Apify",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1344,
+        360
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map((i) => i.json).filter((p) => p && p.title && p.placeId);\nconst ctx = $('Validate Payload').first().json;\n\nreturn [{\n  json: {\n    requesterId: ctx.requesterId,\n    scraped: items.length,\n    names: items.map((p) => p.title),\n    websites: items.map((p) => p.website || ''),\n    phones: items.map((p) => p.phoneUnformatted || p.phone || ''),\n    streets: items.map((p) => p.street || p.address || ''),\n    cities: items.map((p) => p.city || ''),\n    states: items.map((p) => p.state || ''),\n    countries: items.map((p) => p.countryCode || ''),\n    placeIds: items.map((p) => p.placeId),\n    mapsUrls: items.map((p) => p.url || ''),\n    ratings: items.map((p) => (p.totalScore != null ? Number(p.totalScore) : null)),\n    reviewCounts: items.map((p) => (p.reviewsCount != null ? Number(p.reviewsCount) : null)),\n    categories: items.map((p) => p.categoryName || ''),\n  },\n}];"
+      },
+      "id": "mli-map-results",
+      "name": "Map Apify Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        304
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH input_rows AS (\n  SELECT * FROM unnest(\n    $1::text[], $2::text[], $3::text[], $4::text[], $5::text[], $6::text[], $7::text[],\n    $8::text[], $9::text[], $10::numeric[], $11::int[], $12::text[]\n  ) AS t(name, website, phone, street_address, city, state, country, google_place_id, google_maps_url, google_rating, google_reviews_count, google_category)\n),\ninserted_companies AS (\n  INSERT INTO companies (\n    name, website, phone, street_address, city, state, country,\n    google_place_id, google_maps_url, google_rating, google_reviews_count, google_category,\n    lead_source, account_status, owner_id, created_by\n  )\n  SELECT\n    name, NULLIF(website, ''), NULLIF(phone, ''), NULLIF(street_address, ''), NULLIF(city, ''), NULLIF(state, ''), NULLIF(country, ''),\n    google_place_id, NULLIF(google_maps_url, ''), google_rating, google_reviews_count, NULLIF(google_category, ''),\n    'Google Maps', 'Prospect', $13, $13\n  FROM input_rows\n  ON CONFLICT (google_place_id) WHERE google_place_id IS NOT NULL DO NOTHING\n  RETURNING id, name, phone\n)\nINSERT INTO contacts (first_name, phone, account_id, lead_status, lead_source, owner_id, created_by)\nSELECT name, NULLIF(phone, ''), id, 'New', 'Google Maps', $13, $13\nFROM inserted_companies\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.names, $json.websites, $json.phones, $json.streets, $json.cities, $json.states, $json.countries, $json.placeIds, $json.mapsUrls, $json.ratings, $json.reviewCounts, $json.categories, $json.requesterId ] }}"
+        }
+      },
+      "id": "mli-insert",
+      "name": "Insert Companies & Contacts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1792,
+        120
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const imported = $input.all().length;\nconst scraped = $('Map Apify Results').first().json.scraped;\nreturn [{ json: { success: true, scraped, imported, skipped_duplicates: scraped - imported } }];"
+      },
+      "id": "mli-build-response",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        896
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "mli-respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        464,
+        896
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ (() => { let m = (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Import failed.\"; m = String(m).replace(/\\s*\\[line \\d+\\]\\s*$/, \"\"); if (/(violates|duplicate key|syntax error|relation \"|column \"|value too long|ECONNREFUSED|timeout)/i.test(m)) m = \"The request could not be completed. Please try again.\"; return { success: false, error: m }; })() }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "mli-respond-error",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2032,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT pgp_sym_decrypt(api_key_encrypted, $1) AS api_key FROM integrations WHERE provider = 'apify' AND is_active = true AND api_key_encrypted IS NOT NULL LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $env.INTEGRATIONS_ENCRYPTION_KEY ] }}"
+        }
+      },
+      "id": "mli-lookup-apify-key",
+      "name": "Look Up Apify Key",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        896,
+        504
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const key = $input.first().json.api_key;\nif (!key) throw new Error('Apify is not connected \u2014 add an API key in Settings > Integrations.');\nconst ctx = $('Validate Payload').first().json;\nreturn [{ json: { ...ctx, apifyKey: key } }];"
+      },
+      "id": "mli-merge-key",
+      "name": "Require Apify Key",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        432
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const authHeader = $('Parse Token').first().json.authHeader;\nreturn $input.all().map((item) => ({ json: { contactId: item.json.id, authHeader } }));"
+      },
+      "id": "mli-prepare-enrich",
+      "name": "Prepare Contacts For Enrichment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        1088
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/enrich-contact",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $json.authHeader }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ contact_id: $json.contactId }) }}",
+        "options": {
+          "timeout": 240000
+        }
+      },
+      "id": "mli-enrich-new-contact",
+      "name": "Enrich New Contact",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        464,
+        1088
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.id AS contact_id, c.first_name, c.email, c.unsubscribe_token, co.name AS business_name FROM contacts c LEFT JOIN companies co ON co.id = c.account_id WHERE c.id = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $(\"Prepare Contacts For Enrichment\").item.json.contactId ] }}"
+        }
+      },
+      "id": "mli-lookup-contact-outreach",
+      "name": "Look Up Contact For Outreach",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        688,
+        1088
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "has-email-cond",
+              "leftValue": "={{ $json.email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "mli-has-email-if",
+      "name": "Has Email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        912,
+        1088
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT subject, body FROM email_templates WHERE trigger_event = 'google_maps_lead' AND is_active = true LIMIT 1;",
+        "options": {}
+      },
+      "id": "mli-lookup-outreach-template",
+      "name": "Look Up Outreach Template",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1136,
+        1088
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT company_name FROM company_profile LIMIT 1;",
+        "options": {}
+      },
+      "id": "mli-get-company-name-outreach",
+      "name": "Get Company Name (Outreach)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1360,
+        1088
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "function safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\nconst contacts = $('Look Up Contact For Outreach').all();\nconst templates = $('Look Up Outreach Template').all();\nconst companies = $('Get Company Name (Outreach)').all();\n// Business names and scraped contact names are third-party text (Google Maps / a website), so they are\n// HTML-escaped in the body and kept to one plain line in the subject.\nconst esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&#39;');\nconst plain = (s) => String(s ?? '').replace(/[\\r\\n]+/g, ' ');\n// Same placeholders the template editor offers: company.name is the PROSPECT's business, user.company_name is ours\n// (the older business_name / first_name / company_name spellings keep working).\nfunction fill(t, contact, ours, enc) {\n  const first = contact.first_name || 'there';\n  const map = {\n    'contact.first_name': first, 'first_name': first,\n    'company.name': contact.business_name || 'your company', 'business_name': contact.business_name || 'there',\n    'user.company_name': ours, 'company_name': ours,\n  };\n  return (t || '').replace(/\\{\\{\\s*([\\w.]+)\\s*\\}\\}/g, (m, k) => (Object.prototype.hasOwnProperty.call(map, k) ? enc(map[k]) : ''));\n}\nconst results = [];\nfor (let i = 0; i < contacts.length; i++) {\n  const contact = contacts[i].json;\n  const template = (templates[i] || templates[0] || {}).json;\n  const companyName = ((companies[i] || companies[0] || {}).json || {}).company_name || 'Us';\n  if (!template || !template.subject) continue;\n  const unsubUrl = safeEnv('FRONTEND_BASE_URL') + '/unsubscribe/' + encodeURIComponent(contact.unsubscribe_token || '');\n  const footer = `<br><br><span style=\"font-size:11px;color:#94a3b8\">Don't want these emails? <a href=\"${unsubUrl}\">Unsubscribe</a></span>`;\n  results.push({ json: { to: contact.email, subject: fill(template.subject, contact, companyName, plain), htmlBody: fill(template.body, contact, companyName, esc).replace(/\\n/g, '<br>') + footer, contactId: contact.contact_id, companyName } });\n}\nreturn results;"
+      },
+      "id": "mli-build-outreach-email",
+      "name": "Build Outreach Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1584,
+        1088
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "mli-send-outreach-email",
+      "name": "Send Outreach Email",
+      "position": [
+        1808,
+        1088
+      ],
+      "onError": "continueRegularOutput",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "parameters": {
+        "fromEmail": "={{ ($json.companyName) ? ('\"' + String($json.companyName).replace(/\"/g, '') + '\" <gilbeydulnuan@gmail.com>') : 'gilbeydulnuan@gmail.com' }}",
+        "toEmail": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailFormat": "html",
+        "html": "={{ (() => { const h = String($json.htmlBody); const hd = $json.__brandHeader || ''; const ft = $json.__brandFooter || ''; if (!hd && !ft) return h; const m = '<br><br><span style=\"font-size:11px'; const i = h.lastIndexOf(m); return hd + (i >= 0 ? h.slice(0, i) + ft + h.slice(i) : h + ft); })() }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "smtp": {
+          "id": "A3AoUIlP8cbZ5VlF",
+          "name": "Gmail SMTP (gilbeydulnuan)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE contacts SET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object('id', gen_random_uuid()::text, 'type', 'sent', 'subject', $1::text, 'message', $2::text, 'sent_at', NOW(), 'is_read', true) WHERE id = $3;",
+        "options": {
+          "queryReplacement": "={{ [ $('Build Outreach Email').item.json.subject, $('Build Outreach Email').item.json.htmlBody.replace(/<br\\s*\\/?\\s*>/gi, '\\n').replace(/<[^>]+>/g, ''), $('Build Outreach Email').item.json.contactId ] }}"
+        }
+      },
+      "id": "mli-log-outreach-email",
+      "name": "Log Outreach Email",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2032,
+        1088
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "e49e7c4d-9eef-4803-a2aa-5380be1441ad",
+      "name": "Verify Session",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid || !r.active) throw new Error('Invalid session.');\nreturn [{ json: { id: r.userId, name: r.user?.name, role: r.role, active: r.active } }];"
+      },
+      "id": "eca99418-5886-4e81-aaae-eeba069bbb2f",
+      "name": "Validate Session",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Company branding + rep signature for outgoing HTML emails. Everything is off until an admin switches on\n// \"Add company branding and signatures to emails\" in Settings > Company Profile (company_profile.email_branding_enabled).\nfunction buildBrandParts(branding, signatureText, companyName) {\n  const b = branding || {};\n  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\n  const on = b.email_branding_enabled === true;\n  if (!on) return { on: false, header: '', footer: '', sig: '', sigText: '' };\n  const color = /^#[0-9a-fA-F]{6}$/.test(b.brand_color || '') ? b.brand_color : '#2563EB';\n  const logo = /^https?:\\/\\//i.test(b.logo_url || '')\n    ? '<img src=\"' + esc(b.logo_url) + '\" alt=\"' + esc(companyName) + '\" style=\"max-height:56px;max-width:200px;display:block;margin-bottom:6px\">' : '';\n  const name = companyName ? '<div style=\"font-size:18px;font-weight:bold;color:' + color + '\">' + esc(companyName) + '</div>' : '';\n  const header = (logo || name) ? '<div style=\"padding-bottom:12px;margin-bottom:16px;border-bottom:3px solid ' + color + '\">' + logo + name + '</div>' : '';\n  const lines = [b.address, b.phone, b.website, b.email].filter(Boolean).map(esc);\n  const note = b.email_footer_note ? '<div style=\"margin-top:6px\">' + esc(b.email_footer_note).replace(/\\n/g, '<br>') + '</div>' : '';\n  const footer = (lines.length || note)\n    ? '<div style=\"margin-top:24px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b\">' + (lines.length ? '<div>' + lines.join(' &middot; ') + '</div>' : '') + note + '</div>' : '';\n  const sigText = signatureText && String(signatureText).trim() ? String(signatureText).trim() : '';\n  const sig = sigText ? '<div style=\"margin-top:16px\">' + esc(sigText).replace(/\\n/g, '<br>') + '</div>' : '';\n  return { on: true, header, footer, sig, sigText };\n}\n\n// Apply Branding \u2014 works out this email's company header and footer and adds them to the item as __brandHeader and\n// __brandFooter; the Send node then wraps its own HTML with them. Strictly additive and fail-safe: if branding is\n// switched off or anything at all goes wrong, the item passes through untouched and the email goes out exactly as before.\nconst item = $input.item;\ntry {\n  const sd = $getWorkflowStaticData('global');\n  const now = Date.now();\n  let b = sd.__brandCache && now - sd.__brandCache.t < 60000 ? sd.__brandCache.data : null;\n  if (!b) {\n    let base = 'http://localhost:5678';\n    try { if ($env.N8N_INTERNAL_URL) base = $env.N8N_INTERNAL_URL; } catch (e) { /* env access blocked */ }\n    const r = await this.helpers.httpRequest({ url: base.replace(/\\/$/, '') + '/webhook/get-email-branding', method: 'GET', json: true, timeout: 5000 });\n    b = r && typeof r === 'object' ? r : {};\n    sd.__brandCache = { t: now, data: b };\n  }\n  if (b.email_branding_enabled === true) {\n    const parts = buildBrandParts(b, '', b.company_name || '');\n    return { json: { ...item.json, __brandHeader: parts.header, __brandFooter: parts.footer }, binary: item.binary };\n  }\n} catch (e) { /* branding is optional */ }\nreturn item;\n"
+      },
+      "id": "af9203eb-2521-481d-bad5-373f3f330a1c",
+      "name": "Apply Branding: Send Outreach Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1628,
+        1088
+      ],
+      "onError": "continueRegularOutput"
+    }
+  ],
   "connections": {
     "Webhook: import-maps-leads": {
       "main": [
@@ -16,25 +474,7 @@
       "main": [
         [
           {
-            "node": "Look Up Requester",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Look Up Requester": {
-      "main": [
-        [
-          {
-            "node": "Validate Payload",
+            "node": "Verify Session",
             "type": "main",
             "index": 0
           }
@@ -243,7 +683,7 @@
       "main": [
         [
           {
-            "node": "Send Outreach Email",
+            "node": "Apply Branding: Send Outreach Email",
             "type": "main",
             "index": 0
           }
@@ -260,481 +700,61 @@
           }
         ]
       ]
+    },
+    "Verify Session": {
+      "main": [
+        [
+          {
+            "node": "Validate Session",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session": {
+      "main": [
+        [
+          {
+            "node": "Validate Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply Branding: Send Outreach Email": {
+      "main": [
+        [
+          {
+            "node": "Send Outreach Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
-  },
-  "name": "Google Maps Lead Import",
-  "nodes": [
-    {
-      "parameters": {
-        "httpMethod": "POST",
-        "path": "import-maps-leads",
-        "responseMode": "responseNode",
-        "options": {
-          "allowedOrigins": "http://localhost:5173"
-        }
-      },
-      "id": "mli-webhook-1",
-      "name": "Webhook: import-maps-leads",
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2,
-      "position": [
-        0,
-        552
-      ],
-      "webhookId": "mli-import-maps-leads-0001"
-    },
-    {
-      "parameters": {
-        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst match = token.match(/^token_(\\d+)_(\\d+)$/);\nif (!match) throw new Error('Invalid or missing session token.');\nreturn [{ json: { requesterId: parseInt(match[1], 10), authHeader: 'Bearer ' + token } }];"
-      },
-      "id": "mli-parse-token",
-      "name": "Parse Token",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        224,
-        552
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name, role, active FROM users WHERE id = $1 LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $json.requesterId ] }}"
-        }
-      },
-      "id": "mli-lookup-requester",
-      "name": "Look Up Requester",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        448,
-        480
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\n\nconst body = $('Webhook: import-maps-leads').first().json.body || {};\nconst searchQuery = (body.search_query || '').trim();\nconst location = (body.location || '').trim();\nif (!searchQuery) throw new Error('search_query is required (e.g. \"roofing contractors\").');\nif (!location) throw new Error('location is required (e.g. \"Austin, TX\").');\n\nlet maxResults = parseInt(body.max_results, 10);\nif (!Number.isInteger(maxResults) || maxResults <= 0) maxResults = 30;\nmaxResults = Math.min(maxResults, 100);\n\nreturn [{ json: { requesterId: requester.id, searchQuery, location, maxResults } }];"
-      },
-      "id": "mli-validate",
-      "name": "Validate Payload",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        672,
-        408
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "=https://api.apify.com/v2/acts/compass~crawler-google-places/run-sync-get-dataset-items?token={{ $json.apifyKey }}",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ searchStringsArray: [$json.searchQuery], locationQuery: $json.location, maxCrawledPlacesPerSearch: $json.maxResults, language: 'en' }) }}",
-        "options": {
-          "timeout": 120000
-        }
-      },
-      "id": "mli-apify-call",
-      "name": "Search Google Maps via Apify",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        1344,
-        192
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const items = $input.all().map((i) => i.json).filter((p) => p && p.title && p.placeId);\nconst ctx = $('Validate Payload').first().json;\n\nreturn [{\n  json: {\n    requesterId: ctx.requesterId,\n    scraped: items.length,\n    names: items.map((p) => p.title),\n    websites: items.map((p) => p.website || ''),\n    phones: items.map((p) => p.phoneUnformatted || p.phone || ''),\n    streets: items.map((p) => p.street || p.address || ''),\n    cities: items.map((p) => p.city || ''),\n    states: items.map((p) => p.state || ''),\n    countries: items.map((p) => p.countryCode || ''),\n    placeIds: items.map((p) => p.placeId),\n    mapsUrls: items.map((p) => p.url || ''),\n    ratings: items.map((p) => (p.totalScore != null ? Number(p.totalScore) : null)),\n    reviewCounts: items.map((p) => (p.reviewsCount != null ? Number(p.reviewsCount) : null)),\n    categories: items.map((p) => p.categoryName || ''),\n  },\n}];"
-      },
-      "id": "mli-map-results",
-      "name": "Map Apify Results",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1568,
-        120
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "WITH input_rows AS (\n  SELECT * FROM unnest(\n    $1::text[], $2::text[], $3::text[], $4::text[], $5::text[], $6::text[], $7::text[],\n    $8::text[], $9::text[], $10::numeric[], $11::int[], $12::text[]\n  ) AS t(name, website, phone, street_address, city, state, country, google_place_id, google_maps_url, google_rating, google_reviews_count, google_category)\n),\ninserted_companies AS (\n  INSERT INTO companies (\n    name, website, phone, street_address, city, state, country,\n    google_place_id, google_maps_url, google_rating, google_reviews_count, google_category,\n    lead_source, account_status, owner_id, created_by\n  )\n  SELECT\n    name, NULLIF(website, ''), NULLIF(phone, ''), NULLIF(street_address, ''), NULLIF(city, ''), NULLIF(state, ''), NULLIF(country, ''),\n    google_place_id, NULLIF(google_maps_url, ''), google_rating, google_reviews_count, NULLIF(google_category, ''),\n    'Google Maps', 'Prospect', $13, $13\n  FROM input_rows\n  ON CONFLICT (google_place_id) WHERE google_place_id IS NOT NULL DO NOTHING\n  RETURNING id, name, phone\n)\nINSERT INTO contacts (first_name, phone, account_id, lead_status, lead_source, owner_id, created_by)\nSELECT name, NULLIF(phone, ''), id, 'New', 'Google Maps', $13, $13\nFROM inserted_companies\nRETURNING id;",
-        "options": {
-          "queryReplacement": "={{ [ $json.names, $json.websites, $json.phones, $json.streets, $json.cities, $json.states, $json.countries, $json.placeIds, $json.mapsUrls, $json.ratings, $json.reviewCounts, $json.categories, $json.requesterId ] }}"
-        }
-      },
-      "id": "mli-insert",
-      "name": "Insert Companies & Contacts",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        1792,
-        48
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const imported = $input.all().length;\nconst scraped = $('Map Apify Results').first().json.scraped;\nreturn [{ json: { success: true, scraped, imported, skipped_duplicates: scraped - imported } }];"
-      },
-      "id": "mli-build-response",
-      "name": "Build Response",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2016,
-        0
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "options": {}
-      },
-      "id": "mli-respond",
-      "name": "Respond",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.5,
-      "position": [
-        2240,
-        0
-      ]
-    },
-    {
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ { \"success\": false, \"error\": $json.error?.message || $json.message || \"Import failed.\" } }}",
-        "options": {
-          "responseCode": 400
-        }
-      },
-      "id": "mli-respond-error",
-      "name": "Respond - Error",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.5,
-      "position": [
-        2016,
-        528
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT pgp_sym_decrypt(api_key_encrypted, $1) AS api_key FROM integrations WHERE provider = 'apify' AND is_active = true AND api_key_encrypted IS NOT NULL LIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [ $env.INTEGRATIONS_ENCRYPTION_KEY ] }}"
-        }
-      },
-      "id": "mli-lookup-apify-key",
-      "name": "Look Up Apify Key",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        896,
-        336
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const key = $input.first().json.api_key;\nif (!key) throw new Error('Apify is not connected \u2014 add an API key in Settings > Integrations.');\nconst ctx = $('Validate Payload').first().json;\nreturn [{ json: { ...ctx, apifyKey: key } }];"
-      },
-      "id": "mli-merge-key",
-      "name": "Require Apify Key",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1120,
-        264
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const authHeader = $('Parse Token').first().json.authHeader;\nreturn $input.all().map((item) => ({ json: { contactId: item.json.id, authHeader } }));"
-      },
-      "id": "mli-prepare-enrich",
-      "name": "Prepare Contacts For Enrichment",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1540,
-        200
-      ]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "http://localhost:5678/webhook/enrich-contact",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "={{ $json.authHeader }}"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ contact_id: $json.contactId }) }}",
-        "options": {
-          "timeout": 240000
-        }
-      },
-      "id": "mli-enrich-new-contact",
-      "name": "Enrich New Contact",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        1760,
-        200
-      ],
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT c.id AS contact_id, c.first_name, c.email, c.unsubscribe_token, co.name AS business_name FROM contacts c LEFT JOIN companies co ON co.id = c.account_id WHERE c.id = $1;",
-        "options": {
-          "queryReplacement": "={{ [ $(\"Prepare Contacts For Enrichment\").item.json.contactId ] }}"
-        }
-      },
-      "id": "mli-lookup-contact-outreach",
-      "name": "Look Up Contact For Outreach",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        1980,
-        200
-      ],
-      "onError": "continueRegularOutput",
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 2
-          },
-          "conditions": [
-            {
-              "id": "has-email-cond",
-              "leftValue": "={{ $json.email }}",
-              "rightValue": "",
-              "operator": {
-                "type": "string",
-                "operation": "notEmpty",
-                "singleValue": true
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "mli-has-email-if",
-      "name": "Has Email?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        2200,
-        200
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT subject, body FROM email_templates WHERE trigger_event = 'google_maps_lead' AND is_active = true LIMIT 1;",
-        "options": {}
-      },
-      "id": "mli-lookup-outreach-template",
-      "name": "Look Up Outreach Template",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        2420,
-        120
-      ],
-      "onError": "continueRegularOutput",
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT company_name FROM company_profile LIMIT 1;",
-        "options": {}
-      },
-      "id": "mli-get-company-name-outreach",
-      "name": "Get Company Name (Outreach)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        2640,
-        120
-      ],
-      "onError": "continueRegularOutput",
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "function safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\nconst contacts = $('Look Up Contact For Outreach').all();\nconst templates = $('Look Up Outreach Template').all();\nconst companies = $('Get Company Name (Outreach)').all();\nfunction fill(t, contact, companyName) {\n  return (t || '')\n    .replace(/\\{\\{\\s*business_name\\s*\\}\\}/gi, contact.business_name || 'there')\n    .replace(/\\{\\{\\s*contact\\.first_name\\s*\\}\\}/gi, contact.first_name || 'there')\n    .replace(/\\{\\{\\s*company\\.name\\s*\\}\\}/gi, companyName);\n}\nconst results = [];\nfor (let i = 0; i < contacts.length; i++) {\n  const contact = contacts[i].json;\n  const template = (templates[i] || templates[0] || {}).json;\n  const companyName = ((companies[i] || companies[0] || {}).json || {}).company_name || 'Us';\n  if (!template || !template.subject) continue;\n  const unsubUrl = safeEnv('FRONTEND_BASE_URL') + '/unsubscribe/' + (contact.unsubscribe_token || '');\n  const footer = `<br><br><span style=\"font-size:11px;color:#94a3b8\">Don't want these emails? <a href=\"${unsubUrl}\">Unsubscribe</a></span>`;\n  results.push({ json: { to: contact.email, subject: fill(template.subject, contact, companyName), htmlBody: fill(template.body, contact, companyName).replace(/\\n/g, '<br>') + footer, contactId: contact.contact_id, companyName } });\n}\nreturn results;"
-      },
-      "id": "mli-build-outreach-email",
-      "name": "Build Outreach Email",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2860,
-        120
-      ],
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "sendTo": "={{ $json.to }}",
-        "subject": "={{ $json.subject }}",
-        "emailType": "html",
-        "message": "={{ $json.htmlBody }}",
-        "options": {
-          "senderName": "={{ $json.companyName }}",
-          "appendAttribution": false
-        }
-      },
-      "id": "mli-send-outreach-email",
-      "name": "Send Outreach Email",
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
-      "position": [
-        3080,
-        120
-      ],
-      "onError": "continueRegularOutput",
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "YE9RFYruaRVVZ6H4",
-          "name": "CRMapp"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "UPDATE contacts SET email_logs = COALESCE(email_logs, '[]'::jsonb) || jsonb_build_object('id', gen_random_uuid()::text, 'type', 'sent', 'subject', $1::text, 'message', $2::text, 'sent_at', NOW(), 'is_read', true) WHERE id = $3;",
-        "options": {
-          "queryReplacement": "={{ [ $('Build Outreach Email').item.json.subject, $('Build Outreach Email').item.json.htmlBody.replace(/<br\\s*\\/?\\s*>/gi, '\\n').replace(/<[^>]+>/g, ''), $('Build Outreach Email').item.json.contactId ] }}"
-        }
-      },
-      "id": "mli-log-outreach-email",
-      "name": "Log Outreach Email",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        3300,
-        120
-      ],
-      "onError": "continueRegularOutput",
-      "credentials": {
-        "postgres": {
-          "id": "OJlr1rmibAS2w3rj",
-          "name": "myRag"
-        }
-      }
-    }
-  ],
-  "pinData": {
-    "Webhook: import-maps-leads": [
-      {
-        "json": {
-          "headers": {
-            "host": "tubular-silica-despite.ngrok-free.dev",
-            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
-            "content-length": "70",
-            "accept": "*/*",
-            "accept-encoding": "gzip, deflate, br, zstd",
-            "accept-language": "en-GB,en-US;q=0.9,en;q=0.8",
-            "authorization": "Bearer token_1_1788449821660",
-            "cache-control": "no-cache",
-            "content-type": "application/json",
-            "ngrok-skip-browser-warning": "true",
-            "origin": "http://localhost:5173",
-            "pragma": "no-cache",
-            "priority": "u=1, i",
-            "referer": "http://localhost:5173/",
-            "sec-ch-ua": "\"Chromium\";v=\"152\", \"Not?A_Brand\";v=\"24\", \"Google Chrome\";v=\"152\"",
-            "sec-ch-ua-mobile": "?0",
-            "sec-ch-ua-platform": "\"macOS\"",
-            "sec-fetch-dest": "empty",
-            "sec-fetch-mode": "cors",
-            "sec-fetch-site": "cross-site",
-            "x-forwarded-for": "62.84.33.1",
-            "x-forwarded-host": "tubular-silica-despite.ngrok-free.dev",
-            "x-forwarded-proto": "https"
-          },
-          "params": {},
-          "query": {},
-          "body": {
-            "search_query": "real estate",
-            "location": "austin tx",
-            "max_results": 30
-          },
-          "webhookUrl": "https://tubular-silica-despite.ngrok-free.dev/webhook/import-maps-leads",
-          "executionMode": "production"
-        },
-        "pairedItem": {
-          "item": 0
-        }
-      }
-    ]
   },
   "settings": {
     "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner",
-    "availableInMCP": false
-  }
+    "availableInMCP": false,
+    "timezone": "Asia/Almaty"
+  },
+  "pinData": {},
+  "active": true
 }

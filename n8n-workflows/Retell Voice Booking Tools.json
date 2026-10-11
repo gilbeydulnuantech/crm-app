@@ -6,7 +6,8 @@
         "httpMethod": "POST",
         "path": "retell-check-availability",
         "responseMode": "responseNode",
-        "options": {}
+        "options": {},
+        "authentication": "headerAuth"
       },
       "id": "rb1c0001-0001-4a5a-9b1a-retellbook00001",
       "name": "Webhook - Retell Check Availability",
@@ -17,11 +18,17 @@
         320
       ],
       "onError": "continueErrorOutput",
-      "webhookId": "189a378a-7083-47b2-b0c0-8d1a076e0d56"
+      "webhookId": "189a378a-7083-47b2-b0c0-8d1a076e0d56",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "BTdisE7LEzgo3cUC",
+          "name": "Retell Tool Secret"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "// Retell's custom-function payload is generally flatter than Vapi's:\n// { name, args, call }. Verify against what your Retell dashboard\n// actually sends once the tool is configured, and adjust here if not.\nconst headers = $input.first().json.headers || {};\nconst secret = process.env.VOICE_TOOL_SECRET;\nif (secret && headers['x-tool-secret'] !== secret) {\n  throw new Error('Invalid tool secret.');\n}\n\nconst body = $input.first().json.body || {};\nconst args = body.args || body.parameters || {};\n\nconst date = (args.date || '').toString().trim();\nif (!date) throw new Error('\"date\" argument is required (YYYY-MM-DD).');\n\nreturn [{ json: { date } }];"
+        "jsCode": "// Retell's custom-function payload is generally flatter than Vapi's:\n// { name, args, call }. Verify against what your Retell dashboard\n// actually sends once the tool is configured, and adjust here if not.\n// The x-tool-secret header is checked by the webhook node itself (Header Auth credential \"Retell Tool Secret\").\nconst body = $input.first().json.body || {};\n// Retell can send either {name, args, call} or just the arguments themselves as the body\n// (its \"payload: args only\" option) \u2014 accept both.\nconst args = body.args || body.parameters || body;\n\nconst date = (args.date || '').toString().trim();\nif (!date) throw new Error('\"date\" argument is required (YYYY-MM-DD).');\nif (!/^\\d{4}-\\d{2}-\\d{2}$/.test(date) || isNaN(new Date(date + 'T00:00:00').getTime())) throw new Error('\"date\" must be in YYYY-MM-DD format.');\n\nreturn [{ json: { date } }];"
       },
       "id": "rb1c0002-0002-4a5a-9b1a-retellbook00002",
       "name": "Parse Availability Request",
@@ -55,7 +62,8 @@
           "name": "myRag"
         }
       },
-      "notes": "Single-rep assumption \u2014 picks the first active calendar_integrations row."
+      "notes": "Single-rep assumption \u2014 picks the first active calendar_integrations row.",
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -91,7 +99,8 @@
         "httpMethod": "POST",
         "path": "retell-book-appointment",
         "responseMode": "responseNode",
-        "options": {}
+        "options": {},
+        "authentication": "headerAuth"
       },
       "id": "rb1c0006-0006-4a5a-9b1a-retellbook00006",
       "name": "Webhook - Retell Book Appointment",
@@ -102,11 +111,17 @@
         640
       ],
       "onError": "continueErrorOutput",
-      "webhookId": "998f0dbf-bd5a-48d0-b14d-9bc6d832bfbe"
+      "webhookId": "998f0dbf-bd5a-48d0-b14d-9bc6d832bfbe",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "BTdisE7LEzgo3cUC",
+          "name": "Retell Tool Secret"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "const headers = $('Webhook - Retell Book Appointment').first().json.headers || {};\nconst secret = process.env.VOICE_TOOL_SECRET;\nif (secret && headers['x-tool-secret'] !== secret) {\n  throw new Error('Invalid tool secret.');\n}\n\nconst body = $('Webhook - Retell Book Appointment').first().json.body || {};\nconst args = body.args || body.parameters || {};\n\nconst date = (args.date || '').toString().trim();\nconst time = (args.time || '').toString().trim();\nconst name = (args.name || '').toString().trim();\nconst phone = (args.phone || '').toString().trim();\nconst email = (args.email || '').toString().trim();\nconst durationMinutes = parseInt(args.duration_minutes, 10) || 60;\nconst reason = (args.reason || 'Phone booking').toString().trim();\n\nif (!date || !time) throw new Error('\"date\" and \"time\" are required.');\nif (!name || (!phone && !email)) throw new Error('\"name\" and either \"phone\" or \"email\" are required.');\n\nconst dueAt = new Date(`${date}T${time}`);\nif (isNaN(dueAt.getTime())) throw new Error('Could not parse the requested date/time.');\nconst endAt = new Date(dueAt.getTime() + durationMinutes * 60000);\n\nconst nameParts = name.split(/\\s+/);\nreturn [{\n  json: {\n    firstName: nameParts[0] || 'Unknown',\n    lastName: nameParts.slice(1).join(' ') || '-',\n    phone: phone || null,\n    email: email || null,\n    dueAt: dueAt.toISOString(),\n    endAt: endAt.toISOString(),\n    subject: reason,\n    displayDate: dueAt.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }),\n  },\n}];"
+        "jsCode": "// The x-tool-secret header is checked by the webhook node itself (Header Auth credential \"Retell Tool Secret\").\nconst body = $('Webhook - Retell Book Appointment').first().json.body || {};\n// Retell can send either {name, args, call} or just the arguments themselves as the body\n// (its \"payload: args only\" option) \u2014 accept both.\nconst args = body.args || body.parameters || body;\n\nconst date = (args.date || '').toString().trim();\nconst time = (args.time || '').toString().trim();\nconst name = (args.name || '').toString().trim();\nconst phone = (args.phone || '').toString().trim();\nconst email = (args.email || '').toString().trim();\nconst durationMinutes = parseInt(args.duration_minutes, 10) || 60;\nconst reason = (args.reason || 'Phone booking').toString().trim();\n\nif (!date || !time) throw new Error('\"date\" and \"time\" are required.');\nif (!name || (!phone && !email)) throw new Error('\"name\" and either \"phone\" or \"email\" are required.');\n\nconst dueAt = new Date(`${date}T${time}`);\nif (isNaN(dueAt.getTime())) throw new Error('Could not parse the requested date/time.');\nconst endAt = new Date(dueAt.getTime() + durationMinutes * 60000);\n\nconst nameParts = name.split(/\\s+/);\nreturn [{\n  json: {\n    firstName: nameParts[0] || 'Unknown',\n    lastName: nameParts.slice(1).join(' ') || '-',\n    phone: phone || null,\n    email: email || null,\n    dueAt: dueAt.toISOString(),\n    endAt: endAt.toISOString(),\n    subject: reason,\n    displayDate: dueAt.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }),\n  },\n}];"
       },
       "id": "rb1c0007-0007-4a5a-9b1a-retellbook00007",
       "name": "Parse Booking Request",
@@ -138,7 +153,8 @@
           "name": "myRag"
         }
       },
-      "notes": "Same single-rep assumption as the availability check."
+      "notes": "Same single-rep assumption as the availability check.",
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -184,9 +200,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH found_contact AS (\n  SELECT id FROM contacts WHERE ($1::text IS NOT NULL AND phone = $1) OR ($2::text IS NOT NULL AND LOWER(email) = LOWER($2)) LIMIT 1\n),\nnew_contact AS (\n  INSERT INTO contacts (first_name, last_name, phone, email, lead_source, owner_id, created_at, updated_at)\n  SELECT $3, $4, $1, $2, 'Phone Booking', $5, now(), now()\n  WHERE NOT EXISTS (SELECT 1 FROM found_contact)\n  RETURNING id\n),\nresolved_contact AS (\n  SELECT id FROM found_contact UNION ALL SELECT id FROM new_contact LIMIT 1\n)\nINSERT INTO activities (contact_id, user_id, type, subject, due_at, end_at, google_event_id, created_at)\nSELECT rc.id, $5, 'meeting', $6, $7::timestamptz, $8::timestamptz, $9, now()\nFROM resolved_contact rc\nRETURNING id;",
+        "query": "WITH found_contact AS (\n  SELECT id FROM contacts\n  WHERE is_archived = false AND (($1::text IS NOT NULL AND phone = $1) OR ($2::text IS NOT NULL AND LOWER(email) = LOWER($2)))\n  ORDER BY id LIMIT 1\n),\nnew_contact AS (\n  INSERT INTO contacts (first_name, last_name, phone, email, lead_source, owner_id, created_at, updated_at)\n  SELECT $3, $4, $1, $2, 'Phone Booking', $5, now(), now()\n  WHERE NOT EXISTS (SELECT 1 FROM found_contact)\n  RETURNING id\n),\nresolved_contact AS (\n  SELECT id FROM found_contact UNION ALL SELECT id FROM new_contact LIMIT 1\n),\nowned AS (\n  UPDATE contacts SET owner_id = COALESCE(owner_id, $5), updated_at = now()\n  WHERE id IN (SELECT id FROM resolved_contact)\n  RETURNING id, owner_id\n),\n-- The Automation Engine's booking automations fire on a deal sitting in the \"booked\" stage (Roofing\n-- Restoration pipeline 3, stage 19) \u2014 same deal the public booking page creates. Without it a phone\n-- booking would add a contact and a calendar entry but never trigger the booking automations.\nexisting_deal AS (\n  SELECT id FROM opportunities\n  WHERE contact_id IN (SELECT id FROM resolved_contact) AND pipeline_id = 3 AND status = 'Open'\n  LIMIT 1\n),\nnew_deal AS (\n  INSERT INTO opportunities (name, contact_id, pipeline_id, stage_id, assigned_user, status, created_at, updated_at, stage_entered_at)\n  -- reads the contact's current owner (a brand-new contact isn't visible to this statement's other CTEs yet)\n  SELECT $10, rc.id, 3, 19, COALESCE((SELECT c.owner_id FROM contacts c WHERE c.id = rc.id), $5), 'Open', now(), now(), now()\n  FROM resolved_contact rc\n  WHERE NOT EXISTS (SELECT 1 FROM existing_deal)\n  RETURNING id\n),\nreset_deal AS (\n  UPDATE opportunities d SET stage_id = 19, stage_entered_at = now(), updated_at = now()\n  FROM existing_deal e WHERE d.id = e.id\n  RETURNING d.id\n),\ndeal AS (\n  SELECT id FROM new_deal UNION ALL SELECT id FROM reset_deal LIMIT 1\n),\nsuperseded AS (\n  UPDATE activities SET is_completed = true, completed_at = now()\n  WHERE opportunity_id IN (SELECT id FROM deal) AND type = 'meeting' AND is_completed = false\n  RETURNING id\n)\nINSERT INTO activities (contact_id, opportunity_id, user_id, type, subject, due_at, end_at, google_event_id, created_at, is_reschedule)\nSELECT rc.id, d.id, $5, 'meeting', $6, $7::timestamptz, $8::timestamptz, $9, now(), (SELECT COUNT(*) FROM superseded) > 0\nFROM resolved_contact rc, deal d\nRETURNING id, contact_id, opportunity_id;",
         "options": {
-          "queryReplacement": "={{ [ $('Parse Booking Request').item.json.phone, $('Parse Booking Request').item.json.email, $('Parse Booking Request').item.json.firstName, $('Parse Booking Request').item.json.lastName, $('Build Google Event Payload').item.json.ownerUserId, $('Parse Booking Request').item.json.subject, $('Parse Booking Request').item.json.dueAt, $('Parse Booking Request').item.json.endAt, $json.id ] }}"
+          "queryReplacement": "={{ [ $('Parse Booking Request').item.json.phone, $('Parse Booking Request').item.json.email, $('Parse Booking Request').item.json.firstName, $('Parse Booking Request').item.json.lastName, $('Build Google Event Payload').item.json.ownerUserId, $('Parse Booking Request').item.json.subject, $('Parse Booking Request').item.json.dueAt, $('Parse Booking Request').item.json.endAt, $json.id, $('Parse Booking Request').item.json.firstName + ' ' + $('Parse Booking Request').item.json.lastName + ' - Inspection' ] }}"
         }
       },
       "id": "rb1c0011-0011-4a5a-9b1a-retellbook00011",
@@ -203,7 +219,8 @@
           "name": "myRag"
         }
       },
-      "notes": "$json.id here is the Google Calendar API response's event id, from the HTTP node directly upstream \u2014 this insert only runs after the Google push succeeds, so a failed push never creates an orphaned CRM-only booking."
+      "notes": "$json.id here is the Google Calendar API response's event id, from the HTTP node directly upstream \u2014 this insert only runs after the Google push succeeds, so a failed push never creates an orphaned CRM-only booking.",
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -223,7 +240,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { result: 'Sorry, I could not complete that: ' + ($json.error?.message || $json.message || 'unknown error') } }}",
+        "responseBody": "={{ { result: 'Sorry, I could not complete that: ' + (typeof $json.error === 'string' ? $json.error : ($json.error?.message || $json.message || 'unknown error')) } }}",
         "options": {}
       },
       "id": "rb1c0013-0013-4a5a-9b1a-retellbook00013",
@@ -466,6 +483,7 @@
     "executionOrder": "v1",
     "availableInMCP": false,
     "timeSavedMode": "fixed",
-    "callerPolicy": "workflowsFromSameOwner"
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "Asia/Almaty"
   }
 }

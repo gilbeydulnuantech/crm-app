@@ -1,5 +1,10 @@
+import TimeInput from '../TimeInput';
+import { formatClock } from '../../utils/timeFormat';
+import { useStaffFeature } from '../../hooks/useIndustry';
+import BillingPanel from './BillingPanel';
 import { useEffect, useRef, useState } from 'react';
-import { CalendarEvent, EVENT_TYPE_META } from '../../types/event';
+import { CalendarEvent } from '../../types/event';
+import { typeCardStyle, useEventTypeLookup } from '../../utils/eventTypes';
 import { useDeleteEvent, useUpdateEvent } from '../../hooks/useEvents';
 import { toTitleCase } from '../../utils/text';
 import OwnerBadge from '../OwnerBadge';
@@ -47,6 +52,9 @@ export default function EventDetailModal({
     }
   }, [rescheduling]);
 
+  const typeOf = useEventTypeLookup();
+  const staffLabel = useStaffFeature().label;
+
   if (!event) return null;
 
   // View All, Edit Owned Only: standard users can see every event but only
@@ -54,7 +62,7 @@ export default function EventDetailModal({
   // act on anything. Backend enforces this too (Calendar Events.json).
   const canEdit = isAdmin || event.user_id === currentUserId;
 
-  const meta = EVENT_TYPE_META[event.type];
+  const meta = typeOf(event.type);
 
   function handleComplete() {
     setCompleteError(null);
@@ -116,10 +124,10 @@ export default function EventDetailModal({
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 shrink-0">
           <div>
             <h2 className="text-base font-bold text-slate-800">{event.subject}</h2>
-            <span className={`inline-flex items-center gap-1.5 mt-1 px-2 py-0.5 text-xs font-medium rounded-full ${meta?.color}`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${meta?.dot}`} />
-              {meta?.label}
-              {event.is_completed && ' · Completed'}
+            <span className="inline-flex items-center gap-1.5 mt-1 px-2 py-0.5 text-xs font-medium rounded-full" style={typeCardStyle(meta.color)}>
+              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: meta.color }} />
+              {meta.label}
+              {event.is_completed && ' · Completed'}{event.outcome && (event.outcome === 'no_show' ? ' · No-show' : ' · Cancelled')}
             </span>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
@@ -134,16 +142,18 @@ export default function EventDetailModal({
             value={
               event.is_all_day
                 ? 'All Day'
-                : new Date(event.due_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZone: timezone })
+                : formatClock(event.due_at, timezone)
             }
           />
           {event.end_at && !event.is_all_day && (
             <Field
               label="End Time"
-              value={new Date(event.end_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZone: timezone })}
+              value={formatClock(event.end_at, timezone)}
             />
           )}
           {event.location && <Field label="Location" value={event.location} />}
+          {event.staff_name && <Field label={staffLabel} value={toTitleCase(event.staff_name)} />}
+          <BillingPanel event={event} isAdmin={isAdmin} currentUserId={currentUserId} />
           <div>
             <label className="block text-[11px] font-medium text-slate-500 mb-1">Assigned To</label>
             <OwnerBadge
@@ -219,12 +229,20 @@ export default function EventDetailModal({
           {rescheduling && (
             <div ref={reschedulePanelRef} className="pt-2 border-t border-slate-100">
               <label className="block text-[11px] font-medium text-slate-500 mb-1">New Date &amp; Time</label>
-              <input
-                type="datetime-local"
-                value={newDate}
-                onChange={(e) => setNewDate(e.target.value)}
-                className="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg mb-2"
-              />
+              <div className="grid grid-cols-2 gap-2 mb-2">
+                <input
+                  type="date"
+                  value={newDate.slice(0, 10)}
+                  onChange={(e) => setNewDate(`${e.target.value}T${newDate.slice(11, 16) || '09:00'}`)}
+                  className="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg"
+                />
+                <TimeInput
+                  required
+                  label="New time"
+                  value={newDate.slice(11, 16)}
+                  onChange={(t) => setNewDate(`${newDate.slice(0, 10)}T${t}`)}
+                />
+              </div>
               {rescheduleError && (
                 <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-md px-2 py-1 mb-2">
                   {rescheduleError}
@@ -268,7 +286,7 @@ export default function EventDetailModal({
             </div>
             {completeError && <p className="text-xs text-rose-600">{completeError}</p>}
             <div className="flex gap-2">
-              {!event.is_completed && (
+              {!event.is_completed && !event.outcome && (
                 <button
                   onClick={handleComplete}
                   disabled={updateEvent.isPending}

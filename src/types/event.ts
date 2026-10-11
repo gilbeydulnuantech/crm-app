@@ -1,28 +1,8 @@
 // Calendar events are `activities` rows with a `due_at` set — not a
-// separate table. `type` is a free-text VARCHAR(50) in your schema (no CHECK
-// constraint), so we can safely use richer values than the original
-// call/email/task/note/meeting comment suggested.
-export const EVENT_TYPES = [
-  'inspection',
-  'call',
-  'meeting',
-  'proposal',
-  'material_delivery',
-  'site_visit',
-  'personal',
-] as const;
-
-export type EventType = (typeof EVENT_TYPES)[number];
-
-export const EVENT_TYPE_META: Record<EventType, { label: string; color: string; dot: string }> = {
-  inspection: { label: 'Inspection', color: 'bg-emerald-100 text-emerald-800', dot: 'bg-emerald-500' },
-  call: { label: 'Phone Call', color: 'bg-blue-100 text-blue-800', dot: 'bg-blue-500' },
-  meeting: { label: 'Meeting', color: 'bg-amber-100 text-amber-800', dot: 'bg-amber-500' },
-  proposal: { label: 'Proposal', color: 'bg-purple-100 text-purple-800', dot: 'bg-purple-500' },
-  material_delivery: { label: 'Material Delivery', color: 'bg-orange-100 text-orange-800', dot: 'bg-orange-500' },
-  site_visit: { label: 'Site Visit', color: 'bg-rose-100 text-rose-800', dot: 'bg-rose-500' },
-  personal: { label: 'Personal', color: 'bg-slate-200 text-slate-800', dot: 'bg-slate-500' },
-};
+// separate table. `type` is a free-text VARCHAR(50) in your schema (no CHECK constraint).
+// An event's type is the `key` of a row in the event_types table (Settings > Event Types), so it is plain text:
+// the list is edited by the customer, not fixed in the code.
+export type EventType = string;
 
 export interface CalendarEvent {
   id: number;
@@ -50,6 +30,28 @@ export interface CalendarEvent {
   // Linked via activity_resources — which shared resources (rooms, vehicles,
   // equipment) this event has booked.
   resources?: { id: number; name: string }[];
+  // Linked catalog product/service (picked from the Event Title dropdown); product_price is the price saved on the event when it was booked.
+  product_id?: number | null;
+  product_name?: string | null;
+  // The therapist/staff member who performs the booking (they never sign in; see Settings > Staff).
+  staff_id?: number | null;
+  staff_name?: string | null;
+  // Set when the rep confirms the booking (client arrived) and picks a discount card. amount_paid is the price after the
+  // discount; the commission is the staff member's percentage of that and is worked out by the database.
+  confirmed_at?: string | null;
+  discount_name?: string | null;
+  discount_percent?: number | null;
+  amount_paid?: number | null;
+  commission_percent?: number | null;
+  commission_amount?: number | null;
+  // How the client paid (cash / kaspi / card, or package / membership when prepaid) and when.
+  payment_method?: string | null;
+  paid_at?: string | null;
+  client_package_id?: number | null;
+  client_membership_id?: number | null;
+  product_price?: number | string | null;
+  // Set when the booking was cancelled or the client did not show up. It stays on the calendar but frees the slot and earns nothing.
+  outcome?: 'cancelled' | 'no_show' | null;
 }
 
 export type CalendarViewMode = 'month' | 'week' | 'day' | 'agenda';

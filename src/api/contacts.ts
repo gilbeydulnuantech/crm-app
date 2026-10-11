@@ -58,6 +58,22 @@ export function addContact(payload: Partial<Contact>) {
   });
 }
 
+// Calendar Contact Create workflow: adds the client typed into the New Event form. Matches an
+// existing contact by email or phone first, so the same person is never added twice.
+export interface CalendarContactPayload {
+  name: string;
+  email?: string;
+  phone?: string;
+  owner_id?: number;
+  account_id?: number;
+}
+export function createCalendarContact(payload: CalendarContactPayload) {
+  return apiFetch<{ success: boolean; contact_id?: number; existing?: boolean; name?: string; error?: string }>(
+    '/webhook/add-calendar-contact',
+    { method: 'POST', body: JSON.stringify(payload) }
+  );
+}
+
 // import-contacts.json caps this at 500 rows per request and silently drops
 // any row missing first_name — inserted_count tells the caller how many of
 // the rows sent actually landed.
@@ -123,11 +139,13 @@ export function sendContactEmail(
   message: string,
   to: string,
   from: string,
-  attachments: { name: string; url: string }[]
+  attachments: { name: string; url: string }[],
+  htmlMessage?: string
 ) {
   return apiFetch<{ success: boolean; error?: string }>('/webhook/send-email', {
     method: 'POST',
-    body: JSON.stringify({ contact_id: contactId, subject, message, to, from, attachments }),
+    // Formatted sends: `message` is the plain-text copy (what gets logged on the contact), `html_message` the HTML body.
+    body: JSON.stringify({ contact_id: contactId, subject, message, to, from, attachments, ...(htmlMessage ? { is_html: true, html_message: htmlMessage } : {}) }),
   });
 }
 
@@ -213,6 +231,17 @@ export interface TeamUser {
   notification_preferences?: NotificationPreferences;
   avatar_url?: string | null;
   timezone?: string | null;
+  // Branch name set by an admin (Settings > User management), e.g. "Almaty".
+  location?: string | null;
+  // Shown at the bottom of emails this person sends (when company email branding is on).
+  email_signature?: string | null;
+}
+
+export function updateUserLocation(userId: number, location: string) {
+  return apiFetch<{ success: boolean; location?: string | null; error?: string }>('/webhook/update-user-location', {
+    method: 'POST',
+    body: JSON.stringify({ user_id: userId, location }),
+  });
 }
 
 export function fetchUsers() {
@@ -265,6 +294,13 @@ export function updateUserPhone(userId: number, phone: string) {
   return apiFetch<{ success: boolean; user?: TeamUser; error?: string }>('/webhook/update-user-phone', {
     method: 'POST',
     body: JSON.stringify({ user_id: userId, phone }),
+  });
+}
+
+export function updateUserSignature(userId: number, signature: string) {
+  return apiFetch<{ success: boolean; user?: TeamUser; error?: string }>('/webhook/update-user-signature', {
+    method: 'POST',
+    body: JSON.stringify({ user_id: userId, signature }),
   });
 }
 
@@ -351,4 +387,31 @@ export async function untagContact(contactId: number, tagId: number) {
     throw new Error(result.error || 'untag-entity returned success: false');
   }
   return result;
+}
+
+// Personal Telegram invite link for a contact. A Telegram bot can't message
+// anyone who hasn't started a chat with it, so the contact opens this link
+// and presses Start — the Telegram Inbound workflow then stores their chat id.
+export interface TelegramInvite {
+  success: boolean;
+  error?: string;
+  configured?: boolean; // bot username saved in Settings > Integrations
+  linked?: boolean;
+  linked_at?: string | null;
+  opted_out?: boolean;
+  invite_url?: string | null;
+}
+
+// Manual one-to-one Telegram message from a rep. The server refuses (success:false
+// with a reason) when the contact isn't linked, has opted out with STOP, or is
+// Do Not Contact, and logs the sent message on the contact's timeline.
+export function sendTelegramMessage(contactId: number, message: string) {
+  return apiFetch<{ success: boolean; error?: string }>('/webhook/send-telegram', {
+    method: 'POST',
+    body: JSON.stringify({ contact_id: contactId, message }),
+  });
+}
+
+export function fetchTelegramInvite(contactId: number) {
+  return apiFetch<TelegramInvite>(`/webhook/get-telegram-invite?contact_id=${contactId}`);
 }

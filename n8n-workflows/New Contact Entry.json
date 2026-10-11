@@ -22,7 +22,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $('Webhook: add-contact-public').first().json.body || {};\n\n// Honeypot \u2014 a real visitor never fills this (hidden via CSS on the\n// public form); a bot filling every field will. Silently pretend\n// success without touching the database.\nif ((body.website_hp || '').toString().trim()) {\n  return [{ json: { spam: true } }];\n}\n\nconst firstName = (body.first_name || '').toString().trim();\nconst lastName = (body.last_name || '').toString().trim();\nconst email = (body.email || '').toString().trim().toLowerCase();\nconst phone = (body.phone || '').toString().trim();\nconst jobTitle = (body.job_title || '').toString().trim();\nconst leadSource = (body.lead_source || 'Website Form').toString().trim();\n\nif (!firstName) throw new Error('\"first_name\" is required.');\nif (!email && !phone) throw new Error('Either \"email\" or \"phone\" is required.');\nif (email && !email.includes('@')) throw new Error('\"email\" is not valid.');\n\nreturn [{\n  json: {\n    spam: false, source: 'public',\n    first_name: firstName, last_name: lastName, email, secondary_email: '', phone, secondary_phone: '',\n    job_title: jobTitle, account_id: null, linkedin_url: '', city: '', state: '', zip_code: '', country: '',\n    lead_status: 'New', lead_source: leadSource, timezone: '',\n    do_not_contact: false, dnc_email: false, dnc_call: false, dnc_sms: false,\n    ownerId: null, createdBy: null,\n  },\n}];"
+        "jsCode": "const body = $('Webhook: add-contact-public').first().json.body || {};\n\n// Honeypot \u2014 a real visitor never fills this (hidden via CSS on the\n// public form); a bot filling every field will. Silently pretend\n// success without touching the database.\nif ((body.website_hp || '').toString().trim()) {\n  return [{ json: { spam: true } }];\n}\n\nconst LIMITS = { first_name: 150, last_name: 150, job_title: 150, email: 255, secondary_email: 255, phone: 50, secondary_phone: 50, linkedin_url: 255, city: 100, state: 100, zip_code: 20, country: 100, lead_source: 100, timezone: 64 };\n// Wrong-typed values (objects/arrays) become '' instead of \"[object Object]\"; control characters are stripped.\nconst clean = (v) => (typeof v === 'string' || typeof v === 'number' ? String(v) : '').replace(/[\\u0000-\\u001f\\u007f]/g, ' ').trim();\nconst EMAIL_RE = /^[^\\s@<>\"'`,;()\\[\\]\\\\]+@[^\\s@<>\"'`,;()\\[\\]\\\\]+\\.[^\\s@<>\"'`,;()\\[\\]\\\\]{2,}$/;\nfunction checkLengths(o) {\n  for (const [k, max] of Object.entries(LIMITS)) {\n    if ((o[k] || '').length > max) throw new Error(`\"${k}\" is too long (maximum ${max} characters).`);\n  }\n}\n\nconst f = {\n  first_name: clean(body.first_name), last_name: clean(body.last_name),\n  email: clean(body.email).toLowerCase(), phone: clean(body.phone),\n  job_title: clean(body.job_title), lead_source: clean(body.lead_source) || 'Website Form',\n};\n\nif (!f.first_name) throw new Error('\"first_name\" is required.');\nif (!f.email && !f.phone) throw new Error('Either \"email\" or \"phone\" is required.');\nif (f.email && !EMAIL_RE.test(f.email)) throw new Error('\"email\" is not valid.');\ncheckLengths(f);\n\nreturn [{\n  json: {\n    spam: false, source: 'public',\n    first_name: f.first_name, last_name: f.last_name, email: f.email, secondary_email: '', phone: f.phone, secondary_phone: '',\n    job_title: f.job_title, account_id: null, linkedin_url: '', city: '', state: '', zip_code: '', country: '',\n    lead_status: 'New', lead_source: f.lead_source, timezone: '',\n    do_not_contact: false, dnc_email: false, dnc_call: false, dnc_sms: false,\n    ownerId: null, createdBy: null,\n  },\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -31,7 +31,8 @@
         0
       ],
       "id": "nce-check-payload-public",
-      "name": "Check Payload: public"
+      "name": "Check Payload: public",
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -101,7 +102,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nconst body = $('Webhook: add-contact').first().json.body || {};\n\nconst firstName = (body.first_name || '').toString().trim();\nif (!firstName) throw new Error('\"first_name\" is required.');\nconst rawOwnerId = (body.owner_id === undefined || body.owner_id === null || body.owner_id === '') ? null : parseInt(body.owner_id, 10);\n// Only an admin may hand a brand-new contact to someone else at creation time.\nconst ownerId = (requester.role === 'admin' && Number.isInteger(rawOwnerId)) ? rawOwnerId : requester.id;\n\nreturn [{\n  json: {\n    spam: false, source: 'manual', requesterId: requester.id,\n    first_name: firstName, last_name: (body.last_name || '').toString().trim(),\n    email: (body.email || '').toString().trim().toLowerCase(), secondary_email: (body.secondary_email || '').toString().trim(),\n    phone: (body.phone || '').toString().trim(), secondary_phone: (body.secondary_phone || '').toString().trim(),\n    job_title: (body.job_title || '').toString().trim(), account_id: body.account_id ? parseInt(body.account_id, 10) : null,\n    linkedin_url: (body.linkedin_url || '').toString().trim(), city: (body.city || '').toString().trim(),\n    state: (body.state || '').toString().trim(), zip_code: (body.zip_code || '').toString().trim(), country: (body.country || '').toString().trim(),\n    lead_status: (body.lead_status || 'New').toString().trim(), lead_source: (body.lead_source || '').toString().trim(),\n    timezone: (body.timezone || '').toString().trim(),\n    do_not_contact: body.do_not_contact === true || body.do_not_contact === 'true',\n    dnc_email: body.dnc_email === true || body.dnc_email === 'true',\n    dnc_call: body.dnc_call === true || body.dnc_call === 'true',\n    dnc_sms: body.dnc_sms === true || body.dnc_sms === 'true',\n    ownerId, createdBy: requester.id,\n  },\n}];"
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nconst body = $('Webhook: add-contact').first().json.body || {};\n\nconst LIMITS = { first_name: 150, last_name: 150, job_title: 150, email: 255, secondary_email: 255, phone: 50, secondary_phone: 50, linkedin_url: 255, city: 100, state: 100, zip_code: 20, country: 100, lead_source: 100, timezone: 64 };\n// Wrong-typed values (objects/arrays) become '' instead of \"[object Object]\"; control characters are stripped.\nconst clean = (v) => (typeof v === 'string' || typeof v === 'number' ? String(v) : '').replace(/[\\u0000-\\u001f\\u007f]/g, ' ').trim();\nconst EMAIL_RE = /^[^\\s@<>\"'`,;()\\[\\]\\\\]+@[^\\s@<>\"'`,;()\\[\\]\\\\]+\\.[^\\s@<>\"'`,;()\\[\\]\\\\]{2,}$/;\nfunction checkLengths(o) {\n  for (const [k, max] of Object.entries(LIMITS)) {\n    if ((o[k] || '').length > max) throw new Error(`\"${k}\" is too long (maximum ${max} characters).`);\n  }\n}\n\nconst STATUSES = ['New', 'Active', 'Customer', 'Inactive', 'Unqualified', 'Do Not Contact'];\nconst asBool = (v) => v === true || v === 'true';\nconst isBlank = (v) => v === undefined || v === null || v === '';\n\nconst f = {\n  first_name: clean(body.first_name), last_name: clean(body.last_name),\n  email: clean(body.email).toLowerCase(), secondary_email: clean(body.secondary_email).toLowerCase(),\n  phone: clean(body.phone), secondary_phone: clean(body.secondary_phone), job_title: clean(body.job_title),\n  linkedin_url: clean(body.linkedin_url), city: clean(body.city), state: clean(body.state),\n  zip_code: clean(body.zip_code), country: clean(body.country), lead_source: clean(body.lead_source), timezone: clean(body.timezone),\n};\nif (!f.first_name) throw new Error('\"first_name\" is required.');\nif (f.email && !EMAIL_RE.test(f.email)) throw new Error('\"email\" is not valid.');\nif (f.secondary_email && !EMAIL_RE.test(f.secondary_email)) throw new Error('\"secondary_email\" is not valid.');\ncheckLengths(f);\n\nconst leadStatus = clean(body.lead_status) || 'New';\nif (!STATUSES.includes(leadStatus)) throw new Error(`\"lead_status\" must be one of ${STATUSES.join(', ')}.`);\n\nlet accountId = null;\nif (!isBlank(body.account_id)) {\n  accountId = Number(body.account_id);\n  if (!Number.isInteger(accountId) || accountId <= 0) throw new Error('\"account_id\" must be a valid company id.');\n}\n// Only an admin may hand a brand-new contact to someone else at creation time.\nlet ownerId = requester.id;\nif (requester.role === 'admin' && !isBlank(body.owner_id)) {\n  ownerId = Number(body.owner_id);\n  if (!Number.isInteger(ownerId) || ownerId <= 0) throw new Error('\"owner_id\" must be a valid user id.');\n}\n\nreturn [{\n  json: {\n    spam: false, source: 'manual', requesterId: requester.id,\n    ...f, account_id: accountId, lead_status: leadStatus,\n    do_not_contact: asBool(body.do_not_contact), dnc_email: asBool(body.dnc_email),\n    dnc_call: asBool(body.dnc_call), dnc_sms: asBool(body.dnc_sms),\n    ownerId, createdBy: requester.id,\n  },\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -116,7 +117,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: false, error: (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Request failed.\" } }}",
+        "responseBody": "={{ (() => { let m = (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Request failed.\"; m = String(m).replace(/\\s*\\[line \\d+\\]\\s*$/, \"\"); if (/violates foreign key/i.test(m)) m = \"The selected company or owner does not exist.\"; else if (/value too long/i.test(m)) m = \"One of the values is too long.\"; else if (/(violates|duplicate key|syntax error|relation \"|column \"|ECONNREFUSED|timeout)/i.test(m)) m = \"Could not save this contact. Please check the values and try again.\"; return { success: false, error: m }; })() }}",
         "options": {
           "responseCode": 400
         }
@@ -291,6 +292,36 @@
                 "type": "string",
                 "operation": "equals"
               }
+            },
+            {
+              "id": "nce-manual-dnc-0",
+              "leftValue": "={{ $('Normalize Payload').item.json.dnc_email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "nce-manual-dnc-1",
+              "leftValue": "={{ $('Normalize Payload').item.json.do_not_contact }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "nce-has-email",
+              "leftValue": "={{ $('Normalize Payload').item.json.email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
             }
           ]
         },
@@ -325,6 +356,16 @@
                 "type": "string",
                 "operation": "equals"
               }
+            },
+            {
+              "id": "nce-has-email",
+              "leftValue": "={{ $('Normalize Payload').item.json.email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
             }
           ]
         },
@@ -342,8 +383,10 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT subject, body FROM email_templates WHERE trigger_event = 'contact_added_manually' AND is_active = true LIMIT 1;",
-        "options": {}
+        "query": "SELECT subject, body, (SELECT name FROM companies WHERE id = $1::int) AS contact_company_name, (SELECT company_name FROM company_profile LIMIT 1) AS our_company_name FROM email_templates WHERE trigger_event = 'contact_added_manually' AND is_active = true LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Normalize Payload').item.json.account_id || null ] }}"
+        }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -362,7 +405,7 @@
     },
     {
       "parameters": {
-        "jsCode": "function toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\nfunction fill(t, row) { return (t || '').replace(/{{\\s*contact\\.first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there').replace(/{{\\s*contact\\.email\\s*}}/gi, row.email || '').replace(/{{[^{}]*}}/g, ''); }\nconst tmpl = $input.item.json;\nconst row = $('Postgres: Upsert Contact').item.json;\nconst unsubUrl = safeEnv('FRONTEND_BASE_URL') + '/unsubscribe/' + (row.unsubscribe_token || '');\nconst footer = `<br><br><span style=\"font-size:11px;color:#94a3b8\">Don't want these emails? <a href=\"${unsubUrl}\">Unsubscribe</a></span>`;\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject, row), htmlBody: fill(tmpl.body, row).replace(/\\n/g, '<br>') + footer } }];"
+        "jsCode": "function tc(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\n// Contact-supplied values are untrusted (the public form is open to anyone). The body is HTML, so they are\n// HTML-escaped there; in the subject they are plain text with line breaks removed (no header injection).\nconst esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&#39;');\nconst plain = (s) => String(s ?? '').replace(/[\\r\\n]+/g, ' ');\nconst tmpl = $input.item.json;\nconst row = $('Postgres: Upsert Contact').item.json;\nconst p = $('Normalize Payload').item.json;\n// Same merge tokens the template editor offers (see src/utils/emailTemplateTokens.ts).\nconst map = {\n  'contact.first_name': tc(row.first_name) || 'there',\n  'contact.last_name': tc(p.last_name),\n  'contact.full_name': tc(`${row.first_name || ''} ${p.last_name || ''}`.trim()),\n  'contact.email': row.email || '',\n  'contact.phone': p.phone || '',\n  // Company names are used exactly as stored (title-casing would turn \"GD\" into \"Gd\" and \"HOA\" into \"Hoa\").\n  'company.name': (tmpl.contact_company_name || '').toString() || 'your company',\n  'user.company_name': (tmpl.our_company_name || '').toString(),\n};\nfunction fill(t, enc) {\n  return (t || '').replace(/{{\\s*([\\w.]+)\\s*}}/g, (m, k) => (Object.prototype.hasOwnProperty.call(map, k) ? enc(map[k]) : ''));\n}\nconst unsubUrl = safeEnv('FRONTEND_BASE_URL') + '/unsubscribe/' + encodeURIComponent(row.unsubscribe_token || '');\nconst footer = `<br><br><span style=\"font-size:11px;color:#94a3b8\">Don't want these emails? <a href=\"${unsubUrl}\">Unsubscribe</a></span>`;\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject, plain), htmlBody: fill(tmpl.body, esc).replace(/\\n/g, '<br>') + footer } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -374,30 +417,31 @@
       "name": "Fill Email: Contact Added Manually"
     },
     {
-      "parameters": {
-        "sendTo": "={{ $json.to }}",
-        "subject": "={{ $json.subject }}",
-        "emailType": "html",
-        "message": "={{ $json.htmlBody }}",
-        "options": {
-          "appendAttribution": false
-        }
-      },
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
       "position": [
         2420,
         0
       ],
       "id": "nce-send-email-manual",
       "name": "Send Email: Contact Added Manually",
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "YE9RFYruaRVVZ6H4",
-          "name": "CRMapp"
+      "onError": "continueRegularOutput",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "parameters": {
+        "fromEmail": "gilbeydulnuan@gmail.com",
+        "toEmail": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailFormat": "html",
+        "html": "={{ (() => { const h = String($json.htmlBody); const hd = $json.__brandHeader || ''; const ft = $json.__brandFooter || ''; if (!hd && !ft) return h; const m = '<br><br><span style=\"font-size:11px'; const i = h.lastIndexOf(m); return hd + (i >= 0 ? h.slice(0, i) + ft + h.slice(i) : h + ft); })() }}",
+        "options": {
+          "appendAttribution": false
         }
       },
-      "onError": "continueRegularOutput"
+      "credentials": {
+        "smtp": {
+          "id": "A3AoUIlP8cbZ5VlF",
+          "name": "Gmail SMTP (gilbeydulnuan)"
+        }
+      }
     },
     {
       "parameters": {
@@ -426,8 +470,10 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT subject, body FROM email_templates WHERE id = 12;",
-        "options": {}
+        "query": "SELECT subject, body, (SELECT name FROM companies WHERE id = $1::int) AS contact_company_name, (SELECT company_name FROM company_profile LIMIT 1) AS our_company_name FROM email_templates WHERE id = 12;",
+        "options": {
+          "queryReplacement": "={{ [ $('Normalize Payload').item.json.account_id || null ] }}"
+        }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -446,7 +492,7 @@
     },
     {
       "parameters": {
-        "jsCode": "function toTitleCase(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\nfunction fill(t, row) { return (t || '').replace(/{{\\s*contact\\.first_name\\s*}}/gi, toTitleCase(row.first_name) || 'there').replace(/{{\\s*contact\\.email\\s*}}/gi, row.email || '').replace(/{{[^{}]*}}/g, ''); }\nconst tmpl = $input.item.json;\nconst row = $('Postgres: Upsert Contact').item.json;\nconst unsubUrl = safeEnv('FRONTEND_BASE_URL') + '/unsubscribe/' + (row.unsubscribe_token || '');\nconst footer = `<br><br><span style=\"font-size:11px;color:#94a3b8\">Don't want these emails? <a href=\"${unsubUrl}\">Unsubscribe</a></span>`;\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject, row), htmlBody: fill(tmpl.body, row).replace(/\\n/g, '<br>') + footer } }];"
+        "jsCode": "function tc(s) { return (s || '').toString().toLowerCase().split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' '); }\nfunction safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\n// Contact-supplied values are untrusted (the public form is open to anyone). The body is HTML, so they are\n// HTML-escaped there; in the subject they are plain text with line breaks removed (no header injection).\nconst esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&#39;');\nconst plain = (s) => String(s ?? '').replace(/[\\r\\n]+/g, ' ');\nconst tmpl = $input.item.json;\nconst row = $('Postgres: Upsert Contact').item.json;\nconst p = $('Normalize Payload').item.json;\n// Same merge tokens the template editor offers (see src/utils/emailTemplateTokens.ts).\nconst map = {\n  'contact.first_name': tc(row.first_name) || 'there',\n  'contact.last_name': tc(p.last_name),\n  'contact.full_name': tc(`${row.first_name || ''} ${p.last_name || ''}`.trim()),\n  'contact.email': row.email || '',\n  'contact.phone': p.phone || '',\n  // Company names are used exactly as stored (title-casing would turn \"GD\" into \"Gd\" and \"HOA\" into \"Hoa\").\n  'company.name': (tmpl.contact_company_name || '').toString() || 'your company',\n  'user.company_name': (tmpl.our_company_name || '').toString(),\n};\nfunction fill(t, enc) {\n  return (t || '').replace(/{{\\s*([\\w.]+)\\s*}}/g, (m, k) => (Object.prototype.hasOwnProperty.call(map, k) ? enc(map[k]) : ''));\n}\nconst unsubUrl = safeEnv('FRONTEND_BASE_URL') + '/unsubscribe/' + encodeURIComponent(row.unsubscribe_token || '');\nconst footer = `<br><br><span style=\"font-size:11px;color:#94a3b8\">Don't want these emails? <a href=\"${unsubUrl}\">Unsubscribe</a></span>`;\nreturn [{ json: { to: row.email, subject: fill(tmpl.subject, plain), htmlBody: fill(tmpl.body, esc).replace(/\\n/g, '<br>') + footer } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -458,30 +504,31 @@
       "name": "Fill Email: Thank You"
     },
     {
-      "parameters": {
-        "sendTo": "={{ $json.to }}",
-        "subject": "={{ $json.subject }}",
-        "emailType": "html",
-        "message": "={{ $json.htmlBody }}",
-        "options": {
-          "appendAttribution": false
-        }
-      },
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
       "position": [
         2640,
         320
       ],
       "id": "nce-send-email",
       "name": "Send Email: Thank You",
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "YE9RFYruaRVVZ6H4",
-          "name": "CRMapp"
+      "onError": "continueRegularOutput",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "parameters": {
+        "fromEmail": "gilbeydulnuan@gmail.com",
+        "toEmail": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailFormat": "html",
+        "html": "={{ (() => { const h = String($json.htmlBody); const hd = $json.__brandHeader || ''; const ft = $json.__brandFooter || ''; if (!hd && !ft) return h; const m = '<br><br><span style=\"font-size:11px'; const i = h.lastIndexOf(m); return hd + (i >= 0 ? h.slice(0, i) + ft + h.slice(i) : h + ft); })() }}",
+        "options": {
+          "appendAttribution": false
         }
       },
-      "onError": "continueRegularOutput"
+      "credentials": {
+        "smtp": {
+          "id": "A3AoUIlP8cbZ5VlF",
+          "name": "Gmail SMTP (gilbeydulnuan)"
+        }
+      }
     },
     {
       "parameters": {
@@ -512,7 +559,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO email_sends (contact_id, thread_id, message_id, workflow_id, workflow_step, sent_at, reply_status) VALUES ($1, $2, $3, 'new_lead', 'thank_you', now(), 'waiting');",
         "options": {
-          "queryReplacement": "={{ [ $('Postgres: Upsert Contact').item.json.id, $json.threadId, $json.id ] }}"
+          "queryReplacement": "={{ [ $('Postgres: Upsert Contact').item.json.id, null, $json.messageId ] }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -536,7 +583,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: true, contact_id: $('Postgres: Upsert Contact').item.json.id } }}",
+        "responseBody": "={{ $('Normalize Payload').item.json.source === 'public' ? { success: true } : { success: true, contact_id: $('Postgres: Upsert Contact').item.json.id, duplicate: $('Postgres: Upsert Contact').item.json.is_new === false } }}",
         "options": {}
       },
       "type": "n8n-nodes-base.respondToWebhook",
@@ -666,6 +713,91 @@
         385
       ],
       "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: 'Too many requests. Please try again in a little while.', message: 'Too many requests. Please try again in a little while.' } }}",
+        "options": {
+          "responseCode": 429
+        }
+      },
+      "id": "e61150b7-a006-4c85-a9a7-986855190234",
+      "name": "Respond - Rate Limited",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        960,
+        1700
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT rate_limit_ok($1, $2, $3::int, interval '1 hour') AND ($4 = '' OR rate_limit_ok($1 || ':email', $4, $5::int, interval '1 hour')) AS ok;",
+        "options": {
+          "queryReplacement": "={{ [ 'contact', (($('Webhook: add-contact-public').first().json.headers || {})['x-forwarded-for'] || '').toString().split(',')[0].trim().slice(0, 64) || 'unknown', 10, ((($('Webhook: add-contact-public').first().json.body) || {}).email || '').toString().trim().toLowerCase().slice(0, 254), 3 ] }}"
+        }
+      },
+      "id": "f9588b12-d8be-4b10-9e57-007d13492ae0",
+      "name": "Rate Limit Check: add-contact-public",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        110,
+        180
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const ok = $input.first().json.ok === true;\nconst body = $('Webhook: add-contact-public').first().json.body || {};\n// Honeypot fields a real browser never fills (the public forms hide them).\nconst bot = ((body.website || body.website_hp || '').toString().trim()) !== '';\nif (!ok || bot) throw new Error('Too many requests. Please try again in a little while.');\nreturn [{ json: $('Webhook: add-contact-public').first().json }];"
+      },
+      "id": "1fd076ca-ffdd-4c49-9db4-8e9809bb4ea9",
+      "name": "Rate Limit Gate: add-contact-public",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        330,
+        180
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Company branding + rep signature for outgoing HTML emails. Everything is off until an admin switches on\n// \"Add company branding and signatures to emails\" in Settings > Company Profile (company_profile.email_branding_enabled).\nfunction buildBrandParts(branding, signatureText, companyName) {\n  const b = branding || {};\n  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\n  const on = b.email_branding_enabled === true;\n  if (!on) return { on: false, header: '', footer: '', sig: '', sigText: '' };\n  const color = /^#[0-9a-fA-F]{6}$/.test(b.brand_color || '') ? b.brand_color : '#2563EB';\n  const logo = /^https?:\\/\\//i.test(b.logo_url || '')\n    ? '<img src=\"' + esc(b.logo_url) + '\" alt=\"' + esc(companyName) + '\" style=\"max-height:56px;max-width:200px;display:block;margin-bottom:6px\">' : '';\n  const name = companyName ? '<div style=\"font-size:18px;font-weight:bold;color:' + color + '\">' + esc(companyName) + '</div>' : '';\n  const header = (logo || name) ? '<div style=\"padding-bottom:12px;margin-bottom:16px;border-bottom:3px solid ' + color + '\">' + logo + name + '</div>' : '';\n  const lines = [b.address, b.phone, b.website, b.email].filter(Boolean).map(esc);\n  const note = b.email_footer_note ? '<div style=\"margin-top:6px\">' + esc(b.email_footer_note).replace(/\\n/g, '<br>') + '</div>' : '';\n  const footer = (lines.length || note)\n    ? '<div style=\"margin-top:24px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b\">' + (lines.length ? '<div>' + lines.join(' &middot; ') + '</div>' : '') + note + '</div>' : '';\n  const sigText = signatureText && String(signatureText).trim() ? String(signatureText).trim() : '';\n  const sig = sigText ? '<div style=\"margin-top:16px\">' + esc(sigText).replace(/\\n/g, '<br>') + '</div>' : '';\n  return { on: true, header, footer, sig, sigText };\n}\n\n// Apply Branding \u2014 works out this email's company header and footer and adds them to the item as __brandHeader and\n// __brandFooter; the Send node then wraps its own HTML with them. Strictly additive and fail-safe: if branding is\n// switched off or anything at all goes wrong, the item passes through untouched and the email goes out exactly as before.\nconst item = $input.item;\ntry {\n  const sd = $getWorkflowStaticData('global');\n  const now = Date.now();\n  let b = sd.__brandCache && now - sd.__brandCache.t < 60000 ? sd.__brandCache.data : null;\n  if (!b) {\n    let base = 'http://localhost:5678';\n    try { if ($env.N8N_INTERNAL_URL) base = $env.N8N_INTERNAL_URL; } catch (e) { /* env access blocked */ }\n    const r = await this.helpers.httpRequest({ url: base.replace(/\\/$/, '') + '/webhook/get-email-branding', method: 'GET', json: true, timeout: 5000 });\n    b = r && typeof r === 'object' ? r : {};\n    sd.__brandCache = { t: now, data: b };\n  }\n  if (b.email_branding_enabled === true) {\n    const parts = buildBrandParts(b, '', b.company_name || '');\n    return { json: { ...item.json, __brandHeader: parts.header, __brandFooter: parts.footer }, binary: item.binary };\n  }\n} catch (e) { /* branding is optional */ }\nreturn item;\n"
+      },
+      "id": "5955a986-fd91-4935-bf21-d24742d1319e",
+      "name": "Apply Branding: Send Email: Contact Added Manually",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2240,
+        0
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Company branding + rep signature for outgoing HTML emails. Everything is off until an admin switches on\n// \"Add company branding and signatures to emails\" in Settings > Company Profile (company_profile.email_branding_enabled).\nfunction buildBrandParts(branding, signatureText, companyName) {\n  const b = branding || {};\n  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\n  const on = b.email_branding_enabled === true;\n  if (!on) return { on: false, header: '', footer: '', sig: '', sigText: '' };\n  const color = /^#[0-9a-fA-F]{6}$/.test(b.brand_color || '') ? b.brand_color : '#2563EB';\n  const logo = /^https?:\\/\\//i.test(b.logo_url || '')\n    ? '<img src=\"' + esc(b.logo_url) + '\" alt=\"' + esc(companyName) + '\" style=\"max-height:56px;max-width:200px;display:block;margin-bottom:6px\">' : '';\n  const name = companyName ? '<div style=\"font-size:18px;font-weight:bold;color:' + color + '\">' + esc(companyName) + '</div>' : '';\n  const header = (logo || name) ? '<div style=\"padding-bottom:12px;margin-bottom:16px;border-bottom:3px solid ' + color + '\">' + logo + name + '</div>' : '';\n  const lines = [b.address, b.phone, b.website, b.email].filter(Boolean).map(esc);\n  const note = b.email_footer_note ? '<div style=\"margin-top:6px\">' + esc(b.email_footer_note).replace(/\\n/g, '<br>') + '</div>' : '';\n  const footer = (lines.length || note)\n    ? '<div style=\"margin-top:24px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b\">' + (lines.length ? '<div>' + lines.join(' &middot; ') + '</div>' : '') + note + '</div>' : '';\n  const sigText = signatureText && String(signatureText).trim() ? String(signatureText).trim() : '';\n  const sig = sigText ? '<div style=\"margin-top:16px\">' + esc(sigText).replace(/\\n/g, '<br>') + '</div>' : '';\n  return { on: true, header, footer, sig, sigText };\n}\n\n// Apply Branding \u2014 works out this email's company header and footer and adds them to the item as __brandHeader and\n// __brandFooter; the Send node then wraps its own HTML with them. Strictly additive and fail-safe: if branding is\n// switched off or anything at all goes wrong, the item passes through untouched and the email goes out exactly as before.\nconst item = $input.item;\ntry {\n  const sd = $getWorkflowStaticData('global');\n  const now = Date.now();\n  let b = sd.__brandCache && now - sd.__brandCache.t < 60000 ? sd.__brandCache.data : null;\n  if (!b) {\n    let base = 'http://localhost:5678';\n    try { if ($env.N8N_INTERNAL_URL) base = $env.N8N_INTERNAL_URL; } catch (e) { /* env access blocked */ }\n    const r = await this.helpers.httpRequest({ url: base.replace(/\\/$/, '') + '/webhook/get-email-branding', method: 'GET', json: true, timeout: 5000 });\n    b = r && typeof r === 'object' ? r : {};\n    sd.__brandCache = { t: now, data: b };\n  }\n  if (b.email_branding_enabled === true) {\n    const parts = buildBrandParts(b, '', b.company_name || '');\n    return { json: { ...item.json, __brandHeader: parts.header, __brandFooter: parts.footer }, binary: item.binary };\n  }\n} catch (e) { /* branding is optional */ }\nreturn item;\n"
+      },
+      "id": "6a17b3aa-f37c-4426-8914-187cc10d7196",
+      "name": "Apply Branding: Send Email: Thank You",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2460,
+        320
+      ],
+      "onError": "continueRegularOutput"
     }
   ],
   "pinData": {},
@@ -674,7 +806,7 @@
       "main": [
         [
           {
-            "node": "Log Workflow Run: Webhook: add-contact-public",
+            "node": "Rate Limit Check: add-contact-public",
             "type": "main",
             "index": 0
           }
@@ -686,6 +818,13 @@
         [
           {
             "node": "Not Spam?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
             "type": "main",
             "index": 0
           }
@@ -857,7 +996,7 @@
       "main": [
         [
           {
-            "node": "Send Email: Contact Added Manually",
+            "node": "Apply Branding: Send Email: Contact Added Manually",
             "type": "main",
             "index": 0
           }
@@ -901,7 +1040,7 @@
       "main": [
         [
           {
-            "node": "Send Email: Thank You",
+            "node": "Apply Branding: Send Email: Thank You",
             "type": "main",
             "index": 0
           }
@@ -1005,10 +1144,69 @@
           }
         ]
       ]
+    },
+    "Rate Limit Check: add-contact-public": {
+      "main": [
+        [
+          {
+            "node": "Rate Limit Gate: add-contact-public",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Rate Limited",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rate Limit Gate: add-contact-public": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: Webhook: add-contact-public",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Rate Limited",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply Branding: Send Email: Contact Added Manually": {
+      "main": [
+        [
+          {
+            "node": "Send Email: Contact Added Manually",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply Branding: Send Email: Thank You": {
+      "main": [
+        [
+          {
+            "node": "Send Email: Thank You",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "timezone": "Asia/Almaty"
   }
 }

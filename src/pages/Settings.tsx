@@ -5,6 +5,15 @@ import ThemeModal from '../components/settings/ThemeModal';
 import MyProfileModal from '../components/settings/MyProfileModal';
 import NotificationPreferencesModal from '../components/settings/NotificationPreferencesModal';
 import TimezoneModal from '../components/settings/TimezoneModal';
+import EventTypesModal from '../components/settings/EventTypesModal';
+import CardDisplayModal from '../components/settings/CardDisplayModal';
+import StaffModal from '../components/settings/StaffModal';
+import IndustryModal from '../components/settings/IndustryModal';
+import MessagingModal from '../components/settings/MessagingModal';
+import DiscountCardsModal from '../components/settings/DiscountCardsModal';
+import PackagesMembershipsModal from '../components/settings/PackagesMembershipsModal';
+import { useStaffFeature } from '../hooks/useIndustry';
+import { useCompanyProfile } from '../hooks/useCompanyProfile';
 import AuditLogModal from '../components/settings/AuditLogModal';
 import UserManagementModal from '../components/settings/UserManagementModal';
 import CalendarIntegrationsModal from '../components/settings/CalendarIntegrationsModal';
@@ -18,6 +27,15 @@ export default function Settings() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [timezoneOpen, setTimezoneOpen] = useState(false);
+  const [eventTypesOpen, setEventTypesOpen] = useState(false);
+  const [cardDisplayOpen, setCardDisplayOpen] = useState(false);
+  const [staffOpen, setStaffOpen] = useState(false);
+  const [industryOpen, setIndustryOpen] = useState(false);
+  const [messagingOpen, setMessagingOpen] = useState(false);
+  const [discountsOpen, setDiscountsOpen] = useState(false);
+  const [packagesOpen, setPackagesOpen] = useState(false);
+  const staffFeature = useStaffFeature();
+  const { data: profile } = useCompanyProfile();
   const [auditLogOpen, setAuditLogOpen] = useState(false);
   const [userMgmtOpen, setUserMgmtOpen] = useState(false);
   const [calendarIntegrationsOpen, setCalendarIntegrationsOpen] = useState(false);
@@ -95,6 +113,135 @@ export default function Settings() {
             Timezone
           </button>
         </div>
+
+        <div className="p-5 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-800">Event types</h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              The groups and colors used for calendar events and services, such as Massage, Facial or Consultation.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setEventTypesOpen(true)}
+            className="shrink-0 px-4 py-2 text-sm font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg flex items-center gap-2"
+          >
+            <i className="fa-solid fa-palette text-[var(--theme-accent)]" />
+            Event types
+          </button>
+        </div>
+
+        <div className="p-5 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-800">Card display</h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Text size and which details show on event cards and deal cards. This is your own setting.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setCardDisplayOpen(true)}
+            className="shrink-0 px-4 py-2 text-sm font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg flex items-center gap-2"
+          >
+            <i className="fa-solid fa-text-height text-[var(--theme-accent)]" />
+            Card display
+          </button>
+        </div>
+
+        {isAdmin && (
+          <div className="p-5 flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-800">Packages &amp; memberships</h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Prepaid session packages and monthly memberships you sell. Reps sell them from a client's record.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setPackagesOpen(true)}
+              className="shrink-0 px-4 py-2 text-sm font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg flex items-center gap-2"
+            >
+              <i className="fa-solid fa-ticket text-[var(--theme-accent)]" />
+              Packages
+            </button>
+          </div>
+        )}
+
+        {isAdmin && (
+          <div className="p-5 flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-800">Discount cards</h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Promotions clients bring, like 20% or 50% off. The rep picks one on the booking when the client arrives.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setDiscountsOpen(true)}
+              className="shrink-0 px-4 py-2 text-sm font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg flex items-center gap-2"
+            >
+              <i className="fa-solid fa-percent text-[var(--theme-accent)]" />
+              Discount cards
+            </button>
+          </div>
+        )}
+
+        {isAdmin && (
+          <div className="p-5 flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-800">Industry &amp; features</h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {profile && !profile.industry
+                  ? 'Choose your type of business to set up starter event types, staff and online booking.'
+                  : 'Starter event types, staff, and online booking with a chosen staff member.'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIndustryOpen(true)}
+              className="shrink-0 px-4 py-2 text-sm font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg flex items-center gap-2"
+            >
+              <i className="fa-solid fa-sliders text-[var(--theme-accent)]" />
+              Industry
+            </button>
+          </div>
+        )}
+
+        {isAdmin && (
+          <div className="p-5 flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-800">Appointment reminders</h2>
+              <p className="text-xs text-slate-500 mt-0.5">WhatsApp and SMS reminders sent to clients before their appointment.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setMessagingOpen(true)}
+              className="shrink-0 px-4 py-2 text-sm font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg flex items-center gap-2"
+            >
+              <i className="fa-solid fa-bell text-[var(--theme-accent)]" />
+              Reminders
+            </button>
+          </div>
+        )}
+
+        {staffFeature.enabled && (
+        <div className="p-5 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-800">Staff</h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              The people who perform your bookings. They don't sign in; you pick one on each event.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setStaffOpen(true)}
+            className="shrink-0 px-4 py-2 text-sm font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg flex items-center gap-2"
+          >
+            <i className="fa-solid fa-user-nurse text-[var(--theme-accent)]" />
+            Staff
+          </button>
+        </div>
+        )}
       </div>
 
       {isAdmin && (
@@ -210,6 +357,13 @@ export default function Settings() {
       <ThemeModal open={themeOpen} onClose={() => setThemeOpen(false)} />
       <NotificationPreferencesModal open={notificationsOpen} onClose={() => setNotificationsOpen(false)} />
       <TimezoneModal open={timezoneOpen} onClose={() => setTimezoneOpen(false)} />
+      <EventTypesModal open={eventTypesOpen} onClose={() => setEventTypesOpen(false)} />
+      <CardDisplayModal open={cardDisplayOpen} onClose={() => setCardDisplayOpen(false)} />
+      <StaffModal open={staffOpen} onClose={() => setStaffOpen(false)} />
+      <IndustryModal open={industryOpen} onClose={() => setIndustryOpen(false)} />
+      <MessagingModal open={messagingOpen} onClose={() => setMessagingOpen(false)} />
+      <DiscountCardsModal open={discountsOpen} onClose={() => setDiscountsOpen(false)} />
+      <PackagesMembershipsModal open={packagesOpen} onClose={() => setPackagesOpen(false)} />
       <AuditLogModal open={auditLogOpen} onClose={() => setAuditLogOpen(false)} />
       <UserManagementModal open={userMgmtOpen} onClose={() => setUserMgmtOpen(false)} />
       <CalendarIntegrationsModal open={calendarIntegrationsOpen} onClose={() => setCalendarIntegrationsOpen(false)} />

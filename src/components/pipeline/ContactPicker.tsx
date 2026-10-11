@@ -16,9 +16,13 @@ interface Props {
   // Defaults to true (existing behavior everywhere else). Explicitly pass
   // false where a contact genuinely isn't mandatory.
   required?: boolean;
+  // When provided, typing a name that matches nobody offers "Add as a new contact" (used by the New Event form).
+  onCreateNew?: (name: string) => void;
+  // Reports every keystroke so the parent can keep the typed name for a new contact.
+  onQueryChange?: (text: string) => void;
 }
 
-export default function ContactPicker({ contactId, contactName, onChange, accountId, required = true }: Props) {
+export default function ContactPicker({ contactId, contactName, onChange, accountId, required = true, onCreateNew, onQueryChange }: Props) {
   const [query, setQuery] = useState(contactName);
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -63,9 +67,14 @@ export default function ContactPicker({ contactId, contactName, onChange, accoun
     setOpen(false);
   }
 
+  const typed = query.trim();
+  const canCreate =
+    !!onCreateNew && typed.length > 0 && contactId === null && !results.some((c) => c.fullName.toLowerCase() === typed.toLowerCase());
+
   function handleInputChange(value: string) {
     setQuery(value);
     setOpen(true);
+    onQueryChange?.(value);
     // Typing away from the previously-selected contact clears the link
     // until they pick one again — prevents silently keeping a stale
     // contact_id that no longer matches the visible text.
@@ -93,7 +102,20 @@ export default function ContactPicker({ contactId, contactName, onChange, accoun
       {open && !isScopedEmpty && (
         <div className="absolute top-full mt-1 left-0 w-full bg-white border border-slate-200 rounded-lg shadow-lg z-30 py-1 max-h-48 overflow-y-auto">
           {isFetching && <p className="text-[11px] text-slate-400 px-3 py-1.5">Loading contacts...</p>}
-          {!isFetching && results.length === 0 && (
+          {canCreate && (
+            <button
+              type="button"
+              onClick={() => {
+                onCreateNew!(typed);
+                setOpen(false);
+              }}
+              className="w-full text-left px-3 py-1.5 text-sm font-medium text-[var(--theme-accent-hover)] hover:bg-slate-50 border-b border-slate-100"
+            >
+              <i className="fa-solid fa-user-plus text-xs mr-1.5" />
+              Add “{typed}” as a new contact
+            </button>
+          )}
+          {!isFetching && results.length === 0 && !canCreate && (
             <p className="text-[11px] text-slate-400 px-3 py-1.5">
               {accountId != null ? 'No matching contacts at this company.' : 'No matching contacts.'}
             </p>

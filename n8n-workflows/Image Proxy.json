@@ -3,7 +3,8 @@
   "pinData": {},
   "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "timezone": "Asia/Almaty"
   },
   "versionId": "9f1a1c00-0000-4a5a-9b1a-imageproxy001",
   "meta": {
@@ -23,8 +24,11 @@
       "name": "Webhook - Image Proxy",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [400, 300],
-      "notes": "Public, read-only image relay — used by the frontend (html2canvas) to fetch cross-origin images (e.g. Google Drive logos) server-to-server, since Drive never sends CORS headers on any of its own URLs."
+      "position": [
+        400,
+        300
+      ],
+      "notes": "Public, read-only image relay \u2014 used by the frontend (html2canvas) to fetch cross-origin images (e.g. Google Drive logos) server-to-server, since Drive never sends CORS headers on any of its own URLs."
     },
     {
       "parameters": {
@@ -34,7 +38,10 @@
       "name": "Validate URL",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [620, 300]
+      "position": [
+        620,
+        300
+      ]
     },
     {
       "parameters": {
@@ -56,18 +63,24 @@
       "name": "Fetch Image",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [840, 300],
+      "position": [
+        840,
+        300
+      ],
       "onError": "continueErrorOutput"
     },
     {
       "parameters": {
-        "jsCode": "const bin = $input.item.binary && $input.item.binary.data;\nif (!bin) throw new Error('No image data received.');\n// binaryDataMode is 'filesystem' — bin.data is a file reference, not the\n// base64 payload itself, so it must be dereferenced via this helper rather\n// than read directly off the item.\nconst buffer = await this.helpers.getBinaryDataBuffer(0, 'data');\nconst base64 = buffer.toString('base64');\nreturn [{ json: { success: true, dataUri: `data:${bin.mimeType};base64,${base64}` } }];"
+        "jsCode": "const bin = $input.item.binary && $input.item.binary.data;\nif (!bin) throw new Error('No image data received.');\n// binaryDataMode is 'filesystem' \u2014 bin.data is a file reference, not the\n// base64 payload itself, so it must be dereferenced via this helper rather\n// than read directly off the item.\nconst buffer = await this.helpers.getBinaryDataBuffer(0, 'data');\nconst base64 = buffer.toString('base64');\nreturn [{ json: { success: true, dataUri: `data:${bin.mimeType};base64,${base64}` } }];"
       },
       "id": "imgproxy-0006-encode",
       "name": "Encode As Data URI",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1060, 200]
+      "position": [
+        1060,
+        200
+      ]
     },
     {
       "parameters": {
@@ -75,8 +88,14 @@
         "options": {
           "responseHeaders": {
             "entries": [
-              { "name": "Access-Control-Allow-Origin", "value": "*" },
-              { "name": "Cache-Control", "value": "public, max-age=3600" }
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "public, max-age=3600"
+              }
             ]
           }
         }
@@ -85,36 +104,80 @@
       "name": "Respond - Image",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
-      "position": [1280, 200]
+      "position": [
+        1280,
+        200
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ { success: false, error: 'Failed to fetch image.' } }}",
-        "options": { "responseCode": 502 }
+        "options": {
+          "responseCode": 502
+        }
       },
       "id": "imgproxy-0005-error",
       "name": "Respond - Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
-      "position": [1060, 400]
+      "position": [
+        1060,
+        400
+      ]
     }
   ],
   "connections": {
     "Webhook - Image Proxy": {
-      "main": [[{ "node": "Validate URL", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Validate URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Validate URL": {
-      "main": [[{ "node": "Fetch Image", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Image": {
       "main": [
-        [{ "node": "Encode As Data URI", "type": "main", "index": 0 }],
-        [{ "node": "Respond - Error", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Encode As Data URI",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Encode As Data URI": {
-      "main": [[{ "node": "Respond - Image", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond - Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   }
 }

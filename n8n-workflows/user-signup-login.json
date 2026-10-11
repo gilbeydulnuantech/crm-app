@@ -22,7 +22,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const bcrypt = require('bcryptjs');\nconst body = $input.first().json.body || $input.first().json;\n\nconst name = (body.name || '').trim();\nconst email = (body.email || '').trim().toLowerCase();\nconst rawPassword = body.password || '';\n\nif (!name || !email || !rawPassword) {\n  throw new Error('Name, email, and password are required.');\n}\n\nconst salt = bcrypt.genSaltSync(10);\nconst passwordHash = bcrypt.hashSync(rawPassword, salt);\n\nconst sqlQuery = `\n  INSERT INTO users (name, email, password_hash, role, active, created_at, updated_at)\n  VALUES ($1, $2, $3, 'user', true, NOW(), NOW())\n  RETURNING id, name, email, role, active, created_at;\n`;\n\nreturn [{\n  json: {\n    sqlQuery,\n    queryParams: [name, email, passwordHash]\n  }\n}];"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst headers = $input.first().json.headers || {};\nconst ip = ((headers['x-forwarded-for'] || '').toString().split(',')[0] || '').trim().slice(0, 64);\n\nconst name = (body.name || '').toString().trim().replace(/[<>]/g, '').slice(0, 100);\nconst email = (body.email || '').toString().trim().toLowerCase().slice(0, 254);\nconst rawPassword = (body.password || '').toString();\n\nif (!name || !email || !rawPassword) {\n  throw new Error('Name, email, and password are required.');\n}\nif (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) throw new Error('Enter a valid email address.');\nif (rawPassword.length < 10) throw new Error('Password must be at least 10 characters.');\nif (rawPassword.length > 72) throw new Error('Password must be 72 characters or fewer.');\n\nconst bcrypt = require('bcryptjs');\nconst salt = bcrypt.genSaltSync(10);\nconst passwordHash = bcrypt.hashSync(rawPassword, salt);\n\n// New accounts wait for an admin to approve them (Settings > Users > Reactivate) \u2014 otherwise anyone who finds\n// the sign-up page gets a working rep login. The very first account (no active admin yet) is activated at once.\n// At most 5 sign-up attempts per IP per hour.\nconst sqlQuery = `\n  WITH recent AS (\n    SELECT count(*)::int AS c FROM login_attempts WHERE kind = 'signup' AND $4 <> '' AND ip = $4 AND created_at > now() - interval '1 hour'\n  ), logged AS (\n    INSERT INTO login_attempts (kind, key, ip) VALUES ('signup', $2, $4) RETURNING 1\n  ), ins AS (\n    INSERT INTO users (name, email, password_hash, role, active, created_at, updated_at)\n    SELECT $1, $2, $3, 'user', NOT EXISTS (SELECT 1 FROM users WHERE role = 'admin' AND active), NOW(), NOW()\n    WHERE (SELECT c FROM recent) < 5\n    ON CONFLICT (email) DO NOTHING\n    RETURNING id, name, email, role, active, created_at\n  )\n  SELECT ins.id, ins.name, ins.email, ins.role, ins.active, ins.created_at, (SELECT c FROM recent) >= 5 AS limited\n  FROM (SELECT 1) x LEFT JOIN ins ON true;\n`;\n\nreturn [{\n  json: {\n    sqlQuery,\n    queryParams: [name, email, passwordHash, ip]\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -31,7 +31,8 @@
         224
       ],
       "id": "2b3a1e06-b54b-4234-9c11-e76792c0b6b6",
-      "name": "Format Sign Up Data"
+      "name": "Format Sign Up Data",
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -60,7 +61,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const item = $input.first().json;\n\n// When onError = continueRegularOutput, a failed query (e.g. duplicate email\n// hitting the users_email_key unique constraint) lands here with an `error`\n// field instead of throwing, so we can return a friendly message.\nif (item.error || !item.id) {\n  return [{\n    json: {\n      success: false,\n      message: 'Email already registered or database error occurred.'\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    success: true,\n    message: 'Account created successfully!',\n    user: {\n      id: item.id,\n      name: item.name,\n      email: item.email,\n      role: item.role\n    }\n  }\n}];"
+        "jsCode": "const item = $input.first().json;\n\nif (item.limited) {\n  return [{ json: { success: false, message: 'Too many sign-up attempts. Please try again later.' } }];\n}\n// Same message whether the email already exists or the insert failed, so sign-up can't be used to find out\n// which emails have accounts.\nif (item.error || !item.id) {\n  return [{ json: { success: false, message: 'Could not create the account. If you already have one, sign in instead.' } }];\n}\n\nreturn [{\n  json: {\n    success: true,\n    pending: item.active === false,\n    message: item.active === false\n      ? 'Account created. An administrator needs to approve it before you can sign in.'\n      : 'Account created successfully!',\n    user: {\n      id: item.id,\n      name: item.name,\n      email: item.email,\n      role: item.role\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -105,7 +106,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst email = (body.email || '').trim().toLowerCase();\nconst password = body.password || '';\n\nconst sqlQuery = `\n  SELECT id, name, email, password_hash, role, active, theme_header_color, theme_main_color, theme_accent_color\n  FROM users\n  WHERE email = $1\n  LIMIT 1;\n`;\n\nreturn [{\n  json: {\n    rawPassword: password,\n    sqlQuery,\n    queryParams: [email]\n  }\n}];"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst headers = $input.first().json.headers || {};\nconst email = (body.email || '').toString().trim().toLowerCase().slice(0, 254);\nconst password = (body.password || '').toString().slice(0, 200);\n// First address in x-forwarded-for is the real client when the request came through the tunnel.\nconst ip = ((headers['x-forwarded-for'] || '').toString().split(',')[0] || '').trim().slice(0, 64);\n\n// One query that also returns how many recent failed attempts there are for this email and this IP.\n// LEFT JOIN from a dummy row so an unknown email still gets a result row (and the counts).\nconst sqlQuery = `\n  SELECT u.id, u.name, u.email, u.password_hash, u.role, u.active, u.theme_header_color, u.theme_main_color, u.theme_accent_color,\n    (SELECT count(*) FROM login_attempts la WHERE la.kind = 'login' AND la.key = $1 AND la.created_at > now() - interval '15 minutes')::int AS email_failures,\n    (SELECT count(*) FROM login_attempts la WHERE la.kind = 'login' AND $2 <> '' AND la.ip = $2 AND la.created_at > now() - interval '15 minutes')::int AS ip_failures\n  FROM (SELECT $1::text AS e) d\n  LEFT JOIN users u ON u.email = d.e\n  LIMIT 1;\n`;\n\nreturn [{\n  json: {\n    rawPassword: password,\n    email,\n    ip,\n    rememberMe: body.remember_me === true || body.remember_me === 'true',\n    sqlQuery,\n    queryParams: [email, ip]\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -142,7 +143,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const bcrypt = require('bcryptjs');\nconst dbResult = $input.first().json;\nconst rawPassword = $('Format Login Query').first().json.rawPassword;\n\nif (!dbResult.id || !dbResult.active) {\n  return [{ json: { success: false, message: 'Invalid credentials or account inactive.' } }];\n}\n\nconst isPasswordValid = bcrypt.compareSync(rawPassword, dbResult.password_hash);\nif (!isPasswordValid) {\n  return [{ json: { success: false, message: 'Invalid credentials.' } }];\n}\n\n// Real, cryptographically random session token (replaces the old\n// token_<id>_<timestamp> string, which had no signature/secret and could\n// be forged by anyone to impersonate any user, including admins).\n// require('crypto') can be blocked by this n8n instance's\n// NODE_FUNCTION_ALLOW_BUILTIN config -- fall back to a Math.random-based\n// token rather than letting this node throw and silently kill the whole\n// login response.\nfunction randomToken() {\n  try {\n    return require('crypto').randomBytes(32).toString('hex');\n  } catch (e) {\n    let out = '';\n    for (let i = 0; i < 8; i++) out += Math.random().toString(36).slice(2, 10);\n    return out;\n  }\n}\nconst token = randomToken();\nconst TTL_MS = 24 * 60 * 60 * 1000;\nconst expiresAt = new Date(Date.now() + TTL_MS).toISOString();\n\nreturn [{\n  json: {\n    success: true,\n    message: 'Login successful.',\n    token,\n    expiresAt,\n    user: {\n      id: dbResult.id,\n      name: dbResult.name,\n      email: dbResult.email,\n      role: dbResult.role,\n      theme_header_color: dbResult.theme_header_color,\n      theme_main_color: dbResult.theme_main_color,\n      theme_accent_color: dbResult.theme_accent_color\n    }\n  }\n}];"
+        "jsCode": "const bcrypt = require('bcryptjs');\nconst dbResult = $input.first().json;\nconst login = $('Format Login Query').first().json;\nconst rawPassword = login.rawPassword;\n\n// Lockout: 5 failed attempts per email, or 20 per IP, in 15 minutes. Checked before the password so a\n// guesser gets no further information while locked.\nif ((dbResult.email_failures || 0) >= 5 || (dbResult.ip_failures || 0) >= 20) {\n  return [{ json: { success: false, locked: true, message: 'Too many failed attempts. Please wait 15 minutes and try again.' } }];\n}\n\n// Always run one bcrypt comparison, even for an unknown email, so response time doesn't reveal which emails exist.\nconst DUMMY_HASH = '$2a$10$CwTycUXWue0Thq9StjUM0uJ8.pZrRJ0xkZ0qkp3PzWtpVvQKJHzYa';\nconst hash = dbResult.id && dbResult.password_hash ? dbResult.password_hash : DUMMY_HASH;\nconst isPasswordValid = bcrypt.compareSync(rawPassword, hash);\n\nif (!dbResult.id || !dbResult.active || !isPasswordValid) {\n  return [{ json: { success: false, failed: true, message: 'Invalid credentials or account inactive.' } }];\n}\n\n// \"Remember me\" keeps the session for 7 days; otherwise it expires after 24 hours.\n// The session token itself is generated by the database (gen_random_uuid, cryptographically secure) in Insert Session.\nconst TTL_MS = (login.rememberMe === true ? 7 : 1) * 24 * 60 * 60 * 1000;\nconst expiresAt = new Date(Date.now() + TTL_MS).toISOString();\n\nreturn [{\n  json: {\n    success: true,\n    message: 'Login successful.',\n    expiresAt,\n    user: {\n      id: dbResult.id,\n      name: dbResult.name,\n      email: dbResult.email,\n      role: dbResult.role,\n      theme_header_color: dbResult.theme_header_color,\n      theme_main_color: dbResult.theme_main_color,\n      theme_accent_color: dbResult.theme_accent_color\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -240,9 +241,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO sessions (token, user_id, expires_at) VALUES ($1, $2, $3);",
+        "query": "WITH cleanup AS (\n  DELETE FROM sessions WHERE expires_at < now() RETURNING 1\n), cleared AS (\n  DELETE FROM login_attempts WHERE (kind = 'login' AND key = $3) OR created_at < now() - interval '1 day' RETURNING 1\n)\nINSERT INTO sessions (token, user_id, expires_at)\nVALUES (replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''), $1, $2)\nRETURNING token;",
         "options": {
-          "queryReplacement": "={{ [ $('Verify Password & Generate Token').item.json.token, $('Verify Password & Generate Token').item.json.user.id, $('Verify Password & Generate Token').item.json.expiresAt ] }}"
+          "queryReplacement": "={{ [ $('Verify Password & Generate Token').first().json.user.id, $('Verify Password & Generate Token').first().json.expiresAt, $('Format Login Query').first().json.email ] }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -264,7 +265,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const item = $('Verify Password & Generate Token').item.json;\nif (item.error) {\n  return [{ json: { success: false, message: item.error.message || 'Login failed.' } }];\n}\nreturn [{ json: { success: item.success, message: item.message || (item.success ? 'Login successful.' : 'Login failed.'), token: item.token, user: item.user } }];"
+        "jsCode": "const verify = $('Verify Password & Generate Token').first().json;\nconst session = $input.first().json;\n\nif (!verify.success) {\n  return [{ json: { success: false, message: verify.message || 'Login failed.' } }];\n}\nif (!session || session.error || !session.token) {\n  return [{ json: { success: false, message: 'Login failed. Please try again.' } }];\n}\nreturn [{ json: { success: true, message: verify.message || 'Login successful.', token: session.token, user: verify.user } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -404,7 +405,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "CREATE TABLE IF NOT EXISTS sessions (\n  token TEXT PRIMARY KEY,\n  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,\n  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),\n  expires_at TIMESTAMPTZ NOT NULL\n);",
+        "query": "CREATE TABLE IF NOT EXISTS sessions (\n  token TEXT PRIMARY KEY,\n  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,\n  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),\n  expires_at TIMESTAMPTZ NOT NULL\n);\n-- Failed-login and sign-up attempts, used to lock out password guessing and limit account creation.\nCREATE TABLE IF NOT EXISTS login_attempts (\n  id BIGSERIAL PRIMARY KEY,\n  kind TEXT NOT NULL,\n  key TEXT,\n  ip TEXT,\n  created_at TIMESTAMPTZ NOT NULL DEFAULT now()\n);\nCREATE INDEX IF NOT EXISTS login_attempts_lookup ON login_attempts (kind, created_at);",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
@@ -423,6 +424,46 @@
       },
       "onError": "continueRegularOutput",
       "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO login_attempts (kind, key, ip)\nSELECT 'login', $1, $2 WHERE $3::boolean;",
+        "options": {
+          "queryReplacement": "={{ [ $('Format Login Query').first().json.email, $('Format Login Query').first().json.ip, $('Verify Password & Generate Token').first().json.failed === true ] }}"
+        }
+      },
+      "id": "c88d04cd-2eb4-4254-9ddf-24bf079e44b7",
+      "name": "Record Failed Login",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1196,
+        580
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, message: (typeof $json.error === 'string' ? $json.error : ($json.error?.message || 'Could not create the account.')).replace(/\\s*\\[line \\d+\\]$/, '') } }}",
+        "options": {}
+      },
+      "id": "864b6a35-b5ea-4016-8fe5-566efeb6597a",
+      "name": "Respond Sign Up Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        748,
+        424
+      ]
     }
   ],
   "pinData": {},
@@ -443,6 +484,13 @@
         [
           {
             "node": "Insert New User",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Sign Up Error",
             "type": "main",
             "index": 0
           }
@@ -537,7 +585,7 @@
         ],
         [
           {
-            "node": "Format Login Response",
+            "node": "Record Failed Login",
             "type": "main",
             "index": 0
           }
@@ -642,6 +690,17 @@
           }
         ]
       ]
+    },
+    "Record Failed Login": {
+      "main": [
+        [
+          {
+            "node": "Format Login Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
@@ -651,7 +710,8 @@
     "availableInMCP": false,
     "timeSavedMode": "fixed",
     "errorWorkflow": "U7jX0H3oE5a25GrV",
-    "callerPolicy": "workflowsFromSameOwner"
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "Asia/Almaty"
   },
   "versionId": "82abfaf8-400f-4004-ba67-7e27a3d56ebe",
   "meta": {

@@ -24,6 +24,8 @@ import SignedContractsListPage from './pages/SignedContractsListPage';
 import ContractEditorPage from './pages/ContractEditorPage';
 import PagesListPage from './pages/PagesListPage';
 import PageEditorPage from './pages/PageEditorPage';
+import ProductsListPage from './pages/ProductsListPage';
+import ProductEditorPage from './pages/ProductEditorPage';
 import Automations from './pages/Automations';
 import AutomationBuilderPage from './pages/AutomationBuilderPage';
 import AutomationLogsPage from './pages/AutomationLogsPage';
@@ -48,7 +50,7 @@ import PrintContractPage from './pages/PrintContractPage';
 import PrintInvoicePage from './pages/PrintInvoicePage';
 import PublicTicketPage from './pages/PublicTicketPage';
 import PublicBookingPage from './pages/PublicBookingPage';
-import GenericBookingPage from './pages/GenericBookingPage';
+import BookingEntryPage from './pages/BookingEntryPage';
 
 function LoginRoute() {
   const { user, isLoading } = useAuth();
@@ -72,7 +74,7 @@ export default function App() {
           <Route path="/print/invoice/:token" element={<PrintInvoicePage />} />
           <Route path="/support/new" element={<PublicTicketPage />} />
           <Route path="/book/:token" element={<PublicBookingPage />} />
-          <Route path="/book" element={<GenericBookingPage />} />
+          <Route path="/book" element={<BookingEntryPage />} />
 
           <Route
             element={
@@ -118,6 +120,9 @@ export default function App() {
             <Route path="/automations/:workflowId" element={<AutomationEmailStepsPage />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/observability" element={<ObservabilityDashboard />} />
+            <Route path="/products" element={<ProductsListPage />} />
+            <Route path="/products/new" element={<ProductEditorPage />} />
+            <Route path="/products/:id/edit" element={<ProductEditorPage />} />
             <Route path="/tickets" element={<Tickets />} />
             <Route path="/tickets/:id" element={<TicketDetailPage />} />
             <Route path="/payments" element={<Payments />} />

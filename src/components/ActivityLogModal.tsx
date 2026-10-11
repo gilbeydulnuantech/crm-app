@@ -27,6 +27,7 @@ const ACTIVITY_CATEGORY_LABELS: Record<ActivityLogEntry['category'], string> = {
   call: 'Call',
   meeting: 'Meeting',
   system_audit: 'System Audit',
+  telegram: 'Telegram',
 };
 
 // Full-detail popup for an activity timeline entry — shared by

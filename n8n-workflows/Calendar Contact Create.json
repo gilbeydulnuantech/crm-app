@@ -1,0 +1,303 @@
+{
+  "name": "Calendar Contact Create",
+  "nodes": [
+    {
+      "id": "d612dd9f-fa02-434c-9ca9-44eb0e34f75e",
+      "name": "Webhook: add-calendar-contact",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "add-calendar-contact",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "http://localhost:5173"
+        }
+      },
+      "webhookId": "f9858d38-92f6-4663-ba93-15ab7916019a"
+    },
+    {
+      "id": "08c385b6-ef7f-4bf8-97f0-9324d9a65175",
+      "name": "Log Workflow Run: Webhook",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"Calendar Contact Create\" }}",
+            "workflow_id": "={{ \"sTMRWgocn4UT4mpK\" }}",
+            "entity_type": "={{ \"contacts\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "1a0b0d10-b043-4511-9fbd-d840dfa0feda",
+      "name": "Extract Bearer Token",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: add-calendar-contact').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "99731691-d15d-469a-bc18-12e710a89e83",
+      "name": "Execute Workflow: Verify Session",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "c1f04738-9332-49f7-ae4f-6d05fdc78aec",
+      "name": "Validate Session",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "bbad62c8-a9cb-4d37-8626-89855a692be6",
+      "name": "Check Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nconst body = $('Webhook: add-calendar-contact').first().json.body || {};\n\n// Wrong-typed values (objects/arrays) become '' instead of \"[object Object]\"; control characters are stripped.\nconst clean = (v) => (typeof v === 'string' || typeof v === 'number' ? String(v) : '').replace(/[\\u0000-\\u001f\\u007f]/g, ' ').replace(/\\s+/g, ' ').trim();\nconst EMAIL_RE = /^[^\\s@<>\"'`,;()\\[\\]\\\\]+@[^\\s@<>\"'`,;()\\[\\]\\\\]+\\.[^\\s@<>\"'`,;()\\[\\]\\\\]{2,}$/;\nconst toInt = (v) => { const n = parseInt(v, 10); return Number.isInteger(n) && n > 0 ? n : null; };\n\nlet first = clean(body.first_name);\nlet last = clean(body.last_name);\n// A single \"name\" field is split on the first space, so the form can send what the rep typed.\nif (!first && clean(body.name)) { const parts = clean(body.name).split(' '); first = parts[0]; last = parts.slice(1).join(' '); }\nif (!first) throw new Error('A contact name is required.');\nif (first.length > 150 || last.length > 150) throw new Error('The name is too long (maximum 150 characters).');\n\nconst email = clean(body.email).toLowerCase();\nif (email && (email.length > 255 || !EMAIL_RE.test(email))) throw new Error('That email address does not look valid.');\nconst phone = clean(body.phone);\nconst digits = phone.replace(/\\D/g, '');\nif (phone && (phone.length > 50 || digits.length < 7 || digits.length > 15)) throw new Error('That phone number does not look valid.');\n\nreturn [{ json: {\n  first_name: first, last_name: last, email, phone, phone_digits: digits,\n  owner_id: toInt(body.owner_id) || requester.id,\n  account_id: toInt(body.account_id),\n  requester_id: requester.id,\n} }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "9a28498a-fab1-4a6a-a976-0ebf4ccefe80",
+      "name": "Create or Match Contact",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1440,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH existing AS (\n  SELECT id, first_name, last_name FROM contacts\n  WHERE is_archived = false\n    AND ( ($3 <> '' AND lower(email) = lower($3))\n       OR ($8 <> '' AND regexp_replace(COALESCE(phone, ''), '\\D', '', 'g') = $8) )\n  ORDER BY id LIMIT 1\n), ins AS (\n  INSERT INTO contacts (first_name, last_name, email, phone, account_id, lead_status, lead_source, owner_id, created_by, created_at, updated_at)\n  SELECT $1, NULLIF($2, ''), NULLIF($3, ''), NULLIF($4, ''), $5::int, 'New', 'Calendar Event', $6::int, $7::int, now(), now()\n  WHERE NOT EXISTS (SELECT 1 FROM existing)\n  RETURNING id, first_name, last_name\n), lg AS (\n  INSERT INTO activity_log (actor_id, verb, entity_type, entity_id, entity_name)\n  SELECT $7::int, 'created', 'contact', id, first_name FROM ins\n)\nSELECT id, first_name, last_name, true AS is_new FROM ins\nUNION ALL SELECT id, first_name, last_name, false FROM existing;",
+        "options": {
+          "queryReplacement": "={{ [ $json.first_name, $json.last_name, $json.email, $json.phone, $json.account_id, $json.owner_id, $json.requester_id, $json.phone_digits ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "2cf21392-6269-4bab-ad3b-b4548f6543c1",
+      "name": "Respond: Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1680,
+        -60
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, contact_id: $json.id, existing: $json.is_new === false, name: [$json.first_name, $json.last_name].filter(Boolean).join(' ') } }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "324505b6-d9e0-43b2-9e48-16e962307bf8",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1680,
+        120
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ (() => { let m = (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Request failed.\"; m = String(m).replace(/\\s*\\[line \\d+\\]\\s*$/, \"\"); if (/violates foreign key/i.test(m)) m = \"The selected company or owner does not exist.\"; else if (/value too long/i.test(m)) m = \"One of the values is too long.\"; else if (/(violates|duplicate key|syntax error|relation \\\"|column \\\"|ECONNREFUSED|timeout)/i.test(m)) m = \"Could not save this contact. Please check the values and try again.\"; return { success: false, error: m }; })() }}",
+        "options": {
+          "responseCode": 400
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook: add-calendar-contact": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session": {
+      "main": [
+        [
+          {
+            "node": "Validate Session",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session": {
+      "main": [
+        [
+          {
+            "node": "Check Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload": {
+      "main": [
+        [
+          {
+            "node": "Create or Match Contact",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create or Match Contact": {
+      "main": [
+        [
+          {
+            "node": "Respond: Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "timezone": "Asia/Almaty"
+  }
+}

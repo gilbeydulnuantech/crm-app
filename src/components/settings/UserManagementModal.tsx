@@ -1,5 +1,5 @@
 import { useAuth } from '../../context/AuthContext';
-import { useAllUsers, useUpdateUserRole, useUpdateUserActive } from '../../hooks/useContacts';
+import { useAllUsers, useUpdateUserRole, useUpdateUserActive, useUpdateUserLocation } from '../../hooks/useContacts';
 import { toTitleCase } from '../../utils/text';
 import Avatar from '../Avatar';
 
@@ -13,6 +13,7 @@ export default function UserManagementModal({ open, onClose }: Props) {
   const { data: users = [], isLoading } = useAllUsers(open);
   const updateRole = useUpdateUserRole();
   const updateActive = useUpdateUserActive();
+  const updateLocation = useUpdateUserLocation();
 
   if (!open) return null;
 
@@ -57,6 +58,21 @@ export default function UserManagementModal({ open, onClose }: Props) {
                     </p>
                     <p className="text-xs text-slate-500 truncate">{u.email}</p>
                   </div>
+
+                  <input
+                    key={`${u.id}-${u.location ?? ''}`}
+                    defaultValue={u.location ?? ''}
+                    maxLength={60}
+                    placeholder="Branch"
+                    aria-label="Branch location"
+                    title="Branch or city shown next to this person on the calendar"
+                    onBlur={(e) => {
+                      const v = e.target.value.trim();
+                      if (v !== (u.location ?? '')) updateLocation.mutate({ userId: u.id, location: v });
+                    }}
+                    onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+                    className="w-28 px-2 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
+                  />
 
                   <select
                     value={u.role || 'user'}

@@ -75,7 +75,7 @@
         460
       ],
       "parameters": {
-        "jsCode": "const NOTIFIER_USER_ID = 1;\nconst ownerId = $input.item.json.assigned_user;\nconst dmKey = [NOTIFIER_USER_ID, ownerId].sort((a, b) => a - b).join('-');\nreturn [{ json: { notifierUserId: NOTIFIER_USER_ID, ownerId, dmKey } }];"
+        "jsCode": "// DMs come from user 1 \u2014 unless that user is the recipient (Team Chat never counts your own messages as unread); then from the system sender.\nconst BOT_USER_ID = 9;\nconst ownerId = $input.item.json.assigned_user;\nconst NOTIFIER_USER_ID = ownerId === 1 ? BOT_USER_ID : 1;\nconst dmKey = [NOTIFIER_USER_ID, ownerId].sort((a, b) => a - b).join('-');\nreturn [{ json: { notifierUserId: NOTIFIER_USER_ID, ownerId, dmKey } }];"
       }
     },
     {
@@ -264,29 +264,29 @@
     {
       "id": "dl-send-winback",
       "name": "Send Email: Win-Back",
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
       "position": [
         1080,
         700
       ],
+      "onError": "continueRegularOutput",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
       "parameters": {
-        "sendTo": "={{ $('Fill Email: Win-Back').item.json.to }}",
+        "fromEmail": "={{ ($('Get Company Name: Email: Win-Back').item.json.company_name) ? ('\"' + String($('Get Company Name: Email: Win-Back').item.json.company_name).replace(/\"/g, '') + '\" <gilbeydulnuan@gmail.com>') : 'gilbeydulnuan@gmail.com' }}",
+        "toEmail": "={{ $('Fill Email: Win-Back').item.json.to }}",
         "subject": "={{ ($('Fill Email: Win-Back').item.json.subject).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Email: Win-Back').item.json.company_name) }}",
-        "emailType": "html",
-        "message": "={{ (($('Fill Email: Win-Back').item.json.htmlBody).replace(/The Team/g, $('Get Company Name: Email: Win-Back').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Email: Win-Back').item.json.company_name) }}",
+        "emailFormat": "html",
+        "html": "={{ (($('Fill Email: Win-Back').item.json.htmlBody).replace(/The Team/g, $('Get Company Name: Email: Win-Back').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Email: Win-Back').item.json.company_name) }}",
         "options": {
-          "senderName": "={{ $('Get Company Name: Email: Win-Back').item.json.company_name }}",
           "appendAttribution": false
         }
       },
       "credentials": {
-        "gmailOAuth2": {
-          "id": "YE9RFYruaRVVZ6H4",
-          "name": "CRMapp"
+        "smtp": {
+          "id": "A3AoUIlP8cbZ5VlF",
+          "name": "Gmail SMTP (gilbeydulnuan)"
         }
-      },
-      "onError": "continueRegularOutput"
+      }
     },
     {
       "id": "dl-log-winback",
@@ -877,6 +877,7 @@
   "settings": {
     "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner",
-    "availableInMCP": false
+    "availableInMCP": false,
+    "timezone": "Asia/Almaty"
   }
 }

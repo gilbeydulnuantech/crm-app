@@ -18,11 +18,11 @@
         0
       ],
       "onError": "continueErrorOutput",
-      "notes": "Internal, system-to-system endpoint (no session-token auth), meant to be called right after a deal's stage_id is updated (e.g. from the move-opportunity-stage webhook). Payload: { opportunity_id, stage_name, contact_id }. Only reacts to one specific stage — 'inspection done' — by tagging the linked contact 'Hot Lead'; every other stage is a no-op. No longer syncs a tag per pipeline stage."
+      "notes": "Internal, system-to-system endpoint (no session-token auth), meant to be called right after a deal's stage_id is updated (e.g. from the move-opportunity-stage webhook). Payload: { opportunity_id, stage_name, contact_id }. Only reacts to one specific stage \u2014 'inspection done' \u2014 by tagging the linked contact 'Hot Lead'; every other stage is a no-op. No longer syncs a tag per pipeline stage."
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || {};\nconst opportunityId = parseInt(body.opportunity_id, 10);\nif (!Number.isInteger(opportunityId)) throw new Error('\"opportunity_id\" is required and must be an integer.');\nconst stageName = (body.stage_name || '').toString().trim();\nif (!stageName) throw new Error('\"stage_name\" is required.');\n// Optional: a deal with no linked contact sends this as null/absent —\n// the tag-apply step below no-ops safely when it's missing.\nconst contactIdRaw = body.contact_id;\nconst contactId = (contactIdRaw === undefined || contactIdRaw === null || contactIdRaw === '')\n  ? null\n  : parseInt(contactIdRaw, 10);\n\nreturn [{ json: { opportunityId, stageName, contactId: Number.isInteger(contactId) ? contactId : null } }];"
+        "jsCode": "const body = $input.first().json.body || {};\nconst opportunityId = parseInt(body.opportunity_id, 10);\nif (!Number.isInteger(opportunityId)) throw new Error('\"opportunity_id\" is required and must be an integer.');\nconst stageName = (body.stage_name || '').toString().trim();\nif (!stageName) throw new Error('\"stage_name\" is required.');\n// Optional: a deal with no linked contact sends this as null/absent \u2014\n// the tag-apply step below no-ops safely when it's missing.\nconst contactIdRaw = body.contact_id;\nconst contactId = (contactIdRaw === undefined || contactIdRaw === null || contactIdRaw === '')\n  ? null\n  : parseInt(contactIdRaw, 10);\n\nreturn [{ json: { opportunityId, stageName, contactId: Number.isInteger(contactId) ? contactId : null } }];"
       },
       "id": "dsts-0002-parse",
       "name": "Parse & Validate Payload",
@@ -66,7 +66,7 @@
         448,
         0
       ],
-      "notes": "The only stage this engine reacts to. Matches the real pipeline stage name ('inspection done', case-insensitive) — if that stage gets renamed later, update the rightValue here to match. Every other stage_name just falls through to a no-op success response."
+      "notes": "The only stage this engine reacts to. Matches the real pipeline stage name ('inspection done', case-insensitive) \u2014 if that stage gets renamed later, update the rightValue here to match. Every other stage_name just falls through to a no-op success response."
     },
     {
       "parameters": {
@@ -111,7 +111,7 @@
           "name": "myRag"
         }
       },
-      "notes": "Fires once the deal reaches 'inspection done' — tags the linked contact 'Hot Lead'. No-ops safely if contactId is null."
+      "notes": "Fires once the deal reaches 'inspection done' \u2014 tags the linked contact 'Hot Lead'. No-ops safely if contactId is null."
     },
     {
       "parameters": {
@@ -229,6 +229,7 @@
   "settings": {
     "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner",
-    "availableInMCP": false
+    "availableInMCP": false,
+    "timezone": "Asia/Almaty"
   }
 }

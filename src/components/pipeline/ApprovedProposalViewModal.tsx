@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { useApprovedProposal } from '../../hooks/useProposals';
 import FillableFieldsRenderer, { FieldValue } from '../richtext/FillableFieldsRenderer';
 import { fillMergeFields } from '../../utils/mergeFields';
+import { DocBrandHeader, DocBrandFooter } from '../DocumentBranding';
 
 interface Props {
   proposalId: number | null;
@@ -40,6 +41,7 @@ export default function ApprovedProposalViewModal({ proposalId, onClose }: Props
         down_payment_paid_at: data.down_payment_paid_at,
         balance_amount: data.balance_amount,
         balance_paid_at: data.balance_paid_at,
+        line_items: data.line_items,
       })
     : '';
 
@@ -63,6 +65,7 @@ export default function ApprovedProposalViewModal({ proposalId, onClose }: Props
           </p>
         ) : (
           <>
+            <DocBrandHeader />
             <div
               ref={contentRef}
               className="rte-content mt-5 bg-slate-50 border border-slate-100 rounded-lg p-4"
@@ -75,6 +78,7 @@ export default function ApprovedProposalViewModal({ proposalId, onClose }: Props
               onChange={() => {}}
               readOnly
             />
+            <DocBrandFooter />
             <p className="text-right text-lg font-bold text-slate-800 mt-3">Total: {money(data.total_amount)}</p>
 
             {data.approved_at && (

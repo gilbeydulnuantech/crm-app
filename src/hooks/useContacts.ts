@@ -97,6 +97,14 @@ export function useUpdateUserPhone() {
   });
 }
 
+export function useUpdateUserSignature() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, signature }: { userId: number; signature: string }) => api.updateUserSignature(userId, signature),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
+  });
+}
+
 export function useUploadAvatar() {
   const qc = useQueryClient();
   return useMutation({
@@ -233,6 +241,7 @@ export function useSendContactEmail() {
       to,
       from,
       attachments,
+      htmlMessage,
     }: {
       contactId: number;
       subject: string;
@@ -240,7 +249,8 @@ export function useSendContactEmail() {
       to: string;
       from: string;
       attachments: { name: string; url: string }[];
-    }) => api.sendContactEmail(contactId, subject, message, to, from, attachments),
+      htmlMessage?: string;
+    }) => api.sendContactEmail(contactId, subject, message, to, from, attachments, htmlMessage),
     onSuccess: invalidate,
   });
 }
@@ -254,12 +264,27 @@ export function useMarkContactEmailRead() {
   });
 }
 
+export function useUpdateUserLocation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, location }: { userId: number; location: string }) => api.updateUserLocation(userId, location),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['users'] });
+    },
+  });
+}
+
 export function useAssignOwner() {
   const invalidate = useInvalidateContacts();
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ contactId, ownerId }: { contactId: number; ownerId: number | null }) =>
       api.assignContactOwner(contactId, ownerId),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate();
+      // The contact's upcoming events move to the new owner too, so the calendar must refetch.
+      qc.invalidateQueries({ queryKey: ['events'] });
+    },
   });
 }
 

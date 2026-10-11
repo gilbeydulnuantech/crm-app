@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import FillableFieldsRenderer, { FieldValue } from '../richtext/FillableFieldsRenderer';
 import ThankYouScreen from '../ThankYouScreen';
-import { fillPageFields } from '../../utils/mergeFields';
+import { fillPageFields, renderLineItemsTable, resolveProductTokens, LineItemRow } from '../../utils/mergeFields';
+import { useProducts } from '../../hooks/useProducts';
+import { DocBrandHeader, DocBrandFooter } from '../DocumentBranding';
 
 // Sample values so the preview reads naturally instead of showing literal
 // {{tokens}} — not real data, just enough to check layout/copy end to end.
@@ -18,6 +20,8 @@ interface Props {
   onClose: () => void;
   title: string;
   contentHtml: string;
+  // The draft's itemised lines, so {{line_items}} previews as the real table.
+  lineItems?: LineItemRow[];
   // Optional next-step content — when set, the disabled "preview only"
   // buttons below become real, clickable steps through the whole
   // proposal → contract → thank-you chain, all client-side with sample
@@ -40,11 +44,17 @@ export default function ProposalPreviewOverlay({
   open,
   onClose,
   title,
-  contentHtml,
+  contentHtml: rawContentHtml,
+  lineItems,
   linkedContractTitle,
   linkedContractContentHtml,
   linkedThankYouPageContentHtml,
 }: Props) {
+  const { data: products = [] } = useProducts();
+  const contentHtml = resolveProductTokens(
+    rawContentHtml.replace(/\{\{\s*line_items\s*\}\}/gi, () => renderLineItemsTable(lineItems)),
+    products
+  );
   const [step, setStep] = useState<Step>('proposal');
   const proposalContentRef = useRef<HTMLDivElement>(null);
   const contractContentRef = useRef<HTMLDivElement>(null);
@@ -80,6 +90,8 @@ export default function ProposalPreviewOverlay({
           <>
             <h1 className="text-2xl font-bold text-slate-800">{title || 'Untitled Proposal'}</h1>
 
+            <DocBrandHeader />
+
             {contentHtml.replace(/<[^>]*>/g, '').trim() ? (
               <div ref={proposalContentRef} className="rte-content mt-6" dangerouslySetInnerHTML={{ __html: contentHtml }} />
             ) : (
@@ -91,6 +103,7 @@ export default function ProposalPreviewOverlay({
               values={proposalFieldValues}
               onChange={(fieldId, value) => setProposalFieldValues((v) => ({ ...v, [fieldId]: value }))}
             />
+              <DocBrandFooter />
 
             <div className="mt-8 pt-6 border-t border-slate-100 text-center">
               <button
@@ -114,6 +127,7 @@ export default function ProposalPreviewOverlay({
           <>
             <h1 className="text-2xl font-bold text-slate-800">{linkedContractTitle || 'Untitled Contract'}</h1>
 
+            <DocBrandHeader />
             <div
               ref={contractContentRef}
               className="rte-content mt-6 bg-slate-50 border border-slate-100 rounded-lg p-4"
@@ -125,6 +139,7 @@ export default function ProposalPreviewOverlay({
               values={contractFieldValues}
               onChange={(fieldId, value) => setContractFieldValues((v) => ({ ...v, [fieldId]: value }))}
             />
+            <DocBrandFooter />
 
             <div className="mt-8 pt-6 border-t border-slate-100 text-center">
               <button

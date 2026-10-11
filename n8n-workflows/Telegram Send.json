@@ -1,0 +1,444 @@
+{
+  "name": "Telegram Send",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "send-telegram",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "7189e57f-aa88-4af0-b1a5-82c016ac80ec",
+      "name": "Webhook: send-telegram",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "787d8cf3-9457-4646-bab9-d1b7e0d890d3"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "id": "4b239dfe-95f6-4ecc-a324-3c2c5c02b23d",
+      "name": "Extract Bearer Token: send-telegram",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "4c4e2085-3c62-4fdd-98be-2e2eb1cb4b61",
+      "name": "Execute Workflow: Verify Session: send-telegram",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid || !r.active) throw new Error('Invalid session.');\nconst body = $('Webhook: send-telegram').first().json.body || {};\nconst contactId = parseInt(body.contact_id, 10);\nconst text = (body.message || '').toString().trim();\nconst base = { userId: r.userId, role: r.role, userName: (r.user && r.user.name) || 'Unknown' };\n// Payload problems come back as a normal { error } item (not a thrown error) so\n// the rep sees the real reason; only a bad session throws, which signs them out.\nif (!Number.isInteger(contactId)) return [{ json: { ...base, error: '\"contact_id\" is required.' } }];\nif (!text) return [{ json: { ...base, contactId, error: 'Write a message first.' } }];\nif (text.length > 4096) return [{ json: { ...base, contactId, error: 'Telegram messages are limited to 4096 characters.' } }];\nreturn [{ json: { ...base, contactId, text } }];"
+      },
+      "id": "72c78801-8168-49b5-81db-43ee96546fb9",
+      "name": "Validate Session & Payload: send-telegram",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.id, c.first_name, c.telegram_chat_id, c.dnc_telegram, c.do_not_contact\nFROM contacts c\nWHERE c.id = $1 AND c.is_archived = false AND ($2 = 'admin' OR c.owner_id = $3);",
+        "options": {
+          "queryReplacement": "={{ [ $json.contactId ?? null, $json.role, $json.userId ] }}"
+        }
+      },
+      "id": "2c9d2375-a0de-4f43-a093-da1d67b343f1",
+      "name": "Look Up Contact: send-telegram",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        880,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const v = $('Validate Session & Payload: send-telegram').first().json;\nconst c = $input.first().json;\nconst no = (error) => [{ json: { ok: false, error } }];\nif (v.error) return no(v.error);\nif (!c || !c.id) return no('Contact not found, or you do not have access to it.');\nif (!c.telegram_chat_id) return no('This contact has not connected Telegram yet. Send them their invite link first.');\n// A STOP reply is a real opt-out: reps can't override it. The contact has to\n// press Start on their invite link again.\nif (c.dnc_telegram) return no('This contact opted out of Telegram (they replied STOP). They need to press Start on their invite link again before you can message them.');\nif (c.do_not_contact) return no('This contact is marked Do Not Contact.');\nreturn [{ json: { ok: true, chatId: String(c.telegram_chat_id), text: v.text, contactId: c.id, userId: v.userId, userName: v.userName } }];"
+      },
+      "id": "ad89dab6-6d73-45f8-af2c-571b8953dae4",
+      "name": "Check Can Send",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "93926741-145f-42ac-a8ed-43584ef3463a",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b5f16d80-7271-48fc-ac51-4dab9f04dd50",
+      "name": "Can Send?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "5cf8c192-0952-4c40-bfb8-4d7f2e52a0db",
+      "name": "Send Telegram Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1540,
+        -100
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "cXEKQVB4yxrQFTMR",
+          "name": "myCRM Telegram Bot"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const meta = $('Check Can Send').first().json;\nconst r = $input.first().json || {};\n// The Telegram node runs with \"continue on error\", so a failure arrives as a\n// normal item carrying `error`.\nconst failed = !!r.error || r.ok === false;\nif (failed) {\n  const m = String((r.error && (r.error.message || r.error.description)) || r.error || r.description || 'Telegram send failed');\n  return [{ json: { sent: false, error: /blocked/i.test(m) ? 'This contact has blocked the bot on Telegram, so the message could not be delivered.' : 'Telegram could not deliver the message: ' + m } }];\n}\nreturn [{ json: { sent: true, contactId: meta.contactId, text: meta.text, userId: meta.userId, userName: meta.userName, messageId: r.result && r.result.message_id ? String(r.result.message_id) : null } }];"
+      },
+      "id": "21bd8845-4261-41fd-afc8-e32d6a3e74b4",
+      "name": "Build Send Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "5a26aa58-3549-4552-aaa0-b123f1a6c086",
+              "leftValue": "={{ $json.sent }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "350330e6-52e9-4d7b-921e-c7e55b2ee19b",
+      "name": "Sent OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1980,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO entity_activity_log (entity_type, entity_id, category, subtype, summary, detail, actor_id, actor_name)\nVALUES ('contact', $1, 'telegram', 'outbound', 'Telegram message sent', jsonb_build_object('text', $2::text, 'message_id', $3::text), $4, $5)\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.contactId, $json.text, $json.messageId, $json.userId, $json.userName ] }}"
+        }
+      },
+      "id": "58f9e72b-c4c8-4157-84b9-b54d2472833a",
+      "name": "Log Outbound Message",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2200,
+        -180
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: true } }];"
+      },
+      "id": "a71eb1bc-0d16-4a7c-8a56-7c33e687a3ae",
+      "name": "Final Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2420,
+        -180
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: false, error: $input.first().json.error || 'Could not send the message.' } }];"
+      },
+      "id": "0cd57a6e-2713-47f5-afca-bf312f96538b",
+      "name": "Shape Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "8b2037dc-71fe-411f-865a-8fd0d057230b",
+      "name": "Respond: send-telegram",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2640,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook: send-telegram": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token: send-telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token: send-telegram": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session: send-telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session: send-telegram": {
+      "main": [
+        [
+          {
+            "node": "Validate Session & Payload: send-telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session & Payload: send-telegram": {
+      "main": [
+        [
+          {
+            "node": "Look Up Contact: send-telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Contact: send-telegram": {
+      "main": [
+        [
+          {
+            "node": "Check Can Send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Can Send": {
+      "main": [
+        [
+          {
+            "node": "Can Send?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Can Send?": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Shape Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Telegram Message": {
+      "main": [
+        [
+          {
+            "node": "Build Send Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Send Result": {
+      "main": [
+        [
+          {
+            "node": "Sent OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sent OK?": {
+      "main": [
+        [
+          {
+            "node": "Log Outbound Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Shape Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Outbound Message": {
+      "main": [
+        [
+          {
+            "node": "Final Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Success": {
+      "main": [
+        [
+          {
+            "node": "Respond: send-telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shape Error": {
+      "main": [
+        [
+          {
+            "node": "Respond: send-telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "timezone": "Asia/Almaty"
+  }
+}

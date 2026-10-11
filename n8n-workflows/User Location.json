@@ -1,0 +1,305 @@
+{
+  "name": "User Location",
+  "nodes": [
+    {
+      "id": "eed9d44a-10c9-40a7-9f6e-c406443ec72c",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1500,
+        700
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ (() => { let m = (typeof $json.error === \"string\" ? $json.error : $json.error?.message) || $json.message || \"Request failed.\"; m = String(m).replace(/\\s*\\[line \\d+\\]\\s*$/, \"\"); if (/event_types_name_lower|duplicate key/i.test(m)) m = \"There is already an event type with that name.\"; else if (/violates foreign key/i.test(m)) m = \"That event type does not exist.\"; else if (/(violates|syntax error|relation \\\"|column \\\"|ECONNREFUSED|timeout)/i.test(m)) m = \"Could not save this. Please try again.\"; return { success: false, error: m }; })() }}",
+        "options": {
+          "responseCode": 400
+        }
+      }
+    },
+    {
+      "id": "d6fbdcf1-5375-4bf9-8dec-1d7b89953362",
+      "name": "Webhook: update-user-location",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "update-user-location",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "http://localhost:5173"
+        }
+      },
+      "webhookId": "02d6f760-b29a-41cc-a5ed-e9fce60a9514"
+    },
+    {
+      "id": "fd413bdb-ebd3-4662-bb89-e737cd1cf082",
+      "name": "Log Workflow Run: update-user-location",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rnMoxqGXh7PxjZgT",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_name": "={{ \"User Location\" }}",
+            "workflow_id": "={{ \"rpNA3k46ALHsXKjx\" }}",
+            "entity_type": "={{ \"users\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "fafb403b-398e-4d06-bb3d-cab5dfedf3fb",
+      "name": "Extract Bearer Token (save)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const headers = $('Webhook: update-user-location').first().json.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('Invalid or missing session token.');\nreturn [{ json: { token } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "da2adb1a-25fe-4eee-921f-f4d550bb40c7",
+      "name": "Execute Workflow: Verify Session (save)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNJuwqhGplg17hbU",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "378dc35c-e5d4-4af1-889f-b84c4c41ad90",
+      "name": "Validate Session (save)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (!r.valid) throw new Error('Invalid session.');\n\nreturn [{ json: { id: r.userId, role: r.role, name: r.user?.name, active: r.active } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "9f0894f0-ecf7-4b42-81ff-e01edce3b863",
+      "name": "Check Payload (save)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const requester = $input.first().json;\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (requester.role !== 'admin') throw new Error('Only an admin can set a branch location.');\nconst body = $('Webhook: update-user-location').first().json.body || {};\nconst userId = parseInt(body.user_id, 10);\nif (!Number.isInteger(userId)) throw new Error('\"user_id\" must be an integer.');\nconst location = (typeof body.location === 'string' ? body.location : '').replace(/[\\u0000-\\u001f\\u007f]/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, 60);\nreturn [{ json: { userId, location } }];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "3933cfa7-f11a-404c-857a-f8b23fde0311",
+      "name": "Query (save)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1440,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE users SET location = NULLIF($2, '') WHERE id = $1::int RETURNING id, location;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [ $json.userId, $json.location ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OJlr1rmibAS2w3rj",
+          "name": "myRag"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "alwaysOutputData": false
+    },
+    {
+      "id": "dabed402-85a9-45b7-873c-823ed486d964",
+      "name": "Respond (save)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1680,
+        -60
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().length && $input.first().json.id ? { success: true, location: $input.first().json.location } : { success: false, error: 'That user was not found.' } }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Webhook: update-user-location": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Run: update-user-location",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Run: update-user-location": {
+      "main": [
+        [
+          {
+            "node": "Extract Bearer Token (save)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bearer Token (save)": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow: Verify Session (save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow: Verify Session (save)": {
+      "main": [
+        [
+          {
+            "node": "Validate Session (save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session (save)": {
+      "main": [
+        [
+          {
+            "node": "Check Payload (save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payload (save)": {
+      "main": [
+        [
+          {
+            "node": "Query (save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query (save)": {
+      "main": [
+        [
+          {
+            "node": "Respond (save)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "U7jX0H3oE5a25GrV",
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "Asia/Almaty",
+    "availableInMCP": false
+  }
+}

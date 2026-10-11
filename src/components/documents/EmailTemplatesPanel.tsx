@@ -9,6 +9,9 @@ import ConfirmDialog from '../ConfirmDialog';
 import ContactPicker from '../pipeline/ContactPicker';
 import { fillContactEmailTokens } from '../../utils/emailTemplateTokens';
 import { EMAIL_TRIGGER_EVENTS, TRIGGER_EVENT_LABEL } from '../../constants/emailTriggerEvents';
+import { useProducts } from '../../hooks/useProducts';
+import { resolveProductTokens } from '../../utils/mergeFields';
+import { escapeHtml, htmlToPlainText } from '../../utils/emailHtml';
 
 const TRIGGER_LABEL = TRIGGER_EVENT_LABEL;
 
@@ -56,6 +59,7 @@ export default function EmailTemplatesPanel() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const sendTemplate = useSendEmailTemplate();
+  const { data: products = [] } = useProducts();
 
   const [expandedSeries, setExpandedSeries] = useState<Set<string>>(new Set());
   function toggleSeries(key: string) {
@@ -79,7 +83,7 @@ export default function EmailTemplatesPanel() {
     setSendContactName('');
   }
 
-  function handleSend(t: { id: number; subject: string; body: string }) {
+  function handleSend(t: { id: number; subject: string; body: string; is_html?: boolean }) {
     setSendError(null);
     if (!sendContactId) return setSendError('Pick a contact to send to.');
     const contact = contacts.find((c) => c.id === sendContactId);
@@ -87,10 +91,18 @@ export default function EmailTemplatesPanel() {
 
     const ownCompanyName = companyProfile?.company_name || '';
     const subject = fillContactEmailTokens(t.subject, contact, ownCompanyName);
-    const message = fillContactEmailTokens(t.body, contact, ownCompanyName);
+    // Formatted templates go out as formatted emails (merge values escaped); plain ones are sent as before.
+    let message: string;
+    let htmlMessage: string | undefined;
+    if (t.is_html) {
+      htmlMessage = resolveProductTokens(t.body, products).replace(/\{\{[^{}]*\}\}/g, (tok) => escapeHtml(fillContactEmailTokens(tok, contact, ownCompanyName)));
+      message = htmlToPlainText(htmlMessage);
+    } else {
+      message = fillContactEmailTokens(t.body, contact, ownCompanyName);
+    }
 
     sendTemplate.mutate(
-      { to: contact.email, subject, message, contact_id: sendContactId },
+      { to: contact.email, subject, message, contact_id: sendContactId, ...(htmlMessage ? { is_html: true, html_message: htmlMessage } : {}) },
       {
         onSuccess: () => {
           setSendBarTemplateId(null);

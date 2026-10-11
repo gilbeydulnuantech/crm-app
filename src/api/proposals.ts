@@ -1,4 +1,5 @@
 import { apiFetch } from './client';
+import { InvoiceLineItemInput } from './payments';
 
 export interface Proposal {
   id: number;
@@ -10,6 +11,7 @@ export interface Proposal {
   title: string;
   content_html: string;
   total_amount: number;
+  line_items?: InvoiceLineItemInput[] | null;
   email_subject: string;
   email_body: string;
   client_name: string | null;
@@ -49,6 +51,7 @@ export interface SaveProposalPayload {
   title: string;
   content_html: string;
   total_amount: number;
+  line_items?: InvoiceLineItemInput[] | null;
   email_subject?: string;
   email_body?: string;
   client_name?: string;
@@ -107,6 +110,7 @@ export interface PublicProposal {
   title: string;
   content_html: string;
   total_amount: number;
+  line_items?: InvoiceLineItemInput[] | null;
   status: Proposal['status'];
   opportunity_name: string;
   first_name: string | null;
@@ -161,6 +165,7 @@ export interface ApprovedProposal {
   title: string;
   content_html: string;
   total_amount: number;
+  line_items?: InvoiceLineItemInput[] | null;
   public_token: string;
   status: Proposal['status'];
   client_name: string | null;

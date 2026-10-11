@@ -7,6 +7,7 @@ import TableHeader from '@tiptap/extension-table-header';
 import TableCell from '@tiptap/extension-table-cell';
 import TextStyle from '@tiptap/extension-text-style';
 import Underline from '@tiptap/extension-underline';
+import Link from '@tiptap/extension-link';
 import Color from '@tiptap/extension-color';
 import TextAlign from '@tiptap/extension-text-align';
 import GlobalDragHandle from 'tiptap-extension-global-drag-handle';
@@ -35,6 +36,8 @@ interface Props {
   // place it as a true right-hand rail outside the document card, rather
   // than nested inside it.
   toolbarContainer?: RefObject<HTMLDivElement | null>;
+  // 'email' hides the document-only elements (signature fields, page breaks, ...) — see EmailTemplateEditorPage.
+  variant?: 'document' | 'email';
 }
 
 export interface RichTextEditorHandle {
@@ -60,7 +63,7 @@ const SIGNER_ROLE_MAP: Partial<Record<AddElementType, SignerRole>> = {
 };
 
 const RichTextEditor = forwardRef<RichTextEditorHandle, Props>(function RichTextEditor(
-  { value, onChange, toolbarPlacement = 'top', toolbarContainer },
+  { value, onChange, toolbarPlacement = 'top', toolbarContainer, variant = 'document' },
   ref
 ) {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -91,6 +94,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, Props>(function RichText
       FillableField,
       TextStyle,
       Underline,
+      Link.configure({ openOnClick: false, autolink: true, HTMLAttributes: { target: '_blank', rel: 'noopener noreferrer' } }),
       Color,
       FontSize,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
@@ -224,6 +228,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, Props>(function RichText
       setAddElementOpen={setAddElementOpen}
       addElementRef={addElementRef}
       onAddElement={handleAddElement}
+      emailMode={variant === 'email'}
     />
   );
 

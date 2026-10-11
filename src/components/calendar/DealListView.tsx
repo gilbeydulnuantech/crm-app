@@ -1,4 +1,5 @@
 import { Opportunity, Stage } from '../../types/opportunity';
+import { useCardDisplay } from '../../hooks/useCardDisplay';
 import { toTitleCase } from '../../utils/text';
 import { DEFAULT_USER_COLOR, hexToRgba } from '../../utils/userColor';
 
@@ -21,6 +22,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function DealListView({ deals, stagesById, onDealClick, emptyLabel = 'No deals.' }: Props) {
+  const cd = useCardDisplay();
   const sorted = [...deals].sort(
     (a, b) => new Date(a.expected_close!).getTime() - new Date(b.expected_close!).getTime()
   );
@@ -40,18 +42,17 @@ export default function DealListView({ deals, stagesById, onDealClick, emptyLabe
           key={d.id}
           onClick={() => onDealClick(d)}
           className="flex items-center gap-3 border border-slate-200 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-slate-50"
-          style={
-            ownerColor
-              ? { backgroundColor: hexToRgba(ownerColor, 0.08), borderLeft: `3px solid ${ownerColor}` }
-              : undefined
-          }
+          style={{
+            ...cd.zoomStyle,
+            ...(ownerColor ? { backgroundColor: hexToRgba(ownerColor, 0.08), borderLeft: `3px solid ${ownerColor}` } : {}),
+          }}
         >
           <div className="w-20 shrink-0 text-xs text-slate-500">
             {new Date(d.expected_close!).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-sm font-medium text-slate-800 truncate">{d.name}</div>
-            {(d.company_name || d.contact_name) && (
+            {cd.show_contact && (d.company_name || d.contact_name) && (
               <div className="text-xs text-slate-400 truncate">
                 {d.company_name || toTitleCase(d.contact_name)}
               </div>
@@ -62,7 +63,7 @@ export default function DealListView({ deals, stagesById, onDealClick, emptyLabe
             <div className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-[var(--theme-accent-tint)] text-[var(--theme-accent-hover)]">
               {stagesById.get(d.stage_id)?.name ?? '--'}
             </div>
-            <div className="text-sm font-bold text-emerald-600">{currency(d.deal_value)}</div>
+            {cd.show_price && <div className="text-sm font-bold text-emerald-600">{currency(d.deal_value)}</div>}
           </div>
           <span
             className={`shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${

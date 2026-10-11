@@ -23,9 +23,12 @@ const PROVIDER_FIELDS: Record<IntegrationProvider, { key: string; label: string;
     { key: 'from_number', label: 'From Number', placeholder: 'e.g. +15551234567' },
   ],
   apify: [],
+  // Only the bot's public username lives here (it builds each contact's invite
+  // link). The bot token is an n8n credential — see the Telegram workflows.
+  telegram: [{ key: 'bot_username', label: 'Bot username', placeholder: 'e.g. MyBusinessBot (without the @)' }],
 };
 
-const PROVIDER_LABELS: Record<IntegrationProvider, string> = { vapi: 'Vapi', retell: 'Retell', apify: 'Apify' };
+const PROVIDER_LABELS: Record<IntegrationProvider, string> = { vapi: 'Vapi', retell: 'Retell', apify: 'Apify', telegram: 'Telegram' };
 
 export default function IntegrationsModal({ open, onClose }: Props) {
   const { data: integrations = [], isLoading } = useIntegrations(open);
@@ -60,7 +63,7 @@ export default function IntegrationsModal({ open, onClose }: Props) {
           {isLoading ? (
             <p className="text-sm text-slate-400 py-4 text-center">Loading...</p>
           ) : (
-            (['vapi', 'retell', 'apify'] as IntegrationProvider[]).map((provider) => (
+            (['vapi', 'retell', 'apify', 'telegram'] as IntegrationProvider[]).map((provider) => (
               <ProviderCard
                 key={provider}
                 provider={provider}
@@ -98,7 +101,10 @@ function ProviderCard({
   const [config, setConfig] = useState<Record<string, string>>(integration?.config ?? {});
   const [error, setError] = useState<string | null>(null);
 
-  const isConnected = integration?.has_key && integration.is_active;
+  // Telegram has no API key here (the bot token is an n8n credential) — it counts
+  // as connected once the bot username is saved.
+  const keyless = provider === 'telegram';
+  const isConnected = keyless ? !!integration?.config?.bot_username && integration.is_active : integration?.has_key && integration.is_active;
 
   function startEdit() {
     setApiKey('');
@@ -111,7 +117,12 @@ function ProviderCard({
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!integration?.has_key && !apiKey.trim()) {
+    if (keyless) {
+      if (!(config.bot_username ?? '').trim()) {
+        setError('The bot username is required.');
+        return;
+      }
+    } else if (!integration?.has_key && !apiKey.trim()) {
       setError('An API key is required to connect this provider.');
       return;
     }
@@ -156,7 +167,7 @@ function ProviderCard({
               onClick={startEdit}
               className="text-xs font-semibold text-[var(--theme-accent)] hover:underline"
             >
-              {integration?.has_key ? 'Edit' : 'Connect'}
+              {(keyless ? integration : integration?.has_key) ? 'Edit' : 'Connect'}
             </button>
             {integration && (
               <button
@@ -175,6 +186,12 @@ function ProviderCard({
 
       {editing && (
         <form onSubmit={handleSubmit} className="mt-3 space-y-2">
+          {keyless && (
+            <p className="text-[11px] text-slate-500">
+              Create the bot with @BotFather, then add its token in n8n (Credentials, "Telegram Bot"). The token is never stored here.
+            </p>
+          )}
+          {!keyless && (
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">API Key</label>
             <input
@@ -185,6 +202,7 @@ function ProviderCard({
               className={inputClass}
             />
           </div>
+          )}
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Label (optional)</label>
             <input

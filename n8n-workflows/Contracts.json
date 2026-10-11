@@ -23,7 +23,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT ct.id, ct.title, ct.content_html, ct.total_amount, ct.status, ct.public_token, ct.signature_name, ct.signature_email, ct.signature_date, ct.signature_data, ct.pdf_base64, ct.signed_at, ct.field_values,\n  o.name AS opportunity_name, c.first_name, c.last_name, c.email AS contact_email,\n  u.name AS owner_name, u.email AS owner_email, u.phone AS owner_phone,\n  cp.company_name,\n  ct.thank_you_page_id, tp.content_html AS thank_you_page_content_html,\n  dp.public_token AS down_payment_token, dp.total AS down_payment_amount,\n  EXISTS (SELECT 1 FROM payments p WHERE p.invoice_id = dp.id AND p.status = 'succeeded') AS down_payment_paid,\n  ct.cosigned_at, u2.name AS cosigned_by_name\nFROM (SELECT $1::text AS tok) dummy\nLEFT JOIN contracts ct ON ct.public_token::text = dummy.tok\nLEFT JOIN opportunities o ON o.id = ct.opportunity_id\nLEFT JOIN contacts c ON c.id = o.contact_id\nLEFT JOIN users u ON u.id = o.assigned_user\nLEFT JOIN users u2 ON u2.id = ct.cosigned_by\nLEFT JOIN company_profile cp ON cp.id = 1\nLEFT JOIN pages tp ON tp.id = ct.thank_you_page_id\nLEFT JOIN invoices dp ON dp.opportunity_id = ct.opportunity_id AND dp.invoice_type = 'down_payment';",
+        "query": "SELECT ct.id, ct.title, resolve_product_tokens(ct.content_html, false) AS content_html, ct.total_amount, ct.status, ct.public_token, ct.signature_name, ct.signature_email, ct.signature_date, ct.signature_data, ct.pdf_base64, ct.signed_at, ct.field_values,\n  o.name AS opportunity_name, c.first_name, c.last_name, c.email AS contact_email,\n  u.name AS owner_name, u.email AS owner_email, u.phone AS owner_phone,\n  cp.company_name,\n  ct.thank_you_page_id, resolve_product_tokens(tp.content_html, false) AS thank_you_page_content_html,\n  dp.public_token AS down_payment_token, dp.total AS down_payment_amount,\n  EXISTS (SELECT 1 FROM payments p WHERE p.invoice_id = dp.id AND p.status = 'succeeded') AS down_payment_paid,\n  ct.cosigned_at, u2.name AS cosigned_by_name\nFROM (SELECT $1::text AS tok) dummy\nLEFT JOIN contracts ct ON ct.public_token::text = dummy.tok\nLEFT JOIN opportunities o ON o.id = ct.opportunity_id\nLEFT JOIN contacts c ON c.id = o.contact_id\nLEFT JOIN users u ON u.id = o.assigned_user\nLEFT JOIN users u2 ON u2.id = ct.cosigned_by\nLEFT JOIN company_profile cp ON cp.id = 1\nLEFT JOIN pages tp ON tp.id = ct.thank_you_page_id\nLEFT JOIN invoices dp ON dp.opportunity_id = ct.opportunity_id AND dp.invoice_type = 'down_payment';",
         "options": {
           "queryReplacement": "={{ [ $json.query.token || '' ] }}"
         }
@@ -460,7 +460,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT ct.id AS contract_id, ct.public_token, ct.email_subject, ct.email_body, ct.opportunity_id,\n  o.assigned_user, o.name AS deal_name, o.deal_value, o.created_at AS deal_created_at, o.expected_close AS deal_due_at,\n  c.id AS contact_id, c.email, c.first_name, c.last_name, c.unsubscribe_token, c.phone, c.city, c.state,\n  co.name AS client_company_name,\n  u.name AS owner_name, u.email AS owner_email, u.phone AS owner_phone, (SELECT company_name FROM company_profile LIMIT 1) AS our_company_name,\n  (SELECT i.total FROM invoices i WHERE i.opportunity_id = o.id AND i.invoice_type = 'down_payment' ORDER BY i.created_at DESC LIMIT 1) AS down_payment_amount,\n  (SELECT pay.created_at FROM payments pay JOIN invoices i ON i.id = pay.invoice_id WHERE i.opportunity_id = o.id AND i.invoice_type = 'down_payment' AND pay.status = 'paid' ORDER BY pay.created_at DESC LIMIT 1) AS down_payment_paid_at,\n  (SELECT i.total FROM invoices i WHERE i.opportunity_id = o.id AND i.invoice_type = 'final' ORDER BY i.created_at DESC LIMIT 1) AS balance_amount,\n  (SELECT pay.created_at FROM payments pay JOIN invoices i ON i.id = pay.invoice_id WHERE i.opportunity_id = o.id AND i.invoice_type = 'final' AND pay.status = 'paid' ORDER BY pay.created_at DESC LIMIT 1) AS balance_paid_at\nFROM (SELECT $1::int AS cid) dummy\nLEFT JOIN contracts ct ON ct.id = dummy.cid\nLEFT JOIN opportunities o ON o.id = ct.opportunity_id\nLEFT JOIN contacts c ON c.id = o.contact_id\nLEFT JOIN companies co ON co.id = c.account_id\nLEFT JOIN users u ON u.id = o.assigned_user;",
+        "query": "SELECT ct.id AS contract_id, ct.public_token, resolve_product_tokens(ct.email_subject, true) AS email_subject, resolve_product_tokens(ct.email_body, true) AS email_body, ct.opportunity_id,\n  o.assigned_user, o.name AS deal_name, o.deal_value, o.created_at AS deal_created_at, o.expected_close AS deal_due_at,\n  c.id AS contact_id, c.email, c.first_name, c.last_name, c.unsubscribe_token, c.phone, c.city, c.state,\n  co.name AS client_company_name,\n  u.name AS owner_name, u.email AS owner_email, u.phone AS owner_phone, (SELECT company_name FROM company_profile LIMIT 1) AS our_company_name,\n  (SELECT i.total FROM invoices i WHERE i.opportunity_id = o.id AND i.invoice_type = 'down_payment' ORDER BY i.created_at DESC LIMIT 1) AS down_payment_amount,\n  (SELECT pay.created_at FROM payments pay JOIN invoices i ON i.id = pay.invoice_id WHERE i.opportunity_id = o.id AND i.invoice_type = 'down_payment' AND pay.status = 'paid' ORDER BY pay.created_at DESC LIMIT 1) AS down_payment_paid_at,\n  (SELECT i.total FROM invoices i WHERE i.opportunity_id = o.id AND i.invoice_type = 'final' ORDER BY i.created_at DESC LIMIT 1) AS balance_amount,\n  (SELECT pay.created_at FROM payments pay JOIN invoices i ON i.id = pay.invoice_id WHERE i.opportunity_id = o.id AND i.invoice_type = 'final' AND pay.status = 'paid' ORDER BY pay.created_at DESC LIMIT 1) AS balance_paid_at\nFROM (SELECT $1::int AS cid) dummy\nLEFT JOIN contracts ct ON ct.id = dummy.cid\nLEFT JOIN opportunities o ON o.id = ct.opportunity_id\nLEFT JOIN contacts c ON c.id = o.contact_id\nLEFT JOIN companies co ON co.id = c.account_id\nLEFT JOIN users u ON u.id = o.assigned_user;",
         "options": {
           "queryReplacement": "={{ [ $('Validate Session (Send)').item.json.contractId ] }}"
         }
@@ -482,7 +482,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const row = $input.item.json;\nconst requester = $('Validate Session (Send)').first().json;\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (!row.contract_id) throw new Error('Contract not found.');\nif (requester.role !== 'admin' && row.assigned_user !== requester.id) throw new Error('You do not have access to this deal.');\nif (!row.email) throw new Error(\"This deal's contact has no email address on file.\");\n\nfunction safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\nconst base = safeEnv('FRONTEND_BASE_URL');\nconst link = `${base}/documents/contract/${row.public_token}`;\n\nfunction money(n) {\n  return n != null && n !== '' ? '$' + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';\n}\nfunction dateStr(d) {\n  return d ? new Date(d).toLocaleDateString() : '';\n}\n\nfunction fill(template) {\n  return (template || '')\n    .replace(/{{\\s*user\\.company_name\\s*}}/gi, row.our_company_name || '')\n    .replace(/{{\\s*contract_link\\s*}}/gi, link)\n    .replace(/{{\\s*contact\\.first_name\\s*}}/gi, row.first_name || 'there')\n    .replace(/{{\\s*contact\\.last_name\\s*}}/gi, row.last_name || '')\n    .replace(/{{\\s*contact\\.email\\s*}}/gi, row.email || '')\n    .replace(/{{\\s*contact\\.phone\\s*}}/gi, row.phone || '')\n    .replace(/{{\\s*contact\\.address\\s*}}/gi, [row.city, row.state].filter(Boolean).join(', '))\n    .replace(/{{\\s*company\\.name\\s*}}/gi, row.client_company_name || '')\n    .replace(/{{\\s*user\\.full_name\\s*}}/gi, row.owner_name || 'your account team')\n    .replace(/{{\\s*user\\.email\\s*}}/gi, row.owner_email || '')\n    .replace(/{{\\s*user\\.phone\\s*}}/gi, row.owner_phone || '')\n    .replace(/{{\\s*opportunity\\.name\\s*}}/gi, row.deal_name || '')\n    .replace(/{{\\s*opportunity\\.value\\s*}}/gi, money(row.deal_value))\n    .replace(/{{\\s*opportunity\\.created_at\\s*}}/gi, dateStr(row.deal_created_at))\n    .replace(/{{\\s*opportunity\\.due_at\\s*}}/gi, dateStr(row.deal_due_at))\n    .replace(/{{\\s*payment\\.down_payment_amount\\s*}}/gi, money(row.down_payment_amount))\n    .replace(/{{\\s*payment\\.down_payment_paid_at\\s*}}/gi, dateStr(row.down_payment_paid_at))\n    .replace(/{{\\s*payment\\.balance_amount\\s*}}/gi, money(row.balance_amount))\n    .replace(/{{\\s*payment\\.balance_paid_at\\s*}}/gi, dateStr(row.balance_paid_at));\n}\n\nconst unsubUrl = base + '/unsubscribe/' + (row.unsubscribe_token || '');\nconst bodyWithFooter = fill(row.email_body) + \"\\n\\nDon't want these emails? Unsubscribe: \" + unsubUrl;\n\nreturn [{ json: { contractId: row.contract_id, contactId: row.contact_id, to: row.email, subject: fill(row.email_subject), body: bodyWithFooter } }];"
+        "jsCode": "// Title Case for merged names/places (keeps LLC, HVAC, USA... upper-case).\nfunction __tcName(s) { return (s == null ? '' : String(s)).toLowerCase().split(' ').map((w) => (w ? (/^(llc|llp|pllc|lp|usa|us|uk|hvac)$/.test(w) ? w.toUpperCase() : w[0].toUpperCase() + w.slice(1)) : w)).join(' '); }\nconst row = $input.item.json;\nconst requester = $('Validate Session (Send)').first().json;\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (!row.contract_id) throw new Error('Contract not found.');\nif (requester.role !== 'admin' && row.assigned_user !== requester.id) throw new Error('You do not have access to this deal.');\nif (!row.email) throw new Error(\"This deal's contact has no email address on file.\");\n\nfunction safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\nconst base = safeEnv('FRONTEND_BASE_URL');\nconst link = `${base}/documents/contract/${row.public_token}`;\n\nfunction money(n) {\n  return n != null && n !== '' ? '$' + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';\n}\nfunction dateStr(d) {\n  return d ? new Date(d).toLocaleDateString() : '';\n}\n\nfunction fill(template) {\n  return (template || '')\n    .replace(/{{\\s*user\\.company_name\\s*}}/gi, row.our_company_name || '')\n    .replace(/{{\\s*contract_link\\s*}}/gi, link)\n    .replace(/{{\\s*contact\\.first_name\\s*}}/gi, row.first_name || 'there')\n    .replace(/{{\\s*contact\\.last_name\\s*}}/gi, row.last_name || '')\n    .replace(/{{\\s*contact\\.email\\s*}}/gi, row.email || '')\n    .replace(/{{\\s*contact\\.phone\\s*}}/gi, row.phone || '')\n    .replace(/{{\\s*contact\\.address\\s*}}/gi, [row.city, row.state].filter(Boolean).join(', '))\n    .replace(/{{\\s*company\\.name\\s*}}/gi, __tcName(row.client_company_name))\n    .replace(/{{\\s*user\\.full_name\\s*}}/gi, row.owner_name || 'your account team')\n    .replace(/{{\\s*user\\.email\\s*}}/gi, row.owner_email || '')\n    .replace(/{{\\s*user\\.phone\\s*}}/gi, row.owner_phone || '')\n    .replace(/{{\\s*opportunity\\.name\\s*}}/gi, row.deal_name || '')\n    .replace(/{{\\s*opportunity\\.value\\s*}}/gi, money(row.deal_value))\n    .replace(/{{\\s*opportunity\\.created_at\\s*}}/gi, dateStr(row.deal_created_at))\n    .replace(/{{\\s*opportunity\\.due_at\\s*}}/gi, dateStr(row.deal_due_at))\n    .replace(/{{\\s*payment\\.down_payment_amount\\s*}}/gi, money(row.down_payment_amount))\n    .replace(/{{\\s*payment\\.down_payment_paid_at\\s*}}/gi, dateStr(row.down_payment_paid_at))\n    .replace(/{{\\s*payment\\.balance_amount\\s*}}/gi, money(row.balance_amount))\n    .replace(/{{\\s*payment\\.balance_paid_at\\s*}}/gi, dateStr(row.balance_paid_at));\n}\n\nconst unsubUrl = base + '/unsubscribe/' + (row.unsubscribe_token || '');\nconst bodyWithFooter = fill(row.email_body) + \"\\n\\nDon't want these emails? Unsubscribe: \" + unsubUrl;\n\nreturn [{ json: { contractId: row.contract_id, contactId: row.contact_id, to: row.email, subject: fill(row.email_subject), body: bodyWithFooter } }];"
       },
       "id": "cont0032-3232-4a5a-9b1a-contract000032",
       "name": "Validate & Personalize (Send)",
@@ -495,32 +495,32 @@
       "onError": "continueErrorOutput"
     },
     {
-      "parameters": {
-        "sendTo": "={{ $('Validate & Personalize (Send)').item.json.to }}",
-        "subject": "={{ ($('Validate & Personalize (Send)').item.json.subject).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Contract Email (Manual)').item.json.company_name) }}",
-        "emailType": "text",
-        "message": "={{ (($('Validate & Personalize (Send)').item.json.body).replace(/The Team/g, $('Get Company Name: Contract Email (Manual)').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Contract Email (Manual)').item.json.company_name) }}",
-        "options": {
-          "senderName": "={{ $('Get Company Name: Contract Email (Manual)').item.json.company_name }}",
-          "appendAttribution": false
-        }
-      },
       "id": "cont0033-3333-4a5a-9b1a-contract000033",
       "name": "Send Contract Email (Manual)",
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
       "position": [
         2752,
         6464
       ],
-      "webhookId": "97736797-9659-4deb-acb3-e8d5811a5403",
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "YE9RFYruaRVVZ6H4",
-          "name": "CRMapp"
-        }
+      "onError": "continueErrorOutput",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "parameters": {
+        "fromEmail": "={{ ($('Get Company Name: Contract Email (Manual)').item.json.company_name) ? ('\"' + String($('Get Company Name: Contract Email (Manual)').item.json.company_name).replace(/\"/g, '') + '\" <gilbeydulnuan@gmail.com>') : 'gilbeydulnuan@gmail.com' }}",
+        "toEmail": "={{ $('Validate & Personalize (Send)').item.json.to }}",
+        "subject": "={{ ($('Validate & Personalize (Send)').item.json.subject).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Contract Email (Manual)').item.json.company_name) }}",
+        "emailFormat": "both",
+        "text": "={{ (($('Validate & Personalize (Send)').item.json.body).replace(/The Team/g, $('Get Company Name: Contract Email (Manual)').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Contract Email (Manual)').item.json.company_name) }}",
+        "options": {
+          "appendAttribution": false
+        },
+        "html": "={{ (() => { const t = String((($('Validate & Personalize (Send)').item.json.body).replace(/The Team/g, $('Get Company Name: Contract Email (Manual)').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Contract Email (Manual)').item.json.company_name)); const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); const h = esc(t).replace(/\\n/g, '<br>').replace(/(https?:\\/\\/[^\\s<]+)/g, '<a href=\"$1\">$1</a>'); return ($json.__brandHeader || '') + h + ($json.__brandFooter || ''); })() }}"
       },
-      "onError": "continueErrorOutput"
+      "credentials": {
+        "smtp": {
+          "id": "A3AoUIlP8cbZ5VlF",
+          "name": "Gmail SMTP (gilbeydulnuan)"
+        }
+      }
     },
     {
       "parameters": {
@@ -826,7 +826,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT ct.id, ct.title, ct.content_html, ct.total_amount, ct.public_token,\n  ct.signature_name, ct.signature_email, ct.signature_date, ct.signature_data, ct.signed_at, ct.field_values,\n  ct.cosign_signature_data, ct.cosigned_by, ct.cosigned_at, u2.name AS cosigned_by_name,\n  o.name AS opportunity_name, o.assigned_user, c.first_name, c.last_name, c.email AS contact_email,\n  u.name AS owner_name, u.email AS owner_email, u.phone AS owner_phone, cp.company_name,\n  CASE WHEN $2 = 'admin' THEN ct.signature_ip ELSE NULL END AS signature_ip\nFROM contracts ct\nJOIN opportunities o ON o.id = ct.opportunity_id\nLEFT JOIN contacts c ON c.id = o.contact_id\nLEFT JOIN users u ON u.id = o.assigned_user\nLEFT JOIN users u2 ON u2.id = ct.cosigned_by\nLEFT JOIN company_profile cp ON cp.id = 1\nWHERE ct.id = $1 AND ct.is_archived = false AND ($2 = 'admin' OR o.assigned_user = $3);",
+        "query": "SELECT ct.id, ct.title, resolve_product_tokens(ct.content_html, false) AS content_html, ct.total_amount, ct.public_token,\n  ct.signature_name, ct.signature_email, ct.signature_date, ct.signature_data, ct.signed_at, ct.field_values,\n  ct.cosign_signature_data, ct.cosigned_by, ct.cosigned_at, u2.name AS cosigned_by_name,\n  o.name AS opportunity_name, o.assigned_user, c.first_name, c.last_name, c.email AS contact_email,\n  u.name AS owner_name, u.email AS owner_email, u.phone AS owner_phone, cp.company_name,\n  CASE WHEN $2 = 'admin' THEN ct.signature_ip ELSE NULL END AS signature_ip\nFROM contracts ct\nJOIN opportunities o ON o.id = ct.opportunity_id\nLEFT JOIN contacts c ON c.id = o.contact_id\nLEFT JOIN users u ON u.id = o.assigned_user\nLEFT JOIN users u2 ON u2.id = ct.cosigned_by\nLEFT JOIN company_profile cp ON cp.id = 1\nWHERE ct.id = $1 AND ct.is_archived = false AND ($2 = 'admin' OR o.assigned_user = $3);",
         "options": {
           "queryReplacement": "={{ [ $json.contractId, $json.requesterRole, $json.requesterId ] }}"
         }
@@ -943,7 +943,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT ct.id AS contract_id, ct.public_token, ct.proposal_id, p.public_token AS proposal_token, o.assigned_user, c.id AS contact_id, c.unsubscribe_token\nFROM contracts ct\nJOIN opportunities o ON o.id = ct.opportunity_id\nLEFT JOIN proposals p ON p.id = ct.proposal_id\nLEFT JOIN contacts c ON c.id = o.contact_id\nWHERE ct.id = $1 AND ct.status = 'signed';",
+        "query": "SELECT ct.id AS contract_id, ct.title AS contract_title, ct.public_token, ct.proposal_id, p.public_token AS proposal_token, o.assigned_user, c.id AS contact_id, c.unsubscribe_token\nFROM contracts ct\nJOIN opportunities o ON o.id = ct.opportunity_id\nLEFT JOIN proposals p ON p.id = ct.proposal_id\nLEFT JOIN contacts c ON c.id = o.contact_id\nWHERE ct.id = $1 AND ct.status = 'signed';",
         "options": {
           "queryReplacement": "={{ [ $('Validate Session (Send Signed)').item.json.contractId ] }}"
         }
@@ -966,7 +966,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const row = $input.item.json;\nconst requester = $('Validate Session (Send Signed)').first().json;\nconst payload = $('Validate Session (Send Signed)').first().json;\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (!row.contract_id) throw new Error('Signed contract not found.');\nif (requester.role !== 'admin' && row.assigned_user !== requester.id) throw new Error('You do not have access to this deal.');\n\nfunction safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\nconst unsubUrl = safeEnv('FRONTEND_BASE_URL') + '/unsubscribe/' + (row.unsubscribe_token || '');\nconst bodyWithFooter = payload.message + \"\\n\\nDon't want these emails? Unsubscribe: \" + unsubUrl;\n\nreturn [{ json: { to: payload.to, subject: payload.subject, body: bodyWithFooter, publicToken: row.public_token, proposalToken: row.proposal_token || null, contactId: row.contact_id } }];"
+        "jsCode": "const row = $input.item.json;\nconst requester = $('Validate Session (Send Signed)').first().json;\nconst payload = $('Validate Session (Send Signed)').first().json;\n\nif (!requester.id || !requester.active) throw new Error('Invalid session.');\nif (!row.contract_id) throw new Error('Signed contract not found.');\nif (requester.role !== 'admin' && row.assigned_user !== requester.id) throw new Error('You do not have access to this deal.');\n\nfunction safeEnv(key) { try { return $env[key] || ''; } catch (e) { return ''; } }\nconst unsubUrl = safeEnv('FRONTEND_BASE_URL') + '/unsubscribe/' + (row.unsubscribe_token || '');\nconst bodyWithFooter = payload.message + \"\\n\\nDon't want these emails? Unsubscribe: \" + unsubUrl;\n\nreturn [{ json: { to: payload.to, subject: payload.subject, body: bodyWithFooter, publicToken: row.public_token, contractTitle: row.contract_title || '', proposalToken: row.proposal_token || null, contactId: row.contact_id } }];"
       },
       "id": "cont0074-7474-4a5a-9b1a-contract000074",
       "name": "Validate & Prepare (Send Signed)",
@@ -979,39 +979,33 @@
       "onError": "continueErrorOutput"
     },
     {
-      "parameters": {
-        "sendTo": "={{ $('Validate & Prepare (Send Signed)').item.json.to }}",
-        "subject": "={{ ($('Validate & Prepare (Send Signed)').item.json.subject).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Signed Contract Email').item.json.company_name) }}",
-        "emailType": "text",
-        "message": "={{ (($('Validate & Prepare (Send Signed)').item.json.body).replace(/The Team/g, $('Get Company Name: Signed Contract Email').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Signed Contract Email').item.json.company_name) }}",
-        "options": {
-          "senderName": "={{ $('Get Company Name: Signed Contract Email').item.json.company_name }}",
-          "attachmentsUi": {
-            "attachmentsBinary": [
-              {
-                "property": "={{ Object.keys($binary).join(',') }}"
-              }
-            ]
-          },
-          "appendAttribution": false
-        }
-      },
       "id": "cont0075-7575-4a5a-9b1a-contract000075",
       "name": "Send Signed Contract Email",
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
       "position": [
         2528,
         3992
       ],
-      "webhookId": "38d77f1d-5d58-4769-9602-04edd5eef50f",
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "YE9RFYruaRVVZ6H4",
-          "name": "CRMapp"
-        }
+      "onError": "continueErrorOutput",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "parameters": {
+        "fromEmail": "={{ ($('Get Company Name: Signed Contract Email').item.json.company_name) ? ('\"' + String($('Get Company Name: Signed Contract Email').item.json.company_name).replace(/\"/g, '') + '\" <gilbeydulnuan@gmail.com>') : 'gilbeydulnuan@gmail.com' }}",
+        "toEmail": "={{ $('Validate & Prepare (Send Signed)').item.json.to }}",
+        "subject": "={{ ($('Validate & Prepare (Send Signed)').item.json.subject).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Signed Contract Email').item.json.company_name) }}",
+        "emailFormat": "both",
+        "text": "={{ (($('Validate & Prepare (Send Signed)').item.json.body).replace(/The Team/g, $('Get Company Name: Signed Contract Email').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Signed Contract Email').item.json.company_name) }}",
+        "options": {
+          "appendAttribution": false,
+          "attachments": "={{ Object.keys($binary).join(',') }}"
+        },
+        "html": "={{ (() => { const t = String((($('Validate & Prepare (Send Signed)').item.json.body).replace(/The Team/g, $('Get Company Name: Signed Contract Email').item.json.company_name + ' Team')).replace(/\\{\\{\\s*company_name\\s*\\}\\}/gi, $('Get Company Name: Signed Contract Email').item.json.company_name)); const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); const h = esc(t).replace(/\\n/g, '<br>').replace(/(https?:\\/\\/[^\\s<]+)/g, '<a href=\"$1\">$1</a>'); return ($json.__brandHeader || '') + h + ($json.__brandFooter || ''); })() }}"
       },
-      "onError": "continueErrorOutput"
+      "credentials": {
+        "smtp": {
+          "id": "A3AoUIlP8cbZ5VlF",
+          "name": "Gmail SMTP (gilbeydulnuan)"
+        }
+      }
     },
     {
       "parameters": {
@@ -1342,7 +1336,7 @@
     },
     {
       "parameters": {
-        "url": "={{ 'http://localhost:5680/generate-pdf?token=' + $('Validate & Prepare (Send Signed)').item.json.publicToken + ($('Validate & Prepare (Send Signed)').item.json.proposalToken ? '&proposalToken=' + $('Validate & Prepare (Send Signed)').item.json.proposalToken : '') }}",
+        "url": "={{ 'http://localhost:5680/generate-pdf?token=' + $('Validate & Prepare (Send Signed)').item.json.publicToken + ($('Validate & Prepare (Send Signed)').item.json.proposalToken ? '&proposalToken=' + $('Validate & Prepare (Send Signed)').item.json.proposalToken : '') + '&filename=' + encodeURIComponent((($('Validate & Prepare (Send Signed)').item.json.contractTitle || 'Contract') + ' - signed.pdf')) }}",
         "options": {
           "response": {
             "response": {
@@ -1964,6 +1958,36 @@
           "name": "myRag"
         }
       },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Company branding + rep signature for outgoing HTML emails. Everything is off until an admin switches on\n// \"Add company branding and signatures to emails\" in Settings > Company Profile (company_profile.email_branding_enabled).\nfunction buildBrandParts(branding, signatureText, companyName) {\n  const b = branding || {};\n  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\n  const on = b.email_branding_enabled === true;\n  if (!on) return { on: false, header: '', footer: '', sig: '', sigText: '' };\n  const color = /^#[0-9a-fA-F]{6}$/.test(b.brand_color || '') ? b.brand_color : '#2563EB';\n  const logo = /^https?:\\/\\//i.test(b.logo_url || '')\n    ? '<img src=\"' + esc(b.logo_url) + '\" alt=\"' + esc(companyName) + '\" style=\"max-height:56px;max-width:200px;display:block;margin-bottom:6px\">' : '';\n  const name = companyName ? '<div style=\"font-size:18px;font-weight:bold;color:' + color + '\">' + esc(companyName) + '</div>' : '';\n  const header = (logo || name) ? '<div style=\"padding-bottom:12px;margin-bottom:16px;border-bottom:3px solid ' + color + '\">' + logo + name + '</div>' : '';\n  const lines = [b.address, b.phone, b.website, b.email].filter(Boolean).map(esc);\n  const note = b.email_footer_note ? '<div style=\"margin-top:6px\">' + esc(b.email_footer_note).replace(/\\n/g, '<br>') + '</div>' : '';\n  const footer = (lines.length || note)\n    ? '<div style=\"margin-top:24px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b\">' + (lines.length ? '<div>' + lines.join(' &middot; ') + '</div>' : '') + note + '</div>' : '';\n  const sigText = signatureText && String(signatureText).trim() ? String(signatureText).trim() : '';\n  const sig = sigText ? '<div style=\"margin-top:16px\">' + esc(sigText).replace(/\\n/g, '<br>') + '</div>' : '';\n  return { on: true, header, footer, sig, sigText };\n}\n\n// Apply Branding \u2014 works out this email's company header and footer and adds them to the item as __brandHeader and\n// __brandFooter; the Send node then wraps its own HTML with them. Strictly additive and fail-safe: if branding is\n// switched off or anything at all goes wrong, the item passes through untouched and the email goes out exactly as before.\nconst item = $input.item;\ntry {\n  const sd = $getWorkflowStaticData('global');\n  const now = Date.now();\n  let b = sd.__brandCache && now - sd.__brandCache.t < 60000 ? sd.__brandCache.data : null;\n  if (!b) {\n    let base = 'http://localhost:5678';\n    try { if ($env.N8N_INTERNAL_URL) base = $env.N8N_INTERNAL_URL; } catch (e) { /* env access blocked */ }\n    const r = await this.helpers.httpRequest({ url: base.replace(/\\/$/, '') + '/webhook/get-email-branding', method: 'GET', json: true, timeout: 5000 });\n    b = r && typeof r === 'object' ? r : {};\n    sd.__brandCache = { t: now, data: b };\n  }\n  if (b.email_branding_enabled === true) {\n    const parts = buildBrandParts(b, '', b.company_name || '');\n    return { json: { ...item.json, __brandHeader: parts.header, __brandFooter: parts.footer }, binary: item.binary };\n  }\n} catch (e) { /* branding is optional */ }\nreturn item;\n"
+      },
+      "id": "15293670-f620-485b-aa90-03dd7a0a1176",
+      "name": "Apply Branding: Send Contract Email (Manual)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2572,
+        6464
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Company branding + rep signature for outgoing HTML emails. Everything is off until an admin switches on\n// \"Add company branding and signatures to emails\" in Settings > Company Profile (company_profile.email_branding_enabled).\nfunction buildBrandParts(branding, signatureText, companyName) {\n  const b = branding || {};\n  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\n  const on = b.email_branding_enabled === true;\n  if (!on) return { on: false, header: '', footer: '', sig: '', sigText: '' };\n  const color = /^#[0-9a-fA-F]{6}$/.test(b.brand_color || '') ? b.brand_color : '#2563EB';\n  const logo = /^https?:\\/\\//i.test(b.logo_url || '')\n    ? '<img src=\"' + esc(b.logo_url) + '\" alt=\"' + esc(companyName) + '\" style=\"max-height:56px;max-width:200px;display:block;margin-bottom:6px\">' : '';\n  const name = companyName ? '<div style=\"font-size:18px;font-weight:bold;color:' + color + '\">' + esc(companyName) + '</div>' : '';\n  const header = (logo || name) ? '<div style=\"padding-bottom:12px;margin-bottom:16px;border-bottom:3px solid ' + color + '\">' + logo + name + '</div>' : '';\n  const lines = [b.address, b.phone, b.website, b.email].filter(Boolean).map(esc);\n  const note = b.email_footer_note ? '<div style=\"margin-top:6px\">' + esc(b.email_footer_note).replace(/\\n/g, '<br>') + '</div>' : '';\n  const footer = (lines.length || note)\n    ? '<div style=\"margin-top:24px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b\">' + (lines.length ? '<div>' + lines.join(' &middot; ') + '</div>' : '') + note + '</div>' : '';\n  const sigText = signatureText && String(signatureText).trim() ? String(signatureText).trim() : '';\n  const sig = sigText ? '<div style=\"margin-top:16px\">' + esc(sigText).replace(/\\n/g, '<br>') + '</div>' : '';\n  return { on: true, header, footer, sig, sigText };\n}\n\n// Apply Branding \u2014 works out this email's company header and footer and adds them to the item as __brandHeader and\n// __brandFooter; the Send node then wraps its own HTML with them. Strictly additive and fail-safe: if branding is\n// switched off or anything at all goes wrong, the item passes through untouched and the email goes out exactly as before.\nconst item = $input.item;\ntry {\n  const sd = $getWorkflowStaticData('global');\n  const now = Date.now();\n  let b = sd.__brandCache && now - sd.__brandCache.t < 60000 ? sd.__brandCache.data : null;\n  if (!b) {\n    let base = 'http://localhost:5678';\n    try { if ($env.N8N_INTERNAL_URL) base = $env.N8N_INTERNAL_URL; } catch (e) { /* env access blocked */ }\n    const r = await this.helpers.httpRequest({ url: base.replace(/\\/$/, '') + '/webhook/get-email-branding', method: 'GET', json: true, timeout: 5000 });\n    b = r && typeof r === 'object' ? r : {};\n    sd.__brandCache = { t: now, data: b };\n  }\n  if (b.email_branding_enabled === true) {\n    const parts = buildBrandParts(b, '', b.company_name || '');\n    return { json: { ...item.json, __brandHeader: parts.header, __brandFooter: parts.footer }, binary: item.binary };\n  }\n} catch (e) { /* branding is optional */ }\nreturn item;\n"
+      },
+      "id": "d90fe56f-8fa0-499c-b882-cc75c5ce1c3a",
+      "name": "Apply Branding: Send Signed Contract Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2348,
+        3992
+      ],
       "onError": "continueRegularOutput"
     }
   ],
@@ -2771,7 +2795,7 @@
       "main": [
         [
           {
-            "node": "Send Contract Email (Manual)",
+            "node": "Apply Branding: Send Contract Email (Manual)",
             "type": "main",
             "index": 0
           }
@@ -2876,7 +2900,7 @@
       "main": [
         [
           {
-            "node": "Send Signed Contract Email",
+            "node": "Apply Branding: Send Signed Contract Email",
             "type": "main",
             "index": 0
           }
@@ -3419,6 +3443,28 @@
           }
         ]
       ]
+    },
+    "Apply Branding: Send Contract Email (Manual)": {
+      "main": [
+        [
+          {
+            "node": "Send Contract Email (Manual)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply Branding: Send Signed Contract Email": {
+      "main": [
+        [
+          {
+            "node": "Send Signed Contract Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "pinData": {},
@@ -3429,6 +3475,7 @@
     "availableInMCP": false,
     "timeSavedMode": "fixed",
     "errorWorkflow": "U7jX0H3oE5a25GrV",
-    "callerPolicy": "workflowsFromSameOwner"
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "Asia/Almaty"
   }
 }

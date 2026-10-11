@@ -1,6 +1,8 @@
+import ContactBenefitsSection from './ContactBenefitsSection';
+import { useClientBenefits } from '../../hooks/useBenefits';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Contact, DNC_CHANNELS, EmailLog, LEAD_STATUS_OPTIONS } from '../../types/contact';
 import { ActivityLogEntry } from '../../types/activity';
 import {
@@ -16,7 +18,7 @@ import * as chatApi from '../../api/chat';
 import CompanyQuickView from '../companies/CompanyQuickView';
 import ConfirmDialog from '../ConfirmDialog';
 import { useAddNote, useDeleteNote, useNotes, useUpdateNote } from '../../hooks/useNotes';
-import { useEntityActivity } from '../../hooks/useActivity';
+import { useEntityActivity, useMarkTelegramRead } from '../../hooks/useActivity';
 import { useAuth } from '../../context/AuthContext';
 import { useAllOpportunities, useAllStages, usePipelines } from '../../hooks/useOpportunities';
 import { useTasks } from '../../hooks/useTasks';
@@ -25,7 +27,7 @@ import { useTickets } from '../../hooks/useTickets';
 import { useInvoices, usePayments } from '../../hooks/usePayments';
 import { useProposals } from '../../hooks/useProposals';
 import { useContracts } from '../../hooks/useContracts';
-import { syncContactStatus } from '../../api/contacts';
+import { fetchTelegramInvite, syncContactStatus } from '../../api/contacts';
 import TagsDropdown from './TagsDropdown';
 import LeadScoreBadge from './LeadScoreBadge';
 import EnrichContactButton from './EnrichContactButton';
@@ -33,6 +35,8 @@ import BookingReminderStatusPanel from './BookingReminderStatusPanel';
 import OwnerDropdown from './OwnerDropdown';
 import AddContactModal from './AddContactModal';
 import ComposeEmailPopover from './ComposeEmailPopover';
+import ComposeTelegramPopover from './ComposeTelegramPopover';
+import TelegramMessageModal from './TelegramMessageModal';
 import DealFormModal from '../pipeline/DealFormModal';
 import TaskFormModal from '../tasks/TaskFormModal';
 import EventFormModal from '../calendar/EventFormModal';
@@ -168,19 +172,33 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
 
   const [quickEditOpen, setQuickEditOpen] = useState(false);
   const [dndOpen, setDndOpen] = useState(false);
+  const [telegramCopied, setTelegramCopied] = useState(false);
+  const [telegramComposeOpen, setTelegramComposeOpen] = useState(false);
+  // Personal Telegram invite link. The app-wide 15s refetchInterval is off here —
+  // the link and linked-state only change when the contact acts, not on a timer.
+  const { data: telegramInvite } = useQuery({
+    queryKey: ['telegram-invite', contact?.id],
+    queryFn: () => fetchTelegramInvite(contact!.id),
+    enabled: !!contact,
+    refetchInterval: false,
+    staleTime: 30000,
+  });
   const [composeOpen, setComposeOpen] = useState(false);
   const [dealFormOpen, setDealFormOpen] = useState(false);
   const [taskFormOpen, setTaskFormOpen] = useState(false);
   const [eventFormOpen, setEventFormOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
+  const { data: clientBenefits } = useClientBenefits(contact?.id);
   const [relatedTab, setRelatedTab] = useState<
-    'opportunities' | 'tasks' | 'events' | 'tickets' | 'invoices' | 'payments' | 'documents'
+    'opportunities' | 'tasks' | 'events' | 'tickets' | 'invoices' | 'payments' | 'documents' | 'benefits'
   >('tasks');
   const [logCallOpen, setLogCallOpen] = useState(false);
   const [aiCallStatus, setAiCallStatus] = useState<'idle' | 'calling' | 'success' | 'error'>('idle');
   const [aiCallError, setAiCallError] = useState<string | null>(null);
   const [selectedLog, setSelectedLog] = useState<EmailLog | null>(null);
   const [selectedActivity, setSelectedActivity] = useState<ActivityLogEntry | null>(null);
+  const [selectedTelegram, setSelectedTelegram] = useState<ActivityLogEntry | null>(null);
+  const markTelegramRead = useMarkTelegramRead(contact?.id ?? null);
   const [quickViewCompanyId, setQuickViewCompanyId] = useState<number | null>(null);
   const [markReadError, setMarkReadError] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState('');
@@ -469,6 +487,7 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
   // View All, Edit Owned Only: standard users can open any contact but only
   // edit the ones they own. Admins can always edit.
   const isReadOnly = !isAdmin && contact.owner_id !== user?.id;
+  const benefitCount = (clientBenefits?.packages ?? []).filter((p) => p.usable).length + (clientBenefits?.memberships ?? []).filter((m) => m.usable).length;
 
   const fullName = toTitleCase(`${contact.first_name} ${contact.last_name}`.trim()) || 'No Name';
   const initials =
@@ -604,7 +623,7 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                           isReadOnly ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:text-slate-700 cursor-pointer'
                         }`}
                       >
-                        {(contact.dnc_email || contact.dnc_call || contact.dnc_sms) && (
+                        {(contact.dnc_email || contact.dnc_call || contact.dnc_sms || contact.dnc_telegram) && (
                           <i className="fa-solid fa-ban text-rose-500 text-[10px]" />
                         )}
                         DND
@@ -779,6 +798,39 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                   }
                 />
                 <ActionButton
+                  icon="fa-paper-plane"
+                  label={telegramCopied ? 'Link copied' : telegramInvite?.linked ? (contact.dnc_telegram ? 'Telegram (opted out)' : 'Telegram ✓') : 'Telegram'}
+                  onClick={
+                    // Linked and not opted out → write a message. Not linked yet → copy their
+                    // personal invite link so they can connect. Opted out (STOP) → nothing:
+                    // reps can't override an unsubscribe, the contact has to press Start again.
+                    telegramInvite?.success && telegramInvite.configured && telegramInvite.linked && !contact.dnc_telegram
+                      ? () => setTelegramComposeOpen(true)
+                      : telegramInvite?.success && telegramInvite.configured && telegramInvite.invite_url && !telegramInvite.linked && !contact.dnc_telegram
+                        ? () => {
+                            navigator.clipboard
+                              .writeText(telegramInvite.invite_url as string)
+                              .then(() => {
+                                setTelegramCopied(true);
+                                setTimeout(() => setTelegramCopied(false), 2000);
+                              })
+                              .catch(() => window.prompt('Copy this Telegram invite link:', telegramInvite.invite_url as string));
+                          }
+                        : undefined
+                  }
+                  title={
+                    contact.dnc_telegram
+                      ? 'This contact opted out of Telegram (STOP). They need to press Start on their invite link again.'
+                      : telegramInvite?.linked
+                        ? 'Send a Telegram message'
+                        : telegramInvite?.success === false
+                          ? telegramInvite.error || 'Could not load the Telegram invite link'
+                          : telegramInvite && !telegramInvite.configured
+                            ? 'Telegram is not set up yet — an admin adds the bot username in Settings > Integrations'
+                            : 'Copy this contact\'s personal Telegram invite link — send it to them, they press Start to connect'
+                  }
+                />
+                <ActionButton
                   icon="fa-note-sticky"
                   label="Notes"
                   onClick={() => notesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
@@ -890,6 +942,7 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                     ['invoices', 'Invoices', 'fa-file-invoice-dollar', contactInvoices.length],
                     ['payments', 'Payments', 'fa-credit-card', contactPayments.length],
                     ['documents', 'Documents', 'fa-file-lines', documentsList.length],
+                    ['benefits', 'Packages', 'fa-ticket', benefitCount],
                   ] as const
                 ).map(([key, label, icon, count]) => (
                   <button
@@ -907,6 +960,8 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                   </button>
                 ))}
               </div>
+
+              {relatedTab === 'benefits' && <ContactBenefitsSection contactId={contact.id} canSell={!isReadOnly} isAdmin={isAdmin} />}
 
               {relatedTab === 'opportunities' &&
                 (contactDeals.length === 0 ? (
@@ -1216,7 +1271,21 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
                 }
                 setSelectedLog(log);
               }}
-              onActivityClick={(entry) => setSelectedActivity(entry)}
+              onActivityClick={(entry) => {
+                // Telegram messages open their own popup; opening a received one marks it read
+                // (the card turns green), like opening a received email.
+                if (entry.category === 'telegram') {
+                  if (entry.subtype === 'inbound' && entry.detail?.is_read !== true) {
+                    setMarkReadError(null);
+                    markTelegramRead.mutate(entry.id, {
+                      onError: (err) => setMarkReadError(err instanceof Error ? err.message : 'Failed to mark as read.'),
+                    });
+                  }
+                  setSelectedTelegram(entry);
+                  return;
+                }
+                setSelectedActivity(entry);
+              }}
               onClose={onClose}
             />
           </div>
@@ -1387,6 +1456,7 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
         onClose={() => setQuickEditOpen(false)}
       />
       <ComposeEmailPopover contact={contact} open={composeOpen} onClose={() => setComposeOpen(false)} />
+      <ComposeTelegramPopover contact={contact} open={telegramComposeOpen} onClose={() => setTelegramComposeOpen(false)} />
       {defaultPipelineId && (
         <DealFormModal
           open={dealFormOpen}
@@ -1419,6 +1489,7 @@ export default function ContactDetailModal({ contact, onClose }: Props) {
       />
       <EmailLogModal log={selectedLog} onClose={() => setSelectedLog(null)} />
       <ActivityLogModal entry={selectedActivity} onClose={() => setSelectedActivity(null)} />
+      <TelegramMessageModal entry={selectedTelegram} onClose={() => setSelectedTelegram(null)} />
       <ConfirmDialog
         open={deleteNoteTargetId !== null}
         title="Delete this note?"

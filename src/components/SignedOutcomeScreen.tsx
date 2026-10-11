@@ -1,5 +1,5 @@
 import ThankYouScreen from './ThankYouScreen';
-import { fillPageFields } from '../utils/mergeFields';
+import { fillPageFields, MergeFieldValues } from '../utils/mergeFields';
 
 interface Props {
   thankYouPageContentHtml: string | null;
@@ -8,6 +8,7 @@ interface Props {
   ownerName: string | null;
   signatureName: string | null;
   signedAt: string | null;
+  mergeValues?: MergeFieldValues;
 }
 
 // Renders the contract's linked Thank You page (Documents > Pages, chosen
@@ -23,6 +24,7 @@ export default function SignedOutcomeScreen({
   ownerName,
   signatureName,
   signedAt,
+  mergeValues,
 }: Props) {
   if (!thankYouPageContentHtml) {
     return <ThankYouScreen signatureName={signatureName} signedAt={signedAt} />;
@@ -35,6 +37,7 @@ export default function SignedOutcomeScreen({
     owner_name: ownerName,
     signature_name: signatureName,
     signed_at: signedAt,
+    merge: mergeValues,
   });
 
   return <div className="rte-content" dangerouslySetInnerHTML={{ __html: resolvedHtml }} />;

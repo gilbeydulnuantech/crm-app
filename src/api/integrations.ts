@@ -1,6 +1,6 @@
 import { apiFetch } from './client';
 
-export type IntegrationProvider = 'vapi' | 'retell' | 'apify';
+export type IntegrationProvider = 'vapi' | 'retell' | 'apify' | 'telegram';
 
 export interface Integration {
   id: number;

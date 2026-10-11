@@ -6,6 +6,7 @@ import { Proposal } from '../../api/proposals';
 import ScopeOfWorkEditor from '../ScopeOfWorkEditor';
 import ConfirmDialog from '../ConfirmDialog';
 import DynamicFieldDropdown, { AUTOMATION_DYNAMIC_FIELDS, insertAtCursor } from '../DynamicFieldDropdown';
+import { templatePlainBody } from '../../utils/emailHtml';
 
 interface Props {
   opportunityId: number;
@@ -90,7 +91,7 @@ export default function ProposalsSection({ opportunityId, canEdit, onCreateNew }
   function applyEmailTemplate(templateId: string) {
     const tmpl = emailTemplates.find((t) => String(t.id) === templateId);
     if (!tmpl) return;
-    setForm((f) => ({ ...f, email_subject: tmpl.subject, email_body: tmpl.body }));
+    setForm((f) => ({ ...f, email_subject: tmpl.subject, email_body: templatePlainBody(tmpl) }));
   }
 
   function openEdit(p: Proposal) {

@@ -8,6 +8,7 @@ import ContractPreviewOverlay from '../components/contracts/ContractPreviewOverl
 import DynamicFieldDropdown, { AUTOMATION_DYNAMIC_FIELDS, insertAtCursor } from '../components/DynamicFieldDropdown';
 import { RichTextEditorHandle } from '../components/RichTextEditor';
 import { buildDraftPdf } from '../utils/contractPdf';
+import { templatePlainBody } from '../utils/emailHtml';
 
 const inputClass =
   'w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]';
@@ -81,7 +82,7 @@ export default function ContractEditorPage() {
   function applyEmailTemplate(templateId: string) {
     const tmpl = emailTemplates.find((t) => String(t.id) === templateId);
     if (!tmpl) return;
-    setForm((f) => ({ ...f, email_subject: tmpl.subject, email_body: tmpl.body }));
+    setForm((f) => ({ ...f, email_subject: tmpl.subject, email_body: templatePlainBody(tmpl) }));
   }
 
   function insertIntoComposeField(token: string) {
